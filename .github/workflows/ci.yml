@@ -17,6 +17,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The local secrets, as a contributor's first step (CONTRIBUTING.md): the push buttons' signing key
+      - run: cp .dev.vars.example .dev.vars
       - run: pnpm check
       # Every migration applies to a fresh local database
       - run: pnpm wrangler d1 migrations apply DB --local

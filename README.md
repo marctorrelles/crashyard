@@ -59,6 +59,7 @@ user only as the app's id hashed, and scrubs what looks like a password, token o
 
 ```sh
 pnpm install
+cp .dev.vars.example .dev.vars
 pnpm dev      # the dashboard at http://localhost:3000, with local D1 and R2
 pnpm seed     # a month of made-up crashes, logs and transactions in it
 pnpm check    # lint, format, types, unused code, tests and the build: what CI runs
