@@ -1,4 +1,5 @@
-// Small pieces the pages share: a sparkline, "3h ago", an issue's level and status.
+// Small pieces the pages share: a sparkline, "3h ago", a date in the browser's time, an issue's level.
+import { useHydrated } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 
 /** Bars for a count per day, oldest first */
@@ -46,6 +47,19 @@ export function ago(at: number, now: number) {
   const d = Math.max(0, now - at)
   for (const [ms, unit] of UNITS) if (d >= ms) return `${Math.floor(d / ms)}${unit} ago`
   return 'just now'
+}
+
+/** A date as the browser's locale and time zone write it; the server, which knows neither, writes UTC */
+export function LocalTime({ at }: { at: number }) {
+  const hydrated = useHydrated()
+  const date = new Date(at)
+  return (
+    <time dateTime={date.toISOString()}>
+      {hydrated
+        ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        : `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`}
+    </time>
+  )
 }
 
 export function Ago({ at, now, className }: { at: number; now: number; className?: string }) {

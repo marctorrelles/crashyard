@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useRouter } from '@tanstack/react-rout
 import { ChevronLeftIcon, ChevronRightIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Ago, count, Level, Sparkline } from '@/components/bits'
+import { Ago, count, Level, LocalTime, Sparkline } from '@/components/bits'
 import { EventView } from '@/components/event-view'
 import { IssueActions } from '@/components/issue-actions'
 import { Shell } from '@/components/shell'
@@ -149,12 +149,18 @@ function StatusBadge({ issue, now }: { issue: Data['issue']; now: number }) {
       </Badge>
     )
   if (issue.status === 'ignored') {
-    const until = issue.ignore_until_count
-      ? ` until ${count(issue.ignore_until_count)} events`
-      : issue.ignore_until
-        ? ` until ${new Date(issue.ignore_until).toLocaleString()}`
-        : ''
-    return <Badge variant="outline">Ignored{until}</Badge>
+    return (
+      <Badge variant="outline">
+        Ignored
+        {issue.ignore_until_count ? ` until ${count(issue.ignore_until_count)} events` : null}
+        {!issue.ignore_until_count && issue.ignore_until ? (
+          <>
+            {' until '}
+            <LocalTime at={issue.ignore_until} />
+          </>
+        ) : null}
+      </Badge>
+    )
   }
   if (issue.substatus === 'regressed') return <Badge variant="destructive">Regressed</Badge>
   if (issue.substatus === 'new' && issue.first_seen > now - NEW_FOR) return <Badge variant="secondary">New</Badge>
@@ -269,17 +275,21 @@ function Events({ d, current }: { d: Data; current?: string }) {
   )
 }
 
-const KIND_TEXT: Record<string, (data: Record<string, unknown>) => string> = {
+const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNode> = {
   created: (x) => `First seen${x.release ? ` in ${x.release}` : ''}`,
   regressed: (x) => `Came back${x.release ? ` in ${x.release}` : ''}`,
   ignore_expired: () => 'Ignore ended',
   resolved: (x) => (x.inRelease ? 'Resolved in the next release' : 'Resolved'),
   ignored: (x) =>
-    x.forEvents
-      ? `Ignored for ${x.forEvents} more events`
-      : x.until
-        ? `Ignored until ${new Date(x.until as number).toLocaleString()}`
-        : 'Ignored',
+    x.forEvents ? (
+      `Ignored for ${x.forEvents} more events`
+    ) : x.until ? (
+      <>
+        Ignored until <LocalTime at={x.until as number} />
+      </>
+    ) : (
+      'Ignored'
+    ),
   reopened: () => 'Reopened',
   merged: (x) => `Merged in ${(x.issues as { title: string }[]).map((i) => `“${i.title}”`).join(', ')}`,
   review_crash: () => 'Crashed in App Review or TestFlight',
