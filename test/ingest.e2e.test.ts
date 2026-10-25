@@ -1,37 +1,23 @@
 // The real thing: the official @sentry/node SDK sending to `vite dev` (the worker, local D1 and R2), and notifications
 // reaching a stub ntfy server. Kept under 30 seconds.
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
-import { rmSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import * as Sentry from '@sentry/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { getPlatformProxy } from 'wrangler'
 import { mergeIssues } from '../src/data/issues'
+import { KEY, startDev, waitFor } from './dev'
 
-const STATE = '.wrangler/e2e'
 const PORT = 3999
 const NTFY_PORT = 3998
-const KEY = 'e2e0public0key0000000000000000ab'
 const origin = `http://localhost:${PORT}`
 const dsn = `http://${KEY}@localhost:${PORT}/1`
 
-let dev: ChildProcess
+let dev: Awaited<ReturnType<typeof startDev>>
 let ntfy: Server
-let proxy: Awaited<ReturnType<typeof getPlatformProxy<Env>>>
 const pushes: { title: string; body: string; actions?: string }[] = []
 
-const db = () => proxy.env.DB
+const db = () => dev.db
 const issues = async () =>
   (await db().prepare('SELECT * FROM issues ORDER BY id').all<Record<string, unknown>>()).results
-const waitFor = async <T>(probe: () => Promise<T | undefined> | T | undefined, ms = 5000): Promise<T> => {
-  const until = Date.now() + ms
-  for (;;) {
-    const value = await probe()
-    if (value) return value
-    if (Date.now() > until) throw new Error('timed out')
-    await new Promise((r) => setTimeout(r, 100))
-  }
-}
 
 function envelope(event: Record<string, unknown>) {
   return `${JSON.stringify({ event_id: event.event_id, dsn })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(event)}\n`
@@ -59,24 +45,6 @@ const crash = (release: string) => ({
 })
 
 beforeAll(async () => {
-  rmSync(STATE, { recursive: true, force: true })
-  execFileSync('pnpm', ['wrangler', 'd1', 'migrations', 'apply', 'DB', '--local', '--persist-to', STATE], {
-    stdio: 'ignore',
-  })
-  proxy = await getPlatformProxy<Env>({ persist: { path: `${STATE}/v3` } })
-  await db().batch([
-    db()
-      .prepare(
-        "INSERT INTO projects (id, slug, name, platform, public_key, created_at) VALUES (1, 'e2e', 'e2e', 'node', ?, 0)",
-      )
-      .bind(KEY),
-    db()
-      .prepare("INSERT INTO channels (id, kind, name, config, created_at) VALUES (1, 'ntfy', 'stub', ?, 0)")
-      .bind(JSON.stringify({ server: `http://localhost:${NTFY_PORT}`, topic: 'e2e' })),
-    db().prepare(
-      `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression"]', '[10]', '[1]', 0)`,
-    ),
-  ])
   ntfy = createServer((req, res) => {
     let body = ''
     req.on('data', (c) => (body += c))
@@ -85,19 +53,22 @@ beforeAll(async () => {
       res.end('{}')
     })
   }).listen(NTFY_PORT)
-  dev = spawn('pnpm', ['vite', 'dev', '--port', String(PORT), '--strictPort'], {
-    env: { ...process.env, CRASHYARD_STATE: STATE },
-    stdio: 'ignore',
-  })
-  await waitFor(async () => (await fetch(origin).catch(() => null))?.ok, 20_000)
+  dev = await startDev(PORT, '.wrangler/e2e')
+  await db().batch([
+    db()
+      .prepare("INSERT INTO channels (id, kind, name, config, created_at) VALUES (1, 'ntfy', 'stub', ?, 0)")
+      .bind(JSON.stringify({ server: `http://localhost:${NTFY_PORT}`, topic: 'e2e' })),
+    db().prepare(
+      `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression"]', '[10]', '[1]', 0)`,
+    ),
+  ])
   Sentry.init({ dsn, release: 'e2e@1.0.0', environment: 'production', defaultIntegrations: false })
-}, 40_000)
+}, 60_000)
 
 afterAll(async () => {
   await Sentry.close()
-  dev?.kill()
   ntfy?.close()
-  await proxy?.dispose()
+  await dev?.stop()
 })
 
 describe('ingest, through the real SDK', () => {

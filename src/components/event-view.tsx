@@ -10,6 +10,21 @@ export function EventView({ event }: { event: NormalizedEvent }) {
   const exceptions = [...event.exceptions].reverse()
   return (
     <div className="grid gap-6">
+      {event.missingDebugFiles?.length ? (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <p className="font-medium">Some frames are addresses: their debug files weren’t uploaded.</p>
+          <ul className="mt-1 grid gap-0.5 text-xs">
+            {event.missingDebugFiles.map((m) => (
+              <li key={m.debugId} className="font-mono break-all">
+                {m.type === 'proguard' ? 'ProGuard mapping' : (m.codeFile?.split('/').at(-1) ?? m.type)} · {m.debugId}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Upload them (the project’s settings say how), and this event is read again.
+          </p>
+        </div>
+      ) : null}
       {exceptions.length > 0 ? (
         exceptions.map((e, i) => <Exception key={i} exception={e} />)
       ) : (

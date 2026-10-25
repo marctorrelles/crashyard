@@ -8,6 +8,7 @@ import * as logs from './data/logs'
 import * as notifications from './data/notifications'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
+import * as tokens from './data/tokens'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
 const origin = () => new URL(getRequest().url).origin
@@ -66,7 +67,9 @@ export const getProjectSettings = createServerFn()
   .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
   .handler(async ({ data }) => {
     const project = await projects.projectBySlug(env.DB, data.slug)
-    return project ? { project, dsn: projects.dsnOf(origin(), project), origin: origin() } : null
+    if (!project) return null
+    const [list, uploads] = await Promise.all([tokens.listTokens(env.DB), tokens.uploadsOf(env.DB, project.id)])
+    return { project, dsn: projects.dsnOf(origin(), project), origin: origin(), tokens: list, uploads, now: Date.now() }
   })
 
 export const updateProject = createServerFn({ method: 'POST' })
@@ -248,3 +251,11 @@ export const getLogs = createServerFn()
     )
     return { ...result, now }
   })
+
+export const createToken = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ name: text(object(d).name, 80).trim() || 'sentry-cli' }))
+  .handler(({ data }) => tokens.createToken(env.DB, data.name, viewer(), Date.now()))
+
+export const revokeToken = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => tokens.revokeToken(env.DB, data.id).then(() => undefined))

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Code, Linking } from '@/components/linking'
 import { PLATFORM_NAMES } from '@/components/new-project'
 import { ProjectNav } from '@/components/project-nav'
+import { Uploads } from '@/components/uploads'
 import { PageHeader, Shell } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,7 +33,7 @@ function Card({ title, children, description }: { title: string; description?: s
 }
 
 function Settings() {
-  const { project, dsn, origin } = Route.useLoaderData()
+  const { project, dsn, origin, tokens, uploads, now } = Route.useLoaderData()
   const router = useRouter()
   const navigate = useNavigate()
   const [platform, setPlatform] = useState(project.platform)
@@ -48,6 +49,20 @@ function Settings() {
             <Code text={dsn} />
           </div>
           <Linking platform={platform} dsn={dsn} origin={origin} id={project.id} publicKey={project.public_key} />
+        </Card>
+
+        <Card
+          title="Readable stacks"
+          description="Upload debug files and source maps, and crashes show functions, files and lines."
+        >
+          <Uploads
+            slug={project.slug}
+            platform={platform}
+            origin={origin}
+            tokens={tokens}
+            uploads={uploads}
+            now={now}
+          />
         </Card>
 
         <Card title="Project">

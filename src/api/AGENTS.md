@@ -10,6 +10,10 @@ signature; `/mcp` comes after the Access check.
   `event`, `attachment`, `feedback`, `user_report`, `log`; other item types are accepted and dropped. The raw envelope goes
   to R2 (`envelopes/<project>/<day>/<event>`). Notices are dispatched after the response (`ctx.waitUntil`). A crash
   tagged `distribution: app_review` or `testflight` also sends `review_crash`, once per issue.
+- `sentry.ts`: `/api/0/`, what sentry-cli and the build plugins call, with an auth token: chunk-upload (options,
+  then gzipped chunks), `files/difs/assemble` (debug files, ProGuard), `artifactbundle/assemble` (source maps), and
+  releases (kept with their commit). Assembling happens in the request, so the answer is `ok` at once. The
+  organisation in the path is ignored.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
   web page can't call it with someone's Access cookie. See docs/mcp.md.

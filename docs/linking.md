@@ -60,6 +60,30 @@ import * as Sentry from '@sentry/node'
 Sentry.init({ dsn: '<your DSN>', environment: process.env.NODE_ENV ?? 'production' })
 ```
 
+## Readable stacks
+
+Release builds ship without names: crashes arrive as addresses (Apple, NDK), obfuscated names (Android with R8) or
+minified code (web). Upload what maps them back and crashyard shows functions, files and lines, as Sentry does,
+with Sentry's own tools: sentry-cli, the Xcode build phase, the Gradle plugin, `@sentry/vite-plugin`. Point them here:
+
+```sh
+export SENTRY_URL=https://crashyard.example.com/
+export SENTRY_ORG=crashyard            # any name: a deployment is one organisation
+export SENTRY_PROJECT=<project slug>
+export SENTRY_AUTH_TOKEN=<a token>     # made in the project's settings, under Readable stacks
+```
+
+- Apple: `sentry-cli debug-files upload --include-sources path/to/dSYMs` after archiving.
+- Android: the Sentry Gradle plugin uploads the ProGuard mapping and NDK symbols on release builds (point it here
+  in `sentry.properties`: `defaults.url`, `defaults.org`, `defaults.project`).
+- Web: `@sentry/vite-plugin` with `build.sourcemap: true`, or `sentry-cli sourcemaps inject dist` then
+  `sentry-cli sourcemaps upload dist`.
+
+Crashes that came in before their files did are read again when the files arrive (the last 30 days).
+
+Uploads need Workers Paid: turning a debug file into a lookup table takes more CPU than the free plan's 10 ms a
+request.
+
 ## Logs
 
 The SDKs send logs with `Sentry.logger.info('song opened', { song: 42 })` (and `warn`, `error`…); they show under

@@ -8,6 +8,8 @@ import { fingerprintOf } from '../ingest/grouping'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
 import { actionUrl } from '../notify/actions'
+import { sharedSymbolic } from '../symbols/module'
+import { symbolicate } from '../symbols/symbolicate'
 import type { Notice } from '../notify/notice'
 
 export type IngestEnv = {
@@ -132,6 +134,8 @@ export async function handleIngest(
       } else if (type === 'event') {
         const event = await normalizeEvent(payloadJson(item), now, envelopeId)
         firstEventId ??= event.id
+        // Readable stacks before grouping, so the same crash groups by its functions across builds
+        await symbolicate(env, sharedSymbolic, project.id, event)
         const envelopeKey = endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
         const stored = await storeEvent(env.DB, project, event, await fingerprintOf(event), envelopeKey)
         if (envelopeKey && stored?.stored) ctx.waitUntil(env.FILES.put(envelopeKey, body))

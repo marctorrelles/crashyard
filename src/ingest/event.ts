@@ -15,6 +15,7 @@ export type Frame = {
   instructionAddr?: string
   imageAddr?: string
   context?: { pre: string[]; line?: string; post: string[] }
+  symbolicated?: boolean // mapped back to the source with an uploaded file: a second pass leaves it be
 }
 export type ExceptionValue = {
   type: string
@@ -59,6 +60,8 @@ export type NormalizedEvent = {
   url?: string
   sdk?: { name?: string; version?: string }
   debugImages: DebugImage[]
+  /** Debug files the event needed and crashyard didn't have, so its frames stay addresses (set by symbolication) */
+  missingDebugFiles?: { debugId: string; codeFile?: string; type: string }[]
 }
 
 type Json = Record<string, unknown>

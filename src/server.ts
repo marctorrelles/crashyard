@@ -17,6 +17,26 @@ export default {
     if (ingest) return handleIngest(request, env, ctx, Number(ingest[1]), ingest[2] as 'envelope' | 'store')
     const action = url.pathname.match(ACTION)
     if (action) return handleAction(request, env, Number(action[1]), action[2] as 'resolve' | 'ignore')
+    // Local dev only (compiled out of every build): SQL for the end-to-end tests, so only this process opens the
+    // local database (a second one on the same file trips over its locks)
+    if (import.meta.env.DEV && url.pathname === '/__dev/sql' && request.method === 'POST') {
+      const statements = (await request.json()) as { sql: string; params: unknown[] }[]
+      const results = await env.DB.batch(statements.map((s) => env.DB.prepare(s.sql).bind(...s.params)))
+      return Response.json(results)
+    }
+    if (url.pathname.startsWith('/api/0/')) {
+      const [{ handleSentryApi }, { freshSymbolic, sharedSymbolic }, { reprocess }] = await Promise.all([
+        import('./api/sentry'),
+        import('./symbols/module'),
+        import('./symbols/reprocess'),
+      ])
+      return handleSentryApi(request, {
+        env,
+        ctx,
+        symbolic: freshSymbolic,
+        reprocess: (projectId, debugIds) => reprocess(env, sharedSymbolic, projectId, debugIds),
+      })
+    }
     if (url.pathname.startsWith('/api/')) return Response.json({ detail: 'Not found' }, { status: 404 })
 
     // Everything else is the dashboard, behind Access
