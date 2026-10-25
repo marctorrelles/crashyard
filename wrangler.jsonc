@@ -1,5 +1,6 @@
 // The crashyard worker: the dashboard (TanStack Start), the ingest and Sentry APIs, and the cron (see AGENTS.md).
-// Deploying your own: change `routes` to your domain and the Access values in `vars` (docs/deploying.md).
+// Deploying your own: the Deploy to Cloudflare button, or `pnpm run deploy` (docs/deploying.md). Your domain and Access
+// values go in a git-ignored wrangler.local.json, which the build lays over this file (vite.config.ts).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crashyard",
@@ -8,8 +9,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "upload_source_maps": true,
-  "routes": [{ "pattern": "crashyard.marctorrelles.com", "custom_domain": true }],
-  "workers_dev": false,
+  // On <name>.<account>.workers.dev until wrangler.local.json gives it a domain of your own
+  "workers_dev": true,
   "preview_urls": false,
   // Every minute: uptime checks and missed check-ins; the daily jobs run in the 03:00 UTC minute
   "triggers": { "crons": ["* * * * *"] },
@@ -21,11 +22,11 @@
   "vars": {
     // Cloudflare Access in front of the dashboard: your team's domain and the application's audience tag.
     // Empty means every dashboard request is refused (fail closed), except on a local dev server.
-    "ACCESS_TEAM_DOMAIN": "marctorrelles.cloudflareaccess.com",
+    "ACCESS_TEAM_DOMAIN": "",
     // The address email notifications come from, on a domain with Email Routing on; empty: no email
     "EMAIL_FROM": "",
-    "ACCESS_AUD": "23cf871024e213b2d0c15c0796e1dc3a7f324c404b6d71af99bd9c650d5892ca",
+    "ACCESS_AUD": "",
     // Where the dashboard is, for links in notifications that the cron sends (monitors)
-    "PUBLIC_URL": "https://crashyard.marctorrelles.com",
+    "PUBLIC_URL": "",
   },
 }

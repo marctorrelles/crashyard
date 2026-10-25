@@ -40,8 +40,9 @@ Where things are:
 - `test/`: tests that run the worker, with the real Sentry SDK (see its AGENTS.md).
 - `docs/`: decisions, deploying, linking an app (see its AGENTS.md).
 - `scripts/`: `pnpm seed` for a local database with data in it (see its AGENTS.md).
-- `wrangler.jsonc`: the worker, its domain, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and the Access
-  config. Secrets: `ACTION_SECRET` (`wrangler secret put`; `.dev.vars` locally).
+- `wrangler.jsonc`: the worker, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and empty `vars`, generic so
+  anyone can deploy it; a deployment's own domain and Access values are in the git-ignored `wrangler.local.json`,
+  which `vite.config.ts` lays over it. Secrets: `ACTION_SECRET` (`wrangler secret put`; `.dev.vars` locally).
 - `tmp/`: plans and scratch notes, git-ignored. Never commit plans.
 
 ## Rules

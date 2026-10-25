@@ -11,13 +11,20 @@ plans.
 
 ## 1. Point it at your domain
 
-In `wrangler.jsonc`, set `routes` to your subdomain:
+Your deployment's own values go in `wrangler.local.json` at the repo root, which git ignores and the build lays over
+`wrangler.jsonc` (its `vars` merged in, anything else replacing `wrangler.jsonc`'s). Make it with your subdomain:
 
-```jsonc
-"routes": [{ "pattern": "crashyard.example.com", "custom_domain": true }],
+```json
+{
+  "routes": [{ "pattern": "crashyard.example.com", "custom_domain": true }],
+  "workers_dev": false,
+  "vars": { "PUBLIC_URL": "https://crashyard.example.com" }
+}
 ```
 
-Cloudflare creates the DNS record and the certificate when you deploy.
+Cloudflare creates the DNS record and the certificate when you deploy. `PUBLIC_URL` is where the dashboard is, for the
+links in notifications that the cron sends (monitors). Without the file, crashyard deploys to
+`crashyard.<your account>.workers.dev`.
 
 ## 2. Deploy
 
@@ -62,17 +69,15 @@ Access does the signing in; crashyard has no accounts of its own. Go to [one.das
      always your team's display name: the surest way is to open your crashyard subdomain in a private window and look
      at the address Cloudflare's sign-in page is on.
 
-   Put both in `wrangler.jsonc` and deploy again:
+   Add both to the `vars` in `wrangler.local.json` and deploy again:
 
-   ```jsonc
+   ```json
    "vars": {
      "ACCESS_TEAM_DOMAIN": "yourteam.cloudflareaccess.com",
      "ACCESS_AUD": "<the AUD tag>",
-     "PUBLIC_URL": "https://crashyard.example.com",
-   },
+     "PUBLIC_URL": "https://crashyard.example.com"
+   }
    ```
-
-   `PUBLIC_URL` is where the dashboard is, for the links in notifications that the cron sends (monitors).
 
    ```sh
    pnpm run deploy
@@ -107,7 +112,7 @@ crashyard sends email through Cloudflare Email Routing, to addresses you've veri
 
 1. In the Cloudflare dashboard, your domain → Email → Email Routing → enable it (it adds the DNS records).
 2. Destination addresses → add the address that gets notifications, and click the link Cloudflare emails it.
-3. In `wrangler.jsonc`, set `EMAIL_FROM` to an address on your domain, such as `crashyard@example.com` (it needn't
+3. In `wrangler.local.json`'s `vars`, set `EMAIL_FROM` to an address on your domain, such as `crashyard@example.com` (it needn't
    exist), and deploy again.
 
 Then add an email channel in the dashboard's notification settings. ntfy and webhook channels need nothing here.
