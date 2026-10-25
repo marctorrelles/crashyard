@@ -14,7 +14,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   frame as is, the others one byte back: return addresses), inlined calls as frames of their own; Android frames and
   obfuscated exception classes through ProGuard; JavaScript through SourceMapCaches, with context lines. Mapped
   frames are marked `symbolicated` so a second pass leaves them be. Debug files an event lacked go in
-  `missingDebugFiles`, shown on the event. What it reads is cached in the isolate for ten minutes (48 MB budget);
+  `missingDebugFiles`, shown on the event; the OS's own libraries (`/usr/lib/`, `/System/`, Android's `/system/`,
+  `/apex/`…) never do, as no one can upload theirs. Checked against a real sentry-cocoa 9.31 crash on macOS. What it reads is cached in the isolate for ten minutes (48 MB budget);
   an upload forgets the negative lookups of its project.
 - `reprocess.ts`: after an upload, the project's events of the last 30 days that named its debug ids are mapped
   again, and their issues regrouped (the new fingerprint, or a merge into the issue that already has it).

@@ -113,7 +113,7 @@ export async function symbolicate(
             )
           : null
         if (!symcacheBytes) {
-          if (!frame.function || frame.function === '<redacted>')
+          if ((!frame.function || frame.function === '<redacted>') && !isSystemImage(image.codeFile))
             missing.set(debugId, { debugId, codeFile: image.codeFile, type: image.type })
           mapped.push(frame)
           continue
@@ -220,6 +220,10 @@ export async function symbolicate(
 }
 
 const bundlesSeen = new Map<number, { has: boolean; at: number }>()
+
+/** The OS's own libraries (Apple's, Android's): no one has their debug files to upload, so they're never missing */
+const isSystemImage = (codeFile?: string) =>
+  !!codeFile && /^(\/usr\/lib\/|\/System\/|\/Developer\/|\/system\/|\/apex\/|\/vendor\/|dyld$)/.test(codeFile)
 
 /** After an upload: what this isolate remembered missing for the project is looked up again (others, within minutes) */
 export function forgetMissing(projectId: number) {
