@@ -3,13 +3,20 @@
 From a Cloudflare account to a running crashyard, in about fifteen minutes. Everything here works on Cloudflare's free
 plans.
 
+## With the button
+
+The README's **Deploy to Cloudflare** button copies this repository to your GitHub, makes the D1 database and the R2
+bucket in your account, and deploys to `crashyard.<your account>.workers.dev`, redeploying whenever your copy changes.
+Then follow steps 3 to 6 below, putting the values they mention in your copy's `wrangler.jsonc` (its `routes` and
+`vars`) rather than in `wrangler.local.json`: commit them, and it deploys again.
+
 ## What you need
 
 - A Cloudflare account with a domain on it (crashyard gets a subdomain, such as `crashyard.example.com`).
 - Node (the version in `.nvmrc`) and pnpm (`corepack enable`).
 - This repository, cloned.
 
-## 1. Point it at your domain
+## 1. Point it at your domain (from a clone)
 
 Your deployment's own values go in `wrangler.local.json` at the repo root, which git ignores and the build lays over
 `wrangler.jsonc` (its `vars` merged in, anything else replacing `wrangler.jsonc`'s). Make it with your subdomain:
