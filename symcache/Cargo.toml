@@ -1,0 +1,23 @@
+[package]
+name = "crashyard-symcache"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "Sentry's symbolic, built to WebAssembly for crashyard's worker: debug files to SymCaches, and lookups"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+symbolic = { version = "12", default-features = false, features = ["debuginfo", "symcache", "sourcemapcache"] }
+symbolic-demangle = { version = "12", default-features = false, features = ["cpp", "rust", "msvc", "swift"] }
+serde_json = "1"
+proguard = "5"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
