@@ -8,6 +8,6 @@ transaction (its hour, its histogram bucket, the day's quota), plus an example w
 - `ingest.ts`: `summarize` (a `transaction` item: name, release, status, duration, spans as offsets with their depth,
   200 at most), `fromSpans` (a `span` item, Sentry's streamed span v2 format that the JavaScript SDKs send since v11:
   each segment span with its children in the same item becomes a transaction), `storeTransaction`, `sessionCounts`
-  (a `session` update or `sessions` aggregates as counts per release and day) and `storeSessions`.
+  (a `session` update or `sessions` aggregates as counts per release and day; the browser SDK's `unhandled` is a crash) and `storeSessions`.
 - The pages' queries are in `src/data/performance.ts`. Checked against @sentry/node 11.9.0 (span v2) and the
   transaction shape sentry-cocoa and sentry-android send (`ingest.test.ts`).

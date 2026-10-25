@@ -36,6 +36,9 @@ describe('summarize', () => {
     expect(sessionCounts('session', { init: true, status: 'crashed', attrs: { release: 'r' } }, 0)).toMatchObject([
       { release: 'r', started: 1, crashed: 1 },
     ])
+    expect(sessionCounts('session', { init: false, status: 'unhandled', errors: 1 }, 0)).toMatchObject([
+      { started: 0, crashed: 1 },
+    ])
     expect(sessionCounts('sessions', { aggregates: [{ exited: 2, errored: 1 }] }, 0)).toMatchObject([
       { started: 3, errored: 1 },
     ])

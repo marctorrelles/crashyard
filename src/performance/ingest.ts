@@ -152,7 +152,8 @@ export function sessionCounts(type: 'session' | 'sessions', raw: Json, received:
   const key = { release: str(attrs.release) ?? '', environment: str(attrs.environment) ?? 'production' }
   const out: (typeof key & { day: string } & SessionCounts)[] = []
   if (type === 'session') {
-    const status = str(raw.status)
+    // The browser SDK (11.9) says `unhandled` where the others say `crashed`
+    const status = str(raw.status) === 'unhandled' ? 'crashed' : str(raw.status)
     const ended = status === 'exited' || status === 'crashed' || status === 'abnormal'
     out.push({
       ...key,
