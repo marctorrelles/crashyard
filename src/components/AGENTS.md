@@ -5,8 +5,13 @@
   adding one, fix its `cn` import to `@/lib/utils` if the CLI wrote `"cn"`. The theme's colours are in `src/styles.css`.
 - Our own components sit beside `ui/`, built from those. Every one works on a phone (touch targets of 40 px or more,
   nothing wider than the screen) and in light and dark.
-- `shell.tsx`: the sidebar (shadcn `Sidebar`: the sections, each project with its pages under the open one), the bar
-  with its toggle, the page width (`Shell`, `wide` for lists), `PageHeader`, `Empty`.
+- `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
+  pages whatever's picked, Overview, Issues, Releases, Performance, Logs, Monitors, Notifications, and at the foot who's
+  signed in with Sign out, Access's `/cdn-cgi/access/logout`), `Shell` (a page's width, `wide` for lists),
+  `PageHeader`, `Empty`, `useProjects`. The lists (overview, issues, releases, performance, logs) take the filter as
+  `?project=`; the project shown comes from that, `/projects/$slug` or an issue's own; pages of no project keep the one
+  last picked (cookie `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The
+  filter's menu also has the picked project's settings.
 - `bits.tsx`: `Sparkline` (SVG bars, no chart library), `Ago` (relative to a `now` from the loader), `Level`, `count`,
   `percent`.
 - `performance.tsx`: `ms` (a duration), `Period`, `P95Chart` (p95 and count per hour, SVG) and `Waterfall` (spans as

@@ -3,13 +3,13 @@ import { SearchIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Ago, count, Level, Sparkline } from '@/components/bits'
 import { IssueActions } from '@/components/issue-actions'
-import { Empty, PageHeader, Shell } from '@/components/shell'
+import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getIssues, getProjects } from '@/fns'
+import { getIssues } from '@/fns'
 import { NEW_FOR, tokenize, withToken } from '@/search/query'
 
 const SORTS = { lastSeen: 'Last seen', firstSeen: 'First seen', events: 'Events', users: 'Users' } as const
@@ -24,15 +24,10 @@ export const Route = createFileRoute('/issues/')({
     page: Number(s.page) > 0 ? Number(s.page) : undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: async ({ deps }) => {
-    const [list, projects] = await Promise.all([
-      getIssues({
-        data: { project: deps.project, query: deps.query ?? DEFAULT_QUERY, sort: deps.sort, page: deps.page ?? 0 },
-      }),
-      getProjects(),
-    ])
-    return { ...list, projects }
-  },
+  loader: ({ deps }) =>
+    getIssues({
+      data: { project: deps.project, query: deps.query ?? DEFAULT_QUERY, sort: deps.sort, page: deps.page ?? 0 },
+    }),
   head: () => ({ meta: [{ title: 'Issues · crashyard' }] }),
   component: Issues,
 })
@@ -46,7 +41,8 @@ const STATUSES = [
 
 function Issues() {
   const search = Route.useSearch()
-  const { issues, more, now, projects } = Route.useLoaderData()
+  const { issues, more, now } = Route.useLoaderData()
+  const projects = useProjects()
   const navigate = useNavigate({ from: Route.fullPath })
   const query = search.query ?? DEFAULT_QUERY
   const status = tokenize(query).find((t) => t.key === 'is' && !t.negate)?.value
@@ -60,26 +56,7 @@ function Issues() {
   const oneProject = new Set(chosen.map((i) => i.project_id)).size === 1
   return (
     <Shell wide>
-      <PageHeader
-        title="Issues"
-        actions={
-          <Select value={search.project ?? '*'} onValueChange={(v) => go({ project: v === '*' ? undefined : v })}>
-            <SelectTrigger className="w-44" aria-label="Project">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="*">Every project</SelectItem>
-              {projects.map((p) => (
-                <SelectItem key={p.slug} value={p.slug}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      >
-        {project?.name}
-      </PageHeader>
+      <PageHeader title="Issues">{project?.name}</PageHeader>
       <form
         key={query}
         className="mb-3"

@@ -1,7 +1,7 @@
 // The dashboard's server functions: what pages load and change, behind Access (src/server.ts). Each checks its input
 // here and calls src/data/, which holds the SQL.
 import { createServerFn } from '@tanstack/react-start'
-import { getRequest, getRequestHeader } from '@tanstack/react-start/server'
+import { getCookie, getRequest, getRequestHeader } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 import * as issues from './data/issues'
 import * as logs from './data/logs'
@@ -58,7 +58,14 @@ export const getOverview = createServerFn().handler(async () => ({
   update: await updates.update(),
 }))
 
-export const getProjects = createServerFn().handler(() => projects.allProjects(env.DB))
+// The sidebar: every project, the one picked last (a cookie it sets, only ever matched against the list), whether
+// it was folded (shadcn's own cookie) and who's signed in
+export const getSidebar = createServerFn().handler(async () => ({
+  projects: await projects.allProjects(env.DB),
+  lastProject: getCookie('crashyard_project') ?? null,
+  viewer: viewer(),
+  sidebarOpen: getCookie('sidebar_state') !== 'false',
+}))
 
 export const createProject = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
@@ -167,20 +174,35 @@ export const deleteNote = createServerFn({ method: 'POST' })
   })
   .handler(({ data }) => issues.deleteNote(env.DB, data.id, data.note, viewer()).then(() => undefined))
 
+// The project asked for, or every project when there's none (a page's `?project=`); null when it doesn't exist
+const projectsFor = async (slug?: string) => {
+  if (!slug) return projects.allProjects(env.DB)
+  const project = await projects.projectBySlug(env.DB, slug)
+  return project ? [project] : null
+}
+
+// ponytail: every project's releases are a query or two per project; one query over all if there are dozens
 export const getReleases = createServerFn()
-  .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
+  .validator((d: unknown) => {
+    const slug = object(d).slug
+    return { slug: slug === undefined ? undefined : text(slug, 60) }
+  })
   .handler(async ({ data }) => {
-    const project = await projects.projectBySlug(env.DB, data.slug)
-    if (!project) return null
-    const [list, sessions] = await Promise.all([
-      releases.listReleases(env.DB, project.id),
-      performance.sessionsByRelease(env.DB, project.id),
-    ])
-    return {
-      project,
-      releases: list.map((r) => ({ ...r, crashFree: performance.crashFree(sessions.get(r.release)) })),
-      now: Date.now(),
-    }
+    const list = await projectsFor(data.slug)
+    if (!list) return null
+    const sections = await Promise.all(
+      list.map(async (project) => {
+        const [rows, sessions] = await Promise.all([
+          releases.listReleases(env.DB, project.id),
+          performance.sessionsByRelease(env.DB, project.id),
+        ])
+        return {
+          project,
+          releases: rows.map((r) => ({ ...r, crashFree: performance.crashFree(sessions.get(r.release)) })),
+        }
+      }),
+    )
+    return { sections, now: Date.now() }
   })
 
 export const getRelease = createServerFn()
@@ -201,12 +223,21 @@ const DAYS = [1, 7, 30] as const
 export const getPerformance = createServerFn()
   .validator((d: unknown) => {
     const o = object(d)
-    return { slug: text(o.slug, 60), days: oneOf(DAYS.map(String))(String(o.days ?? 7)) }
+    return {
+      slug: o.slug === undefined ? undefined : text(o.slug, 60),
+      days: oneOf(DAYS.map(String))(String(o.days ?? 7)),
+    }
   })
   .handler(async ({ data }) => {
-    const project = await projects.projectBySlug(env.DB, data.slug)
-    if (!project) return null
-    return { project, ...(await performance.transactions(env.DB, project.id, Number(data.days), Date.now())) }
+    const list = await projectsFor(data.slug)
+    if (!list) return null
+    const now = Date.now()
+    return Promise.all(
+      list.map(async (project) => ({
+        project,
+        ...(await performance.transactions(env.DB, project.id, Number(data.days), now)),
+      })),
+    )
   })
 
 export const getTransaction = createServerFn()

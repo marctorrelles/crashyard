@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from '@tanstack/react-router'
 import { ChevronRightIcon, PauseIcon, PlayIcon, SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Empty, PageHeader, Shell } from '@/components/shell'
+import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getLogs, getProjects } from '@/fns'
+import { getLogs } from '@/fns'
 import { cn } from '@/lib/utils'
 import { withToken } from '@/search/query'
 
@@ -19,13 +19,8 @@ export const Route = createFileRoute('/logs')({
     range: typeof s.range === 'string' && s.range in RANGES ? (s.range as Search['range']) : undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: async ({ deps }) => {
-    const [logs, projects] = await Promise.all([
-      getLogs({ data: { project: deps.project, query: deps.query ?? '', range: deps.range ?? '24h' } }),
-      getProjects(),
-    ])
-    return { ...logs, projects }
-  },
+  loader: ({ deps }) =>
+    getLogs({ data: { project: deps.project, query: deps.query ?? '', range: deps.range ?? '24h' } }),
   head: () => ({ meta: [{ title: 'Logs · crashyard' }] }),
   component: Logs,
 })
@@ -55,24 +50,7 @@ function Logs() {
   )
   return (
     <Shell wide>
-      <PageHeader
-        title="Logs"
-        actions={
-          <Select value={search.project ?? '*'} onValueChange={(v) => go({ project: v === '*' ? undefined : v })}>
-            <SelectTrigger className="w-44" aria-label="Project">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="*">Every project</SelectItem>
-              {data.projects.map((p) => (
-                <SelectItem key={p.slug} value={p.slug}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
+      <PageHeader title="Logs">{useProjects().find((p) => p.slug === search.project)?.name}</PageHeader>
       <div className="mb-3 flex flex-wrap gap-2">
         <form
           key={query}

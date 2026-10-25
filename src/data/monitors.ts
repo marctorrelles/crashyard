@@ -153,9 +153,16 @@ export const failingMonitors = async (db: D1Database) =>
   (
     await db
       .prepare(
-        `SELECT m.id, m.name, p.name AS project, (SELECT opened_at FROM incidents i WHERE i.monitor_id = m.id AND i.closed_at IS NULL) AS since,
+        `SELECT m.id, m.name, p.name AS project, p.slug AS project_slug, (SELECT opened_at FROM incidents i WHERE i.monitor_id = m.id AND i.closed_at IS NULL) AS since,
            (SELECT reason FROM incidents i WHERE i.monitor_id = m.id AND i.closed_at IS NULL) AS reason
          FROM monitors m JOIN projects p ON p.id = m.project_id WHERE m.status = 'failing'`,
       )
-      .all<{ id: number; name: string; project: string; since: number | null; reason: string | null }>()
+      .all<{
+        id: number
+        name: string
+        project: string
+        project_slug: string
+        since: number | null
+        reason: string | null
+      }>()
   ).results

@@ -43,9 +43,8 @@ function Transaction() {
         {d.project.name}
       </PageHeader>
       <Link
-        to="/projects/$slug/performance"
-        params={{ slug: d.project.slug }}
-        search={{ days: search.days }}
+        to="/performance"
+        search={{ project: d.project.slug, days: search.days }}
         className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeftIcon className="size-4" />

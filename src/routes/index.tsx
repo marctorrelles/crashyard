@@ -5,15 +5,25 @@ import { Empty, PageHeader, Shell } from '@/components/shell'
 import { getOverview } from '@/fns'
 
 export const Route = createFileRoute('/')({
+  // The sidebar's project filter: every project's cards, failing monitors and new issues, or one's
+  validateSearch: (s: Record<string, unknown>): { project?: string } => ({
+    project: typeof s.project === 'string' && s.project ? s.project : undefined,
+  }),
   loader: async () => ({ ...(await getOverview()), now: Date.now() }),
   component: Home,
 })
 
 function Home() {
-  const { projects, newIssues, failing, update, now } = Route.useLoaderData()
+  const data = Route.useLoaderData()
+  const { project } = Route.useSearch()
+  const { update, now } = data
+  const only = <T,>(list: T[], slug: (t: T) => string) => (project ? list.filter((t) => slug(t) === project) : list)
+  const projects = only(data.projects, (p) => p.slug)
+  const newIssues = only(data.newIssues, (i) => i.project)
+  const failing = only(data.failing, (m) => m.project_slug)
   return (
     <Shell>
-      <PageHeader title="Projects" actions={projects.length > 0 && <NewProject variant="outline" />} />
+      <PageHeader title="Overview" actions={projects.length > 0 && <NewProject variant="outline" />} />
       {update && (
         <p className="mb-4 rounded-xl border bg-muted/40 px-4 py-2.5 text-sm">
           crashyard {update.version} is out (this is {update.current}):{' '}

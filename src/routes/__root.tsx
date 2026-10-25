@@ -1,7 +1,8 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
+import { Layout } from '@/components/shell'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { getProjects } from '@/fns'
+import { getSidebar } from '@/fns'
 import favicon from '../favicon.svg?url'
 import appCss from '../styles.css?url'
 
@@ -9,8 +10,8 @@ import appCss from '../styles.css?url'
 const THEME_SCRIPT = `(function(){var m=window.matchMedia('(prefers-color-scheme: dark)');function s(){document.documentElement.classList.toggle('dark',m.matches);document.documentElement.style.colorScheme=m.matches?'dark':'light'}s();m.addEventListener('change',s)})()`
 
 export const Route = createRootRoute({
-  // The sidebar's projects
-  loader: () => getProjects(),
+  // The sidebar: the projects, the one picked last, folded or not
+  loader: () => getSidebar(),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -23,6 +24,11 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
+  component: () => (
+    <Layout>
+      <Outlet />
+    </Layout>
+  ),
   errorComponent: ({ error }) => (
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="text-xl font-semibold">Something broke</h1>

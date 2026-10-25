@@ -1,21 +1,39 @@
-// The frame every page sits in: the sidebar (the sections, then each project, the open one with its pages), the bar
-// above the page with the sidebar's toggle, and the page's width.
-import { getRouteApi, Link, useRouterState } from '@tanstack/react-router'
-import { ActivityIcon, BellIcon, BugIcon, LayoutGridIcon, ScrollTextIcon } from 'lucide-react'
-import { useId } from 'react'
+// The frame every page sits in. The sidebar, in the root layout so it stays put between pages: the project filter on
+// top, the same pages under it whichever project is picked, and who's signed in with Sign out at the foot. `Shell` is a page's
+// width; `PageHeader` and `Empty` are what pages are made of.
+import { getRouteApi, Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import {
+  ActivityIcon,
+  BellIcon,
+  BugIcon,
+  CheckIcon,
+  ChevronsUpDownIcon,
+  GaugeIcon,
+  LayoutGridIcon,
+  LogOutIcon,
+  ScrollTextIcon,
+  SettingsIcon,
+  TagIcon,
+} from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -25,9 +43,16 @@ import { cn } from '@/lib/utils'
 
 const root = getRouteApi('__root__')
 
-export function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+/** Every project, from the root's loader */
+export const useProjects = () => root.useLoaderData().projects
+
+/** The project the sidebar is on, and the cookie that keeps it for pages that aren't any project's */
+const PROJECT_COOKIE = 'crashyard_project'
+
+export function Layout({ children }: { children: React.ReactNode }) {
+  const { sidebarOpen } = root.useLoaderData()
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={sidebarOpen}>
       <AppSidebar />
       <SidebarInset className="min-w-0">
         <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b bg-background/85 px-[max(0.75rem,env(safe-area-inset-left))] pt-[env(safe-area-inset-top)] backdrop-blur">
@@ -37,115 +62,259 @@ export function Shell({ children, wide }: { children: React.ReactNode; wide?: bo
             crashyard
           </Link>
         </header>
-        <main
-          className={cn(
-            'mx-auto w-full flex-1 px-[max(1rem,env(safe-area-inset-left))] pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]',
-            wide ? 'max-w-7xl' : 'max-w-5xl',
-          )}
-        >
-          {children}
-        </main>
+        {children}
       </SidebarInset>
     </SidebarProvider>
   )
 }
 
-const SECTIONS = [
-  { to: '/', label: 'Projects', icon: LayoutGridIcon },
-  { to: '/issues', label: 'Issues', icon: BugIcon },
-  { to: '/logs', label: 'Logs', icon: ScrollTextIcon },
-  { to: '/monitors', label: 'Monitors', icon: ActivityIcon },
-  { to: '/notifications', label: 'Notifications', icon: BellIcon },
-] as const
+export function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+  return (
+    <main
+      className={cn(
+        'mx-auto w-full flex-1 px-[max(1rem,env(safe-area-inset-left))] pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]',
+        wide ? 'max-w-7xl' : 'max-w-5xl',
+      )}
+    >
+      {children}
+    </main>
+  )
+}
 
-function AppSidebar() {
-  const projects = root.useLoaderData()
-  const { setOpenMobile } = useSidebar()
-  const { pathname, project } = useRouterState({
-    select: (s) => ({
-      pathname: s.location.pathname,
-      project:
-        s.location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ??
-        (s.location.pathname === '/issues' ? (s.location.search as { project?: string }).project : undefined),
+type Page = { path: string; search: Record<string, unknown>; issueProject?: string }
+
+// The pages that list across projects and narrow to one with ?project=
+const LISTS = ['/', '/issues', '/releases', '/performance', '/logs'] as const
+type List = (typeof LISTS)[number]
+const isList = (path: string): path is List => (LISTS as readonly string[]).includes(path)
+
+/** The project a page is of: a slug, null for every project's, undefined for a page that's no project's */
+function projectOf({ path, search, issueProject }: Page) {
+  const slug = path.match(/^\/projects\/([^/]+)/)?.[1]
+  if (slug) return decodeURIComponent(slug)
+  if (isList(path)) return typeof search.project === 'string' ? search.project : null
+  return issueProject
+}
+
+function useCurrentProject() {
+  const { projects, lastProject } = root.useLoaderData()
+  const page = useRouterState({
+    select: (s): Page => ({
+      path: s.location.pathname,
+      search: s.location.search,
+      issueProject: (
+        s.matches.find((m) => m.routeId === '/issues/$issueId')?.loaderData as
+          { issue?: { project: string } } | undefined
+      )?.issue?.project,
     }),
   })
+  const shown = projectOf(page)
+  // Pages of no project's (monitors, notifications) keep the one picked last
+  const [kept, setKept] = useState(lastProject)
+  if (shown !== undefined && shown !== kept) setKept(shown)
+  useEffect(() => {
+    document.cookie = kept
+      ? `${PROJECT_COOKIE}=${encodeURIComponent(kept)}; path=/; max-age=31536000; samesite=lax`
+      : `${PROJECT_COOKIE}=; path=/; max-age=0`
+  }, [kept])
+  return { page, projects, project: projects.find((p) => p.slug === kept), keep: setKept }
+}
+
+function AppSidebar() {
+  const { viewer } = root.useLoaderData()
+  const { page, projects, project, keep } = useCurrentProject()
+  const { setOpenMobile } = useSidebar()
   const close = () => setOpenMobile(false)
+  const search = { project: project?.slug }
+  const at = (...paths: string[]) => paths.some((p) => page.path === p || page.path.startsWith(`${p}/`))
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild size="lg" tooltip="crashyard">
-              <Link to="/" onClick={close} className="font-semibold tracking-tight">
-                <span className="-ml-2 flex size-8 shrink-0 items-center justify-center group-data-[collapsible=icon]:ml-0">
-                  <Logo />
-                </span>
-                <span>crashyard</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <ProjectSwitcher projects={projects} current={project} page={page} keep={keep} onPick={close} />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {SECTIONS.map(({ to, label, icon: Icon }) => (
-              <SidebarMenuItem key={to}>
-                <SidebarMenuButton
-                  asChild
-                  tooltip={label}
-                  isActive={to === '/' ? pathname === '/' : pathname.startsWith(to) && !project}
-                >
-                  <Link to={to} onClick={close}>
-                    <Icon />
-                    <span>{label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            <Item label="Overview" icon={LayoutGridIcon} active={page.path === '/'}>
+              {(c) => (
+                <Link to="/" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Issues" icon={BugIcon} active={at('/issues')}>
+              {(c) => (
+                <Link to="/issues" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item
+              label="Releases"
+              icon={TagIcon}
+              active={at('/releases') || /^\/projects\/[^/]+\/releases/.test(page.path)}
+            >
+              {(c) => (
+                <Link to="/releases" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item
+              label="Performance"
+              icon={GaugeIcon}
+              active={at('/performance') || /^\/projects\/[^/]+\/performance/.test(page.path)}
+            >
+              {(c) => (
+                <Link to="/performance" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Logs" icon={ScrollTextIcon} active={at('/logs')}>
+              {(c) => (
+                <Link to="/logs" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Monitors" icon={ActivityIcon} active={at('/monitors')}>
+              {(c) => (
+                <Link to="/monitors" onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Notifications" icon={BellIcon} active={at('/notifications')}>
+              {(c) => (
+                <Link to="/notifications" onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
           </SidebarMenu>
         </SidebarGroup>
-        {projects.length > 0 && (
-          <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-            <SidebarGroupLabel>Projects</SidebarGroupLabel>
-            <SidebarMenu>
-              {projects.map((p) => (
-                <SidebarMenuItem key={p.id}>
-                  <SidebarMenuButton asChild isActive={p.slug === project && pathname === '/issues'}>
-                    <Link to="/issues" search={{ project: p.slug }} onClick={close}>
-                      <span>{p.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                  {p.slug === project && <ProjectPages slug={p.slug} pathname={pathname} onClick={close} />}
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        )}
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Sign out">
+              {/* Cloudflare Access signs out of every app behind it on this domain */}
+              <a href="/cdn-cgi/access/logout">
+                <LogOutIcon />
+                <span className="grid min-w-0 leading-tight">
+                  <span>Sign out</span>
+                  <span className="truncate text-xs text-muted-foreground">{viewer}</span>
+                </span>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
 }
 
-function ProjectPages({ slug, pathname, onClick }: { slug: string; pathname: string; onClick: () => void }) {
-  const pages = [
-    { to: '/projects/$slug/releases', label: 'Releases' },
-    { to: '/projects/$slug/performance', label: 'Performance' },
-    { to: '/projects/$slug/settings', label: 'Settings' },
-  ] as const
+/** One page in the sidebar: `children` wraps its icon and label in the page's link */
+function Item({
+  label,
+  icon: Icon,
+  active,
+  children,
+}: {
+  label: string
+  icon: React.ComponentType
+  active: boolean
+  children: (content: React.ReactNode) => React.ReactNode
+}) {
   return (
-    <SidebarMenuSub>
-      {pages.map(({ to, label }) => (
-        <SidebarMenuSubItem key={to}>
-          <SidebarMenuSubButton asChild isActive={pathname.startsWith(to.replace('$slug', slug))}>
-            <Link to={to} params={{ slug }} onClick={onClick}>
-              {label}
-            </Link>
-          </SidebarMenuSubButton>
-        </SidebarMenuSubItem>
-      ))}
-    </SidebarMenuSub>
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild tooltip={label} isActive={active}>
+        {children(
+          <>
+            <Icon />
+            <span>{label}</span>
+          </>,
+        )}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+}
+
+type Project = ReturnType<typeof useProjects>[number]
+
+/** The project filter: the page stays, showing the project picked (or every one); its settings are here too */
+function ProjectSwitcher({
+  projects,
+  current,
+  page,
+  keep,
+  onPick,
+}: {
+  projects: Project[]
+  current?: Project
+  page: Page
+  keep: (slug: string | null) => void
+  onPick: () => void
+}) {
+  const navigate = useNavigate()
+  const pick = (slug?: string) => {
+    onPick()
+    keep(slug ?? null)
+    const search = { project: slug }
+    const sub = page.path.match(/^\/projects\/[^/]+\/(releases|performance|settings)/)?.[1]
+    if (isList(page.path)) void navigate({ to: page.path, search })
+    else if (sub === 'settings')
+      void navigate(slug ? { to: '/projects/$slug/settings', params: { slug } } : { to: '/' })
+    else if (sub) void navigate({ to: `/${sub}`, search })
+    else if (page.path.startsWith('/issues/')) void navigate({ to: '/issues', search })
+  }
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton size="lg" tooltip="Switch project">
+              <span className="-ml-2 flex size-8 shrink-0 items-center justify-center group-data-[collapsible=icon]:ml-0">
+                <Logo />
+              </span>
+              <span className="grid min-w-0 flex-1 text-left leading-tight">
+                <span className="font-semibold tracking-tight">crashyard</span>
+                <span className="truncate text-xs text-muted-foreground">{current?.name ?? 'All projects'}</span>
+              </span>
+              <ChevronsUpDownIcon className="ml-auto text-muted-foreground" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-(--radix-dropdown-menu-trigger-width) min-w-56">
+            <DropdownMenuItem onSelect={() => pick()}>
+              <LayoutGridIcon />
+              All projects
+              {!current && <CheckIcon className="ml-auto" />}
+            </DropdownMenuItem>
+            {projects.length > 0 && <DropdownMenuSeparator />}
+            {projects.length > 0 && <DropdownMenuLabel>Projects</DropdownMenuLabel>}
+            {projects.map((p) => (
+              <DropdownMenuItem key={p.id} onSelect={() => pick(p.slug)}>
+                <span className="truncate">{p.name}</span>
+                {p.slug === current?.slug && <CheckIcon className="ml-auto" />}
+              </DropdownMenuItem>
+            ))}
+            {current && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/projects/$slug/settings" params={{ slug: current.slug }} onClick={onPick}>
+                    <SettingsIcon />
+                    {current.name} settings
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }
 
