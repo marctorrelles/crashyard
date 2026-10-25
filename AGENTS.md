@@ -15,15 +15,21 @@ pnpm run deploy          # build, apply migrations to the remote D1, deploy
 
 Where things are:
 
-- `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access check). `fetch` sends `/api/*` straight to Start (those routes check their own keys) and
-  everything else through Cloudflare Access first; `scheduled` runs the cron jobs.
+- `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access
+  check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys) and sends everything else to Start
+  through Cloudflare Access; `scheduled` runs the cron (held notifications).
+- `src/api/`: ingest and the push buttons, outside Access (see its AGENTS.md).
+- `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
+- `src/notify/`: routes, channels (ntfy, email, webhooks), quiet hours (see its AGENTS.md).
 - `src/auth/`: the Access check (see its AGENTS.md).
 - `src/routes/`: pages and API routes, file-based (see its AGENTS.md).
 - `src/components/`: shadcn/ui and our own components (see its AGENTS.md).
 - `src/lib/`: small shared helpers (`cn`).
 - `migrations/`: D1 migrations, numbered (see its AGENTS.md).
+- `test/`: tests that run the worker, with the real Sentry SDK (see its AGENTS.md).
 - `docs/`: decisions, deploying, linking an app (see its AGENTS.md).
-- `wrangler.jsonc`: the worker, its domain, D1 (`DB`), R2 (`FILES`), the cron and the Access config.
+- `wrangler.jsonc`: the worker, its domain, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and the Access
+  config. Secrets: `ACTION_SECRET` (`wrangler secret put`; `.dev.vars` locally).
 - `tmp/`: plans and scratch notes, git-ignored. Never commit plans.
 
 ## Rules

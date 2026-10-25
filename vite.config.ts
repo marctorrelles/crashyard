@@ -6,5 +6,14 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
-  plugins: [cloudflare({ viteEnvironment: { name: 'ssr' } }), tailwindcss(), tanstackStart(), viteReact()],
+  plugins: [
+    // CRASHYARD_STATE: where local D1 and R2 live (the end-to-end tests use a fresh one)
+    cloudflare({
+      viteEnvironment: { name: 'ssr' },
+      persistState: process.env.CRASHYARD_STATE ? { path: process.env.CRASHYARD_STATE } : true,
+    }),
+    tailwindcss(),
+    tanstackStart(),
+    viteReact(),
+  ],
 })

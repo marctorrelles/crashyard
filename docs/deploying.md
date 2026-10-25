@@ -77,6 +77,35 @@ Access does the signing in; crashyard has no accounts of its own. Go to [one.das
 
 Open your subdomain: Cloudflare's sign-in comes first, then crashyard.
 
+## 4. The secret for push buttons
+
+Pushes carry Resolve and Ignore buttons; their links are signed with a secret only the worker knows:
+
+```sh
+openssl rand -hex 32 | pnpm wrangler secret put ACTION_SECRET
+```
+
+Without it, pushes still arrive, without the buttons.
+
+## 5. Keep raw envelopes a month (optional)
+
+Every envelope is also kept as it arrived in R2, to reprocess or debug. A lifecycle rule deletes them after 30 days:
+
+```sh
+pnpm wrangler r2 bucket lifecycle add crashyard-files envelopes envelopes/ --expire-days 30
+```
+
+## 6. Email notifications (optional)
+
+crashyard sends email through Cloudflare Email Routing, to addresses you've verified there.
+
+1. In the Cloudflare dashboard, your domain → Email → Email Routing → enable it (it adds the DNS records).
+2. Destination addresses → add the address that gets notifications, and click the link Cloudflare emails it.
+3. In `wrangler.jsonc`, set `EMAIL_FROM` to an address on your domain, such as `crashyard@example.com` (it needn't
+   exist), and deploy again.
+
+Then add an email channel in the dashboard's notification settings. ntfy and webhook channels need nothing here.
+
 ## Checking it
 
 - Your subdomain in a private window → Cloudflare's sign-in page.
@@ -91,4 +120,5 @@ Open your subdomain: Cloudflare's sign-in comes first, then crashyard.
   not the api one's.
 - **Apps' crashes don't arrive, and `curl` to `/api/` returns Cloudflare's sign-in page:** the bypass application is
   missing, or its path isn't `api/`.
+- **Emails don't arrive:** the destination isn't verified in Email Routing, or `EMAIL_FROM` isn't on the domain.
 - **The deploy can't create the custom domain:** the domain must be on the same Cloudflare account.
