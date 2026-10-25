@@ -1,11 +1,20 @@
 # Routes
 
-TanStack Start's file-based routes: pages, and the API under `api/`. `routeTree.gen.ts` is generated (by the dev
+TanStack Start's file-based routes: the dashboard's pages. `routeTree.gen.ts` is generated (by the dev
 server, the build, or `tsr generate`): never edit it.
 
 - `__root.tsx`: the document. Light or dark follows the system (a script sets `.dark` before paint and when the system
   changes); there's no toggle. The viewport covers the notch (`viewport-fit=cover`).
-- `index.tsx`: home.
-- Pages are behind Access (`src/server.ts`); routes under `api/` are not, and check the project key or auth token
-  themselves.
-- Data for a page comes from a server function called in the loader, not from `fetch('/api/...')`.
+  It also has the error and not-found pages.
+- `index.tsx`: home: projects with their unresolved count, events in a day and a 14-day sparkline; new issues.
+- `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`); the status
+  tabs rewrite `is:` in the query. Bulk resolve, ignore, merge and delete.
+- `issues/$issueId.tsx`: one issue: actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
+  newer), tags' top values (each a search), events, feedback, activity and notes.
+- `projects/$slug/releases/`: a project's releases, and one release's diff against the one before.
+- `projects/$slug/settings.tsx`: the DSN and how to link an app, name, platform, quota, retention, new key, delete.
+- `notifications.tsx`: channels (ntfy, email, webhook, quiet hours in the browser's time) and routes, with a test send.
+- Times on a page are relative to the `now` its loader returns, so the server and the browser render the same text;
+  anything in the browser's time zone renders in `<ClientOnly>`.
+- Pages are behind Access (`src/server.ts`); `/api/*` never reaches Start (see `src/api/`).
+- Data for a page comes from a server function (`src/fns.ts`) called in the loader; after a change, `router.invalidate()`.

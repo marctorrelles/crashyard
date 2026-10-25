@@ -15,6 +15,25 @@ export const Route = createRootRoute({
     links: [{ rel: 'stylesheet', href: appCss }],
   }),
   shellComponent: RootDocument,
+  errorComponent: ({ error }) => (
+    <main className="mx-auto max-w-2xl p-6">
+      <h1 className="text-xl font-semibold">Something broke</h1>
+      <p className="mt-1 text-muted-foreground">{error instanceof Error ? error.message : String(error)}</p>
+      {import.meta.env.DEV && error instanceof Error && <pre className="mt-4 overflow-auto text-xs">{error.stack}</pre>}
+    </main>
+  ),
+  notFoundComponent: () => (
+    <main className="mx-auto max-w-2xl p-6">
+      <h1 className="text-xl font-semibold">Not here</h1>
+      <p className="mt-1 text-muted-foreground">
+        Nothing lives at this address.{' '}
+        <a href="/" className="underline">
+          Go home
+        </a>
+        .
+      </p>
+    </main>
+  ),
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {

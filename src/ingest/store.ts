@@ -67,10 +67,14 @@ export async function storeEvent(
 
   const find = () =>
     db
-      .prepare(`SELECT ${ISSUE_COLUMNS} FROM issues WHERE project_id = ? AND fingerprint = ?`)
+      .prepare(
+        `SELECT ${ISSUE_COLUMNS} FROM issues WHERE id = COALESCE(
+           (SELECT issue_id FROM issue_fingerprints WHERE project_id = ?1 AND fingerprint = ?2),
+           (SELECT id FROM issues WHERE project_id = ?1 AND fingerprint = ?2))`,
+      )
       .bind(project.id, fingerprint)
       .first<IssueRow>()
-  let issue = await find()
+  let issue = await find() // merged issues' fingerprints point at the issue they went into
   let isNew = false
   if (!issue) {
     issue = await db
@@ -103,7 +107,8 @@ export async function storeEvent(
   const minuteCount = issue.minute === minute ? issue.minute_count + 1 : 1
   const keep = minuteCount <= SPIKE_LIMIT
   const status = transition ? 'unresolved' : issue.status
-  const substatus = transition ?? (isNew ? 'new' : issue.substatus === 'new' ? 'ongoing' : issue.substatus)
+  // 'new' stays: an issue reads as new for its first week (NEW_FOR in src/search/query.ts), as Sentry's
+  const substatus = transition ?? (isNew ? 'new' : issue.substatus)
   const day = dayOf(now)
   const tags = Object.entries(event.tags).slice(0, 30)
 

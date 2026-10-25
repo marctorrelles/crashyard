@@ -2,6 +2,16 @@
 
 export type NoticeKind = 'new' | 'threshold' | 'regression' | 'ignore_expired' | 'review_crash'
 
+/** The kinds, as the notification settings name them */
+export const KINDS: { kind: NoticeKind; label: string }[] = [
+  { kind: 'new', label: 'New issue' },
+  { kind: 'threshold', label: 'Threshold reached' },
+  { kind: 'regression', label: 'Regression' },
+  { kind: 'ignore_expired', label: 'Ignore expired' },
+  { kind: 'review_crash', label: 'App Review or TestFlight crash' },
+]
+export const LEVELS = ['fatal', 'error', 'warning', 'info', 'debug']
+
 export type Notice = {
   kind: NoticeKind
   threshold?: number // set per route, from the thresholds it names that the count passed

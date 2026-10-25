@@ -6,6 +6,7 @@ import { createServer, type Server } from 'node:http'
 import * as Sentry from '@sentry/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getPlatformProxy } from 'wrangler'
+import { mergeIssues } from '../src/data/issues'
 
 const STATE = '.wrangler/e2e'
 const PORT = 3999
@@ -172,5 +173,25 @@ describe('ingest, through the real SDK', () => {
     const refused = await send(crash('app@3'), quotaKey)
     expect(refused.status).toBe(429)
     expect(refused.headers.get('x-sentry-rate-limits')).toMatch(/^\d+::organization/)
+  })
+
+  it('sends a merged issue’s events to the issue it went into', async () => {
+    const other = (type: string) => ({
+      ...crash('app@4'),
+      exception: {
+        values: [{ type, value: 'x', stacktrace: { frames: [{ function: type, filename: 'm.js', in_app: true }] } }],
+      },
+    })
+    await db().prepare('UPDATE projects SET daily_event_quota = 10000, public_key = ? WHERE id = 1').bind(KEY).run()
+    await send(other('MergeA'))
+    await send(other('MergeB'))
+    const find = async (t: string) => (await issues()).find((i) => i.title === `${t}: x`)
+    const [a, b] = [await find('MergeA'), await find('MergeB')]
+    await mergeIssues(db(), [a!.id as number, b!.id as number], 'test', Date.now())
+    expect(await find('MergeB')).toBeUndefined()
+    expect((await find('MergeA'))?.count).toBe(2)
+    await send(other('MergeB'))
+    expect((await find('MergeA'))?.count).toBe(3)
+    expect(await find('MergeB')).toBeUndefined()
   })
 })

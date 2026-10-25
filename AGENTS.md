@@ -9,6 +9,7 @@ own AGENTS.md for what's particular to it.
 pnpm dev                 # http://localhost:3000, with local D1 and R2 (Access is off locally)
 pnpm check               # lint, format, types, knip, tests, build: run it before every commit
 pnpm test                # vitest, in seconds
+pnpm seed                # a month of made-up crashes in the local database
 pnpm cf-typegen          # worker-configuration.d.ts from wrangler.jsonc, after changing it
 pnpm run deploy          # build, apply migrations to the remote D1, deploy
 ```
@@ -17,17 +18,22 @@ Where things are:
 
 - `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access
   check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys) and sends everything else to Start
-  through Cloudflare Access; `scheduled` runs the cron (held notifications).
+  through Cloudflare Access; `scheduled` runs the cron (held notifications; daily at 03:00 UTC, events past retention).
 - `src/api/`: ingest and the push buttons, outside Access (see its AGENTS.md).
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
 - `src/notify/`: routes, channels (ntfy, email, webhooks), quiet hours (see its AGENTS.md).
 - `src/auth/`: the Access check (see its AGENTS.md).
+- `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`.
+  `src/start.ts` limits them to same-origin calls (CSRF).
+- `src/data/`: the dashboard's SQL (see its AGENTS.md).
+- `src/search/`: Sentry's search syntax, as SQL (see its AGENTS.md).
 - `src/routes/`: pages and API routes, file-based (see its AGENTS.md).
 - `src/components/`: shadcn/ui and our own components (see its AGENTS.md).
 - `src/lib/`: small shared helpers (`cn`).
 - `migrations/`: D1 migrations, numbered (see its AGENTS.md).
 - `test/`: tests that run the worker, with the real Sentry SDK (see its AGENTS.md).
 - `docs/`: decisions, deploying, linking an app (see its AGENTS.md).
+- `scripts/`: `pnpm seed` for a local database with data in it (see its AGENTS.md).
 - `wrangler.jsonc`: the worker, its domain, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and the Access
   config. Secrets: `ACTION_SECRET` (`wrangler secret put`; `.dev.vars` locally).
 - `tmp/`: plans and scratch notes, git-ignored. Never commit plans.

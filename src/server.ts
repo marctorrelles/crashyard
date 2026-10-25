@@ -28,8 +28,14 @@ export default {
     return start(new Request(request, { headers }))
   },
 
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     const { flushHeld } = await import('./notify/dispatch')
     await flushHeld(env)
+    // Once a day, at 03:00 UTC: events past their project's retention
+    const at = new Date(controller.scheduledTime)
+    if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0) {
+      const { pruneEvents } = await import('./data/projects')
+      await pruneEvents(env.DB, controller.scheduledTime)
+    }
   },
 }
