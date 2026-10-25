@@ -6,6 +6,7 @@ import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson } from '..
 import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { fingerprintOf } from '../ingest/grouping'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
+import { recordCheckIn } from '../monitors/monitors'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
 import { actionUrl } from '../notify/actions'
 import { sharedSymbolic } from '../symbols/module'
@@ -32,7 +33,7 @@ const answer = (body: unknown, status = 200, headers: Record<string, string> = {
 
 const MAX_ATTACHMENT = 1024 * 1024
 // The kinds of item a route or later phase handles; anything else is accepted and dropped
-const KEPT = new Set(['event', 'attachment', 'feedback', 'user_report', 'log'])
+const KEPT = new Set(['event', 'attachment', 'feedback', 'user_report', 'log', 'check_in'])
 
 // Projects change rarely; a minute's cache spares a read per request
 const projects = new Map<string, { project: Project | null; at: number }>()
@@ -100,7 +101,8 @@ export async function handleIngest(
     .first<{ events: number; logs: number }>()
   const eventsOver = (today?.events ?? 0) >= project.daily_event_quota
   const logsOver = (today?.logs ?? 0) >= project.daily_log_quota
-  const over = (type: string) => (type === 'log' ? logsOver : eventsOver)
+  // Check-ins are few and say a job is alive: no quota
+  const over = (type: string) => (type === 'check_in' ? false : type === 'log' ? logsOver : eventsOver)
   const retry = String(secondsToMidnight(now))
   const limits =
     eventsOver && logsOver
@@ -129,7 +131,10 @@ export async function handleIngest(
     const type = item.header.type ?? 'event'
     if (over(type)) continue
     try {
-      if (type === 'log') {
+      if (type === 'check_in') {
+        const notice = await recordCheckIn({ ...env, PUBLIC_URL: url.origin }, project.id, payloadJson(item), now)
+        if (notice) notices.push(notice)
+      } else if (type === 'log') {
         await storeLogs(env.DB, project.id, normalizeLogs(payloadJson(item), now), now, dayOf(now))
       } else if (type === 'event') {
         const event = await normalizeEvent(payloadJson(item), now, envelopeId)

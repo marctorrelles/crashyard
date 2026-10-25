@@ -7,7 +7,7 @@ signature; `/mcp` comes after the Access check.
   (`*`, the browser SDK sends from any origin), body, envelope, key, project (cached a minute per isolate), the daily
   quotas, events and logs apart (`X-Sentry-Rate-Limits` by category, `error;…` or `log_item`, so SDKs stop sending
   that kind until tomorrow; 429 with `Retry-After` when nothing in the envelope can be kept), then each item:
-  `event`, `attachment`, `feedback`, `user_report`, `log`; other item types are accepted and dropped. The raw envelope goes
+  `event`, `attachment`, `feedback`, `user_report`, `log`, `check_in` (no quota: few, and they say a job is alive); other item types are accepted and dropped. The raw envelope goes
   to R2 (`envelopes/<project>/<day>/<event>`). Notices are dispatched after the response (`ctx.waitUntil`). A crash
   tagged `distribution: app_review` or `testflight` also sends `review_crash`, once per issue.
 - `sentry.ts`: `/api/0/`, what sentry-cli and the build plugins call, with an auth token: chunk-upload (options,

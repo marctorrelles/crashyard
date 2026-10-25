@@ -4,6 +4,7 @@ import { createServer, type Server } from 'node:http'
 import * as Sentry from '@sentry/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { mergeIssues } from '../src/data/issues'
+import { saveMonitor } from '../src/data/monitors'
 import { KEY, startDev, waitFor } from './dev'
 
 const PORT = 3999
@@ -46,6 +47,9 @@ const crash = (release: string) => ({
 
 beforeAll(async () => {
   ntfy = createServer((req, res) => {
+    // Also what the uptime checks ask: /health answers, /down doesn't
+    if (req.url === '/health') return void res.end('catalog ok')
+    if (req.url === '/down') return void ((res.statusCode = 503), res.end())
     let body = ''
     req.on('data', (c) => (body += c))
     req.on('end', () => {
@@ -59,7 +63,7 @@ beforeAll(async () => {
       .prepare("INSERT INTO channels (id, kind, name, config, created_at) VALUES (1, 'ntfy', 'stub', ?, 0)")
       .bind(JSON.stringify({ server: `http://localhost:${NTFY_PORT}`, topic: 'e2e' })),
     db().prepare(
-      `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression"]', '[10]', '[1]', 0)`,
+      `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression","monitor_down","monitor_up"]', '[10]', '[1]', 0)`,
     ),
   ])
   Sentry.init({ dsn, release: 'e2e@1.0.0', environment: 'production', defaultIntegrations: false })
@@ -218,5 +222,70 @@ describe('ingest, through the real SDK', () => {
     expect(issue).toMatch(/\* again at .*ingest\.e2e\.test\.ts/)
     const page = await fetch(`${origin}/mcp`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{}' })
     expect(page.status).toBe(403)
+  })
+
+  it('makes a cron monitor from a check-in, and tells when a run fails, comes back, or never comes', async () => {
+    const monitorConfig = {
+      schedule: { type: 'crontab' as const, value: '0 3 * * *' },
+      checkinMargin: 5,
+      maxRuntime: 10,
+    }
+    const id = Sentry.captureCheckIn({ monitorSlug: 'nightly', status: 'in_progress' }, monitorConfig)
+    await Sentry.flush(5000) // as a job would: its run between the two
+    Sentry.captureCheckIn({ checkInId: id, monitorSlug: 'nightly', status: 'error', duration: 2 })
+    await Sentry.flush(5000)
+    const monitor = await waitFor(() =>
+      db()
+        .prepare("SELECT * FROM monitors WHERE slug = 'nightly' AND status = 'failing'")
+        .first<Record<string, number>>(),
+    )
+    expect(await waitFor(() => pushes.find((p) => p.title === 'nightly failed'))).toBeTruthy()
+    Sentry.captureCheckIn({ monitorSlug: 'nightly', status: 'ok' }, monitorConfig)
+    await Sentry.flush(5000)
+    await waitFor(() => pushes.find((p) => p.title === 'nightly is back'))
+    // Nothing by the next 03:00 and its five minutes: missed
+    const due = (await db()
+      .prepare('SELECT next_due FROM monitors WHERE id = ?')
+      .bind(monitor.id)
+      .first<{ next_due: number }>())!.next_due
+    await fetch(`${origin}/__dev/cron?now=${due + 1000}`, { method: 'POST' })
+    expect(
+      await db()
+        .prepare("SELECT COUNT(*) AS n FROM check_ins WHERE monitor_id = ? AND status = 'missed'")
+        .bind(monitor.id)
+        .first(),
+    ).toEqual({ n: 1 })
+    await waitFor(() => pushes.find((p) => p.title === 'nightly missed its check-in'))
+  })
+
+  it('checks a URL, and opens an incident after two failures in a row', async () => {
+    const config = { url: `http://localhost:${NTFY_PORT}/health`, intervalMinutes: 1, mustContain: 'catalog' }
+    const base = {
+      project_id: 1,
+      name: 'Sync server',
+      environment: 'production',
+      failure_threshold: 2,
+      recovery_threshold: 1,
+    }
+    const id = await saveMonitor(db(), { ...base, kind: 'uptime', config }, Date.now())
+    const now = Date.now()
+    await fetch(`${origin}/__dev/cron?now=${now}`, { method: 'POST' })
+    expect(await db().prepare('SELECT status FROM monitors WHERE id = ?').bind(id).first()).toEqual({ status: 'ok' })
+    await saveMonitor(
+      db(),
+      { ...base, id, kind: 'uptime', config: { ...config, url: `http://localhost:${NTFY_PORT}/down` } },
+      now,
+    )
+    await fetch(`${origin}/__dev/cron?now=${now + 1000}`, { method: 'POST' })
+    expect(pushes.find((p) => p.title === 'Sync server is down')).toBeUndefined()
+    await fetch(`${origin}/__dev/cron?now=${now + 61_000}`, { method: 'POST' })
+    const push = await waitFor(() => pushes.find((p) => p.title === 'Sync server is down'))
+    expect(push.body).toContain('answered 503')
+    expect(
+      await db()
+        .prepare('SELECT COUNT(*) AS n FROM incidents WHERE monitor_id = ? AND closed_at IS NULL')
+        .bind(id)
+        .first(),
+    ).toEqual({ n: 1 })
   })
 })

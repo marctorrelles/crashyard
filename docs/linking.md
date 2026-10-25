@@ -90,6 +90,22 @@ The SDKs send logs with `Sentry.logger.info('song opened', { song: 42 })` (and `
 Logs, searchable by their attributes (`song:42`). Turn them on where the SDK needs it (`enableLogs: true` in older
 JavaScript SDKs, `options.experimental.enableLogs = true` on Apple, `io.sentry.logs.enabled` on Android).
 
+## Cron jobs and uptime
+
+A scheduled job checks in, and crashyard tells you when a run is missed, fails or takes too long:
+
+```js
+const checkInId = Sentry.captureCheckIn(
+  { monitorSlug: 'nightly-export', status: 'in_progress' },
+  { schedule: { type: 'crontab', value: '0 3 * * *' }, timezone: 'Europe/Madrid', checkinMargin: 10, maxRuntime: 30 },
+)
+// … the job …
+Sentry.captureCheckIn({ checkInId, monitorSlug: 'nightly-export', status: 'ok' })
+```
+
+The first check-in with a schedule makes the monitor. Around any command: `sentry-cli monitors run nightly-export --
+./export.sh` (with `SENTRY_DSN` set). URLs to check every few minutes are added under Monitors.
+
 ## Anything else
 
 Any Sentry SDK works: set its DSN to crashyard's.

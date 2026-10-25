@@ -10,7 +10,7 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { projects, newIssues, now } = Route.useLoaderData()
+  const { projects, newIssues, failing, now } = Route.useLoaderData()
   return (
     <Shell>
       <PageHeader title="Projects" actions={projects.length > 0 && <NewProject variant="outline" />} />
@@ -48,6 +48,31 @@ function Home() {
             </Link>
           ))}
         </div>
+      )}
+      {failing.length > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-2 text-sm font-medium text-muted-foreground">Monitors failing</h2>
+          <ul className="divide-y rounded-xl border border-red-500/30">
+            {failing.map((m) => (
+              <li key={m.id}>
+                <Link
+                  to="/monitors/$monitorId"
+                  params={{ monitorId: String(m.id) }}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50"
+                >
+                  <span className="size-2 shrink-0 rounded-full bg-red-500" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{m.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {m.project} · {m.reason}
+                    </p>
+                  </div>
+                  {m.since && <Ago at={m.since} now={now} className="text-xs text-muted-foreground" />}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {newIssues.length > 0 && (
         <section className="mt-8">

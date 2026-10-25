@@ -68,8 +68,11 @@ Access does the signing in; crashyard has no accounts of its own. Go to [one.das
    "vars": {
      "ACCESS_TEAM_DOMAIN": "yourteam.cloudflareaccess.com",
      "ACCESS_AUD": "<the AUD tag>",
+     "PUBLIC_URL": "https://crashyard.example.com",
    },
    ```
+
+   `PUBLIC_URL` is where the dashboard is, for the links in notifications that the cron sends (monitors).
 
    ```sh
    pnpm run deploy

@@ -25,5 +25,7 @@
     // The address email notifications come from, on a domain with Email Routing on; empty: no email
     "EMAIL_FROM": "",
     "ACCESS_AUD": "23cf871024e213b2d0c15c0796e1dc3a7f324c404b6d71af99bd9c650d5892ca",
+    // Where the dashboard is, for links in notifications that the cron sends (monitors)
+    "PUBLIC_URL": "https://crashyard.marctorrelles.com",
   },
 }

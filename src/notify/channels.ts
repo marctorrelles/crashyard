@@ -28,9 +28,17 @@ export function ntfyRequest(config: NtfyConfig, notice: Notice): Request {
   const headers: Record<string, string> = {
     Title: notice.issue.title.slice(0, 250),
     Click: notice.url,
-    Tags: notice.kind === 'regression' ? 'repeat' : notice.issue.level === 'fatal' ? 'boom' : 'warning',
-    Priority:
-      notice.kind === 'new' || notice.kind === 'regression' || notice.kind === 'review_crash' ? 'high' : 'default',
+    Tags:
+      notice.kind === 'monitor_down'
+        ? 'rotating_light'
+        : notice.kind === 'monitor_up'
+          ? 'white_check_mark'
+          : notice.kind === 'regression'
+            ? 'repeat'
+            : notice.issue.level === 'fatal'
+              ? 'boom'
+              : 'warning',
+    Priority: ['new', 'regression', 'review_crash', 'monitor_down'].includes(notice.kind) ? 'high' : 'default',
   }
   if (notice.actions) {
     headers.Actions = `http, Resolve, ${notice.actions.resolve}, method=POST, clear=true; http, Ignore, ${notice.actions.ignore}, method=POST, clear=true`

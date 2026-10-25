@@ -401,7 +401,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
   const router = useRouter()
   const [project, setProject] = useState(route?.project_id != null ? String(route.project_id) : '*')
   const [kinds, setKinds] = useState<string[]>(
-    route ? list(route.kinds) : ['new', 'regression', 'threshold', 'review_crash'],
+    route ? list(route.kinds) : ['new', 'regression', 'threshold', 'review_crash', 'monitor_down', 'monitor_up'],
   )
   const [levels, setLevels] = useState<string[]>(route ? list(route.levels) : [])
   const [channels, setChannels] = useState<number[]>(

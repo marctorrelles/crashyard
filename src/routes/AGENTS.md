@@ -15,6 +15,8 @@ server, the build, or `tsr generate`): never edit it.
 - `projects/$slug/settings.tsx`: the DSN and how to link an app, name, platform, quota, retention, new key, delete.
 - `logs.tsx`: the logs explorer: search, time range, facets (folded on a phone), click a line for every attribute
   and its trace's logs and issues, Live (polls every 2 s for newer), Older. Times in the browser's time once hydrated.
+- `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
+  monitor, and one monitor: its results or check-ins, how to check in, incidents, pause, edit, delete.
 - `notifications.tsx`: channels (ntfy, email, webhook, quiet hours in the browser's time) and routes, with a test send.
 - Times on a page are relative to the `now` its loader returns, so the server and the browser render the same text;
   anything in the browser's time zone renders in `<ClientOnly>`.

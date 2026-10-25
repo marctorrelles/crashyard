@@ -31,6 +31,7 @@ const hex = (n) => Array.from({ length: n }, () => Math.floor(random() * 16).toS
 await db.prepare('DELETE FROM projects').run()
 await db.prepare('DELETE FROM channels').run()
 await db.prepare('DELETE FROM routes').run()
+// (projects cascade to their monitors)
 const project = async (slug, name, platform) =>
   db
     .prepare('INSERT INTO projects (slug, name, platform, public_key, created_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
@@ -412,6 +413,88 @@ const logs = Array.from({ length: 450 }, () => {
 }).sort((a, b) => a.log.timestamp - b.log.timestamp)
 for (const { p, log } of logs)
   await storeLogs(db, p.id, [log], log.timestamp, new Date(log.timestamp).toISOString().slice(0, 10))
+
+// Monitors: the sync server's uptime (one bad stretch), the web app's, and a nightly job that missed last night
+const MIN = 60_000
+const monitor = async (p, slug, name, kind, config, threshold, status) =>
+  (
+    await db
+      .prepare(
+        `INSERT INTO monitors (project_id, slug, name, kind, config, failure_threshold, status, next_due, last_seen, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      )
+      .bind(p.id, slug, name, kind, JSON.stringify(config), threshold, status, now + 5 * MIN, now - MIN, now - 30 * DAY)
+      .first()
+  ).id
+const api = await monitor(
+  sync,
+  'catalog',
+  'Sync server /catalog',
+  'uptime',
+  { url: 'https://api.pocketband.example/catalog', intervalMinutes: 5, mustContain: 'songs' },
+  2,
+  'ok',
+)
+const web = await monitor(
+  notes,
+  'web',
+  'Notes web app',
+  'uptime',
+  { url: 'https://notes.example.com/', intervalMinutes: 5 },
+  2,
+  'ok',
+)
+for (let i = 40; i >= 1; i--) {
+  const at = now - i * 5 * MIN
+  const bad = i >= 18 && i <= 20
+  await db
+    .prepare('INSERT INTO uptime_results (monitor_id, at, ok, status, ms, error) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(
+      api,
+      at,
+      bad ? 0 : 1,
+      bad ? 502 : 200,
+      bad ? 120 : 60 + Math.floor(random() * 90),
+      bad ? 'answered 502' : null,
+    )
+    .run()
+  await db
+    .prepare('INSERT INTO uptime_results (monitor_id, at, ok, status, ms, error) VALUES (?, ?, 1, 200, ?, NULL)')
+    .bind(web, at, 180 + Math.floor(random() * 220))
+    .run()
+}
+await db
+  .prepare("INSERT INTO incidents (monitor_id, opened_at, closed_at, reason) VALUES (?, ?, ?, 'answered 502')")
+  .bind(api, now - 95 * MIN, now - 85 * MIN)
+  .run()
+const nightly = await monitor(
+  pocketband,
+  'nightly-export',
+  'Nightly song export',
+  'cron',
+  { schedule: { type: 'crontab', value: '0 3 * * *' }, timezone: 'Europe/Madrid', checkinMargin: 10, maxRuntime: 30 },
+  1,
+  'failing',
+)
+for (let d = 12; d >= 1; d--) {
+  const at = now - d * DAY
+  const missed = d === 1
+  await db
+    .prepare('INSERT INTO check_ins (id, monitor_id, status, started, finished, duration) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(
+      hex(32),
+      nightly,
+      missed ? 'missed' : 'ok',
+      at,
+      missed ? null : at + 90_000,
+      missed ? null : 60_000 + Math.floor(random() * 60_000),
+    )
+    .run()
+}
+await db
+  .prepare("INSERT INTO incidents (monitor_id, opened_at, reason) VALUES (?, ?, 'missed')")
+  .bind(nightly, now - DAY + 10 * MIN)
+  .run()
 
 const channel = await db
   .prepare(

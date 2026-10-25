@@ -24,6 +24,10 @@ export default {
       const results = await env.DB.batch(statements.map((s) => env.DB.prepare(s.sql).bind(...s.params)))
       return Response.json(results)
     }
+    if (import.meta.env.DEV && url.pathname === '/__dev/cron' && request.method === 'POST') {
+      await everyMinute(env, Number(url.searchParams.get('now')) || Date.now())
+      return Response.json({})
+    }
     if (url.pathname.startsWith('/api/0/')) {
       const [{ handleSentryApi }, { freshSymbolic, sharedSymbolic }, { reprocess }] = await Promise.all([
         import('./api/sentry'),
@@ -53,14 +57,25 @@ export default {
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
-    const { flushHeld } = await import('./notify/dispatch')
-    await flushHeld(env)
-    // Once a day, at 03:00 UTC: events and logs past their project's retention
-    const at = new Date(controller.scheduledTime)
-    if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0) {
-      const [{ pruneEvents }, { pruneLogs }] = await Promise.all([import('./data/projects'), import('./data/logs')])
-      await pruneEvents(env.DB, controller.scheduledTime)
-      await pruneLogs(env.DB, controller.scheduledTime)
-    }
+    await everyMinute(env, controller.scheduledTime)
   },
+}
+
+// The cron: monitors (missed check-ins, uptime checks), held notifications, and once a day, retention
+async function everyMinute(env: Env, now: number) {
+  const [{ dispatch, flushHeld }, { runMonitors, pruneMonitors }] = await Promise.all([
+    import('./notify/dispatch'),
+    import('./monitors/monitors'),
+  ])
+  const notices = await runMonitors(env, now)
+  await dispatch(env, notices, now)
+  await flushHeld(env, now)
+  // Once a day, at 03:00 UTC: events, logs, check-ins and uptime results past their retention
+  const at = new Date(now)
+  if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0) {
+    const [{ pruneEvents }, { pruneLogs }] = await Promise.all([import('./data/projects'), import('./data/logs')])
+    await pruneEvents(env.DB, now)
+    await pruneLogs(env.DB, now)
+    await pruneMonitors(env.DB, now)
+  }
 }

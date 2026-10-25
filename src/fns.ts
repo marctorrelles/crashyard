@@ -5,6 +5,7 @@ import { getRequest, getRequestHeader } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 import * as issues from './data/issues'
 import * as logs from './data/logs'
+import * as monitors from './data/monitors'
 import * as notifications from './data/notifications'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
@@ -49,7 +50,10 @@ const json = (v: unknown, max = 4000) => {
 }
 const nullableJson = (v: unknown) => (v === null ? null : json(v))
 
-export const getOverview = createServerFn().handler(() => projects.overview(env.DB, Date.now()))
+export const getOverview = createServerFn().handler(async () => ({
+  ...(await projects.overview(env.DB, Date.now())),
+  failing: await monitors.failingMonitors(env.DB),
+}))
 
 export const getProjects = createServerFn().handler(() => projects.allProjects(env.DB))
 
@@ -259,3 +263,84 @@ export const createToken = createServerFn({ method: 'POST' })
 export const revokeToken = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => tokens.revokeToken(env.DB, data.id).then(() => undefined))
+
+export const getMonitors = createServerFn().handler(async () => ({
+  monitors: await monitors.listMonitors(env.DB),
+  projects: await projects.allProjects(env.DB),
+  now: Date.now(),
+}))
+
+export const getMonitor = createServerFn()
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(async ({ data }) => {
+    const monitor = await monitors.getMonitor(env.DB, data.id)
+    return monitor ? { ...monitor, projects: await projects.allProjects(env.DB), now: Date.now() } : null
+  })
+
+const httpUrl = (v: unknown) => {
+  const u = new URL(text(v, 2000))
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('an http(s) URL')
+  return u.toString()
+}
+export const saveMonitor = createServerFn({ method: 'POST' })
+  .validator((d: unknown): monitors.MonitorInput => {
+    const o = object(d)
+    const c = object(o.config)
+    const base = {
+      id: optional((v) => int(v))(o.id),
+      project_id: int(o.project_id),
+      name: text(o.name, 100).trim() || 'Untitled',
+      slug: optional((v) => text(v, 100))(o.slug),
+      environment: text(o.environment ?? 'production', 64) || 'production',
+      failure_threshold: int(o.failure_threshold ?? 1, 1, 100),
+      recovery_threshold: int(o.recovery_threshold ?? 1, 1, 100),
+    }
+    if (o.kind === 'uptime') {
+      return {
+        ...base,
+        kind: 'uptime',
+        config: {
+          url: httpUrl(c.url),
+          method: oneOf(['GET', 'HEAD', 'POST'] as const)(c.method ?? 'GET'),
+          expectedStatus: optional((v) => int(v, 100, 599))(c.expectedStatus),
+          mustContain: optional((v) => text(v, 200))(c.mustContain),
+          intervalMinutes: int(c.intervalMinutes ?? 5, 1, 60),
+          timeoutMs: int(c.timeoutMs ?? 10_000, 1000, 30_000),
+        },
+      }
+    }
+    const schedule = object(c.schedule)
+    return {
+      ...base,
+      kind: 'cron',
+      config: {
+        schedule:
+          schedule.type === 'interval'
+            ? {
+                type: 'interval',
+                value: int(schedule.value, 1, 1000),
+                unit: oneOf(['minute', 'hour', 'day', 'week', 'month', 'year'] as const)(schedule.unit),
+              }
+            : { type: 'crontab', value: text(schedule.value, 100) },
+        timezone: optional((v) => text(v, 64))(c.timezone),
+        checkinMargin: optional((v) => int(v, 1, 1440))(c.checkinMargin),
+        maxRuntime: optional((v) => int(v, 1, 1440))(c.maxRuntime),
+      },
+    }
+  })
+  .handler(async ({ data }) => {
+    if (data.kind === 'cron')
+      (await import('./monitors/schedule')).nextRun(data.config.schedule, Date.now(), data.config.timezone)
+    return monitors.saveMonitor(env.DB, data, Date.now())
+  })
+
+export const pauseMonitor = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), paused: o.paused === true }
+  })
+  .handler(({ data }) => monitors.setPaused(env.DB, data.id, data.paused, Date.now()))
+
+export const deleteMonitor = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => monitors.deleteMonitor(env.DB, data.id).then(() => undefined))

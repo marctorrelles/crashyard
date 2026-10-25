@@ -15,6 +15,8 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   still happening, and gone since the release before.
 - `logs.ts`: the explorer's page (newest first, a time range, cursors for older and for the live tail's newer),
   facets over the newest 1000 that match, `pruneLogs` (the daily cron).
+- `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents, making,
+  changing, pausing (a resumed one starts again from pending) and deleting; failing monitors for home.
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 
