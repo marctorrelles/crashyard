@@ -6,7 +6,7 @@ server, the build, or `tsr generate`): never edit it.
 - `__root.tsx`: the document. Light or dark follows the system (a script sets `.dark` before paint and when the system
   changes); there's no toggle. The viewport covers the notch (`viewport-fit=cover`).
   It also has the error and not-found pages.
-- `index.tsx`: home: projects with their unresolved count, events in a day and a 14-day sparkline; new issues.
+- `index.tsx`: home: a banner when a newer crashyard is out, projects with their unresolved count, events in a day and a 14-day sparkline; new issues.
 - `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`); the status
   tabs rewrite `is:` in the query. Bulk resolve, ignore, merge and delete.
 - `issues/$issueId.tsx`: one issue: actions, counts and a 90-day chart, the event (`?event=` to pick one, older and

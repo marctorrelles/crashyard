@@ -11,6 +11,7 @@ import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
 import * as tokens from './data/tokens'
+import * as updates from './data/updates'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
 const origin = () => new URL(getRequest().url).origin
@@ -54,6 +55,7 @@ const nullableJson = (v: unknown) => (v === null ? null : json(v))
 export const getOverview = createServerFn().handler(async () => ({
   ...(await projects.overview(env.DB, Date.now())),
   failing: await monitors.failingMonitors(env.DB),
+  update: await updates.update(),
 }))
 
 export const getProjects = createServerFn().handler(() => projects.allProjects(env.DB))

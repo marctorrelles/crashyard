@@ -22,6 +22,8 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   releases and slowest examples; sessions per release and `crashFree`; `checkSlowerReleases` (the cron, hourly at
   :05: a p95 50% longer in the newest release than the one before, 50 transactions in each at least, told once via
   `slower_releases`); `prunePerformance` (the daily cron: summaries after 90 days, examples after 30).
+- `updates.ts`: whether a newer crashyard is out, from the repo's latest GitHub release, asked once a day through
+  the Cache API, for home's banner; nothing about the deployment is sent.
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 

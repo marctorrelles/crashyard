@@ -10,10 +10,25 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { projects, newIssues, failing, now } = Route.useLoaderData()
+  const { projects, newIssues, failing, update, now } = Route.useLoaderData()
   return (
     <Shell>
       <PageHeader title="Projects" actions={projects.length > 0 && <NewProject variant="outline" />} />
+      {update && (
+        <p className="mb-4 rounded-xl border bg-muted/40 px-4 py-2.5 text-sm">
+          crashyard {update.version} is out (this is {update.current}):{' '}
+          <a href={update.url} className="font-medium underline underline-offset-2">
+            what&apos;s new
+          </a>{' '}
+          ·{' '}
+          <a
+            href="https://github.com/marctorrelles/crashyard/blob/main/docs/upgrading.md"
+            className="font-medium underline underline-offset-2"
+          >
+            upgrading
+          </a>
+        </p>
+      )}
       {projects.length === 0 ? (
         <Empty title="No projects yet">
           <p className="mb-4">Make one for each app, then point its Sentry SDK at the DSN it gets.</p>
