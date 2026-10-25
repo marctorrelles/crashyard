@@ -15,7 +15,7 @@ pnpm run deploy          # build, apply migrations to the remote D1, deploy
 
 Where things are:
 
-- `src/server.ts`: the worker's entry. `fetch` sends `/api/*` straight to Start (those routes check their own keys) and
+- `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access check). `fetch` sends `/api/*` straight to Start (those routes check their own keys) and
   everything else through Cloudflare Access first; `scheduled` runs the cron jobs.
 - `src/auth/`: the Access check (see its AGENTS.md).
 - `src/routes/`: pages and API routes, file-based (see its AGENTS.md).
