@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 /* Dark follows the system: the .dark class is set from prefers-color-scheme before paint (__root.tsx) */
 @custom-variant dark (&:is(.dark *));

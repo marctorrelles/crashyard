@@ -8,6 +8,6 @@
     "src/start.ts"
   ],
   "project": ["src/**/*.{ts,tsx}"],
-  "ignoreDependencies": ["cloudflare", "tailwindcss", "tw-animate-css"],
+  "ignoreDependencies": ["cloudflare", "tailwindcss", "tw-animate-css", "shadcn"],
   "ignoreExportsUsedInFile": true
 }
