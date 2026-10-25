@@ -68,6 +68,11 @@ async function everyMinute(env: Env, now: number) {
     import('./monitors/monitors'),
   ])
   const notices = await runMonitors(env, now)
+  // Hourly, at :05: transactions that got slower in a release
+  if (new Date(now).getUTCMinutes() === 5) {
+    const { checkSlowerReleases } = await import('./data/performance')
+    notices.push(...(await checkSlowerReleases(env.DB, env.PUBLIC_URL ?? '', now)))
+  }
   await dispatch(env, notices, now)
   await flushHeld(env, now)
   // Once a day, at 03:00 UTC: events, logs, check-ins and uptime results past their retention
@@ -77,5 +82,6 @@ async function everyMinute(env: Env, now: number) {
     await pruneEvents(env.DB, now)
     await pruneLogs(env.DB, now)
     await pruneMonitors(env.DB, now)
+    await (await import('./data/performance')).prunePerformance(env.DB, now)
   }
 }

@@ -11,7 +11,10 @@ server, the build, or `tsr generate`): never edit it.
   tabs rewrite `is:` in the query. Bulk resolve, ignore, merge and delete.
 - `issues/$issueId.tsx`: one issue: actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
   newer), tags' top values (each a search), events, feedback, activity and notes.
-- `projects/$slug/releases/`: a project's releases, and one release's diff against the one before.
+- `projects/$slug/releases/`: a project's releases (crash-free sessions when the SDK sends them), and one release's
+  diff against the one before.
+- `projects/$slug/performance/`: transactions by p95 with the change since the release before (`?days=1|30`), and one
+  transaction (`transaction?name=`): p95 per hour, by release, the slowest with their span waterfall and trace links.
 - `projects/$slug/settings.tsx`: the DSN and how to link an app, name, platform, quota, retention, new key, delete.
 - `logs.tsx`: the logs explorer: search, time range, facets (folded on a phone), click a line for every attribute
   and its trace's logs and issues, Live (polls every 2 s for newer), Older. Times in the browser's time once hydrated.

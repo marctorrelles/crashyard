@@ -7,6 +7,7 @@ import * as issues from './data/issues'
 import * as logs from './data/logs'
 import * as monitors from './data/monitors'
 import * as notifications from './data/notifications'
+import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
 import * as tokens from './data/tokens'
@@ -168,7 +169,16 @@ export const getReleases = createServerFn()
   .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
   .handler(async ({ data }) => {
     const project = await projects.projectBySlug(env.DB, data.slug)
-    return project ? { project, releases: await releases.listReleases(env.DB, project.id), now: Date.now() } : null
+    if (!project) return null
+    const [list, sessions] = await Promise.all([
+      releases.listReleases(env.DB, project.id),
+      performance.sessionsByRelease(env.DB, project.id),
+    ])
+    return {
+      project,
+      releases: list.map((r) => ({ ...r, crashFree: performance.crashFree(sessions.get(r.release)) })),
+      now: Date.now(),
+    }
   })
 
 export const getRelease = createServerFn()
@@ -179,7 +189,34 @@ export const getRelease = createServerFn()
   .handler(async ({ data }) => {
     const project = await projects.projectBySlug(env.DB, data.slug)
     const diff = project && (await releases.releaseDiff(env.DB, project.id, data.release))
-    return project && diff ? { project, ...diff, now: Date.now() } : null
+    if (!project || !diff) return null
+    const sessions = (await performance.sessionsByRelease(env.DB, project.id)).get(data.release)
+    return { project, ...diff, sessions, crashFree: performance.crashFree(sessions), now: Date.now() }
+  })
+
+const DAYS = [1, 7, 30] as const
+
+export const getPerformance = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { slug: text(o.slug, 60), days: oneOf(DAYS.map(String))(String(o.days ?? 7)) }
+  })
+  .handler(async ({ data }) => {
+    const project = await projects.projectBySlug(env.DB, data.slug)
+    if (!project) return null
+    return { project, ...(await performance.transactions(env.DB, project.id, Number(data.days), Date.now())) }
+  })
+
+export const getTransaction = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { slug: text(o.slug, 60), name: text(o.name, 200), days: oneOf(DAYS.map(String))(String(o.days ?? 7)) }
+  })
+  .handler(async ({ data }) => {
+    const project = await projects.projectBySlug(env.DB, data.slug)
+    if (!project) return null
+    const now = Date.now()
+    return { project, now, ...(await performance.transaction(env.DB, project.id, data.name, Number(data.days), now)) }
   })
 
 export const getNotifications = createServerFn().handler(async () => ({

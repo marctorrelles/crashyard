@@ -106,6 +106,14 @@ Sentry.captureCheckIn({ checkInId, monitorSlug: 'nightly-export', status: 'ok' }
 The first check-in with a schedule makes the monitor. Around any command: `sentry-cli monitors run nightly-export --
 ./export.sh` (with `SENTRY_DSN` set). URLs to check every few minutes are added under Monitors.
 
+## Performance
+
+Set the SDK's `tracesSampleRate` (`options.tracesSampleRate = 0.1` in Swift and Kotlin, `tracesSampleRate: 0.1` in
+JavaScript) and its screen loads, requests and jobs show under the project's Performance tab: count, p50/p95/p99 per
+name, the change in p95 since the release before, and the ten slowest a day with their spans. Crash-free sessions show
+on Releases once the SDK sends sessions (Apple and Android do by default; browser and Node with their session
+integrations). crashyard keeps summaries, not every span: hours and percentiles for 90 days, examples for 30.
+
 ## Anything else
 
 Any Sentry SDK works: set its DSN to crashyard's.

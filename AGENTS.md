@@ -18,7 +18,7 @@ Where things are:
 
 - `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access
   check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys) and sends everything else to Start
-  through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications; at 03:00 UTC, retention). In local dev
+  through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications; hourly, slower releases; at 03:00 UTC, retention). In local dev
   only, `/__dev/sql` and `/__dev/cron` let the end-to-end tests reach the database and run the cron.
 - `src/api/`: ingest, the push buttons and Sentry's upload API (`/api/0/`), outside Access, and the MCP server,
   inside (see its AGENTS.md).
@@ -31,6 +31,7 @@ Where things are:
 - `src/search/`: Sentry's search syntax, as SQL (see its AGENTS.md).
 - `src/symbols/`: uploads and readable stacks (see its AGENTS.md).
 - `src/monitors/`: cron check-ins, uptime checks, incidents (see its AGENTS.md).
+- `src/performance/`: transactions and sessions, summarised at ingest (see its AGENTS.md).
 - `symcache/`: Sentry's symbolic, in Rust, built to `src/symbols/symcache.wasm` (see its AGENTS.md).
 - `src/routes/`: pages and API routes, file-based (see its AGENTS.md).
 - `src/components/`: shadcn/ui and our own components (see its AGENTS.md).

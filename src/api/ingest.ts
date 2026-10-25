@@ -7,6 +7,7 @@ import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { fingerprintOf } from '../ingest/grouping'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
+import { fromSpans, sessionCounts, storeSessions, storeTransaction, summarize } from '../performance/ingest'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
 import { actionUrl } from '../notify/actions'
 import { sharedSymbolic } from '../symbols/module'
@@ -33,7 +34,18 @@ const answer = (body: unknown, status = 200, headers: Record<string, string> = {
 
 const MAX_ATTACHMENT = 1024 * 1024
 // The kinds of item a route or later phase handles; anything else is accepted and dropped
-const KEPT = new Set(['event', 'attachment', 'feedback', 'user_report', 'log', 'check_in'])
+const KEPT = new Set([
+  'event',
+  'attachment',
+  'feedback',
+  'user_report',
+  'log',
+  'check_in',
+  'transaction',
+  'span',
+  'session',
+  'sessions',
+])
 
 // Projects change rarely; a minute's cache spares a read per request
 const projects = new Map<string, { project: Project | null; at: number }>()
@@ -43,7 +55,7 @@ async function projectFor(db: D1Database, id: number, key: string): Promise<Proj
   if (hit && Date.now() - hit.at < 60_000) return hit.project
   const project = await db
     .prepare(
-      'SELECT id, slug, name, public_key, daily_event_quota, daily_log_quota FROM projects WHERE id = ? AND public_key = ?',
+      'SELECT id, slug, name, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota FROM projects WHERE id = ? AND public_key = ?',
     )
     .bind(id, key)
     .first<Project>()
@@ -96,22 +108,36 @@ export async function handleIngest(
 
   // The project's daily quotas, events and logs apart: past one, the SDK is told when to try that kind again, as
   // Sentry tells it (X-Sentry-Rate-Limits, by category); an envelope with nothing left to keep gets a 429
-  const today = await env.DB.prepare('SELECT events, logs FROM project_days WHERE project_id = ? AND day = ?')
+  const today = await env.DB.prepare(
+    'SELECT events, logs, transactions FROM project_days WHERE project_id = ? AND day = ?',
+  )
     .bind(project.id, dayOf(now))
-    .first<{ events: number; logs: number }>()
-  const eventsOver = (today?.events ?? 0) >= project.daily_event_quota
-  const logsOver = (today?.logs ?? 0) >= project.daily_log_quota
-  // Check-ins are few and say a job is alive: no quota
-  const over = (type: string) => (type === 'check_in' ? false : type === 'log' ? logsOver : eventsOver)
+    .first<{ events: number; logs: number; transactions: number }>()
+  const exceeded = {
+    events: (today?.events ?? 0) >= project.daily_event_quota,
+    logs: (today?.logs ?? 0) >= project.daily_log_quota,
+    transactions: (today?.transactions ?? 0) >= project.daily_transaction_quota,
+  }
+  // Check-ins and sessions are few, and say something's alive: no quota
+  const over = (type: string) =>
+    type === 'check_in' || type === 'session' || type === 'sessions'
+      ? false
+      : type === 'log'
+        ? exceeded.logs
+        : type === 'transaction' || type === 'span'
+          ? exceeded.transactions
+          : exceeded.events
   const retry = String(secondsToMidnight(now))
-  const limits =
-    eventsOver && logsOver
+  const categories = [
+    exceeded.events && 'error;default;security;attachment;feedback',
+    exceeded.logs && 'log_item',
+    exceeded.transactions && 'transaction;span',
+  ].filter(Boolean)
+  const limits = categories.length
+    ? exceeded.events && exceeded.logs && exceeded.transactions
       ? `${retry}::organization:usage_exceeded`
-      : eventsOver
-        ? `${retry}:error;default;security;attachment;feedback:organization:usage_exceeded`
-        : logsOver
-          ? `${retry}:log_item:organization:usage_exceeded`
-          : undefined
+      : `${retry}:${categories.join(';')}:organization:usage_exceeded`
+    : undefined
   const kept = items.filter((i) => KEPT.has(i.header.type ?? 'event'))
   if (limits && kept.length && kept.every((i) => over(i.header.type ?? 'event'))) {
     ctx.waitUntil(
@@ -131,7 +157,17 @@ export async function handleIngest(
     const type = item.header.type ?? 'event'
     if (over(type)) continue
     try {
-      if (type === 'check_in') {
+      if (type === 'span') {
+        for (const raw of fromSpans(payloadJson(item))) {
+          const summary = summarize(raw, now)
+          if (summary) await storeTransaction(env.DB, project.id, summary, now)
+        }
+      } else if (type === 'transaction') {
+        const summary = summarize(payloadJson(item), now)
+        if (summary) await storeTransaction(env.DB, project.id, summary, now)
+      } else if (type === 'session' || type === 'sessions') {
+        await storeSessions(env.DB, project.id, sessionCounts(type, payloadJson(item), now))
+      } else if (type === 'check_in') {
         const notice = await recordCheckIn({ ...env, PUBLIC_URL: url.origin }, project.id, payloadJson(item), now)
         if (notice) notices.push(notice)
       } else if (type === 'log') {

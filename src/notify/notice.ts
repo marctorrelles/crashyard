@@ -1,7 +1,14 @@
 // What's worth telling someone about an issue, and which routes it goes through.
 
 export type NoticeKind =
-  'new' | 'threshold' | 'regression' | 'ignore_expired' | 'review_crash' | 'monitor_down' | 'monitor_up'
+  | 'new'
+  | 'threshold'
+  | 'regression'
+  | 'ignore_expired'
+  | 'review_crash'
+  | 'monitor_down'
+  | 'monitor_up'
+  | 'slower_release'
 
 /** The kinds, as the notification settings name them */
 export const KINDS: { kind: NoticeKind; label: string }[] = [
@@ -12,6 +19,7 @@ export const KINDS: { kind: NoticeKind; label: string }[] = [
   { kind: 'review_crash', label: 'App Review or TestFlight crash' },
   { kind: 'monitor_down', label: 'Monitor failing' },
   { kind: 'monitor_up', label: 'Monitor back' },
+  { kind: 'slower_release', label: 'Slower release' },
 ]
 export const LEVELS = ['fatal', 'error', 'warning', 'info', 'debug']
 
@@ -86,7 +94,9 @@ export function noticeLine(notice: Notice): string {
               ? notice.issue.culprit
               : notice.kind === 'monitor_up'
                 ? 'back'
-                : 'App Review crash'
+                : notice.kind === 'slower_release'
+                  ? notice.issue.culprit
+                  : 'App Review crash'
   return [notice.project.name, notice.event.release, notice.event.device ?? notice.event.os, what]
     .filter(Boolean)
     .join(' · ')

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
-import { Ago, count } from '@/components/bits'
+import { Ago, count, percent } from '@/components/bits'
 import { ProjectNav } from '@/components/project-nav'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { getReleases } from '@/fns'
@@ -39,7 +39,9 @@ function Releases() {
                 </div>
                 <div className="text-right text-sm tabular-nums">
                   <p>{count(r.issues)} issues</p>
-                  <p className="text-xs text-muted-foreground">{count(r.events)} events</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.crashFree !== null ? `${percent(r.crashFree)} crash-free` : `${count(r.events)} events`}
+                  </p>
                 </div>
               </Link>
             </li>

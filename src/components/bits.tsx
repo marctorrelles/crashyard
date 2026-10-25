@@ -94,3 +94,7 @@ export const count = (n: number) =>
     : n < 1e6
       ? `${(n / 1000).toFixed(n < 1e4 ? 1 : 0).replace(/\.0$/, '')}k`
       : `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M`
+
+/** A rate as a percentage, with the decimals a crash-free rate needs: 99.95%, 87.3% */
+export const percent = (r: number) =>
+  r === 1 ? '100%' : `${r >= 0.99 ? (Math.floor(r * 10000) / 100).toFixed(2) : (r * 100).toFixed(1)}%`

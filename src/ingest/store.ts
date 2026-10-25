@@ -8,6 +8,7 @@ export type Project = {
   public_key: string
   daily_event_quota: number
   daily_log_quota: number
+  daily_transaction_quota: number
 }
 
 type IssueRow = {

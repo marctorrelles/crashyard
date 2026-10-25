@@ -6,7 +6,10 @@
 - Our own components sit beside `ui/`, built from those. Every one works on a phone (touch targets of 40 px or more,
   nothing wider than the screen) and in light and dark.
 - `shell.tsx`: the top bar and page width (`Shell`, `wide` for lists), `PageHeader`, `Empty`.
-- `bits.tsx`: `Sparkline` (SVG bars, no chart library), `Ago` (relative to a `now` from the loader), `Level`, `count`.
+- `bits.tsx`: `Sparkline` (SVG bars, no chart library), `Ago` (relative to a `now` from the loader), `Level`, `count`,
+  `percent`.
+- `performance.tsx`: `ms` (a duration), `Period`, `P95Chart` (p95 and count per hour, SVG) and `Waterfall` (spans as
+  bars, indented by depth; on a phone the bar goes under its name).
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (my code first, other frames folded, context
   lines), breadcrumbs, tags, contexts, raw JSON.

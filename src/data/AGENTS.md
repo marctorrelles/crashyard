@@ -17,6 +17,11 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   facets over the newest 1000 that match, `pruneLogs` (the daily cron).
 - `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents, making,
   changing, pausing (a resumed one starts again from pending) and deleting; failing monitors for home.
+- `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
+  change since the release before (the project's two newest releases with transactions); one transaction's hours,
+  releases and slowest examples; sessions per release and `crashFree`; `checkSlowerReleases` (the cron, hourly at
+  :05: a p95 50% longer in the newest release than the one before, 50 transactions in each at least, told once via
+  `slower_releases`); `prunePerformance` (the daily cron: summaries after 90 days, examples after 30).
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 

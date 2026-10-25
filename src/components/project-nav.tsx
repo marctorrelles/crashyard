@@ -1,4 +1,4 @@
-// A project's tabs: its issues, releases and settings.
+// A project's tabs: its issues, releases, performance and settings.
 import { Link } from '@tanstack/react-router'
 
 const TAB =
@@ -12,6 +12,9 @@ export function ProjectNav({ slug }: { slug: string }) {
       </Link>
       <Link to="/projects/$slug/releases" params={{ slug }} className={TAB} activeOptions={{ exact: false }}>
         Releases
+      </Link>
+      <Link to="/projects/$slug/performance" params={{ slug }} className={TAB} activeOptions={{ exact: false }}>
+        Performance
       </Link>
       <Link to="/projects/$slug/settings" params={{ slug }} className={TAB}>
         Settings

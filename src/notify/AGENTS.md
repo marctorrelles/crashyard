@@ -3,7 +3,8 @@
 Which notifications an event causes, and sending them. Routes (in D1) pick notices by kind, project, level and
 environment, each with its own thresholds, and send them to channels.
 
-- `notice.ts`: `Notice` (kinds: `new`, `threshold`, `regression`, `ignore_expired`, `review_crash`), `routeTakes`,
+- `notice.ts`: `Notice` (kinds: `new`, `threshold`, `regression`, `ignore_expired`, `review_crash`, `monitor_down`,
+  `monitor_up`, `slower_release`), `routeTakes`,
   `thresholdFor` (a threshold notice passes a route only if one of that route's thresholds was crossed), `noticeLine`.
 - `channels.ts`: ntfy (`Title`, `Click`, `Tags`, `Priority`, `Actions` headers), webhooks (`json`, `slack`,
   `discord`), email; `isQuiet` for a channel's quiet hours (minutes after midnight UTC, across midnight too).

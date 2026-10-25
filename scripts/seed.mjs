@@ -18,6 +18,7 @@ const { fingerprintOf } = await load('/src/ingest/grouping.ts')
 const { storeEvent } = await load('/src/ingest/store.ts')
 const { changeIssues, addNote } = await load('/src/data/issues.ts')
 const { storeLogs } = await load('/src/ingest/logs.ts')
+const { storeSessions, storeTransaction } = await load('/src/performance/ingest.ts')
 const proxy = await getPlatformProxy({ persist: { path: '.wrangler/state/v3' } })
 const db = proxy.env.DB
 
@@ -496,6 +497,88 @@ await db
   .bind(nightly, now - DAY + 10 * MIN)
   .run()
 
+// A week of transactions: 1.0 (10) shipped 3 days ago, and made exporting slower
+const TRANSACTIONS = [
+  [
+    pocketband,
+    'SongView',
+    'ui.load',
+    180,
+    [
+      ['file.read', 'song.json', 0.2],
+      ['ui.render', 'PatternGrid', 0.5],
+    ],
+  ],
+  [pocketband, 'app.start.cold', 'app.start', 650, [['app.init', 'AudioEngine.start', 0.6]]],
+  [
+    pocketband,
+    'Export song',
+    'task',
+    2400,
+    [
+      ['audio.render', 'Studio.render', 0.8],
+      ['file.write', 'song.m4a', 0.1],
+    ],
+  ],
+  [sync, 'GET /songs', 'http.server', 45, [['db.query', 'SELECT * FROM songs WHERE owner = ?', 0.7]]],
+  [
+    sync,
+    'PUT /songs/:id',
+    'http.server',
+    90,
+    [
+      ['db.query', 'INSERT INTO songs …', 0.5],
+      ['http.client', 'R2 put', 0.3],
+    ],
+  ],
+]
+let transactions = 0
+for (const [p, name, op, typical, parts] of TRANSACTIONS) {
+  for (let i = 0; i < 180; i++) {
+    const at = Math.round(now - random() * 7 * DAY)
+    const newer = at > now - 3 * DAY
+    const release = p === pocketband ? (newer ? '1.0 (10)' : '1.0 (9)') : ''
+    const duration = Math.round(typical * (0.5 + random() ** 3 * 3) * (newer && name === 'Export song' ? 1.8 : 1))
+    let start = Math.round(duration * 0.05)
+    const spans = parts.map(([op, description, share]) => {
+      const span = { op, description, start, duration: Math.round(duration * share * (0.8 + random() * 0.2)), depth: 0 }
+      start += span.duration
+      return span
+    })
+    const error = random() < 0.02
+    const status = error ? 'internal_error' : 'ok'
+    const traceId = traceOf(at)
+    await storeTransaction(
+      db,
+      p.id,
+      {
+        id: hex(32),
+        name,
+        release,
+        environment: 'production',
+        op,
+        status,
+        error,
+        traceId,
+        timestamp: at,
+        duration,
+        spans,
+      },
+      at,
+    )
+    transactions++
+  }
+}
+for (let d = 0; d < 14; d++) {
+  const release = d < 3 ? '1.0 (10)' : '1.0 (9)'
+  const started = 40 + Math.floor(random() * 30)
+  const day = new Date(now - d * DAY).toISOString().slice(0, 10)
+  const crashed = d < 3 ? 0 : 1 + Math.floor(random() * 2)
+  await storeSessions(db, pocketband.id, [
+    { release, environment: 'production', day, started, errored: Math.floor(started * 0.04), abnormal: 0, crashed },
+  ])
+}
+
 const channel = await db
   .prepare(
     "INSERT INTO channels (kind, name, config, quiet_from, quiet_to, created_at) VALUES ('ntfy', 'My phone', ?, 1320, 420, ?) RETURNING id",
@@ -509,6 +592,8 @@ await db
   .bind(JSON.stringify([channel.id]), now)
   .run()
 
-console.log(`${events.length} events in ${issueOf.size} issues and ${logs.length} logs, in 3 projects`)
+console.log(
+  `${events.length} events in ${issueOf.size} issues, ${logs.length} logs and ${transactions} transactions, in 3 projects`,
+)
 await proxy.dispose()
 await vite.close()

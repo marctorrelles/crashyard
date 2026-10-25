@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
-import { Ago, count, Level } from '@/components/bits'
+import { Ago, count, Level, percent } from '@/components/bits'
 import { ProjectNav } from '@/components/project-nav'
 import { PageHeader, Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +29,12 @@ function Release() {
           {count(d.release.events)} events in {count(d.release.issues)} issues · first{' '}
           <Ago at={d.release.first} now={d.now} />
           {d.previous && <> · against {d.previous}</>}
+          {d.sessions && d.crashFree !== null && (
+            <>
+              {' '}
+              · {percent(d.crashFree)} crash-free sessions ({count(d.sessions.started)})
+            </>
+          )}
         </p>
       </div>
       <div className="grid gap-6">

@@ -5,6 +5,8 @@ import * as Sentry from '@sentry/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { mergeIssues } from '../src/data/issues'
 import { saveMonitor } from '../src/data/monitors'
+import { checkSlowerReleases, sessionsByRelease, transaction, transactions } from '../src/data/performance'
+import { bucketOf } from '../src/performance/histogram'
 import { KEY, startDev, waitFor } from './dev'
 
 const PORT = 3999
@@ -66,7 +68,7 @@ beforeAll(async () => {
       `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression","monitor_down","monitor_up"]', '[10]', '[1]', 0)`,
     ),
   ])
-  Sentry.init({ dsn, release: 'e2e@1.0.0', environment: 'production', defaultIntegrations: false })
+  Sentry.init({ dsn, release: 'e2e@1.0.0', environment: 'production', defaultIntegrations: false, tracesSampleRate: 1 })
 }, 60_000)
 
 afterAll(async () => {
@@ -287,5 +289,58 @@ describe('ingest, through the real SDK', () => {
         .bind(id)
         .first(),
     ).toEqual({ n: 1 })
+  })
+
+  it('summarises transactions: percentiles by name, the slowest kept with their spans', async () => {
+    await Sentry.startSpan({ name: 'GET /songs', op: 'http.server' }, () =>
+      Sentry.startSpan({ name: 'SELECT songs', op: 'db' }, () => new Promise((r) => setTimeout(r, 30))),
+    )
+    await Sentry.flush()
+    const t = await waitFor(async () =>
+      (await transactions(db(), 1, 1, Date.now())).transactions.find((x) => x.name === 'GET /songs'),
+    )
+    expect(t.count).toBe(1)
+    expect(t.p95).toBeGreaterThanOrEqual(30)
+    const detail = await transaction(db(), 1, 'GET /songs', 1, Date.now())
+    expect(detail.examples[0].spans).toMatchObject([{ op: 'db', description: 'SELECT songs', depth: 0 }])
+  })
+
+  it('counts sessions, one by one and in aggregates, for crash-free rates', async () => {
+    const attrs = { release: 'e2e@2.0.0', environment: 'production' }
+    const started = new Date().toISOString()
+    const items = [
+      [{ type: 'session' }, { sid: id(), init: true, started, status: 'crashed', errors: 1, attrs }],
+      [{ type: 'sessions' }, { aggregates: [{ started, exited: 3 }], attrs }],
+    ]
+    const body = [JSON.stringify({ dsn }), ...items.flat().map((x) => JSON.stringify(x))].join('\n')
+    const response = await fetch(`${origin}/api/1/envelope/`, {
+      method: 'POST',
+      headers: { 'x-sentry-auth': `Sentry sentry_version=7, sentry_key=${KEY}` },
+      body,
+    })
+    expect(response.status).toBe(200)
+    expect((await sessionsByRelease(db(), 1)).get('e2e@2.0.0')).toMatchObject({ started: 4, crashed: 1 })
+  })
+
+  it('tells once when a release makes a transaction slower', async () => {
+    // A month ahead, so the transactions sent above are out of the two weeks it compares
+    const now = Date.now() + 30 * 864e5
+    const hour = (h: number) => Math.floor((now - h * 3_600_000) / 3_600_000) * 3_600_000
+    const seed = (release: string, at: number, ms: number) => [
+      db()
+        .prepare(
+          "INSERT INTO transaction_hours (project_id, name, release, hour, count) VALUES (1, 'GET /slow', ?, ?, 60)",
+        )
+        .bind(release, at),
+      db()
+        .prepare(
+          "INSERT INTO transaction_buckets (project_id, name, release, hour, bucket, count) VALUES (1, 'GET /slow', ?, ?, ?, 60)",
+        )
+        .bind(release, at, bucketOf(ms)),
+    ]
+    await db().batch([...seed('e2e@3.0.0', hour(5), 100), ...seed('e2e@3.1.0', hour(1), 400)])
+    const [notice] = await checkSlowerReleases(db(), origin, now)
+    expect(notice.issue.title).toBe('GET /slow is slower in e2e@3.1.0')
+    expect(await checkSlowerReleases(db(), origin, now)).toEqual([])
   })
 })
