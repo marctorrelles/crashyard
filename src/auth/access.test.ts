@@ -5,8 +5,9 @@ const request = (headers: Record<string, string> = {}) => new Request('https://c
 const configured = { ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com', ACCESS_AUD: 'aud' }
 
 describe('viewerOf', () => {
-  it('lets a local dev server in when Access isn’t set up', async () => {
+  it('lets a local dev server in, Access or not', async () => {
     expect(await viewerOf(request(), {}, true)).toEqual({ email: 'dev@localhost' })
+    expect(await viewerOf(request(), configured, true)).toEqual({ email: 'dev@localhost' })
   })
 
   it('keeps a deployment without Access closed', async () => {
@@ -15,7 +16,7 @@ describe('viewerOf', () => {
   })
 
   it('refuses a request with no token, or one that doesn’t verify, once Access is set up', async () => {
-    expect(await viewerOf(request(), configured, true)).toBeNull()
-    expect(await viewerOf(request({ 'Cf-Access-Jwt-Assertion': 'not.a.token' }), configured, true)).toBeNull()
+    expect(await viewerOf(request(), configured, false)).toBeNull()
+    expect(await viewerOf(request({ 'Cf-Access-Jwt-Assertion': 'not.a.token' }), configured, false)).toBeNull()
   })
 })
