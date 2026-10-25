@@ -8,7 +8,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "upload_source_maps": true,
-  "routes": [{ "pattern": "crashes.marctorrelles.com", "custom_domain": true }],
+  "routes": [{ "pattern": "crashyard.marctorrelles.com", "custom_domain": true }],
   "workers_dev": false,
   "preview_urls": false,
   // Every minute: uptime checks and missed check-ins; the daily jobs run in the 03:00 UTC minute
