@@ -10,8 +10,10 @@ import * as notifications from './data/notifications'
 import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
+import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
+import { ISSUE_KEYS, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
 const origin = () => new URL(getRequest().url).origin
@@ -324,6 +326,51 @@ export const getLogs = createServerFn()
       now,
     )
     return { ...result, now }
+  })
+
+// The search bar's suggestions: without a key, every key (the built-ins, then the tags or attributes stored, by how
+// often they're seen); with one, its values starting with `prefix`. Logs count over the range (24 hours by default).
+export const getSuggestions = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      scope: oneOf(['issues', 'logs'] as const)(o.scope),
+      project: optional((v) => text(v, 60))(o.project),
+      key: optional((v) => text(v, 60))(o.key),
+      prefix: text(o.prefix ?? '', 200),
+      range: oneOf(Object.keys(logs.RANGES) as logs.Range[])(o.range ?? '24h'),
+    }
+  })
+  .handler(async ({ data }): Promise<{ keys: KeyInfo[] } | { values: { value: string; count: number }[] }> => {
+    const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
+    const projectId = project?.id ?? (data.project ? -1 : undefined)
+    const since = Date.now() - logs.RANGES[data.range]
+    if (data.key !== undefined)
+      return {
+        values:
+          data.scope === 'issues'
+            ? await suggestions.issueValues(env.DB, data.key, data.prefix, projectId)
+            : await suggestions.logValues(env.DB, data.key, data.prefix, projectId, since),
+      }
+    const builtIn = data.scope === 'issues' ? ISSUE_KEYS : LOG_KEYS
+    const names = new Set(builtIn.map((k) => k.key))
+    const stored =
+      data.scope === 'issues'
+        ? await suggestions.issueKeys(env.DB, projectId)
+        : await suggestions.logKeys(env.DB, projectId, since)
+    const what = data.scope === 'issues' ? ['Tag', 'issue'] : ['Attribute', 'log']
+    return {
+      keys: [
+        ...builtIn,
+        ...stored
+          .filter((k) => !names.has(k.key))
+          .map((k): KeyInfo => ({
+            key: k.key,
+            description: `${what[0]}, ${k.count} ${what[1]}${k.count === 1 ? '' : 's'}`,
+            kind: 'tag',
+          })),
+      ],
+    }
   })
 
 export const createToken = createServerFn({ method: 'POST' })
