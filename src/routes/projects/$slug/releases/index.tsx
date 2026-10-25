@@ -1,6 +1,5 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { Ago, count, percent } from '@/components/bits'
-import { ProjectNav } from '@/components/project-nav'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { getReleases } from '@/fns'
 
@@ -18,8 +17,7 @@ function Releases() {
   const { project, releases, now } = Route.useLoaderData()
   return (
     <Shell>
-      <PageHeader title={project.name} />
-      <ProjectNav slug={project.slug} />
+      <PageHeader title="Releases">{project.name}</PageHeader>
       {releases.length === 0 ? (
         <Empty title="No releases yet">Events that name a release (the SDKs' `release` option) show up here.</Empty>
       ) : (

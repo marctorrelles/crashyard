@@ -1,7 +1,6 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
 import { count } from '@/components/bits'
 import { ms, Period } from '@/components/performance'
-import { ProjectNav } from '@/components/project-nav'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { getPerformance } from '@/fns'
 import { cn } from '@/lib/utils'
@@ -29,12 +28,13 @@ function Performance() {
   return (
     <Shell>
       <PageHeader
-        title={d.project.name}
+        title="Performance"
         actions={
           <Period days={days ?? 7} onChange={(v) => void navigate({ search: { days: v === 7 ? undefined : v } })} />
         }
-      />
-      <ProjectNav slug={d.project.slug} />
+      >
+        {d.project.name}
+      </PageHeader>
       {d.transactions.length === 0 ? (
         <Empty title="No transactions yet">
           Set the SDK&apos;s <code>tracesSampleRate</code> (0.1 is plenty) and each sampled screen load, request or job

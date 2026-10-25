@@ -3,7 +3,6 @@ import { SearchIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Ago, count, Level, Sparkline } from '@/components/bits'
 import { IssueActions } from '@/components/issue-actions'
-import { ProjectNav } from '@/components/project-nav'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -62,7 +61,7 @@ function Issues() {
   return (
     <Shell wide>
       <PageHeader
-        title={project?.name ?? 'Issues'}
+        title="Issues"
         actions={
           <Select value={search.project ?? '*'} onValueChange={(v) => go({ project: v === '*' ? undefined : v })}>
             <SelectTrigger className="w-44" aria-label="Project">
@@ -78,8 +77,9 @@ function Issues() {
             </SelectContent>
           </Select>
         }
-      />
-      {project && <ProjectNav slug={project.slug} />}
+      >
+        {project?.name}
+      </PageHeader>
       <form
         key={query}
         className="mb-3"

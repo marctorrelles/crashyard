@@ -5,7 +5,8 @@ server, the build, or `tsr generate`): never edit it.
 
 - `__root.tsx`: the document. Light or dark follows the system (a script sets `.dark` before paint and when the system
   changes); there's no toggle. The viewport covers the notch (`viewport-fit=cover`).
-  It also has the error and not-found pages.
+  It also has the error and not-found pages. Its loader is every project, for the sidebar (`Shell`); a project's pages are under it there,
+  so each page's title is the page and the project is the line under it.
 - `index.tsx`: home: a banner when a newer crashyard is out, projects with their unresolved count, events in a day and a 14-day sparkline; new issues.
 - `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`); the status
   tabs rewrite `is:` in the query. Bulk resolve, ignore, merge and delete.

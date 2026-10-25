@@ -2,7 +2,6 @@ import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-ro
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Ago, count } from '@/components/bits'
 import { ms, P95Chart, Period, Waterfall } from '@/components/performance'
-import { ProjectNav } from '@/components/project-nav'
 import { PageHeader, Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { getTransaction } from '@/fns'
@@ -33,15 +32,16 @@ function Transaction() {
   return (
     <Shell>
       <PageHeader
-        title={d.project.name}
+        title="Performance"
         actions={
           <Period
             days={search.days ?? 7}
             onChange={(v) => void navigate({ search: (s) => ({ ...s, days: v === 7 ? undefined : v }) })}
           />
         }
-      />
-      <ProjectNav slug={d.project.slug} />
+      >
+        {d.project.name}
+      </PageHeader>
       <Link
         to="/projects/$slug/performance"
         params={{ slug: d.project.slug }}

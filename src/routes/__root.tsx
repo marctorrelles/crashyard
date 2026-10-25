@@ -1,5 +1,7 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { getProjects } from '@/fns'
 import favicon from '../favicon.svg?url'
 import appCss from '../styles.css?url'
 
@@ -7,6 +9,8 @@ import appCss from '../styles.css?url'
 const THEME_SCRIPT = `(function(){var m=window.matchMedia('(prefers-color-scheme: dark)');function s(){document.documentElement.classList.toggle('dark',m.matches);document.documentElement.style.colorScheme=m.matches?'dark':'light'}s();m.addEventListener('change',s)})()`
 
 export const Route = createRootRoute({
+  // The sidebar's projects
+  loader: () => getProjects(),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -48,7 +52,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="min-h-dvh font-sans antialiased">
-        {children}
+        <TooltipProvider>{children}</TooltipProvider>
         <Toaster />
         <Scripts />
       </body>

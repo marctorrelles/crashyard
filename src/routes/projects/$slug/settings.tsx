@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Code, Linking } from '@/components/linking'
 import { PLATFORM_NAMES } from '@/components/new-project'
-import { ProjectNav } from '@/components/project-nav'
 import { Uploads } from '@/components/uploads'
 import { PageHeader, Shell } from '@/components/shell'
 import { Button } from '@/components/ui/button'
@@ -40,8 +39,7 @@ function Settings() {
   const [confirmDelete, setConfirmDelete] = useState('')
   return (
     <Shell>
-      <PageHeader title={project.name} />
-      <ProjectNav slug={project.slug} />
+      <PageHeader title="Settings">{project.name}</PageHeader>
       <div className="grid gap-5">
         <Card title="Link an app" description="Its Sentry SDK sends here once it has this DSN.">
           <div className="mb-5 grid min-w-0 gap-2">

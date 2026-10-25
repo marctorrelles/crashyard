@@ -1,6 +1,5 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { Ago, count, Level, percent } from '@/components/bits'
-import { ProjectNav } from '@/components/project-nav'
 import { PageHeader, Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { getRelease } from '@/fns'
@@ -21,8 +20,7 @@ function Release() {
   const d = Route.useLoaderData()
   return (
     <Shell>
-      <PageHeader title={d.project.name} />
-      <ProjectNav slug={d.project.slug} />
+      <PageHeader title="Releases">{d.project.name}</PageHeader>
       <div className="mb-6">
         <h2 className="font-mono text-lg font-semibold break-all">{d.release.release}</h2>
         <p className="text-sm text-muted-foreground">
