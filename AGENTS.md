@@ -43,6 +43,9 @@ Where things are:
 - `wrangler.jsonc`: the worker, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and empty `vars`, generic so
   anyone can deploy it; a deployment's own domain and Access values are in the git-ignored `wrangler.local.json`,
   which `vite.config.ts` lays over it. Secrets: `ACTION_SECRET` (`wrangler secret put`; `.dev.vars` locally).
+- `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
+  three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root), issue
+  and PR templates, Dependabot. Actions are pinned by commit SHA.
 - `tmp/`: plans and scratch notes, git-ignored. Never commit plans.
 
 ## Rules

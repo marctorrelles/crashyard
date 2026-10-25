@@ -1,5 +1,7 @@
 # crashyard
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/marctorrelles/crashyard/badge)](https://scorecard.dev/viewer/?uri=github.com/marctorrelles/crashyard)
+
 Crash, error and log reporting you run on your own Cloudflare account. Apps send to it with the official Sentry SDKs
 (Swift, Android, JavaScript, Node and any other), and it groups crashes into issues, makes them searchable, reads
 their stacks from your uploaded debug files and source maps, and tells you when something new breaks. One Cloudflare
