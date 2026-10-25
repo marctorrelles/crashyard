@@ -87,13 +87,16 @@ openssl rand -hex 32 | pnpm wrangler secret put ACTION_SECRET
 
 Without it, pushes still arrive, without the buttons.
 
-## 5. Keep raw envelopes a month (optional)
+## 5. Keep raw envelopes a month, and clean up uploads (optional)
 
 Every envelope is also kept as it arrived in R2, to reprocess or debug. A lifecycle rule deletes them after 30 days:
 
 ```sh
 pnpm wrangler r2 bucket lifecycle add crashyard-files envelopes envelopes/ --expire-days 30
+pnpm wrangler r2 bucket lifecycle add crashyard-files chunks chunks/ --expire-days 1
 ```
+
+The second drops upload chunks left behind by an upload that never finished.
 
 ## 6. Email notifications (optional)
 

@@ -124,6 +124,7 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
       try {
         const bytes = await joinChunks(env.FILES, chunks, checksum)
         const rows = await storeDebugFile(env, symbolic, id, checksum, file.name ?? checksum, file.debug_id, bytes, now)
+        ctx.waitUntil(env.FILES.delete(chunks.map(chunkKey)))
         fresh.push(...rows.map((r) => r.debug_id))
         out[checksum] = { state: 'ok', missingChunks: [], dif: difOf(rows[0]) }
       } catch (error) {
@@ -164,6 +165,7 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
       const bytes = await joinChunks(env.FILES, chunks, body.checksum)
       const debugIds = await storeBundle(env, symbolic, ids, body.checksum, body.version, body.dist, bytes, now)
       for (const id of ids) forgetMissing(id)
+      ctx.waitUntil(env.FILES.delete(chunks.map(chunkKey)))
       if (debugIds.length) for (const id of ids) ctx.waitUntil(reprocess(id, debugIds))
       return json({ state: 'ok', missingChunks: [] })
     } catch (error) {

@@ -6,7 +6,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
 - `symcache.ts`: the glue to `symcache.wasm`, with stubs for the WASI calls it imports. `symbolic(module)` makes an
   instance; its memory only grows, so uploads use a fresh one each (`freshSymbolic`) and lookups share one per
   isolate (`sharedSymbolic`, in `module.ts`, the only file that imports the `.wasm`; tests compile it themselves).
-- `uploads.ts`: chunks (R2 `chunks/<sha1>`) joined and checked; a debug file becomes a row per object with its
+- `uploads.ts`: chunks (R2 `chunks/<sha1>`, deleted once assembled; an R2 rule drops strays after a day) joined
+  and checked; a debug file becomes a row per object with its
   SymCache (`symcaches/…`); a ProGuard mapping is kept as it is (its UUID from sentry-cli); an artifact bundle (zip
   with `manifest.json`) becomes a SourceMapCache per minified file and its map, found by debug id or URL (`~/path`).
 - `symbolicate.ts`: on each event, before grouping. Native frames by address within their image (the crashing
