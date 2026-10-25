@@ -1,7 +1,8 @@
 // What never gets stored: values under keys that name a secret, and emails, card numbers and bearer tokens in text.
 
 const SECRET_KEY = /pass(word|wd)?|secret|token|auth|api[-_]?key|cookie|session|credential|private[-_]?key|bearer/i
-const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/g
+// A domain ends in letters: `app@1.2.0`, Sentry's way of naming a release, isn't an email
+const EMAIL = /[\w.+-]+@(?:[\w-]+\.)+[A-Za-z]{2,}\b/g
 const CARD = /\b(?:\d[ -]?){13,19}\b/g
 const BEARER = /\b(Bearer|Basic)\s+[\w\-._~+/]+=*/gi
 

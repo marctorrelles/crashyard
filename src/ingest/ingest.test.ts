@@ -5,7 +5,7 @@ import { readBody } from './body'
 import { EnvelopeError, parseEnvelope, payloadJson } from './envelope'
 import { eventIdOf, normalizeEvent, timestampOf } from './event'
 import { fingerprintOf, mask } from './grouping'
-import { scrub } from './scrub'
+import { scrub, scrubText } from './scrub'
 import { transitionOf } from './store'
 
 const fixture = (path: string) => readFileSync(`test/fixtures/${path}`)
@@ -129,6 +129,9 @@ describe('grouping', () => {
 
 describe('scrubbing', () => {
   it('takes secrets out of keys and text', () => {
+    expect(scrubText('release app@1.2.0, web@2026.10.12; me@mail.example.org')).toBe(
+      'release app@1.2.0, web@2026.10.12; [email]',
+    )
     expect(scrub({ password: 'x', nested: { apiKey: 'y', note: 'mail me at a@b.co, Bearer abc.def' } })).toEqual({
       password: '[Filtered]',
       nested: { apiKey: '[Filtered]', note: 'mail me at [email], Bearer [Filtered]' },
