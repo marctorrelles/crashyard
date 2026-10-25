@@ -1,0 +1,10 @@
+# Before each commit: lint and format what's staged (the rest of `pnpm check` runs in CI)
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: '*.{ts,tsx,js}'
+      run: pnpm eslint {staged_files}
+    format:
+      glob: '*.{ts,tsx,js,json,md,css,yml,yaml}'
+      run: pnpm prettier --check {staged_files}

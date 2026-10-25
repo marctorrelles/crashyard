@@ -1,0 +1,25 @@
+// The crashyard worker: the dashboard (TanStack Start), the ingest and Sentry APIs, and the cron (see AGENTS.md).
+// Deploying your own: change `routes` to your domain and the Access values in `vars` (docs/deploying.md).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crashyard",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "upload_source_maps": true,
+  "routes": [{ "pattern": "crashes.marctorrelles.com", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false,
+  // Every minute: uptime checks and missed check-ins; the daily jobs run in the 03:00 UTC minute
+  "triggers": { "crons": ["* * * * *"] },
+  // No ids: `wrangler deploy` makes the database and the bucket in your account the first time
+  "d1_databases": [{ "binding": "DB", "database_name": "crashyard", "migrations_dir": "migrations" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "crashyard-files" }],
+  "vars": {
+    // Cloudflare Access in front of the dashboard: your team's domain and the application's audience tag.
+    // Empty means every dashboard request is refused (fail closed), except on a local dev server.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+  },
+}

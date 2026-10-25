@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/**/*.test.ts",
+    "vitest.config.ts",
+    "src/server.ts",
+    "src/router.tsx",
+    "src/routes/**/*.{ts,tsx}",
+    "src/components/ui/*.tsx"
+  ],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignoreDependencies": ["cloudflare", "tailwindcss", "tw-animate-css"]
+}
