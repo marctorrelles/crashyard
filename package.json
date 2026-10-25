@@ -26,7 +26,8 @@
     "test": "vitest run",
     "cf-typegen": "wrangler types",
     "prepare": "lefthook install",
-    "seed": "node scripts/seed.mjs"
+    "seed": "node scripts/seed.mjs",
+    "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

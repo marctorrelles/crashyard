@@ -18,6 +18,9 @@ Then follow steps 3 to 6 below, putting the values they mention in your copy's `
 
 ## 1. Point it at your domain (from a clone)
 
+`pnpm run setup` asks for this step's and step 3's values, writes the file, and offers steps 2, 4 and 5 for you; run
+it again to change a value. By hand:
+
 Your deployment's own values go in `wrangler.local.json` at the repo root, which git ignores and the build lays over
 `wrangler.jsonc` (its `vars` merged in, anything else replacing `wrangler.jsonc`'s). Make it with your subdomain:
 
