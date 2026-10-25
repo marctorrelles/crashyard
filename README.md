@@ -6,7 +6,7 @@ you when something new breaks. One Cloudflare Worker, D1 and R2: free on Cloudfl
 
 crashyard is Sentry-compatible and isn't affiliated with Sentry.
 
-> Work in progress: not ready to deploy yet.
+> Work in progress. Deploying your own: [docs/deploying.md](docs/deploying.md).
 
 ## Developing
 

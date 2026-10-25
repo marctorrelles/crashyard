@@ -19,7 +19,7 @@
   "vars": {
     // Cloudflare Access in front of the dashboard: your team's domain and the application's audience tag.
     // Empty means every dashboard request is refused (fail closed), except on a local dev server.
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": "",
+    "ACCESS_TEAM_DOMAIN": "marctorrelles.cloudflareaccess.com",
+    "ACCESS_AUD": "23cf871024e213b2d0c15c0796e1dc3a7f324c404b6d71af99bd9c650d5892ca",
   },
 }
