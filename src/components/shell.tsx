@@ -1,6 +1,7 @@
 // The frame every page sits in: the bar on top (home, issues, notifications) and the page's width.
 import { Link } from '@tanstack/react-router'
 import { ActivityIcon, BellIcon, BugIcon, ScrollTextIcon } from 'lucide-react'
+import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
 export function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
@@ -64,17 +65,22 @@ function NavLink({
   )
 }
 
+// The c of crashyard with its upper end cracked off and lifted clear (the large-size drawing is docs/images/logo.svg;
+// this one's crack is wider, so it still shows at 20 px)
+const RING = 'M20.29,17.59A10 10 0 1 1 20.29,6.41L16.06,9.26A4.9 4.9 0 1 0 16.06,14.74Z'
+
 function Logo() {
+  const id = useId()
   return (
-    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="6" className="fill-foreground" />
-      <path
-        d="M7 15l3-6 3 4 2-3 2 5"
-        className="fill-none stroke-background"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 24 24" className="size-5 fill-foreground" aria-hidden="true">
+      <clipPath id={`${id}n`}>
+        <polygon points="12,12 24,12 24,24 0,24 -6.02,-0.62 0.49,4.9 3.39,5.82 3.89,7.89 5.78,7.98 6.55,9.5 8.28,10.34" />
+      </clipPath>
+      <clipPath id={`${id}f`}>
+        <polygon points="12,12 9.17,9.07 7.44,8.22 6.67,6.71 4.79,6.61 4.28,4.54 1.39,3.62 -6.02,-0.62 -2,-6 24,-6 24,12" />
+      </clipPath>
+      <path d={RING} clipPath={`url(#${id}n)`} />
+      <path d={RING} clipPath={`url(#${id}f)`} transform="translate(.45 -.5)" />
     </svg>
   )
 }

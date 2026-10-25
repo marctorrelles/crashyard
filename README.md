@@ -1,4 +1,4 @@
-# crashyard
+# <img src="docs/images/logo.svg" alt="" width="40" height="40" align="top"> crashyard
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/marctorrelles/crashyard/badge)](https://scorecard.dev/viewer/?uri=github.com/marctorrelles/crashyard)
 
