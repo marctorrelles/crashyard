@@ -23,7 +23,10 @@ export async function viewerOf(request: Request, config: AccessConfig, dev: bool
   if (!keys) keySets.set(team, (keys = createRemoteJWKSet(new URL(`https://${team}/cdn-cgi/access/certs`))))
   try {
     const { payload } = await jwtVerify(token, keys, { issuer: `https://${team}`, audience: config.ACCESS_AUD })
-    return typeof payload.email === 'string' ? { email: payload.email } : null
+    if (typeof payload.email === 'string') return { email: payload.email }
+    // A service token (an agent, through /mcp) has no email: its client id, as `common_name`
+    if (typeof payload.common_name === 'string') return { email: `service:${payload.common_name}` }
+    return null
   } catch {
     return null
   }

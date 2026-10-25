@@ -7,6 +7,7 @@ export type Project = {
   name: string
   public_key: string
   daily_event_quota: number
+  daily_log_quota: number
 }
 
 type IssueRow = {
@@ -151,8 +152,8 @@ export async function storeEvent(
     statements.push(
       db
         .prepare(
-          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key, trace_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           event.id,
@@ -167,6 +168,7 @@ export async function storeEvent(
           `${event.title}\n${event.message}`.trim(),
           JSON.stringify(event),
           envelopeKey ?? null,
+          event.traceId ?? null,
         ),
     )
     for (const [key, value] of tags) {

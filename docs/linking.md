@@ -60,6 +60,12 @@ import * as Sentry from '@sentry/node'
 Sentry.init({ dsn: '<your DSN>', environment: process.env.NODE_ENV ?? 'production' })
 ```
 
+## Logs
+
+The SDKs send logs with `Sentry.logger.info('song opened', { song: 42 })` (and `warn`, `error`…); they show under
+Logs, searchable by their attributes (`song:42`). Turn them on where the SDK needs it (`enableLogs: true` in older
+JavaScript SDKs, `options.experimental.enableLogs = true` on Apple, `io.sentry.logs.enabled` on Android).
+
 ## Anything else
 
 Any Sentry SDK works: set its DSN to crashyard's.

@@ -5,6 +5,7 @@ import { BodyError, readBody } from '../ingest/body'
 import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson } from '../ingest/envelope'
 import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { fingerprintOf } from '../ingest/grouping'
+import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
 import { actionUrl } from '../notify/actions'
 import type { Notice } from '../notify/notice'
@@ -29,7 +30,7 @@ const answer = (body: unknown, status = 200, headers: Record<string, string> = {
 
 const MAX_ATTACHMENT = 1024 * 1024
 // The kinds of item a route or later phase handles; anything else is accepted and dropped
-const KEPT = new Set(['event', 'attachment', 'feedback', 'user_report'])
+const KEPT = new Set(['event', 'attachment', 'feedback', 'user_report', 'log'])
 
 // Projects change rarely; a minute's cache spares a read per request
 const projects = new Map<string, { project: Project | null; at: number }>()
@@ -38,7 +39,9 @@ async function projectFor(db: D1Database, id: number, key: string): Promise<Proj
   const hit = projects.get(cacheKey)
   if (hit && Date.now() - hit.at < 60_000) return hit.project
   const project = await db
-    .prepare('SELECT id, slug, name, public_key, daily_event_quota FROM projects WHERE id = ? AND public_key = ?')
+    .prepare(
+      'SELECT id, slug, name, public_key, daily_event_quota, daily_log_quota FROM projects WHERE id = ? AND public_key = ?',
+    )
     .bind(id, key)
     .first<Project>()
   projects.set(cacheKey, { project, at: Date.now() })
@@ -88,31 +91,45 @@ export async function handleIngest(
   const project = await projectFor(env.DB, projectId, key)
   if (!project) return answer({ detail: 'Invalid DSN' }, 403)
 
-  // The project's daily quota: past it, the SDK is told when to try again, as Sentry tells it
-  const today = await env.DB.prepare('SELECT events FROM project_days WHERE project_id = ? AND day = ?')
+  // The project's daily quotas, events and logs apart: past one, the SDK is told when to try that kind again, as
+  // Sentry tells it (X-Sentry-Rate-Limits, by category); an envelope with nothing left to keep gets a 429
+  const today = await env.DB.prepare('SELECT events, logs FROM project_days WHERE project_id = ? AND day = ?')
     .bind(project.id, dayOf(now))
-    .first<{ events: number }>()
-  if ((today?.events ?? 0) >= project.daily_event_quota) {
-    const retry = String(secondsToMidnight(now))
+    .first<{ events: number; logs: number }>()
+  const eventsOver = (today?.events ?? 0) >= project.daily_event_quota
+  const logsOver = (today?.logs ?? 0) >= project.daily_log_quota
+  const over = (type: string) => (type === 'log' ? logsOver : eventsOver)
+  const retry = String(secondsToMidnight(now))
+  const limits =
+    eventsOver && logsOver
+      ? `${retry}::organization:usage_exceeded`
+      : eventsOver
+        ? `${retry}:error;default;security;attachment;feedback:organization:usage_exceeded`
+        : logsOver
+          ? `${retry}:log_item:organization:usage_exceeded`
+          : undefined
+  const kept = items.filter((i) => KEPT.has(i.header.type ?? 'event'))
+  if (limits && kept.length && kept.every((i) => over(i.header.type ?? 'event'))) {
     ctx.waitUntil(
-      env.DB.prepare('UPDATE project_days SET dropped = dropped + 1 WHERE project_id = ? AND day = ?')
+      env.DB.prepare(
+        'INSERT INTO project_days (project_id, day, dropped) VALUES (?, ?, 1) ON CONFLICT DO UPDATE SET dropped = dropped + 1',
+      )
         .bind(project.id, dayOf(now))
         .run(),
     )
-    return answer({ detail: 'Daily quota reached' }, 429, {
-      'Retry-After': retry,
-      'X-Sentry-Rate-Limits': `${retry}::organization:usage_exceeded`,
-    })
+    return answer({ detail: 'Daily quota reached' }, 429, { 'Retry-After': retry, 'X-Sentry-Rate-Limits': limits })
   }
 
   const notices: Notice[] = []
   let firstEventId: string | undefined
   const attachments: EnvelopeItem[] = []
-  for (const item of items) {
+  for (const item of kept) {
     const type = item.header.type ?? 'event'
-    if (!KEPT.has(type)) continue
+    if (over(type)) continue
     try {
-      if (type === 'event') {
+      if (type === 'log') {
+        await storeLogs(env.DB, project.id, normalizeLogs(payloadJson(item), now), now, dayOf(now))
+      } else if (type === 'event') {
         const event = await normalizeEvent(payloadJson(item), now, envelopeId)
         firstEventId ??= event.id
         const envelopeKey = endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
@@ -133,7 +150,10 @@ export async function handleIngest(
   const eventId = envelopeId ?? firstEventId
   if (eventId) for (const item of attachments) await storeAttachment(env, project, eventId, item)
   if (notices.length) ctx.waitUntil(import('../notify/dispatch').then(({ dispatch }) => dispatch(env, notices)))
-  return endpoint === 'store' ? answer({ id: eventId }) : answer(eventId ? { id: eventId } : {})
+  const headers: Record<string, string> = limits ? { 'X-Sentry-Rate-Limits': limits } : {}
+  return endpoint === 'store'
+    ? answer({ id: eventId }, 200, headers)
+    : answer(eventId ? { id: eventId } : {}, 200, headers)
 }
 
 type Stored = NonNullable<Awaited<ReturnType<typeof storeEvent>>>

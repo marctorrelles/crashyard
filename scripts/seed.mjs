@@ -1,4 +1,4 @@
-// Fills the local dev database (what `pnpm dev` uses) with a month of made-up crashes from three apps, through the same
+// Fills the local dev database (what `pnpm dev` uses) with a month of made-up crashes (and two days of logs) from three apps, through the same
 // code ingest uses, so the dashboard has something to show. Wipes local projects first. Never touches a deployment.
 //   pnpm seed
 import { execFileSync } from 'node:child_process'
@@ -17,6 +17,7 @@ const { normalizeEvent } = await load('/src/ingest/event.ts')
 const { fingerprintOf } = await load('/src/ingest/grouping.ts')
 const { storeEvent } = await load('/src/ingest/store.ts')
 const { changeIssues, addNote } = await load('/src/data/issues.ts')
+const { storeLogs } = await load('/src/ingest/logs.ts')
 const proxy = await getPlatformProxy({ persist: { path: '.wrangler/state/v3' } })
 const db = proxy.env.DB
 
@@ -311,6 +312,9 @@ const ISSUES = [
   },
 ]
 
+// One trace per app session: ten minutes
+const traceOf = (at) => (Math.floor(at / 6e5) * 2654435761).toString(16).padStart(32, '0').slice(-32)
+
 // Every event, oldest first, so first and last seen, releases and regressions come out as they would have
 const events = ISSUES.flatMap((issue, i) =>
   Array.from({ length: issue.n }, (_, k) => {
@@ -331,6 +335,8 @@ for (const e of events) {
   const raw = issue.make(e.release)
   raw.event_id = hex(32)
   raw.timestamp = e.at / 1000
+  // The last day's events carry a trace, which the logs below share
+  if (now - e.at < DAY) raw.contexts = { ...raw.contexts, trace: { trace_id: traceOf(e.at), span_id: hex(16) } }
   raw.breadcrumbs = raw.breadcrumbs?.map((b, n) => ({ ...b, timestamp: e.at / 1000 - (3 - n) * 2.5 }))
   const event = await normalizeEvent(raw, e.at, raw.event_id)
   const stored = await storeEvent(db, issue.project, event, await fingerprintOf(event))
@@ -355,6 +361,58 @@ await addNote(
   now - 3 * DAY,
 )
 
+// Two days of logs: what each app says while it runs
+const LOGS = [
+  [
+    pocketband,
+    'info',
+    'song opened',
+    () => ({ song: Math.floor(random() * 60), mode: pick(['edit', 'live']) }),
+    '1.0 (10)',
+  ],
+  [
+    pocketband,
+    'info',
+    'pattern saved',
+    () => ({ song: Math.floor(random() * 60), steps: pick([16, 32, 64]) }),
+    '1.0 (10)',
+  ],
+  [pocketband, 'debug', 'audio buffer resized', () => ({ frames: pick([128, 256, 512]) }), '1.0 (10)'],
+  [
+    pocketband,
+    'warn',
+    'sync retry',
+    () => ({ attempt: pick([1, 2, 3]), status: pick([502, 503, 'timeout']) }),
+    '1.0 (10)',
+  ],
+  [pocketband, 'error', 'export failed', () => ({ format: pick(['wav', 'm4a']), reason: 'disk full' }), '1.0 (10)'],
+  [
+    notes,
+    'info',
+    'note rendered',
+    () => ({ blocks: Math.floor(random() * 200), ms: Math.floor(random() * 80) }),
+    'web@2026.10.20',
+  ],
+  [notes, 'warn', 'slow render', () => ({ ms: 300 + Math.floor(random() * 900) }), 'web@2026.10.20'],
+  [
+    sync,
+    'info',
+    'catalog served',
+    () => ({ songs: Math.floor(random() * 4000), ms: Math.floor(random() * 40) }),
+    'sync@3f9c2e1',
+  ],
+]
+const logs = Array.from({ length: 450 }, () => {
+  const [p, level, body, attrs, release] = LOGS[Math.floor(random() ** 1.4 * LOGS.length)]
+  const at = Math.round(now - random() ** 1.8 * 2 * DAY)
+  return {
+    p,
+    log: { timestamp: at, level, body, attributes: attrs(), release, environment: 'production', traceId: traceOf(at) },
+  }
+}).sort((a, b) => a.log.timestamp - b.log.timestamp)
+for (const { p, log } of logs)
+  await storeLogs(db, p.id, [log], log.timestamp, new Date(log.timestamp).toISOString().slice(0, 10))
+
 const channel = await db
   .prepare(
     "INSERT INTO channels (kind, name, config, quiet_from, quiet_to, created_at) VALUES ('ntfy', 'My phone', ?, 1320, 420, ?) RETURNING id",
@@ -368,6 +426,6 @@ await db
   .bind(JSON.stringify([channel.id]), now)
   .run()
 
-console.log(`${events.length} events in ${issueOf.size} issues, in 3 projects`)
+console.log(`${events.length} events in ${issueOf.size} issues and ${logs.length} logs, in 3 projects`)
 await proxy.dispose()
 await vite.close()

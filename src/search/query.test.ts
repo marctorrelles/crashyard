@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { issueFilter, timeOf, tokenize, withToken } from './query'
+import { issueFilter, logFilter, timeOf, tokenize, withToken } from './query'
 
 const NOW = Date.UTC(2026, 9, 25)
 
@@ -58,5 +58,24 @@ describe('search', () => {
       projectSlugs: ['pocketband'],
       where: ["i.status = 'unresolved' AND i.substatus = 'new' AND i.first_seen >= ?"],
     })
+  })
+
+  it('searches logs by level, columns, attributes and text', () => {
+    const f = logFilter('level:warning release:1.0 song:42 !mode:live "slow export" trace:abc', NOW)
+    expect(f.where).toEqual([
+      'l.level = ?',
+      'l.release = ?',
+      'EXISTS (SELECT 1 FROM log_attributes a WHERE a.log_id = l.id AND a.key = ? AND a.value = ?)',
+      'NOT (EXISTS (SELECT 1 FROM log_attributes a WHERE a.log_id = l.id AND a.key = ? AND a.value = ?))',
+      'l.trace_id = ?',
+      'l.id IN (SELECT rowid FROM logs_fts WHERE logs_fts MATCH ?)',
+    ])
+    expect(f.params).toEqual(['warn', '1.0', 'song', '42', 'mode', 'live', 'abc', '"slow"* "export"*'])
+  })
+
+  it('finds the issues of a trace', () => {
+    expect(issueFilter('trace:abc', NOW).where).toEqual([
+      'EXISTS (SELECT 1 FROM events e WHERE e.issue_id = i.id AND e.trace_id = ?)',
+    ])
   })
 })

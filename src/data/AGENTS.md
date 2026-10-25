@@ -13,6 +13,8 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
 - `releases.ts`: releases from events (kept within retention), and the release diff: new in it, came back in it,
   still happening, and gone since the release before.
+- `logs.ts`: the explorer's page (newest first, a time range, cursors for older and for the live tail's newer),
+  facets over the newest 1000 that match, `pruneLogs` (the daily cron).
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 

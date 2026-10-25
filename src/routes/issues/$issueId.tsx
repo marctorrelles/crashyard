@@ -87,6 +87,15 @@ function IssuePage() {
                     {event.release && ` · ${event.release}`}
                     {event.environment && ` · ${event.environment}`}
                   </span>
+                  {event.traceId && (
+                    <Link
+                      to="/logs"
+                      search={{ query: `trace:${event.traceId}`, range: '30d' }}
+                      className="ml-2 text-xs underline"
+                    >
+                      Logs of this trace
+                    </Link>
+                  )}
                 </div>
                 <div className="flex gap-1">
                   <EventLink id={issue.id} event={d.older} label="Older event">

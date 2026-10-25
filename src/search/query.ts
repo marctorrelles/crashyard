@@ -126,6 +126,10 @@ export function issueFilter(query: string, now: number): Filter {
       add(`${TIMES[key]} ${op} ?`, t.negate, at)
       continue
     }
+    if (key === 'trace') {
+      add('EXISTS (SELECT 1 FROM events e WHERE e.issue_id = i.id AND e.trace_id = ?)', t.negate, t.value)
+      continue
+    }
     if (COLUMNS[key]) {
       const [sql, value] = match(COLUMNS[key], t.value)
       add(sql, t.negate, value)
@@ -141,5 +145,69 @@ export function issueFilter(query: string, now: number): Filter {
   }
   if (text.length)
     add('i.id IN (SELECT rowid FROM issues_fts WHERE issues_fts MATCH ?)', false, text.map((w) => `"${w}"*`).join(' '))
+  return { where, params, projectSlugs }
+}
+
+const LOG_COLUMNS: Record<string, string> = {
+  level: 'l.level',
+  release: 'l.release',
+  environment: 'l.environment',
+  trace: 'l.trace_id',
+}
+const LOG_LEVEL_ALIASES: Record<string, string> = { warning: 'warn', critical: 'fatal' }
+
+/** SQL conditions over `logs l`. Unknown keys are the app's attributes (log_attributes) */
+export function logFilter(query: string, now: number): Filter {
+  const where: string[] = []
+  const params: unknown[] = []
+  const projectSlugs: string[] = []
+  const text: string[] = []
+  const add = (sql: string, negate: boolean, ...values: unknown[]) => {
+    where.push(negate ? `NOT (${sql})` : sql)
+    params.push(...values)
+  }
+  for (const t of tokenize(query)) {
+    if (!t.key || t.key === 'message' || t.key === 'body') {
+      const words = t.value.match(/[\p{L}\p{N}_]+/gu) ?? []
+      if (!words.length) continue
+      if (t.negate)
+        add('l.id IN (SELECT rowid FROM logs_fts WHERE logs_fts MATCH ?)', true, words.map((w) => `"${w}"*`).join(' '))
+      else text.push(...words)
+      continue
+    }
+    const key = t.key
+    if (key === 'project') {
+      if (!t.negate) projectSlugs.push(t.value)
+      else add('l.project_id NOT IN (SELECT id FROM projects WHERE slug = ?)', false, t.value)
+      continue
+    }
+    if (key === 'timestamp') {
+      const at = timeOf(t.value, now)
+      if (at === undefined) continue
+      const op =
+        t.op === ':'
+          ? t.value.startsWith('+')
+            ? '<'
+            : '>='
+          : t.value.startsWith('-')
+            ? { '>': '<', '<': '>', '>=': '<=', '<=': '>=' }[t.op]
+            : SQL_OP[t.op]
+      add(`l.timestamp ${op} ?`, t.negate, at)
+      continue
+    }
+    if (key === 'has') {
+      add('EXISTS (SELECT 1 FROM log_attributes a WHERE a.log_id = l.id AND a.key = ?)', t.negate, t.value)
+      continue
+    }
+    if (LOG_COLUMNS[key]) {
+      const [sql, value] = match(LOG_COLUMNS[key], key === 'level' ? (LOG_LEVEL_ALIASES[t.value] ?? t.value) : t.value)
+      add(sql, t.negate, value)
+      continue
+    }
+    const [sql, value] = match('a.value', t.value)
+    add(`EXISTS (SELECT 1 FROM log_attributes a WHERE a.log_id = l.id AND a.key = ? AND ${sql})`, t.negate, key, value)
+  }
+  if (text.length)
+    add('l.id IN (SELECT rowid FROM logs_fts WHERE logs_fts MATCH ?)', false, text.map((w) => `"${w}"*`).join(' '))
   return { where, params, projectSlugs }
 }

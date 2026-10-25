@@ -172,7 +172,7 @@ describe('ingest, through the real SDK', () => {
     await db().prepare('UPDATE projects SET public_key = ? WHERE id = 1').bind(quotaKey).run()
     const refused = await send(crash('app@3'), quotaKey)
     expect(refused.status).toBe(429)
-    expect(refused.headers.get('x-sentry-rate-limits')).toMatch(/^\d+::organization/)
+    expect(refused.headers.get('x-sentry-rate-limits')).toMatch(/^\d+:error;[a-z;]+:organization:usage_exceeded$/)
   })
 
   it('sends a merged issue’s events to the issue it went into', async () => {
@@ -193,5 +193,59 @@ describe('ingest, through the real SDK', () => {
     await send(other('MergeB'))
     expect((await find('MergeA'))?.count).toBe(3)
     expect(await find('MergeB')).toBeUndefined()
+  })
+
+  it('keeps the SDK’s logs with their attributes, and drops the user', async () => {
+    Sentry.setUser({ id: 'u1', email: 'someone@example.com' })
+    Sentry.logger.info('song opened', { song: 42, mode: 'live' })
+    Sentry.logger.warn('export slow')
+    await Sentry.flush(5000)
+    const log = await waitFor(() =>
+      db().prepare("SELECT * FROM logs WHERE body = 'song opened'").first<Record<string, unknown>>(),
+    ).then((row) => row!)
+    expect(log).toMatchObject({ level: 'info', release: 'e2e@1.0.0', environment: 'production' })
+    const attributes = JSON.parse(String(log.attributes))
+    expect(attributes).toMatchObject({ song: 42, mode: 'live' })
+    expect(Object.keys(attributes).filter((k) => k.startsWith('user.'))).toEqual([])
+    const indexed = await db()
+      .prepare('SELECT key, value FROM log_attributes WHERE log_id = ? ORDER BY key')
+      .bind(log.id)
+      .all()
+    expect(indexed.results).toEqual(
+      expect.arrayContaining([
+        { key: 'mode', value: 'live' },
+        { key: 'song', value: '42' },
+      ]),
+    )
+    Sentry.setUser(null)
+  })
+
+  it('keeps an event’s trace id, to find its logs', async () => {
+    const rows = await db()
+      .prepare('SELECT COUNT(*) AS n FROM events WHERE trace_id IS NOT NULL')
+      .first<{ n: number }>()
+    expect(rows!.n).toBeGreaterThan(0)
+  })
+
+  it('answers MCP: tools, an issue search and an issue with its stack', async () => {
+    type Result = { serverInfo: { name: string }; tools: { name: string }[]; content: { text: string }[] }
+    const rpc = async (method: string, params?: unknown) => {
+      const response = await fetch(`${origin}/mcp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      })
+      return ((await response.json()) as { result: Result }).result
+    }
+    expect((await rpc('initialize', { protocolVersion: '2025-06-18' })).serverInfo.name).toBe('crashyard')
+    const tools = (await rpc('tools/list')).tools.map((t) => t.name)
+    expect(tools).toContain('get_issue')
+    const found = (await rpc('tools/call', { name: 'search_issues', arguments: { query: 'repeat' } })).content[0].text
+    const id = Number(found.match(/^#(\d+)/)![1])
+    const issue = (await rpc('tools/call', { name: 'get_issue', arguments: { id } })).content[0].text
+    expect(issue).toContain('# Error: repeat me')
+    expect(issue).toMatch(/\* again at .*ingest\.e2e\.test\.ts/)
+    const page = await fetch(`${origin}/mcp`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{}' })
+    expect(page.status).toBe(403)
   })
 })

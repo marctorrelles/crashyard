@@ -19,7 +19,7 @@ Where things are:
 - `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access
   check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys) and sends everything else to Start
   through Cloudflare Access; `scheduled` runs the cron (held notifications; daily at 03:00 UTC, events past retention).
-- `src/api/`: ingest and the push buttons, outside Access (see its AGENTS.md).
+- `src/api/`: ingest and the push buttons, outside Access, and the MCP server, inside (see its AGENTS.md).
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
 - `src/notify/`: routes, channels (ntfy, email, webhooks), quiet hours (see its AGENTS.md).
 - `src/auth/`: the Access check (see its AGENTS.md).

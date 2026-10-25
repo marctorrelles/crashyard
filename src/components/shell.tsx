@@ -1,6 +1,6 @@
 // The frame every page sits in: the bar on top (home, issues, notifications) and the page's width.
 import { Link } from '@tanstack/react-router'
-import { BellIcon, BugIcon } from 'lucide-react'
+import { BellIcon, BugIcon, ScrollTextIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
@@ -19,6 +19,9 @@ export function Shell({ children, wide }: { children: React.ReactNode; wide?: bo
           </Link>
           <NavLink to="/issues" icon={<BugIcon />}>
             Issues
+          </NavLink>
+          <NavLink to="/logs" icon={<ScrollTextIcon />}>
+            Logs
           </NavLink>
           <NavLink to="/notifications" icon={<BellIcon />}>
             Notifications
@@ -42,7 +45,7 @@ function NavLink({
   icon,
   children,
 }: {
-  to: '/issues' | '/notifications'
+  to: '/issues' | '/logs' | '/notifications'
   icon: React.ReactNode
   children: string
 }) {

@@ -64,6 +64,8 @@ function Settings() {
                     platform,
                     daily_event_quota: f.get('quota'),
                     event_retention_days: f.get('retention'),
+                    daily_log_quota: f.get('logQuota'),
+                    log_retention_days: f.get('logRetention'),
                   },
                 })
                 toast.success('Saved')
@@ -115,6 +117,28 @@ function Settings() {
                 defaultValue={project.event_retention_days}
               />
               <p className="text-xs text-muted-foreground">Issues and their counts stay after their events go.</p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="logQuota">Logs a day</Label>
+              <Input
+                id="logQuota"
+                name="logQuota"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                defaultValue={project.daily_log_quota}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="logRetention">Keep logs for (days)</Label>
+              <Input
+                id="logRetention"
+                name="logRetention"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                defaultValue={project.log_retention_days}
+              />
             </div>
             <div className="sm:col-span-2">
               <Button type="submit">Save</Button>

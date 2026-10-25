@@ -11,6 +11,8 @@ export type ProjectRow = {
   public_key: string
   daily_event_quota: number
   event_retention_days: number
+  daily_log_quota: number
+  log_retention_days: number
   created_at: number
 }
 
@@ -100,11 +102,25 @@ export async function createProject(db: D1Database, name: string, platform: Plat
 export async function updateProject(
   db: D1Database,
   id: number,
-  change: { name: string; platform: Platform; daily_event_quota: number; event_retention_days: number },
+  change: Pick<
+    ProjectRow,
+    'name' | 'platform' | 'daily_event_quota' | 'event_retention_days' | 'daily_log_quota' | 'log_retention_days'
+  >,
 ) {
   await db
-    .prepare('UPDATE projects SET name = ?, platform = ?, daily_event_quota = ?, event_retention_days = ? WHERE id = ?')
-    .bind(change.name, change.platform, change.daily_event_quota, change.event_retention_days, id)
+    .prepare(
+      `UPDATE projects SET name = ?, platform = ?, daily_event_quota = ?, event_retention_days = ?, daily_log_quota = ?,
+       log_retention_days = ? WHERE id = ?`,
+    )
+    .bind(
+      change.name,
+      change.platform,
+      change.daily_event_quota,
+      change.event_retention_days,
+      change.daily_log_quota,
+      change.log_retention_days,
+      id,
+    )
     .run()
 }
 

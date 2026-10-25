@@ -22,6 +22,10 @@ export default {
     // Everything else is the dashboard, behind Access
     const viewer = await viewerOf(request, workerEnv, import.meta.env.DEV)
     if (!viewer) return new Response('Sign in through Cloudflare Access to open crashyard.', { status: 403 })
+    if (url.pathname === '/mcp') {
+      const { handleMcp } = await import('./api/mcp')
+      return handleMcp(request, env.DB, viewer.email)
+    }
     // The dashboard reads who's signed in from this header; one sent from outside is replaced
     const headers = new Headers(request.headers)
     headers.set('x-crashyard-viewer', viewer.email)
@@ -31,11 +35,12 @@ export default {
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     const { flushHeld } = await import('./notify/dispatch')
     await flushHeld(env)
-    // Once a day, at 03:00 UTC: events past their project's retention
+    // Once a day, at 03:00 UTC: events and logs past their project's retention
     const at = new Date(controller.scheduledTime)
     if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0) {
-      const { pruneEvents } = await import('./data/projects')
+      const [{ pruneEvents }, { pruneLogs }] = await Promise.all([import('./data/projects'), import('./data/logs')])
       await pruneEvents(env.DB, controller.scheduledTime)
+      await pruneLogs(env.DB, controller.scheduledTime)
     }
   },
 }

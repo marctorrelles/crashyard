@@ -4,6 +4,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getRequestHeader } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 import * as issues from './data/issues'
+import * as logs from './data/logs'
 import * as notifications from './data/notifications'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
@@ -77,6 +78,8 @@ export const updateProject = createServerFn({ method: 'POST' })
       platform: oneOf(projects.PLATFORMS)(o.platform),
       daily_event_quota: int(o.daily_event_quota, 0, 10_000_000),
       event_retention_days: int(o.event_retention_days, 1, 3650),
+      daily_log_quota: int(o.daily_log_quota, 0, 10_000_000),
+      log_retention_days: int(o.log_retention_days, 1, 3650),
     }
   })
   .handler(({ data: { id, ...change } }) => projects.updateProject(env.DB, id, change))
@@ -219,3 +222,29 @@ export const deleteRoute = createServerFn({ method: 'POST' })
 export const testRoute = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => notifications.testRoute(env, data.id, origin()))
+
+const cursor = (v: unknown) => {
+  const o = object(v)
+  return { timestamp: int(o.timestamp), id: int(o.id) }
+}
+export const getLogs = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      query: text(o.query ?? '', 1000),
+      project: optional((v) => text(v, 60))(o.project),
+      range: oneOf(Object.keys(logs.RANGES) as logs.Range[])(o.range ?? '24h'),
+      before: optional(cursor)(o.before),
+      after: optional(cursor)(o.after),
+    }
+  })
+  .handler(async ({ data }) => {
+    const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
+    const now = Date.now()
+    const result = await logs.listLogs(
+      env.DB,
+      { ...data, projectId: project?.id ?? (data.project ? -1 : undefined) },
+      now,
+    )
+    return { ...result, now }
+  })
