@@ -59,6 +59,11 @@ server, the build, or `tsr generate`): never edit it.
   in their formats, each with where its URL comes from and checked against its host; email, or what to set up first
   while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours in the browser's time) and routes, each with a
   test send.
+- `attachments.$id.ts`: a server route, no page: an attachment from R2 for a signed-in viewer (the
+  `x-crashyard-viewer` header `src/server.ts` sets, else 403). Images by `attachmentType` (png, jpeg, gif, webp, by
+  type or else name) inline as that type; everything else, SVG and HTML included, `application/octet-stream` as
+  `attachment`. Every answer has `nosniff` and `Content-Security-Policy: sandbox; default-src 'none'`; the e2e test
+  checks them.
 - Times on a page are relative to the `now` its loader returns, so the server and the browser render the same text;
   anything in the browser's time zone renders in `<ClientOnly>`.
 - Pages are behind Access (`src/server.ts`); `/api/*` never reaches Start (see `src/api/`).

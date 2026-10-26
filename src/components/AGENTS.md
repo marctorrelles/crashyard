@@ -66,5 +66,9 @@
   stack; breadcrumbs, "Request" (method and URL, query string, headers as a two-column `Pairs` table, a name over its
   value on a phone, body), tags, contexts, "Additional data" (`extra` as `Pairs`), raw JSON. Nested `<details>` use named groups (`group/threads`) so a chevron
   turns only with its own.
+- `attachments.tsx`: an event's attachments, under its threads: each with its size and Download, an image (png, jpeg,
+  gif, webp, `attachmentType`) as a 48 px thumbnail opening full size in a `Dialog`, and `view-hierarchy.json`
+  (sentry-cocoa's and sentry-android's name for it) as an indented tree of type, identifier and frame, fetched when
+  opened, 2000 views at most. Files come from `/attachments/<id>`.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
   same, keep them in step).

@@ -2,12 +2,21 @@
 // breadcrumbs, tags, contexts and the raw JSON.
 import { IconChevronRight, IconExternalLink } from '@tabler/icons-react'
 import { useState } from 'react'
+import { type Attachment, Attachments } from '@/components/attachments'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent, RequestInfo, Thread } from '@/ingest/event'
 import { cn } from '@/lib/utils'
 
 /** `links`: a frame's line in the repository, by `exception.frame` (their indexes in the event, `frameLinks`) */
-export function EventView({ event, links = {} }: { event: NormalizedEvent; links?: Record<string, string> }) {
+export function EventView({
+  event,
+  links = {},
+  attachments = [],
+}: {
+  event: NormalizedEvent
+  links?: Record<string, string>
+  attachments?: Attachment[]
+}) {
   // The thrown exception first (Sentry sends the chain oldest first)
   const exceptions = event.exceptions.map((e, i) => ({ e, i })).reverse()
   return (
@@ -35,6 +44,7 @@ export function EventView({ event, links = {} }: { event: NormalizedEvent; links
         </Section>
       )}
       <Threads event={event} />
+      {attachments.length > 0 && <Attachments attachments={attachments} />}
       {event.breadcrumbs.length > 0 && <Breadcrumbs crumbs={event.breadcrumbs} />}
       {event.request && <Request request={event.request} />}
       {Object.keys(event.tags).length > 0 && (

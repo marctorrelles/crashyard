@@ -24,7 +24,7 @@ Set the SDK's DSN to the one a crashyard project gives you. Nothing else changes
 | Item                                                                   | What crashyard does                                                                    |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `event`                                                                | An error, crash or message. Scrubbed, symbolicated and grouped into an issue           |
-| `attachment`                                                           | Stored in R2, up to 1 MB each, and shown on its event                                  |
+| `attachment`                                                           | Stored in R2, up to 1 MB each, and shown on its event with a download                  |
 | `feedback`, `user_report`                                              | User feedback, shown on its issue                                                      |
 | `log`                                                                  | Sentry logs. Stored, searchable and linked to their trace                              |
 | `check_in`                                                             | Cron monitors. A check-in with a schedule creates the monitor                          |
@@ -36,6 +36,9 @@ Set the SDK's DSN to the one a crashyard project gives you. Nothing else changes
 An event keeps its `request`, meaning the method, URL, query string, headers and up to 8 KB of body, and up to 16 KB of
 its `extra` data. Both are scrubbed like the rest of the event, and headers such as `Authorization` and `Cookie` are
 filtered.
+
+Attachments are listed on their event. Screenshots in PNG, JPEG, GIF or WebP are shown, and the view hierarchy that
+sentry-cocoa and sentry-android attach is shown as a tree. Every other file, SVG and HTML included, only downloads.
 
 An event keeps up to 32 of its threads, each with its last 100 frames. The crashed thread's stack is shown as the
 exception's, and the others are listed under it.

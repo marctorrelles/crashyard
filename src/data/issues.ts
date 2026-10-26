@@ -76,6 +76,21 @@ export async function listIssues(
 
 export type Activity = { id: number; kind: string; data: string | null; by: string | null; at: number }
 
+// The images an attachment may be shown as, by its type or else its name; never SVG, which can carry script
+const IMAGES: Record<string, string> = {
+  png: 'image/png',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+}
+
+/** The image type an attachment is served as, or null when it only downloads */
+export function attachmentType(filename: string, contentType: string | null): string | null {
+  const byType = contentType?.toLowerCase().match(/^image\/(png|jpeg|gif|webp)$/)?.[1]
+  return IMAGES[byType ?? filename.toLowerCase().split('.').at(-1) ?? ''] ?? null
+}
+
 export async function getIssue(db: D1Database, id: number, eventId: string | undefined, now: number) {
   const issue = await db
     .prepare(
@@ -125,10 +140,15 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
   const attachments = row
     ? (
         await db
-          .prepare('SELECT id, filename, content_type, size FROM attachments WHERE event_id = ?')
+          .prepare('SELECT id, filename, content_type, size FROM attachments WHERE event_id = ? ORDER BY id')
           .bind(row.id)
           .all<{ id: number; filename: string; content_type: string | null; size: number }>()
-      ).results
+      ).results.map((a) => ({
+        id: a.id,
+        filename: a.filename,
+        size: a.size,
+        image: !!attachmentType(a.filename, a.content_type),
+      }))
     : []
   return {
     issue,

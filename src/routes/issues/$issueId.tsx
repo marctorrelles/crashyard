@@ -113,7 +113,7 @@ function IssuePage() {
                   </EventLink>
                 </div>
               </div>
-              <EventView event={event} links={d.links} />
+              <EventView event={event} links={d.links} attachments={d.attachments} />
             </>
           ) : (
             <p className="text-sm text-muted-foreground">

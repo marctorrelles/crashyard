@@ -370,6 +370,39 @@ describe('ingest, through the real SDK', () => {
     expect(await checkSlowerReleases(db(), origin, now)).toEqual([])
   })
 
+  it('serves attachments behind sign-in: images inline, anything else as a download, none able to run', async () => {
+    const event = crash('e2e@1.0.0')
+    const item = (filename: string, type: string, body: string) =>
+      `${JSON.stringify({ type: 'attachment', length: body.length, filename, content_type: type })}\n${body}\n`
+    const response = await fetch(`${origin}/api/1/envelope/`, {
+      method: 'POST',
+      headers: { 'x-sentry-auth': `Sentry sentry_version=7, sentry_key=${KEY}` },
+      body:
+        envelope(event) +
+        item('shot.png', 'image/png', 'not really a png') +
+        item('page.html', 'text/html', '<script>alert(1)</script>'),
+    })
+    expect(response.status).toBe(200)
+    const rows = await waitFor(async () => {
+      const r = await db()
+        .prepare('SELECT id, filename FROM attachments WHERE event_id = ? ORDER BY id')
+        .bind(event.event_id)
+        .all<{ id: number; filename: string }>()
+      return r.results.length === 2 ? r.results : undefined
+    })
+    const [png, html] = await Promise.all(rows.map((r) => fetch(`${origin}/attachments/${r.id}`)))
+    expect(png.headers.get('content-type')).toBe('image/png')
+    expect(png.headers.get('content-disposition')).toBe('inline; filename="shot.png"')
+    expect(html.headers.get('content-type')).toBe('application/octet-stream')
+    expect(html.headers.get('content-disposition')).toBe('attachment; filename="page.html"')
+    for (const r of [png, html]) {
+      expect(r.headers.get('x-content-type-options')).toBe('nosniff')
+      expect(r.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'")
+    }
+    expect(await html.text()).toBe('<script>alert(1)</script>')
+    expect((await fetch(`${origin}/attachments/999999`)).status).toBe(404)
+  })
+
   it('answers 200 when storing fails, and stores the event once when the cron tries it again', async () => {
     await db().batch([
       db()

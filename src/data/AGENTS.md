@@ -18,7 +18,8 @@ helpers (`change`).
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
   a tenth so a crash never reads 100%; one batch of four).
 - `issues.ts`: `listIssues` (a search from `src/search/`, sorted, 50 a page, with a 14-day series each), `getIssue`
-  (tags' top values, the latest 100 events, the chosen event as JSON text, feedback, activity), `changeIssues`
+  (tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
+  image, `attachmentType`, feedback, activity), `changeIssues`
   (resolve, now or in the next release; ignore, for good, for N events or until a date; reopen; delete; each written
   to the activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
