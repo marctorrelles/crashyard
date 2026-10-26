@@ -1,4 +1,5 @@
 // Projects: what the home page lists and charts, and creating, changing and deleting one.
+import type { Notice } from '../notify/notice'
 import { topWithOther } from './charts'
 
 export const PLATFORMS = ['apple', 'android', 'javascript', 'node', 'other'] as const
@@ -223,4 +224,80 @@ export async function pruneEvents(db: D1Database, now: number) {
     )
     .bind(now)
     .run()
+}
+
+/**
+ * Monday's summary of the week before (the 7 UTC days to yesterday), one notice per project that had events in it or
+ * the week before: its events against that week's, new issues, the issue with the most, and its newest release's
+ * crash-free sessions in the week
+ */
+export async function weeklySummaries(db: D1Database, origin: string, now: number): Promise<Notice[]> {
+  const days = lastDays(15, now).slice(0, 14) // two weeks to yesterday
+  const [week, before] = [days.slice(7), days.slice(0, 7)]
+  const start = Date.parse(week[0])
+  const [totals, fresh, top, sessions] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT p.id, p.slug, p.name, SUM(CASE WHEN d.day >= ?1 THEN d.events ELSE 0 END) AS events,
+           SUM(CASE WHEN d.day < ?1 THEN d.events ELSE 0 END) AS before
+         FROM projects p JOIN project_days d ON d.project_id = p.id WHERE d.day BETWEEN ?2 AND ?3
+         GROUP BY p.id HAVING SUM(d.events) > 0 ORDER BY p.name`,
+      )
+      .bind(week[0], before[0], week.at(-1)),
+    db
+      .prepare('SELECT project_id, COUNT(*) AS n FROM issues WHERE first_seen >= ? AND first_seen < ? GROUP BY 1')
+      .bind(start, start + 7 * 864e5),
+    // Each project's issue with the most events in the week
+    db
+      .prepare(
+        `SELECT project_id, title, n FROM (SELECT i.project_id, i.title, SUM(d.count) AS n,
+           ROW_NUMBER() OVER (PARTITION BY i.project_id ORDER BY SUM(d.count) DESC) AS r
+         FROM issue_days d JOIN issues i ON i.id = d.issue_id WHERE d.day BETWEEN ? AND ? GROUP BY i.id) WHERE r = 1`,
+      )
+      .bind(week[0], week.at(-1)),
+    // Each project's newest release with sessions in the week (by its first day of them)
+    db
+      .prepare(
+        `SELECT project_id, release, started, crashed FROM (SELECT project_id, release, SUM(started) AS started,
+           SUM(crashed) AS crashed, ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY MIN(day) DESC, release DESC) AS r
+         FROM sessions_daily WHERE day BETWEEN ? AND ? GROUP BY project_id, release) WHERE r = 1`,
+      )
+      .bind(week[0], week.at(-1)),
+  ])
+  const by = <T extends { project_id: number }>(rows: unknown[]) => new Map((rows as T[]).map((r) => [r.project_id, r]))
+  const freshBy = by<{ project_id: number; n: number }>(fresh.results)
+  const topBy = by<{ project_id: number; title: string; n: number }>(top.results)
+  const sessionsBy = by<{ project_id: number; release: string; started: number; crashed: number }>(sessions.results)
+  return (totals.results as { id: number; slug: string; name: string; events: number; before: number }[]).map((p) => {
+    const change = p.before ? Math.round(((p.events - p.before) / p.before) * 100) : null
+    const s = sessionsBy.get(p.id)
+    const t = topBy.get(p.id)
+    const n = freshBy.get(p.id)?.n ?? 0
+    return {
+      kind: 'weekly',
+      project: { id: p.id, slug: p.slug, name: p.name },
+      issue: {
+        id: 0,
+        title: `${p.events} event${p.events === 1 ? '' : 's'} last week${
+          change === null
+            ? ''
+            : change === 0
+              ? ', as many as the week before'
+              : `, ${Math.abs(change)}% ${change > 0 ? 'more' : 'fewer'}`
+        }`,
+        culprit: [
+          `${n} new issue${n === 1 ? '' : 's'}`,
+          t && `most: ${t.title.slice(0, 80)} (${t.n})`,
+          s?.started &&
+            `${(Math.floor((1 - s.crashed / s.started) * 1000) / 10).toFixed(1)}% crash-free in ${s.release}`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        level: 'info',
+        count: p.events,
+      },
+      event: { level: 'info' },
+      url: `${origin}/?project=${encodeURIComponent(p.slug)}`,
+    } satisfies Notice
+  })
 }

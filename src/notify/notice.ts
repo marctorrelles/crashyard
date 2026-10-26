@@ -9,6 +9,7 @@ export type NoticeKind =
   | 'monitor_down'
   | 'monitor_up'
   | 'slower_release'
+  | 'weekly'
 
 /** The kinds, as the notification settings name them */
 export const KINDS: { kind: NoticeKind; label: string }[] = [
@@ -20,6 +21,7 @@ export const KINDS: { kind: NoticeKind; label: string }[] = [
   { kind: 'monitor_down', label: 'Monitor failing' },
   { kind: 'monitor_up', label: 'Monitor back' },
   { kind: 'slower_release', label: 'Slower release' },
+  { kind: 'weekly', label: 'Weekly summary' },
 ]
 export const LEVELS = ['fatal', 'error', 'warning', 'info', 'debug']
 
@@ -62,6 +64,8 @@ export const crossed = (thresholds: number[], before: number, after: number) =>
 export function routeTakes(route: Route, notice: Notice): boolean {
   if (route.project_id !== null && route.project_id !== notice.project.id) return false
   if (!list(route.kinds)?.includes(notice.kind)) return false
+  // A summary is of no one event: a route's levels and environments don't apply to it
+  if (notice.kind === 'weekly') return true
   const levels = list(route.levels)
   if (levels && !levels.includes(notice.event.level)) return false
   const environments = list(route.environments)
@@ -94,7 +98,7 @@ export function noticeLine(notice: Notice): string {
               ? notice.issue.culprit
               : notice.kind === 'monitor_up'
                 ? 'back'
-                : notice.kind === 'slower_release'
+                : notice.kind === 'slower_release' || notice.kind === 'weekly'
                   ? notice.issue.culprit
                   : 'App Review crash'
   return [notice.project.name, notice.event.release, notice.event.device ?? notice.event.os, what]

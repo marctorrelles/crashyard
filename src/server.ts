@@ -73,10 +73,15 @@ async function everyMinute(env: Env, now: number) {
     const { checkSlowerReleases } = await import('./data/performance')
     notices.push(...(await checkSlowerReleases(env.DB, env.PUBLIC_URL ?? '', now)))
   }
+  // Mondays at 07:00 UTC: each project's week
+  const at = new Date(now)
+  if (at.getUTCDay() === 1 && at.getUTCHours() === 7 && at.getUTCMinutes() === 0) {
+    const { weeklySummaries } = await import('./data/projects')
+    notices.push(...(await weeklySummaries(env.DB, env.PUBLIC_URL ?? '', now)))
+  }
   await dispatch(env, notices, now)
   await flushHeld(env, now)
   // Once a day, at 03:00 UTC: events, logs, check-ins and uptime results past their retention
-  const at = new Date(now)
   if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0) {
     const [{ pruneEvents }, { pruneLogs }] = await Promise.all([import('./data/projects'), import('./data/logs')])
     await pruneEvents(env.DB, now)

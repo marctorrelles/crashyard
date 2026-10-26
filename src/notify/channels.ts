@@ -35,10 +35,16 @@ export function ntfyRequest(config: NtfyConfig, notice: Notice): Request {
           ? 'white_check_mark'
           : notice.kind === 'regression'
             ? 'repeat'
-            : notice.issue.level === 'fatal'
-              ? 'boom'
-              : 'warning',
-    Priority: ['new', 'regression', 'review_crash', 'monitor_down'].includes(notice.kind) ? 'high' : 'default',
+            : notice.kind === 'weekly'
+              ? 'bar_chart'
+              : notice.issue.level === 'fatal'
+                ? 'boom'
+                : 'warning',
+    Priority: ['new', 'regression', 'review_crash', 'monitor_down'].includes(notice.kind)
+      ? 'high'
+      : notice.kind === 'weekly'
+        ? 'low'
+        : 'default',
   }
   if (notice.actions) {
     headers.Actions = `http, Resolve, ${notice.actions.resolve}, method=POST, clear=true; http, Ignore, ${notice.actions.ignore}, method=POST, clear=true`

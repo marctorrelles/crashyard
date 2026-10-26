@@ -65,7 +65,7 @@ beforeAll(async () => {
       .prepare("INSERT INTO channels (id, kind, name, config, created_at) VALUES (1, 'ntfy', 'stub', ?, 0)")
       .bind(JSON.stringify({ server: `http://localhost:${NTFY_PORT}`, topic: 'e2e' })),
     db().prepare(
-      `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression","monitor_down","monitor_up"]', '[10]', '[1]', 0)`,
+      `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression","monitor_down","monitor_up","weekly"]', '[10]', '[1]', 0)`,
     ),
   ])
   Sentry.init({ dsn, release: 'e2e@1.0.0', environment: 'production', defaultIntegrations: false, tracesSampleRate: 1 })
@@ -289,6 +289,29 @@ describe('ingest, through the real SDK', () => {
         .bind(id)
         .first(),
     ).toEqual({ n: 1 })
+  })
+
+  it('sums up each project’s week on Monday morning', async () => {
+    // Monday 7 January 2030, 07:00 UTC: the week is 31 December to 6 January
+    const monday = Date.UTC(2030, 0, 7, 7)
+    const issue = (await db()
+      .prepare('SELECT id, title FROM issues ORDER BY id LIMIT 1')
+      .first<{ id: number; title: string }>())!
+    await db().batch([
+      db().prepare(
+        "INSERT INTO project_days (project_id, day, events) VALUES (1, '2030-01-02', 30), (1, '2029-12-26', 20)",
+      ),
+      db().prepare("INSERT INTO issue_days (issue_id, day, count) VALUES (?, '2030-01-03', 30)").bind(issue.id),
+      db().prepare(
+        "INSERT INTO sessions_daily (project_id, release, environment, day, started, crashed) VALUES (1, 'e2e@9', 'production', '2030-01-04', 200, 3)",
+      ),
+    ])
+    await fetch(`${origin}/__dev/cron?now=${monday - 60_000}`, { method: 'POST' })
+    expect(pushes.find((p) => p.title.includes('last week'))).toBeUndefined()
+    await fetch(`${origin}/__dev/cron?now=${monday}`, { method: 'POST' })
+    const push = await waitFor(() => pushes.find((p) => p.title.includes('last week')))
+    expect(push.title).toBe('30 events last week, 50% more')
+    expect(push.body).toBe(`e2e · 0 new issues · most: ${issue.title} (30) · 98.5% crash-free in e2e@9`)
   })
 
   it('summarises transactions: percentiles by name, the slowest kept with their spans', async () => {

@@ -10,7 +10,10 @@ helpers (`change`).
   `resolved`, by `issue_activity_kind_at`; crash-free sessions of each project's two newest releases by their first
   session in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new key),
   changing, rotating its key, deleting (foreign keys cascade), `pruneEvents` (the daily cron: events past their
-  project's retention; issues and counts stay), `dsnOf`.
+  project's retention; issues and counts stay), `dsnOf`, `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
+  `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
+  before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
+  a tenth so a crash never reads 100%; one batch of four).
 - `issues.ts`: `listIssues` (a search from `src/search/`, sorted, 50 a page, with a 14-day series each), `getIssue`
   (tags' top values, the latest 100 events, the chosen event as JSON text, feedback, activity), `changeIssues`
   (resolve, now or in the next release; ignore, for good, for N events or until a date; reopen; delete; each written
