@@ -3,6 +3,11 @@
 This guide takes a Cloudflare account to a running crashyard in about fifteen minutes. Everything in it works on
 Cloudflare's free plans.
 
+Apps with native crashes, such as iOS and Android apps, or with source maps, need the Workers Paid plan. Turning their
+stack traces back into code, and processing the files you upload for it, takes more processing time than the free
+plan's 10 ms a request. Apps whose stack traces are readable as sent, such as Node.js and Python, work on the free
+plan.
+
 ## Deploy with the button
 
 The README's **Deploy to Cloudflare** button copies this repository to your GitHub account, creates the D1 database and

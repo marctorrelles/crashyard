@@ -8,6 +8,9 @@ Your apps keep the official Sentry SDKs they already use. crashyard groups their
 traces back into readable code, and tells you when something new breaks. It is a single Cloudflare Worker with D1 and
 R2, so most apps stay within Cloudflare's free plan.
 
+Apps with native crashes or source maps need the Workers Paid plan. Turning their stack traces back into code takes
+more processing time than the free plan's 10 ms a request.
+
 crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 
 <picture>

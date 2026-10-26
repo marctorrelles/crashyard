@@ -3,6 +3,8 @@
 What people deploying or contributing read. Plain Markdown, true to the code: a change that makes a page wrong
 updates it in the same commit.
 
+- `deploying.md` (and the README, which says it too): native crashes and source maps need Workers Paid, as
+  symbolication takes more CPU than the free plan's 10 ms a request (`src/symbols/AGENTS.md`).
 - `deploying.md`: a fresh Cloudflare account to a running crashyard, Access included. Keep it true to `wrangler.jsonc` (and `wrangler.local.json`, its overlay),
   `src/server.ts` and `src/auth/`: someone deploying follows it to the letter.
 - `mcp.md`: the MCP server, and letting an agent in with an Access service token.
