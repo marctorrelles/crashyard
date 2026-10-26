@@ -19,7 +19,7 @@ import {
 import { cn } from '@/lib/utils'
 
 type Page = { label: string; path: string }
-type Group = { label: string; pages: Page[] }
+type Group = { label: string; pages: Page[]; project?: boolean }
 
 const INSTANCE: Page[] = [
   { label: 'General', path: '/settings/general' },
@@ -57,6 +57,7 @@ function groupsFor(project?: { slug: string; name: string }): Group[] {
       ? [
           {
             label: project.name,
+            project: true,
             pages: PROJECT.map((p) => ({ ...p, path: `/settings/projects/${project.slug}/${p.path}` })),
           },
         ]
@@ -65,7 +66,8 @@ function groupsFor(project?: { slug: string; name: string }): Group[] {
   ]
 }
 
-/** The settings area's frame: the list of pages beside the page (a select over it on a phone) */
+/** The settings area's frame: the list of pages beside the page (a select over it on a phone), with the project's
+ * group headed by a picker of every project */
 export function SettingsNav({ lastProject }: { lastProject: string | null }) {
   const projects = useProjects()
   const path = useRouterState({ select: (s) => s.location.pathname.replace(/\/$/, '') })
@@ -74,9 +76,30 @@ export function SettingsNav({ lastProject }: { lastProject: string | null }) {
   const project =
     projects.find((p) => p.slug === (slug ? decodeURIComponent(slug) : lastProject)) ?? (slug ? undefined : projects[0])
   const groups = groupsFor(project)
+  // Another project opens the same page of it, or its General from a page that isn't a project's
+  const pickProject = (other: string) => {
+    const page = path.match(/^\/settings\/projects\/[^/]+\/([^/]+)/)?.[1] ?? 'general'
+    void navigate({ href: `/settings/projects/${encodeURIComponent(other)}/${page}` })
+  }
+  const picker = (className?: string) =>
+    project && (
+      <Select value={project.slug} onValueChange={pickProject}>
+        <SelectTrigger className={className} aria-label="Project">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {projects.map((p) => (
+            <SelectItem key={p.slug} value={p.slug}>
+              {p.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
   return (
     <>
-      <div className="md:hidden">
+      <div className="grid gap-2 md:hidden">
+        {picker('h-10 w-full')}
         <Select value={path} onValueChange={(to) => void navigate({ href: to })}>
           <SelectTrigger className="h-10 w-full" aria-label="Settings page">
             <SelectValue />
@@ -98,7 +121,11 @@ export function SettingsNav({ lastProject }: { lastProject: string | null }) {
       <nav className="grid content-start gap-5 max-md:hidden" aria-label="Settings">
         {groups.map((g) => (
           <div key={g.label} className="grid gap-0.5">
-            <p className="truncate px-2 pb-1 text-xs font-medium text-muted-foreground">{g.label}</p>
+            {g.project ? (
+              <div className="pb-1">{picker('h-8 w-full text-xs font-medium')}</div>
+            ) : (
+              <p className="truncate px-2 pb-1 text-xs font-medium text-muted-foreground">{g.label}</p>
+            )}
             {g.pages.map((p) => (
               <Link
                 key={p.path}

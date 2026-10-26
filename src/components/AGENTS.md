@@ -94,8 +94,10 @@
   (sentry-cocoa's and sentry-android's name for it) as an indented tree of type, identifier and frame, fetched when
   opened, 2000 views at most. Files come from `/attachments/<id>`.
 - `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's `PROJECT` with Grouping, `PERSONAL`), `SettingsNav` (the list,
-  the project's group for the page's project, else the one picked last, else the first; a `Select` of every page on a
-  phone), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
+  the project's group for the page's project, else the one picked last, else the first, headed by a `Select` of every
+  project that opens the same page of the one picked, or its General from a page that isn't a project's; on a phone a
+  Project `Select` over the page's `Select`, both always there so switching doesn't move the page; no projects, no
+  group), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also New-project defaults), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
 - `uploads.tsx`: `UploadSteps`, the variables sentry-cli reads and each platform's upload steps, on Debug files; `size`.
