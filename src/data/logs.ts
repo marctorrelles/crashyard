@@ -1,7 +1,7 @@
 // Logs: the explorer's page of logs (newest first, searched, within a time range), the facets over what matched,
 // what's newer than the newest shown (the live tail), and how many there were per bucket of time, by level.
-import { logFilter } from '../search/query'
-import { buckets, fill, intervalFor, SIZE } from './charts'
+import { logFilter, tokenize } from '../search/query'
+import { buckets, fill, type Interval, intervalFor, SIZE, slugsOf } from './charts'
 
 export const PAGE_LOGS = 100
 export const RANGES = { '1h': 36e5, '24h': 864e5, '7d': 6048e5, '30d': 2592e6 } as const
@@ -105,9 +105,46 @@ export async function listLogs(db: D1Database, opts: Search & { before?: Cursor;
   }
 }
 
+const HOUR = SIZE['1h']
+
+/**
+ * Whether a chart can read `log_hours` instead of every log: buckets of an hour or a day, a span of whole hours (so
+ * the span before shifts each hour onto one bucket), and a search of nothing but `level` and `project` (the
+ * rollup's columns; a word or any other key needs the logs)
+ */
+export function readsHours(query: string, interval: Interval, span: number) {
+  return (
+    (interval === '1h' || interval === '1d') &&
+    span % HOUR === 0 &&
+    tokenize(query).every((t) => t.key === 'level' || t.key === 'project')
+  )
+}
+
+/**
+ * Logs over spans `[from, to)` as a table `l` of (ts, level, project_id, n) that the searches' `l.level` and
+ * `l.project_id` read: each span's whole hours from `log_hours`, the part-hours at its ends from the logs themselves
+ */
+export function hourly(spans: [number, number][]): { sql: string; params: number[] } {
+  const parts: string[] = []
+  const params: number[] = []
+  for (const [from, to] of spans) {
+    const start = Math.min(Math.ceil(from / HOUR) * HOUR, to)
+    const end = Math.max(Math.floor(to / HOUR) * HOUR, start)
+    // Two terms a span: D1 allows five in a compound SELECT
+    parts.push(
+      'SELECT hour AS ts, level, project_id, count AS n FROM log_hours WHERE hour >= ? AND hour < ?',
+      `SELECT timestamp, level, project_id, 1 FROM logs
+       WHERE (timestamp >= ? AND timestamp < ?) OR (timestamp >= ? AND timestamp < ?)`,
+    )
+    params.push(start, end, from, start, end, to)
+  }
+  return { sql: `(${parts.join(' UNION ALL ')})`, params }
+}
+
 /**
  * Logs per bucket and level over a window (the bucket from its span, `intervalFor`), and in `previous` the totals of
  * the span just before it, of the same length, each shifted onto the bucket it's a span behind. Zeros where none.
+ * Hours and days read `log_hours` when the search allows (`readsHours`).
  */
 export async function logsByBucket(db: D1Database, opts: Search, now: number) {
   const { from, to } = spanOf(opts.window, now)
@@ -118,20 +155,36 @@ export async function logsByBucket(db: D1Database, opts: Search, now: number) {
   const { where, params } = conditions(opts, now)
   const filter = where.map((w) => ` AND ${w}`).join('')
   // `%` reads its operands as integers, so the buckets are whole ms however D1 binds the numbers
-  const [current, before] = await db.batch<{ at: number; level: string; count: number }>([
-    db
-      .prepare(
-        `SELECT l.timestamp - l.timestamp % ? AS at, l.level, COUNT(*) AS count FROM logs l
-         WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY at, l.level`,
-      )
-      .bind(size, from, to, ...params),
-    db
-      .prepare(
-        `SELECT (l.timestamp + ?) - (l.timestamp + ?) % ? AS at, '' AS level, COUNT(*) AS count FROM logs l
-         WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY at`,
-      )
-      .bind(span, span, size, from - span, from, ...params),
-  ])
+  const [current, before] = await db.batch<{ at: number; level: string; count: number }>(
+    readsHours(opts.query, interval, span)
+      ? [
+          [from, to],
+          [from - span, from],
+        ].map(([a, b], i) => {
+          const source = hourly([[a, b]])
+          const shift = i === 0 ? 0 : span
+          return db
+            .prepare(
+              `SELECT (l.ts + ?) - (l.ts + ?) % ? AS at, ${i === 0 ? 'l.level' : "''"} AS level, SUM(l.n) AS count
+               FROM ${source.sql} l WHERE 1${filter} GROUP BY 1, 2`,
+            )
+            .bind(shift, shift, size, ...source.params, ...params)
+        })
+      : [
+          db
+            .prepare(
+              `SELECT l.timestamp - l.timestamp % ? AS at, l.level, COUNT(*) AS count FROM logs l
+               WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY at, l.level`,
+            )
+            .bind(size, from, to, ...params),
+          db
+            .prepare(
+              `SELECT (l.timestamp + ?) - (l.timestamp + ?) % ? AS at, '' AS level, COUNT(*) AS count FROM logs l
+               WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY at`,
+            )
+            .bind(span, span, size, from - span, from, ...params),
+        ],
+  )
   const index = new Map(x.map((at, i) => [at, i]))
   const previous = x.map(() => 0)
   for (const r of before.results) {
@@ -141,19 +194,21 @@ export async function logsByBucket(db: D1Database, opts: Search, now: number) {
   return { from, to, x, interval, levels: fill(current.results, x), previous }
 }
 
-// What logs can be grouped by besides an attribute: their own columns (a missing release or environment as '')
+// What logs can be grouped by besides an attribute: their own columns (a missing release or environment as ''; a
+// project by its id, its slug looked up after)
 export const GROUP_COLUMNS: Record<string, string> = {
   level: 'l.level',
   release: "COALESCE(l.release, '')",
   environment: "COALESCE(l.environment, '')",
-  project: '(SELECT slug FROM projects WHERE id = l.project_id)',
+  project: 'l.project_id',
 }
 const TOP = 8
 
 /**
  * Logs by one field over a window: a column of `GROUP_COLUMNS` or an attribute (its key bound, only the logs that
  * have it). The 8 values with the most logs, each with its count in the span just before (of the same length), and
- * the rest as one group whose value is `null`; and per bucket, a series for each of those.
+ * the rest as one group whose value is `null`; and per bucket, a series for each of those. By level or project over
+ * hours or days, it reads `log_hours` when the search allows (`readsHours`).
  */
 export async function logGroups(db: D1Database, opts: Search & { groupBy: string }, now: number) {
   const { from, to } = spanOf(opts.window, now)
@@ -166,23 +221,34 @@ export async function logGroups(db: D1Database, opts: Search & { groupBy: string
   const value = column ?? 'g.value'
   const join = column ? '' : ' JOIN log_attributes g ON g.log_id = l.id AND g.key = ?'
   const key = column ? [] : [opts.groupBy]
+  // The logs of spans, with the condition on time each needs: `log_hours` and its parts of hours, or the logs
+  const rollup = (opts.groupBy === 'level' || opts.groupBy === 'project') && readsHours(opts.query, interval, span)
+  const ts = rollup ? 'l.ts' : 'l.timestamp'
+  const n = rollup ? 'l.n' : '1'
+  const source = (a: number, b: number, also?: [number, number]) => {
+    if (!rollup) return { sql: `logs l${join} WHERE l.timestamp >= ? AND l.timestamp < ?`, params: [...key, a, b] }
+    const h = hourly(also ? [also, [a, b]] : [[a, b]])
+    return { sql: `${h.sql} l WHERE 1`, params: h.params }
+  }
   // One read of both spans: each value's count in the window and in the span before, and every value's totals
+  const both = rollup ? source(from, to, [from - span, from]) : source(from - span, to)
   const top = (
     await db
       .prepare(
         `SELECT value, count, previous, total, total_previous FROM (
            SELECT value, count, previous, SUM(count) OVER () AS total, SUM(previous) OVER () AS total_previous FROM (
-             SELECT ${value} AS value, SUM(l.timestamp >= ?) AS count, SUM(l.timestamp < ?) AS previous
-             FROM logs l${join} WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY value))
+             SELECT ${value} AS value, SUM(CASE WHEN ${ts} >= ? THEN ${n} ELSE 0 END) AS count,
+               SUM(CASE WHEN ${ts} < ? THEN ${n} ELSE 0 END) AS previous
+             FROM ${both.sql}${filter} GROUP BY value))
          WHERE count > 0 ORDER BY count DESC, value LIMIT ?`,
       )
-      .bind(from, from, ...key, from - span, to, ...params, TOP + 1)
-      .all<{ value: string; count: number; previous: number; total: number; total_previous: number }>()
+      .bind(from, from, ...both.params, ...params, TOP + 1)
+      .all<{ value: string | number; count: number; previous: number; total: number; total_previous: number }>()
   ).results
   const total = top[0]?.total ?? 0
   const totalPrevious = top[0]?.total_previous ?? 0
   const shown = top.slice(0, TOP)
-  const groups: { value: string | null; count: number; previous: number }[] = shown.map((g) => ({
+  const groups: { value: string | number | null; count: number; previous: number }[] = shown.map((g) => ({
     value: g.value,
     count: g.count,
     previous: g.previous,
@@ -194,14 +260,15 @@ export async function logGroups(db: D1Database, opts: Search & { groupBy: string
   const series = groups.map((g) => ({ value: g.value, counts: x.map(() => 0) }))
   if (shown.length) {
     const marks = shown.map(() => '?').join(',')
+    const window = source(from, to)
     const rows = (
       await db
         .prepare(
-          `SELECT l.timestamp - l.timestamp % ? AS at, CASE WHEN ${value} IN (${marks}) THEN ${value} END AS value,
-           COUNT(*) AS count FROM logs l${join} WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY at, 2`,
+          `SELECT ${ts} - ${ts} % ? AS at, CASE WHEN ${value} IN (${marks}) THEN ${value} END AS value,
+           SUM(${n}) AS count FROM ${window.sql}${filter} GROUP BY at, 2`,
         )
-        .bind(SIZE[interval], ...shown.map((g) => g.value), ...key, from, to, ...params)
-        .all<{ at: number; value: string | null; count: number }>()
+        .bind(SIZE[interval], ...shown.map((g) => g.value), ...window.params, ...params)
+        .all<{ at: number; value: string | number | null; count: number }>()
     ).results
     const index = new Map(x.map((at, i) => [at, i]))
     const of = new Map(series.map((s) => [s.value, s.counts]))
@@ -211,16 +278,41 @@ export async function logGroups(db: D1Database, opts: Search & { groupBy: string
       if (i !== undefined && counts) counts[i] += r.count
     }
   }
-  return { from, to, x, interval, total, groups, series }
+  // Projects by their slugs, looked up once rather than for every log
+  const slugs =
+    opts.groupBy === 'project' && shown.length
+      ? await slugsOf(
+          db,
+          shown.map((g) => Number(g.value)),
+        )
+      : undefined
+  const label = (v: string | number | null) => (v === null ? null : (slugs?.get(Number(v)) ?? String(v)))
+  return {
+    from,
+    to,
+    x,
+    interval,
+    total,
+    groups: groups.map((g) => ({ ...g, value: label(g.value) })),
+    series: series.map((s) => ({ ...s, value: label(s.value) })),
+  }
 }
 
-/** The daily cron: logs past their project's retention */
+/** The daily cron: logs past their project's retention, and the hours of `log_hours` wholly past it */
 export async function pruneLogs(db: D1Database, now: number) {
-  await db
-    .prepare(
-      `DELETE FROM logs WHERE id IN (SELECT l.id FROM logs l JOIN projects p ON p.id = l.project_id
-       WHERE l.timestamp < ? - p.log_retention_days * 86400000 LIMIT 5000)`,
-    )
-    .bind(now)
-    .run()
+  await db.batch([
+    db
+      .prepare(
+        `DELETE FROM logs WHERE id IN (SELECT l.id FROM logs l JOIN projects p ON p.id = l.project_id
+         WHERE l.timestamp < ? - p.log_retention_days * 86400000 LIMIT 5000)`,
+      )
+      .bind(now),
+    // The shortest retention bounds the read by `log_hours_hour`; each row is then held to its own project's
+    db
+      .prepare(
+        `DELETE FROM log_hours WHERE hour <= (SELECT ? - MIN(log_retention_days) * 86400000 - 3600000 FROM projects)
+         AND hour <= ? - (SELECT p.log_retention_days FROM projects p WHERE p.id = log_hours.project_id) * 86400000 - 3600000`,
+      )
+      .bind(now, now),
+  ])
 }

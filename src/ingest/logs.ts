@@ -59,7 +59,10 @@ export function normalizeLogs(payload: unknown, received: number): Log[] {
   })
 }
 
-/** Writes logs and their indexed attributes, in one batch (about 2 + attributes rows each) */
+/**
+ * Writes logs and their indexed attributes, in one batch (about 2 + attributes rows each), and adds them to
+ * `log_hours` (a row for each project, hour and level in the batch) for the logs chart
+ */
 export async function storeLogs(db: D1Database, projectId: number, logs: Log[], received: number, day: string) {
   if (!logs.length) return
   const statements: D1PreparedStatement[] = []
@@ -93,6 +96,17 @@ export async function storeLogs(db: D1Database, projectId: number, logs: Log[], 
           .bind(projectId, key, String(value)),
       )
     }
+  }
+  const hours = Map.groupBy(logs, (l) => `${l.timestamp - (l.timestamp % 3600000)} ${l.level}`)
+  for (const [at, group] of hours) {
+    const [hour, level] = at.split(' ')
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO log_hours (project_id, hour, level, count) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET count = count + excluded.count',
+        )
+        .bind(projectId, Number(hour), level, group.length),
+    )
   }
   statements.push(
     db

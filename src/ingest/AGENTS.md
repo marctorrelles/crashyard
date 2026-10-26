@@ -27,8 +27,9 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
 - `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).
   `storeLogs` writes each log, then its own (not `sentry.*`) attributes, up to 16, into `log_attributes` with
-  `last_insert_rowid()` (that table is WITHOUT ROWID, so the id stays the log's), in one batch. About 2 + attributes
-  rows a log.
+  `last_insert_rowid()` (that table is WITHOUT ROWID, so the id stays the log's), and adds the batch to `log_hours`
+  (an upsert for each hour and level in it) and `project_days`, in one batch. About 2 + attributes rows a log, plus one
+  for each hour and level.
 
 Checked against `@sentry/node` 11.9 (the e2e test) and GlitchTip's incoming event fixtures (`test/fixtures`).
 `ingest.test.ts` covers each function.

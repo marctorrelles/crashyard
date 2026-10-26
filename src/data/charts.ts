@@ -80,8 +80,19 @@ export function scoped(f: Filter, projectId: number | undefined) {
   return { where, params }
 }
 
-// What issues' events can be split by: the issue's level, or its project's slug (a dashboard's widget)
-export const EVENT_GROUPS = { level: 'i.level', project: '(SELECT slug FROM projects WHERE id = i.project_id)' }
+/** Projects' slugs by id */
+export async function slugsOf(db: D1Database, ids: number[]) {
+  const rows = (
+    await db
+      .prepare(`SELECT id, slug FROM projects WHERE id IN (${ids.map(() => '?').join(',')})`)
+      .bind(...ids)
+      .all<{ id: number; slug: string }>()
+  ).results
+  return new Map(rows.map((r) => [r.id, r.slug]))
+}
+
+// What issues' events can be split by: the issue's level, or its project (by id, its slug looked up after)
+export const EVENT_GROUPS = { level: 'i.level', project: 'i.project_id' }
 export type EventGroup = keyof typeof EVENT_GROUPS
 
 /**
@@ -97,7 +108,7 @@ export async function issueEventsByDay(
 ) {
   if (!days.length) return []
   const f = scoped(filter, projectId)
-  return (
+  const rows = (
     await db
       .prepare(
         `SELECT d.day AS at, ${EVENT_GROUPS[by]} AS level, SUM(d.count) AS count
@@ -106,6 +117,10 @@ export async function issueEventsByDay(
          GROUP BY d.day, 2`,
       )
       .bind(days[0], days[days.length - 1], ...f.params)
-      .all<{ at: string; level: string; count: number }>()
+      .all<{ at: string; level: string | number; count: number }>()
   ).results
+  // Projects by their slugs, looked up once rather than for every row
+  const slugs =
+    by === 'project' && rows.length ? await slugsOf(db, [...new Set(rows.map((r) => Number(r.level)))]) : undefined
+  return rows.map((r) => ({ ...r, level: slugs?.get(Number(r.level)) ?? String(r.level) }))
 }

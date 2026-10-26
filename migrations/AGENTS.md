@@ -13,4 +13,7 @@ in `pnpm run deploy`).
   when it's read: a change to a widget's shape keeps reading the rows already stored.
 - `issues_fts` is FTS5 over issue titles and culprits, kept in step by triggers.
 - D1's free tier writes 100,000 rows a day; an event writes about 30 (event, tags, counts, days). Keep new per-event
-  writes few.
+  writes few. A batch of logs writes about 2 + attributes rows a log, plus a `log_hours` row for each project, hour and
+  level in it and one `project_days` row.
+- `log_hours` is logs per project, hour and level, written at ingest (`storeLogs`) and pruned with the logs; 0009
+  filled it from the logs there were. The logs chart reads it rather than every log (`src/data/AGENTS.md`).
