@@ -280,6 +280,7 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
   regressed: (x) => `Regressed${x.release ? ` in ${x.release}` : ''}`,
   ignore_expired: () => 'Ignore period ended',
   resolved: (x) => (x.inRelease ? 'Resolved in the next release' : 'Resolved'),
+  auto_resolved: (x) => `Resolved after ${x.days} day${x.days === 1 ? '' : 's'} without events`,
   ignored: (x) =>
     x.forEvents ? (
       `Ignored for ${x.forEvents} more events`

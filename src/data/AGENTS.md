@@ -24,6 +24,9 @@ helpers (`change`).
   (resolve, now or in the next release; ignore, for good, for N events or until a date; reopen; delete; each written
   to the activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
+  `autoResolve` (the hourly cron, at :20): unresolved issues of a project with `auto_resolve_days`, last seen before
+  that many days, resolved 100 a batch with an `auto_resolved` activity entry (`{ days }`), within 20 seconds; the
+  overview's resolved per day counts only `resolved`, what a person did.
 - `releases.ts`: releases from events (kept within retention), and the release diff: new in it, came back in it,
   still happening, and gone since the release before.
 - `logs.ts`: the explorer's page (newest first, cursors for older and for the live tail's newer) over a `Window`:
@@ -106,7 +109,7 @@ helpers (`change`).
   bundles and attachments; the cron's heartbeat `cron.last_run`, late past 3 minutes or when never written;
   notification failures in 7 days, the newest 20 with their channel's name; R2's `pending/` and `failed/`, one list of
   1000 each, `more` when there are more; events and logs past retention by the prune's own joins, counted up to 10,000,
-  `BACKLOG_CAP`). `health.test.ts` covers both.
+  `BACKLOG_CAP`). `health.test.ts` covers both, and `autoResolve`.
 - `tokens.ts`: upload tokens (`cyt_`, kept as a SHA-256, shown once), each for one project (`project_id`) or every
   project (null), listed with their project's slug; `tokenOf` marks one used; `uploadsOf`, a project's debug files and
   bundles. `source.ts`'s `storeCommits` takes `only`, a scoped token's project.

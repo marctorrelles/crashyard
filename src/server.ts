@@ -59,7 +59,7 @@ export default {
 }
 
 // The cron: its heartbeat, monitors (missed check-ins, uptime checks), held notifications, envelopes to try again, and
-// hourly, retention. Each job is on its own: one that throws doesn't stop the others
+// hourly, retention and auto-resolve. Each job is on its own: one that throws doesn't stop the others
 async function everyMinute(env: Env, now: number) {
   const at = new Date(now)
   const notices: Notice[] = []
@@ -104,8 +104,12 @@ async function everyMinute(env: Env, now: number) {
     await job('performance retention', () => prunePerformance(env.DB, now))
     await job('monitor retention', () => pruneMonitors(env.DB, now))
   }
-  // Hourly, at :20: notification failures past 30 days
-  if (at.getUTCMinutes() === 20) await job('notification failures', () => pruneFailures(env.DB, now))
+  // Hourly, at :20: issues not seen for their project's "Resolve issues not seen for", within 20 seconds; and
+  // notification failures past 30 days
+  if (at.getUTCMinutes() === 20) {
+    await job('auto-resolve', async () => (await import('./data/issues')).autoResolve(env.DB, now))
+    await job('notification failures', () => pruneFailures(env.DB, now))
+  }
 }
 
 async function job(name: string, run: () => Promise<unknown>) {

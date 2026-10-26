@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
 import { BACKLOG_CAP, health, usage } from './health'
+import { autoResolve } from './issues'
 import { setSetting } from './settings'
 
 const DAY = 864e5
@@ -65,5 +66,24 @@ describe('health', () => {
     await setSetting(db, 'cron.last_run', NOW - 60_000, null)
     expect((await health({ DB: db, FILES: files }, NOW)).cron).toEqual({ lastRun: NOW - 60_000, late: false })
     expect((await health({ DB: db, FILES: files }, NOW + 3 * 60_000)).cron.late).toBe(true)
+  })
+})
+
+describe('auto-resolve', () => {
+  it('resolves only the issues of projects that ask, not seen for their days, with an activity entry', async () => {
+    const db = seeded()
+    db.sqlite.exec(`
+      UPDATE projects SET auto_resolve_days = 14 WHERE id = 1;
+      INSERT INTO issues (id, project_id, fingerprint, title, first_seen, last_seen, status) VALUES
+        (1, 1, 'a', 'Stale', 0, ${NOW - 15 * DAY}, 'unresolved'), (2, 1, 'b', 'Recent', 0, ${NOW - DAY}, 'unresolved'),
+        (3, 2, 'c', 'Other project', 0, ${NOW - 400 * DAY}, 'unresolved'), (4, 1, 'd', 'Ignored', 0, 0, 'ignored');
+    `)
+    expect(await autoResolve(db, NOW)).toBe(1)
+    const status = db.sqlite.prepare('SELECT id, status FROM issues ORDER BY id').all()
+    expect(status.map((r) => r.status)).toEqual(['resolved', 'unresolved', 'unresolved', 'ignored'])
+    expect(db.sqlite.prepare('SELECT issue_id, kind, data FROM issue_activity').all()).toEqual([
+      { issue_id: 1, kind: 'auto_resolved', data: '{"days":14}' },
+    ])
+    expect(await autoResolve(db, NOW)).toBe(0)
   })
 })

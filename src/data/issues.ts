@@ -296,3 +296,38 @@ export async function mergeIssues(db: D1Database, ids: number[], by: string, now
     db.prepare(`DELETE FROM issues WHERE id IN (${m})`).bind(...fromIds),
   ])
 }
+
+/**
+ * The hourly cron, at :20: unresolved issues of projects with "Resolve issues not seen for" N days, last seen before
+ * then, resolved 100 at a time with an `auto_resolved` activity entry, until none are left or the deadline
+ */
+export async function autoResolve(db: D1Database, now: number, deadline = Date.now() + 20_000) {
+  let total = 0
+  while (Date.now() < deadline) {
+    const { results } = await db
+      .prepare(
+        `SELECT i.id, p.auto_resolve_days AS days FROM issues i JOIN projects p ON p.id = i.project_id
+         WHERE p.auto_resolve_days IS NOT NULL AND i.status = 'unresolved'
+           AND i.last_seen < ? - p.auto_resolve_days * 86400000 LIMIT 100`,
+      )
+      .bind(now)
+      .all<{ id: number; days: number }>()
+    if (!results.length) break
+    const ids = results.map((r) => r.id)
+    await db.batch([
+      db
+        .prepare(
+          `UPDATE issues SET status = 'resolved', substatus = NULL, resolved_in_release = NULL, ignore_until = NULL,
+           ignore_until_count = NULL WHERE id IN (${ids.map(() => '?').join(',')})`,
+        )
+        .bind(...ids),
+      ...results.map((r) =>
+        db
+          .prepare("INSERT INTO issue_activity (issue_id, kind, data, at) VALUES (?, 'auto_resolved', ?, ?)")
+          .bind(r.id, JSON.stringify({ days: r.days }), now),
+      ),
+    ])
+    total += ids.length
+  }
+  return total
+}
