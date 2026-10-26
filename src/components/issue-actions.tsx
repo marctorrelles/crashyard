@@ -15,7 +15,7 @@ import { changeIssues, mergeIssues } from '@/fns'
 
 type Change =
   | { action: 'resolve'; inRelease?: boolean }
-  | { action: 'ignore'; forEvents?: number; until?: number }
+  | { action: 'ignore'; forEvents?: number; forUsers?: number; until?: number; untilEscalating?: boolean }
   | { action: 'reopen' }
   | { action: 'delete' }
 
@@ -98,44 +98,73 @@ export function IssueActions({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size={size} variant="outline">
-                <IconEyeOff data-icon="inline-start" />
-                Ignore
-                <IconChevronDown data-icon="inline-end" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={() => run({ action: 'ignore' }, 'Ignored')}>Forever</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Until it happens</DropdownMenuLabel>
-              {[10, 100, 1000].map((n) => (
-                <DropdownMenuItem
-                  key={n}
-                  onSelect={() => run({ action: 'ignore', forEvents: n }, `Ignored for ${n} more events`)}
+          <div className="flex">
+            <Button
+              size={size}
+              variant="outline"
+              className="rounded-r-none"
+              onClick={() => run({ action: 'ignore', untilEscalating: true }, 'Ignored until it escalates')}
+            >
+              <IconEyeOff data-icon="inline-start" />
+              Ignore
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size={size}
+                  variant="outline"
+                  className="rounded-l-none border-l-0 px-1.5"
+                  aria-label="More ways to ignore"
                 >
-                  {n} more times
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-xs text-muted-foreground">For</DropdownMenuLabel>
-              {(
-                [
-                  ['an hour', HOUR],
-                  ['a day', 24 * HOUR],
-                  ['a week', 168 * HOUR],
-                ] as const
-              ).map(([label, ms]) => (
+                  <IconChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
                 <DropdownMenuItem
-                  key={label}
-                  onSelect={() => run({ action: 'ignore', until: Date.now() + ms }, `Ignored for ${label}`)}
+                  onSelect={() => run({ action: 'ignore', untilEscalating: true }, 'Ignored until it escalates')}
                 >
-                  {label[0].toUpperCase() + label.slice(1)}
+                  Until it escalates
                 </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onSelect={() => run({ action: 'ignore' }, 'Ignored')}>Forever</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Until it happens</DropdownMenuLabel>
+                {[10, 100, 1000].map((n) => (
+                  <DropdownMenuItem
+                    key={n}
+                    onSelect={() => run({ action: 'ignore', forEvents: n }, `Ignored for ${n} more events`)}
+                  >
+                    {n} more times
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Until it affects</DropdownMenuLabel>
+                {[10, 100, 1000].map((n) => (
+                  <DropdownMenuItem
+                    key={n}
+                    onSelect={() => run({ action: 'ignore', forUsers: n }, `Ignored until ${n} more users`)}
+                  >
+                    {n} more users
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">For</DropdownMenuLabel>
+                {(
+                  [
+                    ['an hour', HOUR],
+                    ['a day', 24 * HOUR],
+                    ['a week', 168 * HOUR],
+                  ] as const
+                ).map(([label, ms]) => (
+                  <DropdownMenuItem
+                    key={label}
+                    onSelect={() => run({ action: 'ignore', until: Date.now() + ms }, `Ignored for ${label}`)}
+                  >
+                    {label[0].toUpperCase() + label.slice(1)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </>
       )}
       {canMerge && (

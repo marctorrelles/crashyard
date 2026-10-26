@@ -8,12 +8,16 @@ import {
   IconPlus,
   IconSearch,
   IconBellRinging,
+  IconChartLine,
   IconTrash,
   IconWebhook,
 } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Ago } from '@/components/bits'
+import { SearchBar } from '@/components/search-bar'
 import { Empty, PageHeader, Shell } from '@/components/shell'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -29,17 +33,29 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   deleteChannel,
+  deleteMetricAlert,
   deleteRoute,
   findTelegramChats,
   getNotifications,
   saveChannel,
+  saveMetricAlert,
   saveRoute,
   testChannel,
   testRoute,
 } from '@/fns'
 import { cn } from '@/lib/utils'
 import { type Channel, telegramToken } from '@/notify/channels'
-import { KINDS, LEVELS, type Route as NotifyRoute } from '@/notify/notice'
+import {
+  type Direction,
+  type Metric,
+  type MetricAlert,
+  METRICS,
+  metricText,
+  type MetricState,
+  WINDOW_HOURS,
+} from '@/notify/metrics'
+import { KINDS, LEVELS, minutesText, type Route as NotifyRoute } from '@/notify/notice'
+import { frequencyOf, type Frequency, INTERVALS, WINDOWS } from '@/notify/rules'
 
 export const Route = createFileRoute('/notifications')({
   loader: () => getNotifications(),
@@ -61,6 +77,7 @@ function Notifications() {
   const d = Route.useLoaderData()
   const [channel, setChannel] = useState<Channel | 'new' | null>(null)
   const [route, setRoute] = useState<NotifyRoute | 'new' | null>(null)
+  const [metric, setMetric] = useState<MetricAlert | 'new' | null>(null)
   return (
     <Shell crumbs={['Notifications']}>
       <PageHeader title="Notifications">
@@ -128,6 +145,29 @@ function Notifications() {
         )}
       </section>
 
+      <section className="mt-8">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="font-medium">Metric alerts</h2>
+          <Button size="sm" variant="outline" disabled={!d.projects.length} onClick={() => setMetric('new')}>
+            <IconPlus data-icon="inline-start" />
+            Create metric alert
+          </Button>
+        </div>
+        {d.metricAlerts.length === 0 ? (
+          <Empty compact icon={IconChartLine} title="No metric alerts yet">
+            Watch a number such as errors, crash-free sessions or p95 duration, and hear when it crosses a value and
+            when it comes back. Routes with Metric alert send them.
+          </Empty>
+        ) : (
+          <ul className="divide-y rounded-xl border">
+            {d.metricAlerts.map((a) => (
+              <MetricRow key={a.id} alert={a} d={d} onEdit={() => setMetric(a)} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {metric && <MetricDialog alert={metric === 'new' ? undefined : metric} d={d} onClose={() => setMetric(null)} />}
       {channel && (
         <ChannelDialog
           channel={channel === 'new' ? undefined : channel}
@@ -183,6 +223,18 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
     .filter(Boolean)
   const envs = list<string>(r.environments)
   const levels = list<string>(r.levels)
+  const f = frequencyOf(r.frequency)
+  const frequency =
+    f && list<string>(r.kinds).includes('frequency')
+      ? `${f.events ? `${f.events} events` : `${f.users} users`} in ${minutesText(f.minutes)}`
+      : undefined
+  const releases = list<string>(r.releases ?? null)
+  const extra = [
+    frequency,
+    releases.length ? `releases ${and(releases)}` : undefined,
+    r.query || undefined,
+    r.interval_minutes ? `waits ${minutesText(r.interval_minutes)} between alerts` : undefined,
+  ].filter(Boolean)
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
@@ -194,6 +246,7 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
           {' · '}
           {envs.length ? and(envs) : 'all environments'}
           {levels.length > 0 && ` · ${levels.join(', ')}`}
+          {extra.length > 0 && ` · ${extra.join(' · ')}`}
         </p>
       </div>
       <TestButton label="Send a test" send={() => testRoute({ data: { id: r.id } })} />
@@ -570,6 +623,14 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
   const [channels, setChannels] = useState<number[]>(
     route ? list(route.channel_ids) : d.channels.slice(0, 1).map((c) => c.id),
   )
+  const saved = frequencyOf(route?.frequency)
+  const [frequency, setFrequency] = useState({
+    what: saved?.users ? ('users' as const) : ('events' as const),
+    count: String(saved?.events ?? saved?.users ?? 50),
+    minutes: String(saved?.minutes ?? 10),
+  })
+  const [query, setQuery] = useState(route?.query ?? '')
+  const [wait, setWait] = useState(String(route?.interval_minutes ?? 0))
   const done = async () => {
     onClose()
     await router.invalidate()
@@ -591,6 +652,16 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
               .map((s) => Number(s.trim()))
               .filter((n) => Number.isInteger(n) && n > 0)
             if (!kinds.length || !channels.length) return toast.error('Choose at least one alert and one channel')
+            const releases = f.releases
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+            const limit = Number(frequency.count)
+            const rate: Frequency | null = kinds.includes('frequency')
+              ? { [frequency.what]: limit, minutes: Number(frequency.minutes) as Frequency['minutes'] }
+              : null
+            if (rate && !(Number.isInteger(limit) && limit > 0))
+              return toast.error('Give a whole number of events or users above 0.')
             try {
               await saveRoute({
                 data: {
@@ -601,6 +672,10 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                   environments: envs.length ? JSON.stringify(envs) : null,
                   thresholds: JSON.stringify(thresholds.sort((a, b) => a - b)),
                   channel_ids: JSON.stringify(channels),
+                  frequency: rate ? JSON.stringify(rate) : null,
+                  releases: releases.length ? JSON.stringify(releases) : null,
+                  query: query.trim(),
+                  interval_minutes: Number(wait),
                 },
               })
               await done()
@@ -653,6 +728,50 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                 value={route ? list<number>(route.thresholds).join(',') : '10,100,1000'}
               />
             )}
+            {kinds.includes('frequency') && (
+              <fieldset className="grid gap-2">
+                <legend className="mb-2 text-sm font-medium">Only when an issue gets</legend>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    aria-label="How many"
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={frequency.count}
+                    onChange={(e) => setFrequency({ ...frequency, count: e.target.value })}
+                    className="w-20"
+                  />
+                  <Select
+                    value={frequency.what}
+                    onValueChange={(v) => setFrequency({ ...frequency, what: v as 'events' | 'users' })}
+                  >
+                    <SelectTrigger aria-label="Events or users" className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="events">events</SelectItem>
+                      <SelectItem value="users">users</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">in</span>
+                  <Select value={frequency.minutes} onValueChange={(v) => setFrequency({ ...frequency, minutes: v })}>
+                    <SelectTrigger aria-label="Time" className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WINDOWS.map((m) => (
+                        <SelectItem key={m} value={String(m)}>
+                          {minutesText(m)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Frequency reached alerts once, on the event that takes the issue to that many.
+                </p>
+              </fieldset>
+            )}
             <Field
               id="environments"
               label="Environments"
@@ -666,6 +785,45 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
               value={levels}
               onChange={setLevels}
             />
+            <Field
+              id="releases"
+              label="Releases"
+              defaultValue={route ? list<string>(route.releases ?? null).join(', ') : ''}
+              placeholder="1.2.*, 2.0"
+              hint="An asterisk matches anything. Separate them with commas. Leave empty for every release."
+            />
+            <div className="grid gap-2">
+              <Label>Tags</Label>
+              <SearchBar
+                scope="issues"
+                query={query}
+                project={d.projects.find((p) => String(p.id) === project)?.slug}
+                placeholder="os:iOS !device:iPad*"
+                onSearch={setQuery}
+                onChange={setQuery}
+              />
+              <p className="text-xs text-muted-foreground">
+                Only alerts whose event has these tags. Leave empty for every event.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="route-wait">Wait before alerting again</Label>
+              <Select value={wait} onValueChange={setWait}>
+                <SelectTrigger id="route-wait" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INTERVALS.map((m) => (
+                    <SelectItem key={m} value={String(m)}>
+                      {m === 0 ? 'Off' : minutesText(m)[0].toUpperCase() + minutesText(m).slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                After an alert about an issue, this route stays quiet about that issue for this long.
+              </p>
+            </div>
             <Checks
               legend="Send to"
               options={d.channels.map((c) => ({ value: c.id, label: c.name }))}
@@ -681,6 +839,249 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                 onClick={async () => {
                   if (!confirm('Delete this route? Its alerts will no longer be sent.')) return
                   await deleteRoute({ data: { id: route.id } })
+                  await done()
+                }}
+              >
+                <IconTrash data-icon="inline-start" />
+                Delete
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button type="submit">Save</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const STATES: Record<MetricState, { label: string; variant: 'outline' | 'secondary' | 'destructive' }> = {
+  ok: { label: 'OK', variant: 'outline' },
+  warning: { label: 'Warning', variant: 'secondary' },
+  critical: { label: 'Critical', variant: 'destructive' },
+}
+const hoursText = (h: number) => (h === 1 ? 'an hour' : `${h} hours`)
+
+function MetricRow({ alert: a, d, onEdit }: { alert: MetricAlert; d: Data; onEdit: () => void }) {
+  const project = d.projects.find((p) => p.id === a.project_id)?.name ?? 'A deleted project'
+  const m = METRICS[a.metric]
+  const state = STATES[a.state]
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+          {a.name}
+          <Badge variant={state.variant} className={a.state === 'warning' ? 'text-amber-700 dark:text-amber-400' : ''}>
+            {state.label}
+          </Badge>
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {project} · {m.label} {a.direction} {metricText(a.metric, a.critical)} over {hoursText(a.window_hours)}
+          {a.query && ` · ${a.query}`}
+          {a.value !== null && ` · now ${metricText(a.metric, a.value)}`}
+          {a.changed_at !== null && (
+            <>
+              {' · changed '}
+              <Ago at={a.changed_at} now={d.now} />
+            </>
+          )}
+        </p>
+      </div>
+      <Button size="icon-sm" variant="ghost" aria-label={`Edit ${a.name}`} onClick={onEdit}>
+        <IconPencil />
+      </Button>
+    </li>
+  )
+}
+
+// What a new alert of each metric starts with
+const DEFAULTS: Record<Metric, { direction: Direction; warning: string; critical: string }> = {
+  errors: { direction: 'above', warning: '50', critical: '100' },
+  users: { direction: 'above', warning: '10', critical: '50' },
+  crash_free_sessions: { direction: 'below', warning: '99.5', critical: '98' },
+  p95: { direction: 'above', warning: '800', critical: '1000' },
+  failure_rate: { direction: 'above', warning: '2', critical: '5' },
+  log_count: { direction: 'above', warning: '', critical: '1000' },
+}
+const UNITS = { count: '', percent: 'in percent', ms: 'in milliseconds' }
+const FILTERS: Record<Metric, string> = {
+  errors: 'environment:production release:1.2.*',
+  users: 'environment:production level:fatal',
+  crash_free_sessions: 'environment:production release:1.2.*',
+  p95: 'transaction:/checkout release:1.2.*',
+  failure_rate: 'transaction:/checkout',
+  log_count: 'level:error song:intro',
+}
+
+function MetricDialog({ alert, d, onClose }: { alert?: MetricAlert; d: Data; onClose: () => void }) {
+  const router = useRouter()
+  const [metric, setMetric] = useState<Metric>(alert?.metric ?? 'crash_free_sessions')
+  const [project, setProject] = useState(String(alert?.project_id ?? d.projects[0]?.id ?? ''))
+  const [hours, setHours] = useState(String(alert?.window_hours ?? 24))
+  const [values, setValues] = useState(
+    alert
+      ? {
+          direction: alert.direction,
+          warning: alert.warning === null ? '' : String(alert.warning),
+          critical: String(alert.critical),
+        }
+      : DEFAULTS.crash_free_sessions,
+  )
+  const unit = UNITS[METRICS[metric].unit]
+  const done = async () => {
+    onClose()
+    await router.invalidate()
+  }
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+        <form
+          className="contents"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>
+            try {
+              await saveMetricAlert({
+                data: {
+                  id: alert?.id,
+                  name: f.name,
+                  project_id: Number(project),
+                  metric,
+                  query: f.query,
+                  window_hours: Number(hours),
+                  direction: values.direction,
+                  warning: values.warning,
+                  critical: values.critical,
+                },
+              })
+              await done()
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : 'Couldn’t save. Try again.')
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{alert ? 'Edit metric alert' : 'Create metric alert'}</DialogTitle>
+            <DialogDescription>
+              Checked every 5 minutes. It alerts when the value crosses a threshold and again when it comes back.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-5">
+            <Field id="name" label="Name" defaultValue={alert?.name} placeholder="Crash-free sessions" required />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="metric-project">Project</Label>
+                <Select value={project} onValueChange={setProject}>
+                  <SelectTrigger id="metric-project" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {d.projects.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="metric-metric">Metric</Label>
+                <Select
+                  value={metric}
+                  onValueChange={(v) => {
+                    setMetric(v as Metric)
+                    if (!alert) setValues(DEFAULTS[v as Metric])
+                  }}
+                >
+                  <SelectTrigger id="metric-metric" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(METRICS) as Metric[]).map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {METRICS[m].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Field
+              id="query"
+              label="Filter"
+              defaultValue={alert?.query}
+              placeholder={FILTERS[metric]}
+              hint="Leave empty to count everything in the project."
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="metric-window">Over the last</Label>
+                <Select value={hours} onValueChange={setHours}>
+                  <SelectTrigger id="metric-window" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WINDOW_HOURS.map((h) => (
+                      <SelectItem key={h} value={String(h)}>
+                        {hoursText(h)[0].toUpperCase() + hoursText(h).slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="metric-direction">Alert when it goes</Label>
+                <Select
+                  value={values.direction}
+                  onValueChange={(v) => setValues({ ...values, direction: v as Direction })}
+                >
+                  <SelectTrigger id="metric-direction" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="above">Above</SelectItem>
+                    <SelectItem value="below">Below</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="warning"
+                label={`Warning${unit ? ` ${unit}` : ''}`}
+                type="number"
+                step="any"
+                min={0}
+                value={values.warning}
+                onChange={(e) => setValues({ ...values, warning: e.target.value })}
+                hint="Leave empty for none."
+              />
+              <Field
+                id="critical"
+                label={`Critical${unit ? ` ${unit}` : ''}`}
+                type="number"
+                step="any"
+                min={0}
+                required
+                value={values.critical}
+                onChange={(e) => setValues({ ...values, critical: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-between">
+            {alert ? (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      `Delete ${alert.name}? It will stop watching ${METRICS[alert.metric].label.toLowerCase()}.`,
+                    )
+                  )
+                    return
+                  await deleteMetricAlert({ data: { id: alert.id } })
                   await done()
                 }}
               >

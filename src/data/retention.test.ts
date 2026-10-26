@@ -37,7 +37,7 @@ describe('retention', () => {
 
     const started = Date.now()
     const deadline = started + 20_000
-    expect(await pruneEvents(db, NOW, files, deadline)).toEqual({ events: 12000, attachments: 1, issues: 1 })
+    expect(await pruneEvents(db, NOW, files, deadline)).toEqual({ events: 12000, attachments: 1, issues: 1, hours: 0 })
     expect(await pruneLogs(db, NOW, deadline)).toEqual({ logs: 12000 })
     expect(Date.now() - started).toBeLessThan(20_000)
 
@@ -49,6 +49,11 @@ describe('retention', () => {
   it('stops at the deadline', async () => {
     const db = sqliteD1()
     db.sqlite.exec("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0)")
-    expect(await pruneEvents(db, NOW, undefined, Date.now() - 1)).toEqual({ events: 0, attachments: 0, issues: 0 })
+    expect(await pruneEvents(db, NOW, undefined, Date.now() - 1)).toEqual({
+      events: 0,
+      attachments: 0,
+      issues: 0,
+      hours: 0,
+    })
   })
 })

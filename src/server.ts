@@ -58,8 +58,8 @@ export default {
   },
 }
 
-// The cron: its heartbeat, monitors (missed check-ins, uptime checks), held notifications, envelopes to try again, and
-// hourly, retention and auto-resolve. Each job is on its own: one that throws doesn't stop the others
+// The cron: its heartbeat, monitors (missed check-ins, uptime checks), held notifications, envelopes to try again,
+// every 5 minutes, metric alerts, and hourly, escalation, retention and auto-resolve. Each job is on its own: one that throws doesn't stop the others
 async function everyMinute(env: Env, now: number) {
   const at = new Date(now)
   const notices: Notice[] = []
@@ -83,6 +83,18 @@ async function everyMinute(env: Env, now: number) {
     await job('weekly summaries', async () => {
       const { weeklySummaries } = await import('./data/projects')
       notices.push(...(await weeklySummaries(env.DB, env.PUBLIC_URL ?? '', now)))
+    })
+  // Every 5 minutes: metric alerts, a notice only when one changes state
+  if (at.getUTCMinutes() % 5 === 0)
+    await job('metric alerts', async () => {
+      const { evaluateMetricAlerts } = await import('./notify/metrics')
+      notices.push(...(await evaluateMetricAlerts(env, now)))
+    })
+  // Hourly, at :25: issues escalating in the hour just ended, within 20 seconds
+  if (at.getUTCMinutes() === 25)
+    await job('escalation', async () => {
+      const { checkEscalation } = await import('./data/escalation')
+      notices.push(...(await checkEscalation(env.DB, env.PUBLIC_URL ?? '', now)))
     })
   const { dispatch, flushHeld, pruneFailures } = await import('./notify/dispatch')
   await job('notifications', () => dispatch(env, notices, now))

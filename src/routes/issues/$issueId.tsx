@@ -61,8 +61,8 @@ function IssuePage() {
             {issue.title}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            {issue.culprit && <span className="font-mono text-xs break-all">{issue.culprit}</span>}
             <StatusBadge issue={issue} now={now} />
+            {issue.culprit && <span className="font-mono text-xs break-all">{issue.culprit}</span>}
           </p>
         </div>
         <IssueActions ids={[issue.id]} status={issue.status} />
@@ -160,7 +160,9 @@ function StatusBadge({ issue, now }: { issue: Data['issue']; now: number }) {
     return (
       <Badge variant="outline">
         Ignored
+        {issue.substatus === 'until_escalating' ? ' until it escalates' : null}
         {issue.ignore_until_count ? ` until ${count(issue.ignore_until_count)} events` : null}
+        {issue.ignore_until_users ? ` until ${count(issue.ignore_until_users)} users` : null}
         {!issue.ignore_until_count && issue.ignore_until ? (
           <>
             {' until '}
@@ -171,6 +173,7 @@ function StatusBadge({ issue, now }: { issue: Data['issue']; now: number }) {
     )
   }
   if (issue.substatus === 'regressed') return <Badge variant="destructive">Regressed</Badge>
+  if (issue.substatus === 'escalating') return <Badge variant="destructive">Escalating</Badge>
   if (issue.substatus === 'new' && issue.first_seen > now - NEW_FOR) return <Badge variant="secondary">New</Badge>
   return null
 }
@@ -283,8 +286,12 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
   resolved: (x) => (x.inRelease ? 'Resolved in the next release' : 'Resolved'),
   auto_resolved: (x) => `Resolved after ${x.days} day${x.days === 1 ? '' : 's'} without events`,
   ignored: (x) =>
-    x.forEvents ? (
+    x.untilEscalating ? (
+      'Ignored until it escalates'
+    ) : x.forEvents ? (
       `Ignored for ${x.forEvents} more events`
+    ) : x.forUsers ? (
+      `Ignored until ${x.forUsers} more users`
     ) : x.until ? (
       <>
         Ignored until <Time at={x.until as number} />
@@ -295,6 +302,7 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
   reopened: () => 'Reopened',
   merged: (x) => `Merged with ${(x.issues as { title: string }[]).map((i) => `“${i.title}”`).join(', ')}`,
   review_crash: () => 'Crashed in App Review or TestFlight',
+  escalating: (x) => `Escalating with ${x.count} events in an hour${x.wasIgnored ? ', so it’s no longer ignored' : ''}`,
 }
 
 function Activity({ d }: { d: Data }) {

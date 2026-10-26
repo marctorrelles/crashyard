@@ -15,7 +15,8 @@ helpers (`change`).
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;
-  `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`), `dsnOf` (a project id and a key), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
+  `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
+  hour, 1000 a batch), `dsnOf` (a project id and a key), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
   a tenth so a crash never reads 100%; one batch of four).
@@ -27,7 +28,19 @@ helpers (`change`).
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
   `autoResolve` (the hourly cron, at :20): unresolved issues of a project with `auto_resolve_days`, last seen before
   that many days, resolved 100 a batch with an `auto_resolved` activity entry (`{ days }`), within 20 seconds; the
-  overview's resolved per day counts only `resolved`, what a person did.
+  overview's resolved per day counts only `resolved`, what a person did. Ignoring takes `untilEscalating`
+  (`until_escalating`, the default in the UI: only escalation opens it) and `forUsers` (`ignore_until_users`, the user
+  count that ends it, as `ignore_until_count`). A merge adds the merged issues' `event_hours` into the
+  first.
+- `escalation.ts`: `escalating(hours)`: the last of a week of hourly counts plus the hour just ended escalates with 10
+  events or more (`MIN_EVENTS`) and more than twice (`FACTOR`) the busiest hour before it, so steady traffic, however
+  busy, and its usual peaks don't. `checkEscalation` (the cron, hourly at :25, 20 seconds): the hour just ended's
+  issues with 10 or more in `event_hours` (by `event_hours_hour`), unresolved and not escalating, or ignored
+  `until_escalating`, first seen over a day ago (a younger one is still new), 500 at most, 50 a batch: their 168 hours
+  before from `event_hours`; those that escalate get `escalating` (an ignored one opens), an `escalating` activity
+  entry (`{ count, hour, wasIgnored }`) and an `escalating` notice with the hour's most common release, environment
+  and level. Escalating issues with no `escalating` entry in 7 days go back to `ongoing` first (index
+  `issues_escalating`). `escalation.test.ts` on `test/fakes.ts`.
 - `releases.ts`: releases from events (kept within retention), and the release diff: new in it, came back in it,
   still happening, and gone since the release before.
 - `logs.ts`: the explorer's page (newest first, cursors for older and for the live tail's newer) over a `Window`:
@@ -119,7 +132,8 @@ helpers (`change`).
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `projectDefaults`: what `createProject` starts with, the columns' defaults under what
   Settings, New-project defaults saved.
-- `notifications.ts`: channels and routes, and `testRoute` and `testChannel`, which send a made-up notice now through a
+- `notifications.ts`: channels, routes (with `frequency`, `releases`, `query`, `interval_minutes`) and metric alerts
+  (`saveMetricAlert`: saving starts it again from ok, so its next read alerts if it's still past a value), and `testRoute` and `testChannel`, which send a made-up notice now through a
   route's channels or one channel and say how each went.
 
 Keep anything a browser page imports (constants, types) free of `cloudflare:*` imports: they'd break the client build.

@@ -62,7 +62,9 @@
 - `value-menu.tsx`: `ValueMenu`, a value on a page as a `DropdownMenu`: show only this, exclude this, copy. Pages pass
   `addValue` for the first two, only for a key the grammar can write (`isSearchableKey`); its trigger sits above a row's
   link (`z-10`), its tap area 40 px high on a phone.
-- `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.
+- `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection. Ignore is a split
+  button: its click ignores until it escalates; the menu has that first, then forever, N more times, N more users and
+  for a time.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's
   `stackOrder`, the crashing frame open; my code first, other frames folded unless `showOtherFrames`, context
   lines; a frame with a link, from `frameLinks` by its indexes in the event, has a button opening its line in the

@@ -1,7 +1,8 @@
 // Sending notices: each through the routes that take it, to their channels, now or after the channel's quiet hours.
 import { type Channel, isQuiet, send } from './channels'
 import { mailerOf } from './email'
-import { channelIds, type Notice, routeTakes, type Route, thresholdFor } from './notice'
+import { channelIds, ISSUE_KINDS, type Notice, routeTakes, type Route, thresholdFor } from './notice'
+import { throttled } from './rules'
 
 export type NotifyEnv = { DB: D1Database; EMAIL?: SendEmail; EMAIL_FROM?: string }
 
@@ -34,6 +35,8 @@ export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now
     // A channel hears of a notice once, through the first route that takes it
     const targets = new Map<number, Notice>()
     for (const route of routes.filter((r) => routeTakes(r, candidate))) {
+      // A route's wait holds per issue, whatever the kind
+      if (ISSUE_KINDS.has(candidate.kind) && (await throttled(env.DB, route, candidate.issue.id, now))) continue
       const notice =
         candidate.kind === 'threshold' ? { ...candidate, threshold: thresholdFor(route, candidate) } : candidate
       for (const id of channelIds(route)) if (!targets.has(id)) targets.set(id, notice)

@@ -37,7 +37,10 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   100 values per issue (`TAG_VALUES`); a new one past them counts under `other` (reading at most the value's row or the
   first 100), so a search for such a value doesn't find the issue. An issue
   found with a count of 0 was made by a try whose batch then failed: the event is still its first (`isNew`, a "New
-  issue" alert and the `created` activity); two first events racing may both say so.
+  issue" alert and the `created` activity); two first events racing may both say so. The batch also upserts
+  `event_hours` (every event, kept or not) and writes `events.user_hash`. An ignore `until_users` ends on an event from a user the issue hadn't had
+  (one read of `issue_users`, only then) that takes `user_count` to `ignore_until_users`; `until_escalating` never ends
+  here.
 - `budget.ts`: `trimEvent` (`eventJson` in `storeEvent`, just before the JSON is written; the envelope stays whole in
   R2) keeps the stored JSON under 900 KB: only an event over it is copied and cut, each cut only while still over,
   least missed first: the newest 100 breadcrumbs, 32 threads of 100 frames (crashed first), an exception's innermost

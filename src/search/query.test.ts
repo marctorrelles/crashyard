@@ -172,6 +172,7 @@ describe('search', () => {
       params: ['c', 'd'],
     })
     expect(issueFilter('times:[1,2]', NOW).where).toEqual([])
+    expect(issueFilter('is:escalating', NOW).where).toEqual(["i.status = 'unresolved' AND i.substatus = 'escalating'"])
   })
 
   it('turns log lists into IN, with level aliases on each', () => {

@@ -14,7 +14,7 @@ in `pnpm run deploy`).
   stored, and one that no longer checks out shows as a placeholder to remove.
 - `issues_fts` is FTS5 over issue titles and culprits, kept in step by triggers.
 - D1's free tier writes 100,000 rows a day; an event writes about 30 (event, tags, counts, days). Keep new per-event
-  writes few. A batch of logs writes about 2 + attributes rows a log, plus a `log_hours` row for each project, hour and
+  writes few; 0014 adds one, the `event_hours` upsert. A batch of logs writes about 2 + attributes rows a log, plus a `log_hours` row for each project, hour and
   level in it and one `project_days` row.
 - `log_hours` is logs per project, hour and level, written at ingest (`storeLogs`) and pruned with the logs; 0009
   filled it from the logs there were. The logs chart reads it rather than every log (`src/data/AGENTS.md`).
@@ -26,3 +26,9 @@ in `pnpm run deploy`).
   new project its first key from `public_key`, whoever inserts it (`projects.public_key` stays, unread by ingest, so a
   worker from before still takes that key), and `key_days` (events per key and UTC day); `notification_failures`;
   `tokens.project_id` (null: every project, as before); `projects.auto_resolve_days` (null: off).
+- 0014: `event_hours` (events per issue, hour, level, release and environment, `''` for none, as WITHOUT ROWID keys
+  can't be null; one upsert in `storeEvent`'s batch, every event spike protection counts too; filled from the events
+  kept, one `INSERT … SELECT … GROUP BY`; pruned with the events), `events.user_hash` (null before), routes'
+  `frequency`, `releases`, `query` and `interval_minutes`, `route_fires`, `metric_alerts` (its last `value` too, for the
+  list), `issues.ignore_until_users`, `issues_escalating`
+  (partial). A worker from before 0014 writes no `event_hours`.

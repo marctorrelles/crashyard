@@ -29,9 +29,11 @@ server, the build, or `tsr generate`): never edit it.
 - `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`, `days`); the
   search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
   issues it matches for the last 14, 30 or 90 days (`?days=`, `getIssueChart`, loaded with the list), the period
-  before as a dashed line. A row's project and release are menus to show only or exclude that value. Bulk resolve,
+  before as a dashed line. Status tabs: Unresolved, Escalating (`is:escalating`), Resolved, Ignored, All, scrolling
+  on a phone. A row's project and release are menus to show only or exclude that value. Bulk resolve,
   ignore, merge and delete.
-- `issues/$issueId.tsx`: one issue: actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
+- `issues/$issueId.tsx`: one issue: its status (Escalating, ignored until it escalates or N
+  users), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
   newer), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events, feedback, activity and notes.
 - `releases.tsx`: releases (crash-free sessions when the SDK sends them), a section per project for every project;
@@ -84,8 +86,12 @@ server, the build, or `tsr generate`): never edit it.
   monitor, and one monitor: its results or check-ins, how to check in, incidents, pause, edit, delete.
 - `notifications.tsx`: channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, or what to set up first
-  while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours in the browser's time) and routes, each with a
-  test send.
+  while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours in the browser's time), routes, each with a
+  test send (with Frequency reached, "Only when an issue gets" N events or users in a window; releases as globs; tags
+  through `SearchBar`, checked on save by `tagFilterError`; "Wait before alerting again"; the row sums them up), and
+  metric alerts: each with its state, its value and when it changed; Create metric alert opens a form with name,
+  project, metric, filter, window of 1, 6 or 24 hours, direction and the warning and critical values, in percent or
+  milliseconds by the metric, each metric starting from its own defaults.
 - `attachments.$id.ts`: a server route, no page: an attachment from R2 for a signed-in viewer (the
   `x-crashyard-viewer` header `src/server.ts` sets, else 403). Images by `attachmentType` (png, jpeg, gif, webp, by
   type or else name) inline as that type; everything else, SVG and HTML included, `application/octet-stream` as

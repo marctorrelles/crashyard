@@ -185,7 +185,7 @@ export const ISSUE_KEYS: KeyInfo[] = [
     key: 'is',
     description: 'Status',
     kind: 'enum',
-    values: ['unresolved', 'resolved', 'ignored', 'new', 'regressed', 'ongoing'],
+    values: ['unresolved', 'resolved', 'ignored', 'new', 'regressed', 'escalating', 'ongoing'],
   },
   { key: 'level', description: 'Level', kind: 'enum', values: ['fatal', 'error', 'warning', 'info', 'debug'] },
   { key: 'type', description: 'Error, message or CSP report', kind: 'text' },
@@ -241,7 +241,7 @@ const match = (column: string, value: string): [string, unknown] =>
   value.includes('*') ? [`${column} GLOB ?`, value] : [`${column} = ?`, value]
 
 // One value as `match`; a list as `IN (?,…)`, or an `OR` of matches when one has a `*`
-function matchAny(column: string, values: string[]): [string, unknown[]] {
+export function matchAny(column: string, values: string[]): [string, unknown[]] {
   if (values.length === 1) {
     const [sql, value] = match(column, values[0])
     return [sql, [value]]
@@ -269,6 +269,7 @@ function status(value: string, now: number): [string, unknown[]] | undefined {
       [now - NEW_FOR],
     ]
   if (value === 'regressed') return ["i.status = 'unresolved' AND i.substatus = 'regressed'", []]
+  if (value === 'escalating') return ["i.status = 'unresolved' AND i.substatus = 'escalating'", []]
 }
 
 // As Sentry: `lastSeen:-24h` is within the last day, `lastSeen:+24h` longer ago; `<-24h` reads "less than a day ago"

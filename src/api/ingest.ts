@@ -22,7 +22,8 @@ import { loadExtraFields } from '../ingest/scrub'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
 import { sharedSymbolic } from '../symbols/module'
 import { symbolicate } from '../symbols/symbolicate'
-import type { Notice } from '../notify/notice'
+import type { Notice, Route } from '../notify/notice'
+import { frequencyHits } from '../notify/rules'
 
 export type IngestEnv = {
   DB: D1Database
@@ -408,10 +409,29 @@ async function noticesFor(
       level: event.level,
       device: event.tags.device,
       os: event.tags.os,
+      tags: event.tags,
     },
     url: `${origin}/issues/${stored.issue.id}`,
   }
   const notices: Notice[] = []
+  // Routes with a frequency: each counts the issue's events or users in its own window (src/notify/rules.ts). On a
+  // retry too, as the event is stored only then; `received` is when it came, so the window is the same
+  const routes = (
+    await env.DB.prepare('SELECT * FROM routes WHERE frequency IS NOT NULL AND (project_id IS NULL OR project_id = ?)')
+      .bind(project.id)
+      .all<Route>()
+  ).results.filter((r) => r.kinds.includes('"frequency"'))
+  const hits = routes.length
+    ? await frequencyHits(env.DB, routes, {
+        issueId: stored.issue.id,
+        issueCount: stored.issue.count,
+        eventId: event.id,
+        received: event.received,
+        userHash: event.userHash,
+        kept: stored.stored,
+      })
+    : []
+  for (const { route, rate } of hits) notices.push({ ...base, kind: 'frequency', routeId: route.id, rate })
   if (stored.isNew) notices.push({ ...base, kind: 'new' })
   if (stored.transition === 'regressed') notices.push({ ...base, kind: 'regression' })
   if (stored.transition === 'ignore_expired') notices.push({ ...base, kind: 'ignore_expired' })

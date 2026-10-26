@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isQuiet, telegramError, telegramRequest, telegramToken, webhookBody } from './channels'
-import { crossed, type Notice, type Route, routeTakes, thresholdFor } from './notice'
+import { crossed, type Notice, noticeLine, type Route, routeTakes, thresholdFor } from './notice'
 
 const notice = (over: Partial<Notice> = {}): Notice => ({
   kind: 'new',
@@ -38,6 +38,29 @@ describe('routes', () => {
     expect(thresholdFor(route(), at(99, 100))).toBe(100)
     expect(thresholdFor(route({ thresholds: '[50]' }), at(99, 100))).toBeUndefined()
     expect(routeTakes(route(), at(11, 12))).toBe(false)
+  })
+
+  it('take a frequency notice only for the route whose limit it reached', () => {
+    const r = route({ id: 3, kinds: '["frequency"]' })
+    const reached = notice({ kind: 'frequency', routeId: 3, rate: { count: 50, what: 'events', minutes: 10 } })
+    expect(routeTakes(r, reached)).toBe(true)
+    expect(routeTakes(r, { ...reached, routeId: 4 })).toBe(false)
+    expect(noticeLine(reached)).toBe('pocketband · 1.0 (10) · iPad13,1 · 50 events in 10 minutes')
+    expect(noticeLine({ ...reached, rate: { count: 10, what: 'users', minutes: 60 } })).toMatch(/10 users in an hour$/)
+  })
+
+  it('filter issue alerts by release and tags, and not a monitor’s', () => {
+    const r = route({ kinds: '["new","monitor_down"]', releases: '["2.*"]', environments: null })
+    expect(routeTakes(r, notice())).toBe(false)
+    expect(routeTakes(r, notice({ event: { ...notice().event, release: '2.1' } }))).toBe(true)
+    expect(routeTakes(r, notice({ kind: 'monitor_down', event: { level: 'fatal' } }))).toBe(true)
+  })
+
+  it('take every metric alert kind as one, whatever the levels', () => {
+    const r = route({ kinds: '["metric"]', levels: '["fatal"]' })
+    for (const kind of ['metric_warning', 'metric_critical', 'metric_resolved'] as const)
+      expect(routeTakes(r, notice({ kind, event: { level: 'info' } }))).toBe(true)
+    expect(routeTakes(route({ project_id: 2, kinds: '["metric"]' }), notice({ kind: 'metric_critical' }))).toBe(false)
   })
 })
 

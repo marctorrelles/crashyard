@@ -18,7 +18,9 @@ type IssueRow = {
   resolved_in_release: string | null
   ignore_until_count: number | null
   ignore_until: number | null
+  ignore_until_users: number | null
   count: number
+  user_count: number
   minute: number
   minute_count: number
   title: string
@@ -44,7 +46,12 @@ const OTHER_TAG_VALUE = 'other'
 export const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 
 /** Whether a resolved or ignored issue opens again with this event */
-export function transitionOf(issue: IssueRow, release: string | undefined, now: number): Stored['transition'] {
+export function transitionOf(
+  issue: IssueRow,
+  release: string | undefined,
+  now: number,
+  newUser = false,
+): Stored['transition'] {
   if (issue.status === 'resolved') {
     // Resolved now: any new event is a regression. Resolved in the next release: an event from another release is; an
     // event that names no release can't say, so it isn't.
@@ -54,12 +61,14 @@ export function transitionOf(issue: IssueRow, release: string | undefined, now: 
   if (issue.status === 'ignored') {
     if (issue.ignore_until_count !== null && issue.count + 1 >= issue.ignore_until_count) return 'ignore_expired'
     if (issue.ignore_until !== null && now >= issue.ignore_until) return 'ignore_expired'
+    if (issue.ignore_until_users !== null && newUser && issue.user_count + 1 >= issue.ignore_until_users)
+      return 'ignore_expired'
   }
   return undefined
 }
 
 const ISSUE_COLUMNS =
-  'id, status, substatus, resolved_in_release, ignore_until_count, ignore_until, count, minute, minute_count, title, culprit, level'
+  'id, status, substatus, resolved_in_release, ignore_until_count, ignore_until, ignore_until_users, count, user_count, minute, minute_count, title, culprit, level'
 
 export async function storeEvent(
   db: D1Database,
@@ -108,7 +117,15 @@ export async function storeEvent(
   }
 
   const now = event.received
-  const transition = isNew ? undefined : transitionOf(issue, event.release, now)
+  // Ignored until N users: only a user the issue hasn't had yet counts towards it
+  const newUser =
+    !isNew && issue.status === 'ignored' && issue.ignore_until_users !== null && !!event.userHash
+      ? !(await db
+          .prepare('SELECT 1 FROM issue_users WHERE issue_id = ? AND user_hash = ?')
+          .bind(issue.id, event.userHash)
+          .first())
+      : false
+  const transition = isNew ? undefined : transitionOf(issue, event.release, now, newUser)
   const minute = Math.floor(now / 60_000)
   const minuteCount = issue.minute === minute ? issue.minute_count + 1 : 1
   const keep = minuteCount <= SPIKE_LIMIT
@@ -125,7 +142,8 @@ export async function storeEvent(
            first_release = COALESCE(first_release, ?), last_event_id = ?, minute = ?, minute_count = ?, status = ?, substatus = ?,
            resolved_in_release = CASE WHEN ? THEN NULL ELSE resolved_in_release END,
            ignore_until_count = CASE WHEN ? THEN NULL ELSE ignore_until_count END,
-           ignore_until = CASE WHEN ? THEN NULL ELSE ignore_until END
+           ignore_until = CASE WHEN ? THEN NULL ELSE ignore_until END,
+           ignore_until_users = CASE WHEN ? THEN NULL ELSE ignore_until_users END
          WHERE id = ?`,
       )
       .bind(
@@ -137,6 +155,7 @@ export async function storeEvent(
         minuteCount,
         status,
         substatus,
+        transition ? 1 : 0,
         transition ? 1 : 0,
         transition ? 1 : 0,
         transition ? 1 : 0,
@@ -152,13 +171,20 @@ export async function storeEvent(
         'INSERT INTO project_days (project_id, day, events) VALUES (?, ?, 1) ON CONFLICT DO UPDATE SET events = events + 1',
       )
       .bind(project.id, day),
+    // Every event, kept or only counted: metric alerts and escalation read these
+    db
+      .prepare(
+        `INSERT INTO event_hours (project_id, issue_id, hour, level, release, environment, count) VALUES (?, ?, ?, ?, ?, ?, 1)
+         ON CONFLICT DO UPDATE SET count = count + 1`,
+      )
+      .bind(project.id, issue.id, now - (now % 3_600_000), event.level, event.release ?? '', event.environment ?? ''),
   ]
   if (keep) {
     statements.push(
       db
         .prepare(
-          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key, trace_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key, trace_id, user_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           event.id,
@@ -174,6 +200,7 @@ export async function storeEvent(
           eventJson(event), // within its size budget: the full envelope stays in R2
           envelopeKey ?? null,
           event.traceId ?? null,
+          event.userHash ?? null,
         ),
     )
     for (const [key, value] of tags) {

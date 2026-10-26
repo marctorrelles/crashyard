@@ -327,7 +327,20 @@ export async function pruneEvents(db: D1Database, now: number, files?: R2Bucket,
         .run(),
     ),
   )
-  return { events, attachments, issues }
+  // Events per hour, kept as long as the events (escalation reads 7 days, metric alerts a day)
+  const hours = await inBatches(deadline, async () =>
+    changes(
+      await db
+        .prepare(
+          `DELETE FROM event_hours WHERE (issue_id, hour, level, release, environment) IN (
+             SELECT h.issue_id, h.hour, h.level, h.release, h.environment FROM event_hours h
+             JOIN projects p ON p.id = h.project_id WHERE h.hour < ? - p.event_retention_days * 86400000 - 3600000 LIMIT 1000)`,
+        )
+        .bind(now)
+        .run(),
+    ),
+  )
+  return { events, attachments, issues, hours }
 }
 
 /**

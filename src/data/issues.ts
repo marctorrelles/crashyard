@@ -3,7 +3,12 @@ import { issueFilter } from '../search/query'
 import { scoped } from './charts'
 import { lastDays } from './projects'
 
-export const SORTS = { lastSeen: 'i.last_seen', firstSeen: 'i.first_seen', events: 'i.count', users: 'i.user_count' }
+export const SORTS = {
+  lastSeen: 'i.last_seen',
+  firstSeen: 'i.first_seen',
+  events: 'i.count',
+  users: 'i.user_count',
+}
 export type Sort = keyof typeof SORTS
 export const PAGE = 50
 
@@ -20,6 +25,7 @@ export type IssueRow = {
   resolved_in_release: string | null
   ignore_until_count: number | null
   ignore_until: number | null
+  ignore_until_users: number | null
   count: number
   user_count: number
   first_seen: number
@@ -174,7 +180,7 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
 
 export type IssueChange =
   | { action: 'resolve'; inRelease?: boolean }
-  | { action: 'ignore'; forEvents?: number; until?: number }
+  | { action: 'ignore'; forEvents?: number; forUsers?: number; until?: number; untilEscalating?: boolean }
   | { action: 'reopen' }
   | { action: 'delete' }
 
@@ -196,18 +202,39 @@ export async function changeIssues(db: D1Database, ids: number[], change: IssueC
     if (change.action === 'resolve') {
       // "In the next release": the release it's resolved against is the latest it was seen in; only another one reopens it
       set =
-        "status = 'resolved', substatus = NULL, resolved_in_release = CASE WHEN ? THEN last_release END, ignore_until = NULL, ignore_until_count = NULL"
+        "status = 'resolved', substatus = NULL, resolved_in_release = CASE WHEN ? THEN last_release END, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL"
       values = [change.inRelease ? 1 : 0]
       data = { inRelease: !!change.inRelease }
     } else if (change.action === 'ignore') {
-      const kind = change.forEvents ? 'until_count' : change.until ? 'until_date' : 'for_good'
+      // Until it escalates: only the hourly escalation check opens it again (src/data/escalation.ts)
+      const kind = change.forEvents
+        ? 'until_count'
+        : change.forUsers
+          ? 'until_users'
+          : change.until
+            ? 'until_date'
+            : change.untilEscalating
+              ? 'until_escalating'
+              : 'for_good'
       set =
-        "status = 'ignored', substatus = ?, ignore_until_count = CASE WHEN ? THEN count + ? END, ignore_until = ?, resolved_in_release = NULL"
-      values = [kind, change.forEvents ? 1 : 0, change.forEvents ?? 0, change.until ?? null]
-      data = { forEvents: change.forEvents ?? null, until: change.until ?? null }
+        "status = 'ignored', substatus = ?, ignore_until_count = CASE WHEN ? THEN count + ? END, ignore_until_users = CASE WHEN ? THEN user_count + ? END, ignore_until = ?, resolved_in_release = NULL"
+      values = [
+        kind,
+        change.forEvents ? 1 : 0,
+        change.forEvents ?? 0,
+        change.forUsers ? 1 : 0,
+        change.forUsers ?? 0,
+        change.until ?? null,
+      ]
+      data = {
+        forEvents: change.forEvents ?? null,
+        forUsers: change.forUsers ?? null,
+        until: change.until ?? null,
+        untilEscalating: kind === 'until_escalating',
+      }
     } else {
       set =
-        "status = 'unresolved', substatus = 'ongoing', resolved_in_release = NULL, ignore_until = NULL, ignore_until_count = NULL"
+        "status = 'unresolved', substatus = 'ongoing', resolved_in_release = NULL, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL"
       values = []
     }
     const kind = { resolve: 'resolved', ignore: 'ignored', reopen: 'reopened' }[change.action]
@@ -255,6 +282,14 @@ export async function mergeIssues(db: D1Database, ids: number[], by: string, now
   await db.batch([
     db.prepare(`UPDATE events SET issue_id = ? WHERE issue_id IN (${m})`).bind(into, ...fromIds),
     db.prepare(`UPDATE feedback SET issue_id = ? WHERE issue_id IN (${m})`).bind(into, ...fromIds),
+    db
+      .prepare(
+        `INSERT INTO event_hours (project_id, issue_id, hour, level, release, environment, count)
+         SELECT project_id, ?, hour, level, release, environment, SUM(count) FROM event_hours WHERE issue_id IN (${m})
+         GROUP BY project_id, hour, level, release, environment
+         ON CONFLICT DO UPDATE SET count = count + excluded.count`,
+      )
+      .bind(into, ...fromIds),
     db
       .prepare(
         `INSERT INTO issue_days (issue_id, day, count) SELECT ?, day, SUM(count) FROM issue_days WHERE issue_id IN (${m}) GROUP BY day
@@ -318,7 +353,7 @@ export async function autoResolve(db: D1Database, now: number, deadline = Date.n
       db
         .prepare(
           `UPDATE issues SET status = 'resolved', substatus = NULL, resolved_in_release = NULL, ignore_until = NULL,
-           ignore_until_count = NULL WHERE id IN (${ids.map(() => '?').join(',')})`,
+           ignore_until_count = NULL, ignore_until_users = NULL WHERE id IN (${ids.map(() => '?').join(',')})`,
         )
         .bind(...ids),
       ...results.map((r) =>

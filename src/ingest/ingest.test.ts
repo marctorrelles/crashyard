@@ -265,7 +265,9 @@ describe('reopening', () => {
       resolved_in_release: null,
       ignore_until_count: null,
       ignore_until: null,
+      ignore_until_users: null,
       count: 5,
+      user_count: 2,
       ...over,
     }) as never
   it('reopens a resolved issue, and one resolved in a release only for another release', () => {
@@ -278,6 +280,11 @@ describe('reopening', () => {
     expect(transitionOf(issue({ status: 'ignored', ignore_until_count: 6 }), undefined, 0)).toBe('ignore_expired')
     expect(transitionOf(issue({ status: 'ignored', ignore_until_count: 10 }), undefined, 0)).toBeUndefined()
     expect(transitionOf(issue({ status: 'ignored', ignore_until: 100 }), undefined, 100)).toBe('ignore_expired')
+  })
+  it('ends an ignore by users, only for a user the issue hadn’t had', () => {
+    const ignored = issue({ status: 'ignored', ignore_until_users: 3 })
+    expect(transitionOf(ignored, undefined, 0, true)).toBe('ignore_expired')
+    expect(transitionOf(ignored, undefined, 0, false)).toBeUndefined()
   })
 })
 

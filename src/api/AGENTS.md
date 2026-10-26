@@ -20,7 +20,9 @@ signature; `/mcp` comes after the Access check.
   (`stableEventId`), the same on every try. A retry reads the project by id alone (a key turned off since doesn't lose
   what was accepted) and skips the quota (what's held was let in). The raw envelope goes
   to R2 (`envelopes/<project>/<day>/<event>`). Notices are dispatched after the response (`ctx.waitUntil`). A crash
-  tagged `distribution: app_review` or `testflight` also sends `review_crash`, once per issue.
+  tagged `distribution: app_review` or `testflight` also sends `review_crash`, once per issue. Each event reads the
+  routes with a `frequency` for its project, and a `frequency` notice goes for each whose limit it reached
+  (`src/notify/rules.ts`); notices carry the event's tags for routes' tag filters.
 - `sentry.ts`: `/api/0/`, what sentry-cli and the build plugins call, with an auth token (`tokens`, for every project
   or one, `project_id`: one project's token gets Sentry's 403, `You do not have permission to perform this action.`,
   on `files/difs/assemble`, `artifactbundle/assemble` and a release that name another project, and its set-commits

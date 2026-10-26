@@ -4,9 +4,40 @@ Which notifications an event causes, and sending them. Routes (in D1) pick notic
 environment, each with its own thresholds, and send them to channels.
 
 - `notice.ts`: `Notice` (kinds: `new`, `threshold`, `regression`, `ignore_expired`, `review_crash`, `monitor_down`,
-  `monitor_up`, `slower_release`, `weekly`: a project's week, which a route's levels and environments don't filter),
-  `routeTakes`,
-  `thresholdFor` (a threshold notice passes a route only if one of that route's thresholds was crossed), `noticeLine`.
+  `monitor_up`, `slower_release`, `weekly`: a project's week, `frequency`, `escalating`, `metric_warning`,
+  `metric_critical`, `metric_resolved`), `RouteKind` (a route picks the three metric kinds as one, `metric`, "Metric
+  alert"), `routeTakes`, `thresholdFor` (a threshold notice passes a route only if one of that route's thresholds was
+  crossed), `noticeLine` ("50 events in 10 minutes", "Escalating with 40 events in the last hour"; metric alerts say
+  it in their culprit). A route's levels and environments don't filter `weekly` nor the metric kinds (of no one
+  event). `ISSUE_KINDS`, the kinds about one issue's event: a route's releases and tag filter apply to these only
+  (`matchesFilters`), and its wait. A `frequency` notice carries the `routeId` whose limit it reached: only that route
+  takes it. A notice's `event.tags` are the event's, for tag filters; an escalation has no one event, so it carries the
+  hour's most common release, environment and level and no tags: a tag filter on another key doesn't match it, a
+  negated one does.
+- `rules.ts`: routes on rates. `frequencyOf` (`{ events?, users?, minutes }`, `WINDOWS` 5, 10, 30, 60, 1440),
+  `windowStats` (the issue's events and distinct `user_hash` in the window ending at the event, from `events` by
+  `events_issue`, each count reading at most the limit plus one; skipped when the issue's whole count is under it),
+  `crossedBy`/`frequencyCrossed` (from below the limit to it, so a steady count past it doesn't fire again; it can
+  fire again once the window drops under and climbs back, which the route's wait holds), `frequencyHits` (what
+  `noticesFor` in `src/api/ingest.ts` calls per event, so on the cron's retries too, with the event's own `received`).
+  Events spike protection doesn't keep aren't in `events`: a frequency counts at most 60 a minute. `matchesFilters`:
+  release globs and a tag filter in the search's grammar (`tokenize`): `key:value`, `!`, lists, `has:`, `*` globs,
+  case-sensitive; a key reads its tag, else `release`, `environment`, `level`, `os`, `device`, and also `<key>.name`
+  (so `os:iOS` matches `os.name`, `os` holding the version too). `tagFilterError` refuses words, comparisons and the
+  issue search's own keys (`is:`, `times:`…) on save. `throttled`: `INTERVALS` off, 10 minutes, an hour, a day; one
+  upsert on `route_fires` that records the alert only when the wait has passed (`RETURNING`), so two at once can't both
+  pass; per route and issue, whatever the kind.
+- `metrics.ts`: metric alerts (`metric_alerts`). `METRICS`: `errors` (`event_hours`), `users` (distinct
+  `events.user_hash`, exact to the window; events before 0014 have none), `crash_free_sessions` (`sessions_daily`,
+  every UTC day the window touches), `p95` (`transaction_buckets` through `percentile`), `failure_rate`
+  (`transaction_hours`), `log_count` (`log_hours` when the filter is only `level`, else the logs through `logFilter`).
+  Hourly tables read the window's hours and the current one, so a 1-hour window reads up to 2 hours, never less.
+  Filters (`metricQueryError`): environment, release and level for errors and users; environment and release for
+  sessions; release and `transaction` for transactions; the logs search for logs; never `project:`. `stateFor` compares
+  strictly, critical before warning. `evaluateMetricAlerts` (the cron, every 5 minutes, 20 seconds at most): a notice
+  only on a change of state, written with `WHERE state = <the one read>` so it's sent once; nothing to read (no
+  sessions, no transactions) keeps the state; the title is the alert's name, the line `metricLine`: "pocketband ·
+  Crash-free sessions 97.1%, below 98% · Critical", "… 99.2% · Resolved"; crash-free is floored to a tenth.
 - `channels.ts`: Telegram (`telegramRequest`: the bot's `sendMessage` to its chat, as HTML, the title in bold and
   escaped, a button opening the notice's page, the week's summary without a sound; `telegramChats`, the chats that
   wrote to the bot lately, from `getUpdates`, for the settings' Find; `server` for a local Bot API server; `telegramToken` picks
@@ -21,8 +52,10 @@ environment, each with its own thresholds, and send them to channels.
 - `email.ts`: a plain-text MIME message for Cloudflare Email Routing's `send_email` binding (`EMAIL`, from
   `EMAIL_FROM`; the address it sends to must be a verified destination).
 - `dispatch.ts`: `dispatch` sends each notice to its routes' channels, or holds it in `held_notifications` in quiet
-  hours; `flushHeld` (the cron, every minute) sends what was held as one message once they end. A failing channel
+  hours, after each route's wait (`throttled`) for the kinds about an issue; `flushHeld` (the cron, every minute) sends what was held as one message once they end. A failing channel
   is logged, written to `notification_failures` (channel, the notice's kind, the error's first 500 characters; for
   Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them after 30 days.
 
-`notify.test.ts` covers routes, thresholds, channel formats, quiet hours and the signed links.
+`notify.test.ts` covers routes, thresholds, frequency and metric kinds, filters, channel formats, quiet hours and the
+signed links. `rules.test.ts` (the gate: 50 events in 10 minutes fire once, 365 one a day never; users; the wait;
+filters) and `metrics.test.ts` (crossing, staying, recovering, below, logs) run on `test/fakes.ts`.

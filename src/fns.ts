@@ -19,6 +19,8 @@ import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
 import { telegramChats, telegramToken } from './notify/channels'
+import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
+import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { mailerOf } from './notify/email'
 import { version } from '../package.json'
 import { ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
@@ -277,7 +279,13 @@ export const changeIssues = createServerFn({ method: 'POST' })
       action === 'resolve'
         ? { action, inRelease: o.inRelease === true }
         : action === 'ignore'
-          ? { action, forEvents: optional((v) => int(v, 1))(o.forEvents), until: optional((v) => int(v))(o.until) }
+          ? {
+              action,
+              forEvents: optional((v) => int(v, 1))(o.forEvents),
+              forUsers: optional((v) => int(v, 1))(o.forUsers),
+              until: optional((v) => int(v))(o.until),
+              untilEscalating: o.untilEscalating === true,
+            }
           : { action }
     return { ids: ints(o.ids), change }
   })
@@ -388,6 +396,7 @@ export const getNotifications = createServerFn().handler(async () => ({
   ...(await notifications.settings(env.DB)),
   projects: await projects.allProjects(env.DB),
   emailReady: !!env.EMAIL_FROM,
+  now: Date.now(),
 }))
 
 const minuteOfDay = optional((v) => int(v, 0, 1439))
@@ -429,9 +438,82 @@ export const saveRoute = createServerFn({ method: 'POST' })
       environments: nullableJson(o.environments ?? null),
       thresholds: json(o.thresholds),
       channel_ids: json(o.channel_ids),
+      frequency: routeFrequency(o.frequency),
+      releases: routeReleases(o.releases),
+      query: routeQuery(o.query),
+      interval_minutes: Number(oneOf(INTERVALS.map(String))(String(o.interval_minutes ?? 0))),
     }
   })
-  .handler(({ data }) => notifications.saveRoute(env.DB, data, Date.now()))
+  .handler(({ data }) => {
+    if (data.kinds.includes('"frequency"') && !data.frequency)
+      throw new Error('Say how many events or users an issue gets, and in what time, for Frequency reached.')
+    return notifications.saveRoute(env.DB, data, Date.now())
+  })
+
+// A route's frequency: a count of events or users, and a window
+const routeFrequency = (v: unknown) => {
+  if (v === null || v === undefined) return null
+  const s = json(v, 200)
+  if (!frequencyOf(s)) throw new Error('Give a whole number of events or users above 0, and a time.')
+  return s
+}
+// Release globs, one per item
+const routeReleases = (v: unknown) => {
+  if (v === null || v === undefined) return null
+  const list = JSON.parse(json(v, 2000)) as unknown
+  if (!Array.isArray(list) || list.some((g) => typeof g !== 'string' || g.length > 200))
+    throw new Error('expected a list of releases')
+  return list.length ? JSON.stringify(list) : null
+}
+// Tag filters, checked as they'll be matched
+const routeQuery = (v: unknown) => {
+  const query = text(v ?? '', 1000).trim()
+  const error = query && tagFilterError(query)
+  if (error) throw new Error(error)
+  return query || null
+}
+
+export const saveMetricAlert = createServerFn({ method: 'POST' })
+  .validator((d: unknown): notifications.MetricAlertInput => {
+    const o = object(d)
+    const metric = oneOf(Object.keys(METRICS) as Metric[])(o.metric)
+    const query = text(o.query ?? '', 1000).trim()
+    const error = metricQueryError(metric, query)
+    if (error) throw new Error(error)
+    const number = (v: unknown) => {
+      const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v
+      if (typeof n !== 'number' || !Number.isFinite(n) || n < 0)
+        throw new Error('Give the values as numbers, 0 or more.')
+      return n
+    }
+    const name = text(o.name, 80).trim()
+    if (!name) throw new Error('Give the alert a name. It’s the title of every alert it sends.')
+    return {
+      id: optional((v) => int(v))(o.id),
+      project_id: int(o.project_id),
+      name,
+      metric,
+      query,
+      window_hours: Number(oneOf(WINDOW_HOURS.map(String))(String(o.window_hours))),
+      direction: oneOf(['above', 'below'] as const)(o.direction),
+      warning: optional(number)(o.warning) ?? null,
+      critical: number(o.critical),
+    }
+  })
+  .handler(({ data }) => {
+    if (
+      data.warning !== null &&
+      (data.direction === 'above' ? data.warning >= data.critical : data.warning <= data.critical)
+    )
+      throw new Error(
+        `The warning value comes before the critical one, so it’s ${data.direction === 'above' ? 'lower' : 'higher'}.`,
+      )
+    return notifications.saveMetricAlert(env.DB, data, viewer(), Date.now())
+  })
+
+export const deleteMetricAlert = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => notifications.deleteMetricAlert(env.DB, data.id).then(() => undefined))
 
 export const deleteRoute = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))

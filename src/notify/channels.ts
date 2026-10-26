@@ -79,11 +79,11 @@ export async function telegramChats(token: string): Promise<{ id: string; name: 
 
 const COLORS = { red: 0xdc2626, orange: 0xf97316, amber: 0xf59e0b, green: 0x16a34a, sky: 0x0ea5e9 }
 const colorOf = (notice: Notice) =>
-  notice.kind === 'monitor_up'
+  notice.kind === 'monitor_up' || notice.kind === 'metric_resolved'
     ? COLORS.green
     : notice.kind === 'weekly'
       ? COLORS.sky
-      : notice.kind === 'monitor_down' || notice.issue.level === 'fatal'
+      : notice.kind === 'monitor_down' || notice.kind === 'metric_critical' || notice.issue.level === 'fatal'
         ? COLORS.red
         : notice.issue.level === 'error'
           ? COLORS.orange

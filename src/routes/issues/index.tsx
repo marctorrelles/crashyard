@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { IconConfetti, IconSearch } from '@tabler/icons-react'
+import { IconConfetti, IconSearch, IconTrendingUp } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago, count, Level, Sparkline } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
@@ -15,7 +15,12 @@ import { CHART_DAYS, type ChartDays } from '@/data/charts'
 import { getIssueChart, getIssues } from '@/fns'
 import { addValue, NEW_FOR, tokenize, withToken } from '@/search/query'
 
-const SORTS = { lastSeen: 'Last seen', firstSeen: 'First seen', events: 'Events', users: 'Users' } as const
+const SORTS = {
+  lastSeen: 'Last seen',
+  firstSeen: 'First seen',
+  events: 'Events',
+  users: 'Users',
+} as const
 type Search = { project?: string; query?: string; sort?: keyof typeof SORTS; page?: number; days?: ChartDays }
 const DEFAULT_QUERY = 'is:unresolved'
 const DEFAULT_DAYS = 14
@@ -46,6 +51,7 @@ export const Route = createFileRoute('/issues/')({
 
 const STATUSES = [
   ['unresolved', 'Unresolved'],
+  ['escalating', 'Escalating'],
   ['resolved', 'Resolved'],
   ['ignored', 'Ignored'],
   [undefined, 'All'],
@@ -120,7 +126,7 @@ function Issues() {
         />
       </section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex rounded-lg bg-muted p-0.5" role="tablist" aria-label="Status">
+        <div className="flex max-w-full overflow-x-auto rounded-lg bg-muted p-0.5" role="tablist" aria-label="Status">
           {STATUSES.map(([value, label]) => (
             <button
               key={label}
@@ -128,7 +134,7 @@ function Issues() {
               role="tab"
               aria-selected={status === value}
               onClick={() => go({ query: withToken(query, 'is', value) })}
-              className="rounded-md px-2.5 py-1 text-sm text-muted-foreground aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-sm"
+              className="shrink-0 rounded-md px-2.5 py-1 text-sm text-muted-foreground aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-sm"
             >
               {label}
             </button>
@@ -167,6 +173,10 @@ function Issues() {
           <Empty icon={IconConfetti} title="Nothing unresolved">
             Not a single open issue. Enjoy it while it lasts: new crashes and errors land here the moment an app sends
             them.
+          </Empty>
+        ) : query === 'is:escalating' ? (
+          <Empty icon={IconTrendingUp} title="Nothing escalating">
+            An issue lands here when an hour brings far more events than any hour of its week before.
           </Empty>
         ) : (
           <Empty icon={IconSearch} title="No issues match">
@@ -236,6 +246,9 @@ function Issues() {
                   )}
                   {i.status === 'unresolved' && i.substatus === 'regressed' && (
                     <Badge variant="destructive">Regressed</Badge>
+                  )}
+                  {i.status === 'unresolved' && i.substatus === 'escalating' && (
+                    <Badge variant="destructive">Escalating</Badge>
                   )}
                   {i.status === 'resolved' && <Badge variant="outline">Resolved</Badge>}
                   {i.status === 'ignored' && <Badge variant="outline">Ignored</Badge>}

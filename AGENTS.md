@@ -20,13 +20,15 @@ Where things are:
   check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys) and sends everything else to Start
   through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications, envelopes to try again,
   each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
-  slower releases; Mondays at 07:00 UTC, each project's week; hourly at :15, retention, 20 seconds at most; hourly at
-  :20, auto-resolve, 20 seconds at most, and notification failures past 30 days). In local dev only, `/__dev/sql` and
+  slower releases; every 5 minutes, metric alerts; Mondays at 07:00 UTC, each project's week; hourly at :15,
+  retention, 20 seconds at most; hourly at :20, auto-resolve, 20 seconds at most, and notification failures past 30
+  days; hourly at :25, escalation, 20 seconds at most). In local dev only, `/__dev/sql` and
   `/__dev/cron` let the end-to-end tests reach the database and run the cron.
 - `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside Access, and the MCP server,
   inside (see its AGENTS.md).
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
-- `src/notify/`: routes, channels (Telegram, email, webhooks), quiet hours (see its AGENTS.md).
+- `src/notify/`: routes (frequency, filters, a wait), metric alerts, channels (Telegram, email, webhooks), quiet hours
+  (see its AGENTS.md).
 - `src/auth/`: the Access check (see its AGENTS.md).
 - `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`.
   `src/start.ts` limits them to same-origin calls (CSRF), and refuses any but a GET from an agent (a viewer

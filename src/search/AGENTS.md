@@ -21,10 +21,13 @@ proposes as you type (`suggest.ts`, pure, tested in `suggest.test.ts`).
 - Lists in SQL: `col IN (?,…)` (for a tag, `v.value IN`), or an `OR` of matches when one has a `*`; `is:[…]` is an `OR`
   of the statuses, `project:[…]` adds every slug, `has:[…]` any of the keys, `message:[…]` any of the phrases (FTS5
   `OR`); numbers and times ignore a list. Every value is a `?` bind.
-- Keys: `is:` (`unresolved`, `resolved`, `ignored`, `new`, `regressed`, `ongoing`), `level`, `type`, `platform`,
+- Keys: `is:` (`unresolved`, `resolved`, `ignored`, `new`, `regressed`, `escalating`, `ongoing`), `level`,
+  `type`, `platform`,
   `firstRelease`, `lastRelease`, `project`, `has:`, `times`/`events`, `users`, `lastSeen`/`firstSeen` (`-24h` within,
   `+24h` longer ago, or a date). Any other key is a tag: "had an event with it", from `issue_tag_values`. `*` matches
   with GLOB (case-sensitive, as Sentry's).
+- `matchAny` is exported for other SQL over columns (metric alert filters, `src/notify/metrics.ts`); the tokens are
+  reused for routes' tag filters (`src/notify/rules.ts`), matched against one event in JS.
 - Words are prefixes, all of them, in the title or culprit (FTS5 `issues_fts`).
 - `trace:<id>` finds the issues with an event in that trace.
 - `logFilter`: the same syntax over logs: `level` (`warning` reads as `warn`), `release`, `environment`, `trace`,
