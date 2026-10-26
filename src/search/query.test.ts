@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { addValue, issueFilter, logFilter, removeToken, setToken, timeOf, tokenize, unparse, withToken } from './query'
+import {
+  addValue,
+  isSearchableKey,
+  issueFilter,
+  logAttributeKey,
+  logFilter,
+  removeToken,
+  setToken,
+  timeOf,
+  type Token,
+  tokenize,
+  unparse,
+  withToken,
+} from './query'
 
 const NOW = Date.UTC(2026, 9, 25)
 
@@ -173,5 +186,60 @@ describe('search', () => {
       where: ['l.id IN (SELECT rowid FROM logs_fts WHERE logs_fts MATCH ?)'],
       params: ['("slow"* "export"*) OR ("crash"*)'],
     })
+  })
+
+  it('keeps backslashes, spaces in quotes and odd values through a list', () => {
+    const twice = addValue(addValue('', 'path', 'a\\b', false), 'path', 'c', false)
+    expect(tokenize(twice)[0].values).toEqual(['a\\b', 'c'])
+    expect(tokenize(unparse(tokenize('k:["a\\\\",b]')))[0].values).toEqual(['a\\', 'b'])
+    expect(tokenize(addValue('k:[x,"y "]', 'k', 'z', false))[0].values).toEqual(['x', 'y ', 'z'])
+    const q = 'release:["\tbb\\\\",">\t:"]'
+    expect(tokenize(addValue(q, 'level', 'error', false))[0]).toEqual(tokenize(q)[0])
+  })
+
+  it('only writes keys the grammar can read back', () => {
+    for (const key of ['song', 'sentry.sdk.name', 'a-b_c', 'x9']) expect(isSearchableKey(key)).toBe(true)
+    for (const key of ['song name', 'sentry:user', 'a/b', '', 'ü']) expect(isSearchableKey(key)).toBe(false)
+    expect(addValue('level:error', 'song name', 'x', false)).toBe('level:error')
+    expect(logAttributeKey('song')).toBe('song')
+    expect(logAttributeKey('level')).toBeUndefined()
+    expect(logAttributeKey('a/b')).toBeUndefined()
+  })
+
+  it('reads back any tokens it writes, and adding a value leaves the other keys alone', () => {
+    // A small seeded PRNG (mulberry32), so a failure is the same every run
+    let seed = 42
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) | 0
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    const pick = <T>(items: readonly T[]) => items[Math.floor(random() * items.length)]
+    const KEY = 'abz09_.-'
+    const VALUE = ['a', 'b', 'Z', '1', ' ', '"', '\\', ',', '[', ']', ':', '*', '\t', '!', '<', '>', '=', '-']
+    const string = (alphabet: readonly string[], max: number) =>
+      Array.from({ length: 1 + Math.floor(random() * max) }, () => pick(alphabet)).join('')
+    // What the grammar reads: a value is never empty, nor only spaces in a list (an item is trimmed outside quotes)
+    const value = () => string(VALUE, 6)
+    const token = (): Token => {
+      const negate = random() < 0.3
+      if (random() < 0.2) return { op: ':', value: value(), negate }
+      const key = string([...KEY], 5)
+      const op = random() < 0.8 ? ':' : pick(['>', '<', '>=', '<='] as const)
+      if (random() < 0.4) {
+        const values = Array.from({ length: 1 + Math.floor(random() * 3) }, value)
+        return { key, op, value: values.join(','), values, negate }
+      }
+      return { key, op, value: value(), negate }
+    }
+    for (let i = 0; i < 3000; i++) {
+      const tokens = Array.from({ length: Math.floor(random() * 4) }, token)
+      const q = unparse(tokens)
+      expect(tokenize(q), q).toEqual(tokens)
+      const key = random() < 0.5 && tokens[0]?.key ? tokens[0].key : string([...KEY], 3)
+      const others = (ts: Token[]) => ts.filter((t) => t.key !== key)
+      expect(others(tokenize(addValue(q, key, value(), random() < 0.5))), q).toEqual(others(tokens))
+    }
   })
 })

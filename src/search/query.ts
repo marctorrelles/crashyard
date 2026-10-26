@@ -17,21 +17,36 @@ const TOKEN = /(!)?(?:([\w.-]+):(>=|<=|>|<)?)?(?:"((?:[^"\\]|\\.)*)"|\[((?:[^\]"
 
 const unescape = (s: string) => s.replace(/\\(.)/g, '$1')
 
-/** The inside of `[a,"b c",d]`, split on the commas outside quotes; empty items kept, so they line up with the commas */
+/**
+ * The inside of `[a,"b c",d]`, split on the commas outside quotes; empty items kept, so they line up with the commas.
+ * Spaces around an item go, but not those inside its quotes (or escaped)
+ */
 export function listItems(inside: string): string[] {
   const values: string[] = []
-  let current = ''
+  // Each item's characters, and whether each was quoted or escaped (kept as it is) or plain (trimmed at the ends)
+  let current: { c: string; kept: boolean }[] = []
+  const done = () => {
+    let from = 0
+    let to = current.length
+    while (from < to && !current[from].kept && /\s/.test(current[from].c)) from++
+    while (to > from && !current[to - 1].kept && /\s/.test(current[to - 1].c)) to--
+    values.push(
+      current
+        .slice(from, to)
+        .map((x) => x.c)
+        .join(''),
+    )
+    current = []
+  }
   let quoted = false
   for (let i = 0; i < inside.length; i++) {
     const c = inside[i]
-    if (c === '\\' && i + 1 < inside.length) current += inside[++i]
+    if (c === '\\' && i + 1 < inside.length) current.push({ c: inside[++i], kept: true })
     else if (c === '"') quoted = !quoted
-    else if (c === ',' && !quoted) {
-      values.push(current.trim())
-      current = ''
-    } else current += c
+    else if (c === ',' && !quoted) done()
+    else current.push({ c, kept: quoted })
   }
-  values.push(current.trim())
+  done()
   return values
 }
 
@@ -58,9 +73,32 @@ export const tokenize = (query: string): Token[] =>
     .map((s) => s.token)
     .filter((t) => t.value !== '')
 
-/** A value as the grammar reads it back: quoted when it has a space, a quote, `,` `[` `]` `:`, or starts as an operator */
+/**
+ * A value as the grammar reads it back: quoted when it has a space, a quote, a backslash, `,` `[` `]` `:`, or starts
+ * as an operator (`!` `<` `>` `=`: after `key:>`, `=5` would read as `>=`)
+ */
 export const quote = (value: string) =>
-  /[\s",[\]:]|^[!<>]/.test(value) ? `"${value.replace(/(["\\])/g, '\\$1')}"` : value
+  /[\s",[\]:\\]|^[!<>=]/.test(value) ? `"${value.replace(/(["\\])/g, '\\$1')}"` : value
+
+/** A key the grammar can write as `key:value` (and so a value of it can be shown only or excluded) */
+export const isSearchableKey = (key: string) => /^[\w.-]+$/.test(key)
+
+// Logs' keys that are columns or mean something else in the search: an attribute by one of these names isn't its own
+const LOG_RESERVED = new Set([
+  'level',
+  'release',
+  'environment',
+  'trace',
+  'timestamp',
+  'has',
+  'message',
+  'body',
+  'project',
+])
+
+/** The key a log attribute is searched by, if it can be: not a reserved name, and one the grammar can write */
+export const logAttributeKey = (key: string): string | undefined =>
+  isSearchableKey(key) && !LOG_RESERVED.has(key) ? key : undefined
 
 /** The query back as text, for a token changed or removed (the status tabs rewrite `is:`) */
 export const unparse = (tokens: Token[]) =>
@@ -102,9 +140,12 @@ const valuesOf = (t: Token) => t.values ?? [t.value]
 
 /**
  * Include (`negate` false) or exclude a value of a key, as a facet click does. Including adds it to the key's
- * `key:[…]` (or adds `key:value`); excluding adds it to `!key:[…]`; either takes it out of the other list.
+ * `key:[…]` (or adds `key:value`); excluding adds it to `!key:[…]`; either takes it out of the other list. A key the
+ * grammar can't write (`isSearchableKey`) leaves the query unchanged.
  */
 export function addValue(query: string, key: string, value: string, negate: boolean): string {
+  // A key the grammar can't write would come back as other tokens: leave the query as it is
+  if (!isSearchableKey(key)) return query
   const tokens = tokenize(query)
   const same = (t: Token, n: boolean) => t.key === key && t.op === ':' && t.negate === n
   const into = tokens.findIndex((t) => same(t, negate))

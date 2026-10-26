@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { addNote, deleteNote, getIssue } from '@/fns'
 import type { NormalizedEvent } from '@/ingest/event'
-import { addValue, NEW_FOR } from '@/search/query'
+import { addValue, isSearchableKey, NEW_FOR } from '@/search/query'
 
 export const Route = createFileRoute('/issues/$issueId')({
   validateSearch: (s: Record<string, unknown>): { event?: string } => ({
@@ -228,8 +228,8 @@ function Tags({ tags, project }: { tags: Data['tags']; project: string }) {
             <BarList
               items={values}
               total={values[0].total}
-              onInclude={(v) => search(key, v, false)}
-              onExclude={(v) => search(key, v, true)}
+              onInclude={isSearchableKey(key) ? (v) => search(key, v, false) : undefined}
+              onExclude={isSearchableKey(key) ? (v) => search(key, v, true) : undefined}
             />
           </div>
         ))}

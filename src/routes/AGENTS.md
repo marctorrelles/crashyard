@@ -27,8 +27,8 @@ server, the build, or `tsr generate`): never edit it.
   before as a dashed line. A row's project and release are menus to show only or exclude that value. Bulk resolve,
   ignore, merge and delete.
 - `issues/$issueId.tsx`: one issue: actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
-  newer), tags' top values with their share (+ and − open the project's unresolved issues with or without that
-  value), events, feedback, activity and notes.
+  newer), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
+  issues with or without that value), events, feedback, activity and notes.
 - `releases.tsx`: releases (crash-free sessions when the SDK sends them), a section per project for every project;
   `projects/$slug/releases/$release.tsx`: one release's diff against the one before.
 - `performance.tsx`: transactions by p95 with a sparkline of it over the period and the change since the release
@@ -36,19 +36,19 @@ server, the build, or `tsr generate`): never edit it.
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and trace links.
 - `projects/$slug/settings.tsx`: the DSN and how to link an app, name, platform, quota, retention, new key, delete.
-- `logs.tsx`: the logs explorer. The search lives in the URL (`project`, `query`, `range`, `from`, `to`, `groupBy`):
-  the search bar (`SearchBar`), a time range, and over the list logs per bucket and level (`getLogChart`, loaded with
-  the list; the period before as a dashed line). A drag across the chart sets `from` and `to` (ms, clamped to the
-  chart's span), which stand in for the range while they're set (it reads "Custom" with the span; Reset clears them,
-  back to the range; a bad pair is dropped and the range counts). Facets (folded on a phone) are bars of their share
-  with + and − (`addValue`: a second value of a key makes `key:[a,b]`); click a line for every field and attribute,
-  each a menu to show only, exclude or copy it, and its trace's logs and issues. Live (polls every 2 s for newer; off
-  with an exact span), Older. Group by (`?groupBy=`: level, release, environment, project, or an attribute, the stored
-  keys asked for when the menu first opens; `getLogGroups` loaded instead of `getLogChart`): the chart's series are
-  the 8 biggest groups and the rest, and over the list a table of them with their logs, the change since the span
-  before ("new" when there were none), their share, + and − (a click on the value shows only it; none and the rest
-  can't be picked). The chart doesn't poll: it's loaded again on each search. Times in the browser's time once
-  hydrated.
+- `logs.tsx`: the logs explorer. The search lives in the URL (`project`, `query`, `range`, `from`, `to`, `groupBy`): the
+  search bar (`SearchBar`), a time range, and over the list logs per bucket and level (`getLogChart`, loaded with the
+  list; the period before as a dashed line). A drag across the chart sets `from` and `to` (ms, clamped to the chart's
+  span), which stand in for the range while they're set (it reads "Custom" with the span; Reset clears them, back to the
+  range; a bad pair is dropped and the range counts). Facets (folded on a phone) are bars of their share with + and −
+  (`addValue`: a second value of a key makes `key:[a,b]`; none for a key the grammar can't write, `isSearchableKey`);
+  click a line for every field and attribute, each a menu to show only, exclude or copy it, and its trace's logs and
+  issues. Live (polls every 2 s for newer; off with an exact span), Older. Group by (`?groupBy=`: level, release,
+  environment, project, or an attribute, the stored keys asked for when the menu first opens; `getLogGroups` loaded
+  instead of `getLogChart`): the chart's series are the 8 biggest groups and the rest, and over the list a table of them
+  with their logs, the change since the span before ("new" when there were none), their share, + and − (a click on the
+  value shows only it; none and the rest can't be picked). The chart doesn't poll: it's loaded again on each search.
+  Times in the browser's time once hydrated.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
   monitor, and one monitor: its results or check-ins, how to check in, incidents, pause, edit, delete.
 - `notifications.tsx`: channels (ntfy, email, webhook, quiet hours in the browser's time) and routes, with a test send.

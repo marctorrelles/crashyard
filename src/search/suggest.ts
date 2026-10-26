@@ -41,15 +41,27 @@ function partial(inside: string): { index: number; prefix: string } {
   return { index, prefix: listItems(inside.slice(start))[0] }
 }
 
+// Whether a value, as typed so far, is inside a quote it opened (`"1.0 b`, or an item of a list: `[a,"b c`)
+function openQuote(typed: string): boolean {
+  if (!/^["[]/.test(typed)) return false
+  let quoted = false
+  for (let i = 0; i < typed.length; i++) {
+    if (typed[i] === '\\') i++
+    else if (typed[i] === '"') quoted = !quoted
+  }
+  return quoted
+}
+
 function locate(query: string, caret: number): Spot {
   const spans = scan(query)
   let tokenIndex = 0
   for (const s of spans) {
     if (s.start >= caret) break
-    if (caret <= s.end) {
-      const text = query.slice(s.start, s.end)
-      const head = HEAD.exec(text)
-      const valueStart = s.start + (head?.[0].length ?? 0)
+    const head = HEAD.exec(query.slice(s.start, s.end))
+    const valueStart = s.start + (head?.[0].length ?? 0)
+    // A value whose quote isn't closed yet runs to the caret, spaces and all: `release:"1.0 b`
+    const end = head && caret > s.end && openQuote(query.slice(valueStart, caret)) ? caret : s.end
+    if (caret <= end) {
       if (head && caret >= valueStart) {
         const at = {
           tokenIndex,
@@ -61,10 +73,10 @@ function locate(query: string, caret: number): Spot {
         const typed = query.slice(valueStart, caret)
         if (typed.startsWith('[')) {
           const { index, prefix } = partial(typed.slice(1))
-          return { ...at, prefix, start: s.start, end: s.end, valueStart, list: index }
+          return { ...at, prefix, start: s.start, end, valueStart, list: index }
         }
         const prefix = typed.startsWith('"') ? typed.slice(1).replace(/\\(.)/g, '$1') : typed
-        return { ...at, prefix, start: s.start, end: s.end, valueStart }
+        return { ...at, prefix, start: s.start, end, valueStart }
       }
       const typed = query.slice(s.start, caret)
       return {

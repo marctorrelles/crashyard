@@ -21,7 +21,7 @@ import { change } from '@/data/charts'
 import { GROUP_COLUMNS, MAX_SPAN } from '@/data/logs'
 import { getLogChart, getLogGroups, getLogs, getSuggestions } from '@/fns'
 import { cn } from '@/lib/utils'
-import { addValue } from '@/search/query'
+import { addValue, isSearchableKey, logAttributeKey } from '@/search/query'
 
 const RANGES = { '1h': 'Last hour', '24h': 'Last day', '7d': 'Last week', '30d': 'Last 30 days' } as const
 type Range = keyof typeof RANGES
@@ -345,7 +345,7 @@ function Groups({
         </TableHeader>
         <TableBody className="tabular-nums">
           {groups.map((g) => {
-            const filterable = g.value !== null && g.value !== ''
+            const filterable = g.value !== null && g.value !== '' && isSearchableKey(field)
             const diff = change(g.count, g.previous)
             const share = total > 0 ? g.count / total : 0
             return (
@@ -442,8 +442,8 @@ function Facets({
           <BarList
             items={values.map((v) => ({ value: v.value, count: v.n }))}
             total={total}
-            onInclude={(v) => onPick(key, v, false)}
-            onExclude={(v) => onPick(key, v, true)}
+            onInclude={isSearchableKey(key) ? (v) => onPick(key, v, false) : undefined}
+            onExclude={isSearchableKey(key) ? (v) => onPick(key, v, true) : undefined}
           />
         </div>
       ))}
@@ -536,10 +536,6 @@ function Clock({ at }: { at: number }) {
   )
 }
 
-// Keys that mean something else in the search (or can't be written as one) stay plain text
-const BUILT_IN = new Set(['level', 'release', 'environment', 'trace', 'timestamp', 'has', 'message', 'body', 'project'])
-const searchable = (key: string) => /^[\w.-]+$/.test(key) && !BUILT_IN.has(key)
-
 /** One field of an expanded log; with `field`, its value is a menu to show only or exclude it, or copy it */
 function Row({ name, value, field, onPick }: { name: string; value: string; field?: string; onPick: Pick }) {
   return (
@@ -608,7 +604,7 @@ function LogLine({ log: l, showProject, onPick }: { log: Log; showProject: boole
             {attributes
               .filter(([, v]) => v !== null && v !== undefined)
               .map(([k, v]) => (
-                <Row key={k} name={k} value={String(v)} field={searchable(k) ? k : undefined} onPick={onPick} />
+                <Row key={k} name={k} value={String(v)} field={logAttributeKey(k)} onPick={onPick} />
               ))}
           </dl>
           {l.trace_id && (

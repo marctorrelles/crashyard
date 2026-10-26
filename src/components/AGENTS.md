@@ -44,7 +44,8 @@
   `WidgetDialog` (title, dataset, `SearchBar` of its scope, display `ToggleGroup`, group-by, width, and a preview
   from `previewWidget` 400 ms after a change, a reply for an older widget never shown).
 - `value-menu.tsx`: `ValueMenu`, a value on a page as a `DropdownMenu`: show only this, exclude this, copy. Pages pass
-  `addValue` for the first two; its trigger sits above a row's link (`z-10`), its tap area 40 px high on a phone.
+  `addValue` for the first two, only for a key the grammar can write (`isSearchableKey`); its trigger sits above a row's
+  link (`z-10`), its tap area 40 px high on a phone.
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (my code first, other frames folded, context
   lines), breadcrumbs, tags, contexts, raw JSON.

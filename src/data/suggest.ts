@@ -5,7 +5,7 @@ const VALUES = 20
 const LOG_SAMPLE = 5000
 
 // A prefix for LIKE: its own % _ \ escaped (with ESCAPE '\'), then anything after
-const like = (prefix: string) => `${prefix.replace(/[\\%_]/g, '\\$&')}%`
+export const likePrefix = (prefix: string) => `${prefix.replace(/[\\%_]/g, '\\$&')}%`
 
 // Keys whose values the bar knows without asking (enums, numbers, times, `has:` from the keys) or has none to offer
 const ISSUE_LOCAL = new Set([
@@ -62,7 +62,7 @@ export async function issueValues(
           `SELECT p.slug AS value, COUNT(i.id) AS count FROM projects p LEFT JOIN issues i ON i.project_id = p.id
            WHERE p.slug LIKE ? ESCAPE '\\' GROUP BY p.id ORDER BY count DESC LIMIT ${VALUES}`,
         )
-        .bind(like(prefix))
+        .bind(likePrefix(prefix))
         .all<ValueCount>()
     ).results
   }
@@ -75,7 +75,7 @@ export async function issueValues(
            WHERE ${column} LIKE ? ESCAPE '\\' ${projectId === undefined ? '' : 'AND project_id = ?'}
            GROUP BY ${column} ORDER BY count DESC LIMIT ${VALUES}`,
         )
-        .bind(like(prefix), ...project)
+        .bind(likePrefix(prefix), ...project)
         .all<ValueCount>()
     ).results
   }
@@ -86,7 +86,7 @@ export async function issueValues(
         `SELECT v.value, SUM(v.count) AS count FROM issue_tag_values v ${join}
          WHERE v.key = ? AND v.value LIKE ? ESCAPE '\\' GROUP BY v.value ORDER BY count DESC LIMIT ${VALUES}`,
       )
-      .bind(...project, key, like(prefix))
+      .bind(...project, key, likePrefix(prefix))
       .all<ValueCount>()
   ).results
 }
@@ -129,7 +129,7 @@ export async function logValues(
            WHERE l.id IN (${sample(projectId)}) AND p.slug LIKE ? ESCAPE '\\'
            GROUP BY p.id ORDER BY count DESC LIMIT ${VALUES}`,
         )
-        .bind(...params, like(prefix))
+        .bind(...params, likePrefix(prefix))
         .all<ValueCount>()
     ).results
   }
@@ -141,7 +141,7 @@ export async function logValues(
           `SELECT ${column} AS value, COUNT(*) AS count FROM logs WHERE id IN (${sample(projectId)})
            AND ${column} LIKE ? ESCAPE '\\' GROUP BY ${column} ORDER BY count DESC LIMIT ${VALUES}`,
         )
-        .bind(...params, like(prefix))
+        .bind(...params, likePrefix(prefix))
         .all<ValueCount>()
     ).results
   }
@@ -151,7 +151,7 @@ export async function logValues(
         `SELECT value, COUNT(*) AS count FROM log_attributes WHERE log_id IN (${sample(projectId)})
          AND key = ? AND value LIKE ? ESCAPE '\\' GROUP BY value ORDER BY count DESC LIMIT ${VALUES}`,
       )
-      .bind(...params, key, like(prefix))
+      .bind(...params, key, likePrefix(prefix))
       .all<ValueCount>()
   ).results
 }

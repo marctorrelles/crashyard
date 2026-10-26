@@ -120,4 +120,27 @@ describe('suggestions', () => {
       caret: 24,
     })
   })
+
+  it('keeps an open quote going to the caret, spaces and all', () => {
+    expect(contextAt('release:"1.0 b', 14)).toEqual({
+      tokenIndex: 0,
+      part: 'value',
+      key: 'release',
+      prefix: '1.0 b',
+      negate: false,
+      op: ':',
+    })
+    expect(contextAt('is:new tag:[a,"b c', 18)).toMatchObject({
+      tokenIndex: 1,
+      part: 'value',
+      key: 'tag',
+      prefix: 'b c',
+    })
+    expect(apply('release:"1.0 b', 14, { kind: 'value', key: 'release', value: '1.0 beta' })).toEqual({
+      query: 'release:"1.0 beta" ',
+      caret: 19,
+    })
+    // Closed, the next word is a word again
+    expect(contextAt('release:"1.0" b', 15)).toMatchObject({ tokenIndex: 1, part: 'key', prefix: 'b' })
+  })
 })

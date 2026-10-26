@@ -35,7 +35,7 @@ import { type Dataset, DISPLAYS, type Display, type Widget, type WidgetData } fr
 import { GROUP_COLUMNS, type Range } from '@/data/logs'
 import { getSuggestions, previewWidget } from '@/fns'
 import { cn } from '@/lib/utils'
-import { addValue } from '@/search/query'
+import { addValue, isSearchableKey } from '@/search/query'
 
 export const DATASET_NAMES: Record<Dataset, string> = { issues: 'Issues', events: 'Issue events', logs: 'Logs' }
 const DISPLAY_NAMES: Record<Display, string> = {
@@ -229,7 +229,7 @@ function WidgetView({
             return (
               <tr key={r.value ?? '\u0000'} className="border-b last:border-0">
                 <td className="truncate py-1.5 pr-2 font-mono max-sm:py-2.5">
-                  {filterable(r.value) ? (
+                  {filterable(r.value) && isSearchableKey(field) ? (
                     <ValueMenu
                       field={field}
                       value={r.value}

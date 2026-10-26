@@ -44,15 +44,15 @@ helpers (`change`).
   90 days, examples after 30).
 - `updates.ts`: whether a newer crashyard is out, from the repo's latest GitHub release, asked once a day through
   the Cache API, for home's banner; nothing about the deployment is sent.
-- `suggest.ts`: the search bar's keys and values from what's stored. Issues: tag keys by how many issues have them,
-  a key's values by events (`issue_tag_values`, index `issue_tag_values_key_value`), `type`, `platform` and the release
+- `suggest.ts`: the search bar's keys and values from what's stored. Issues: tag keys by how many issues have them, a
+  key's values by events (`issue_tag_values`, index `issue_tag_values_key_value`), `type`, `platform` and the release
   columns from `issues`, `project` from the projects; logs: attribute keys and values, `release` and `environment`,
-  counted over the newest 5000 logs in the range. Enums, numbers, times, `has:`, `trace` and words are the bar's own
-  (no SQL). Values start with the prefix (`LIKE`, case-insensitive, its `%` `_` `\` escaped); keys `LIMIT 50`, values
-  `LIMIT 20`. Plans (`EXPLAIN QUERY PLAN`, seeded local DB): tag keys scan the covering index
+  counted over the newest 5000 logs in the range. Enums, numbers, times, `has:`, `trace` and words are the bar's own (no
+  SQL). Values start with the prefix (`LIKE`, case-insensitive, its `%` `_` `\` escaped by `likePrefix`, tested); keys
+  `LIMIT 50`, values `LIMIT 20`. Plans (`EXPLAIN QUERY PLAN`, seeded local DB): tag keys scan the covering index
   `issue_tag_values_key_value` (a project's: its issues by `issues_project_last_seen`, their tags by primary key); a
-  tag's values search that index by key; the release columns search `issues_project_last_seen` by project; log keys
-  and values search `log_attributes` by primary key (`log_id`, and `key`) for the sample, which reads `logs_time` (a
+  tag's values search that index by key; the release columns search `issues_project_last_seen` by project; log keys and
+  values search `log_attributes` by primary key (`log_id`, and `key`) for the sample, which reads `logs_time` (a
   project's, `logs_project_time`).
 - `charts.ts`: `intervalFor` (a minute up to an hour, 5 minutes up to 6 hours, an hour up to a week, else a day),
   `buckets` (UTC bucket starts for `1m`, `5m`, `1h`, `1d`), `topWithOther` (the n series with most, the rest summed
