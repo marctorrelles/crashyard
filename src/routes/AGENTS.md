@@ -8,7 +8,8 @@ server, the build, or `tsr generate`): never edit it.
   pages. Its loader is the sidebar's (projects, the one last picked, folded or not, who's signed in) and its component
   is `Layout` (`src/components/shell.tsx`). The lists (`/`, dashboards and each dashboard, issues, releases,
   performance, logs) take the sidebar's project filter as `?project=`, every project's when there's none; a project's
-  pages are titled by the page with the project under it.
+  pages are titled by the page with the project under it. Each page gives `Shell` its breadcrumbs: the section, the
+  project (a list narrowed to it, the overview's for settings), then the page (a list narrowed to a project ends at it).
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day and a 14-day sparkline; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day

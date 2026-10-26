@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, notFound, useNavigate, useRouter, Link } from '@tanstack/react-router'
 import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -100,7 +100,15 @@ function Board() {
     })
 
   return (
-    <Shell wide>
+    <Shell
+      wide
+      crumbs={[
+        <Link to="/dashboards" search={{ project: search.project }}>
+          Dashboards
+        </Link>,
+        dashboard.name,
+      ]}
+    >
       <PageHeader
         title={
           draft ? (

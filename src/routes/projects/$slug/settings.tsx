@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, notFound, useNavigate, useRouter, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Code, Linking } from '@/components/linking'
@@ -38,7 +38,15 @@ function Settings() {
   const [platform, setPlatform] = useState(project.platform)
   const [confirmDelete, setConfirmDelete] = useState('')
   return (
-    <Shell>
+    <Shell
+      crumbs={[
+        <Link to="/">Overview</Link>,
+        <Link to="/" search={{ project: project.slug }}>
+          {project.name}
+        </Link>,
+        'Settings',
+      ]}
+    >
       <PageHeader title="Settings">{project.name}</PageHeader>
       <div className="grid gap-5">
         <Card title="Link an app" description="Its Sentry SDK sends here once it has this DSN.">

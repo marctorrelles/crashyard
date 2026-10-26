@@ -19,7 +19,7 @@ function Monitors() {
   const { monitors, projects, now } = Route.useLoaderData()
   const [editing, setEditing] = useState<Editing | null>(null)
   return (
-    <Shell>
+    <Shell crumbs={['Monitors']}>
       <PageHeader
         title="Monitors"
         actions={

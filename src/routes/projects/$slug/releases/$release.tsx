@@ -19,7 +19,15 @@ type Data = NonNullable<Awaited<ReturnType<typeof getRelease>>>
 function Release() {
   const d = Route.useLoaderData()
   return (
-    <Shell>
+    <Shell
+      crumbs={[
+        <Link to="/releases">Releases</Link>,
+        <Link to="/releases" search={{ project: d.project.slug }}>
+          {d.project.name}
+        </Link>,
+        d.release.release,
+      ]}
+    >
       <PageHeader title="Releases">{d.project.name}</PageHeader>
       <div className="mb-6">
         <h2 className="font-mono text-lg font-semibold break-all">{d.release.release}</h2>

@@ -28,12 +28,13 @@ function Home() {
   const newIssues = only(data.newIssues, (i) => i.project)
   const failing = only(data.failing, (m) => m.project_slug)
   const { charts } = data
+  const name = project && (data.projects.find((p) => p.slug === project)?.name ?? project)
   const daily = charts.days.map((_, i) => charts.events.reduce((a, s) => a + s.counts[i], 0))
   // Yesterday, a whole UTC day (today's is still filling), against the day before
   const yesterday = daily.at(-2) ?? 0
   const dayBefore = daily.at(-3) ?? 0
   return (
-    <Shell>
+    <Shell crumbs={name ? [<Link to="/">Overview</Link>, name] : ['Overview']}>
       <PageHeader title="Overview" actions={projects.length > 0 && <NewProject variant="outline" />} />
       {update && (
         <p className="mb-4 rounded-xl border bg-muted/40 px-4 py-2.5 text-sm">

@@ -35,7 +35,7 @@ function Notifications() {
   const [channel, setChannel] = useState<Channel | 'new' | null>(null)
   const [route, setRoute] = useState<NotifyRoute | 'new' | null>(null)
   return (
-    <Shell>
+    <Shell crumbs={['Notifications']}>
       <PageHeader title="Notifications">Channels are where a notification goes; routes say which go where.</PageHeader>
 
       <section className="mb-8">

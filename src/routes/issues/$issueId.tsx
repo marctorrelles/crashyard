@@ -26,7 +26,7 @@ export const Route = createFileRoute('/issues/$issueId')({
   },
   head: ({ loaderData }) => ({ meta: [{ title: `${loaderData?.issue.title ?? 'Issue'} · crashyard` }] }),
   notFoundComponent: () => (
-    <Shell>
+    <Shell crumbs={[<Link to="/issues">Issues</Link>, 'Not found']}>
       <p className="text-muted-foreground">This issue doesn’t exist, or it was deleted or merged into another.</p>
     </Shell>
   ),
@@ -39,12 +39,16 @@ function IssuePage() {
   const event = useMemo(() => (d.eventJson ? (JSON.parse(d.eventJson) as NormalizedEvent) : null), [d.eventJson])
   const current = d.events.find((e) => e.id === event?.id)
   return (
-    <Shell wide>
-      <div className="mb-1 text-sm">
-        <Link to="/issues" search={{ project: issue.project }} className="text-muted-foreground hover:text-foreground">
+    <Shell
+      wide
+      crumbs={[
+        <Link to="/issues">Issues</Link>,
+        <Link to="/issues" search={{ project: issue.project }}>
           {issue.project_name}
-        </Link>
-      </div>
+        </Link>,
+        issue.title,
+      ]}
+    >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight break-words">

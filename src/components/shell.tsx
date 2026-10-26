@@ -17,7 +17,15 @@ import {
   SettingsIcon,
   TagIcon,
 } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { Fragment, useEffect, useId, useState } from 'react'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
@@ -56,30 +65,60 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
       <AppSidebar />
-      <SidebarInset className="min-w-0">
-        <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b bg-background/85 px-[max(0.75rem,env(safe-area-inset-left))] pt-[env(safe-area-inset-top)] backdrop-blur">
-          <SidebarTrigger className="size-10 md:size-8" />
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight md:hidden">
-            <Logo />
-            crashyard
-          </Link>
-        </header>
-        {children}
-      </SidebarInset>
+      <SidebarInset className="min-w-0">{children}</SidebarInset>
     </SidebarProvider>
   )
 }
 
-export function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+/**
+ * A page: the top bar with the sidebar's toggle and the page's breadcrumbs, then its content. `crumbs` run from the
+ * section down to the page: links (each a `<Link>`) and last the page itself as text
+ */
+export function Shell({
+  children,
+  crumbs,
+  wide,
+}: {
+  children: React.ReactNode
+  crumbs: React.ReactNode[]
+  wide?: boolean
+}) {
   return (
-    <main
-      className={cn(
-        'mx-auto w-full flex-1 px-[max(1rem,env(safe-area-inset-left))] pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]',
-        wide ? 'max-w-7xl' : 'max-w-5xl',
-      )}
-    >
-      {children}
-    </main>
+    <>
+      <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b bg-background/85 px-[max(0.75rem,env(safe-area-inset-left))] pt-[env(safe-area-inset-top)] backdrop-blur">
+        <SidebarTrigger className="size-10 md:size-8" />
+        <Separator orientation="vertical" className="mr-1 data-vertical:h-4 data-vertical:self-center" />
+        <Breadcrumb className="min-w-0">
+          <BreadcrumbList className="flex-nowrap">
+            {crumbs.map((crumb, i) => {
+              const last = i === crumbs.length - 1
+              // A phone keeps the page and the one above it
+              const hidden = i < crumbs.length - 2 && 'max-md:hidden'
+              return (
+                <Fragment key={i}>
+                  {i > 0 && <BreadcrumbSeparator className={cn(i < crumbs.length - 1 && 'max-md:hidden')} />}
+                  <BreadcrumbItem className={cn('min-w-0', hidden, !last && 'shrink-0')}>
+                    {last ? (
+                      <BreadcrumbPage className="truncate">{crumb}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>{crumb}</BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </Fragment>
+              )
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+      <main
+        className={cn(
+          'mx-auto w-full flex-1 px-[max(1rem,env(safe-area-inset-left))] pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]',
+          wide ? 'max-w-7xl' : 'max-w-5xl',
+        )}
+      >
+        {children}
+      </main>
+    </>
   )
 }
 

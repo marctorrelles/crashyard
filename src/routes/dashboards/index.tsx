@@ -3,7 +3,7 @@ import { LayoutDashboardIcon, PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
-import { Empty, PageHeader, Shell } from '@/components/shell'
+import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -32,6 +32,7 @@ export const Route = createFileRoute('/dashboards/')({
 function Dashboards() {
   const { dashboards, now } = Route.useLoaderData()
   const { project } = Route.useSearch()
+  const name = useProjects().find((p) => p.slug === project)?.name ?? project
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   // A new dashboard opens in edit mode; the starter one as it is
@@ -51,7 +52,7 @@ function Dashboards() {
     }
   }
   return (
-    <Shell>
+    <Shell crumbs={name ? [<Link to="/dashboards">Dashboards</Link>, name] : ['Dashboards']}>
       <PageHeader
         title="Dashboards"
         actions={

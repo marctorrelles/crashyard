@@ -22,10 +22,11 @@ export const Route = createFileRoute('/releases')({
 function Releases() {
   const { sections, now } = Route.useLoaderData()
   const { project } = Route.useSearch()
+  const name = project && (sections[0]?.project.name ?? project)
   const shown = sections.filter((s) => s.releases.length > 0)
   return (
-    <Shell>
-      <PageHeader title="Releases">{project && sections[0]?.project.name}</PageHeader>
+    <Shell crumbs={name ? [<Link to="/releases">Releases</Link>, name] : ['Releases']}>
+      <PageHeader title="Releases">{name}</PageHeader>
       {shown.length === 0 && (
         <Empty title="No releases yet">Events that name a release (the SDKs' `release` option) show up here.</Empty>
       )}

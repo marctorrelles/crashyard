@@ -26,9 +26,10 @@ function Performance() {
   const sections = Route.useLoaderData()
   const { project, days } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+  const name = project && (sections[0]?.project.name ?? project)
   const shown = sections.filter((d) => d.transactions.length > 0)
   return (
-    <Shell>
+    <Shell crumbs={name ? [<Link to="/performance">Performance</Link>, name] : ['Performance']}>
       <PageHeader
         title="Performance"
         actions={
@@ -38,7 +39,7 @@ function Performance() {
           />
         }
       >
-        {project && sections[0]?.project.name}
+        {name}
       </PageHeader>
       {shown.length === 0 && (
         <Empty title="No transactions yet">

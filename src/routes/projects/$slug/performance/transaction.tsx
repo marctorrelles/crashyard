@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { ChevronRightIcon } from 'lucide-react'
 import { Ago, count } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
 import { ms, Period, Waterfall } from '@/components/performance'
@@ -31,7 +31,15 @@ function Transaction() {
   const total = d.series.reduce((a, s) => a + s.count, 0)
   const errors = d.series.reduce((a, s) => a + s.errors, 0)
   return (
-    <Shell>
+    <Shell
+      crumbs={[
+        <Link to="/performance">Performance</Link>,
+        <Link to="/performance" search={{ project: d.project.slug, days: search.days }}>
+          {d.project.name}
+        </Link>,
+        search.name,
+      ]}
+    >
       <PageHeader
         title="Performance"
         actions={
@@ -43,14 +51,6 @@ function Transaction() {
       >
         {d.project.name}
       </PageHeader>
-      <Link
-        to="/performance"
-        search={{ project: d.project.slug, days: search.days }}
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeftIcon className="size-4" />
-        Transactions
-      </Link>
       <h2 className="mb-1 font-mono text-base font-semibold break-all">{search.name}</h2>
       <p className="mb-5 text-sm text-muted-foreground">
         {count(total)} in this period{errors > 0 && <> · {count(errors)} failed</>}

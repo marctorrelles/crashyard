@@ -58,6 +58,7 @@ function Issues() {
   const query = search.query ?? DEFAULT_QUERY
   const status = tokenize(query).find((t) => t.key === 'is' && !t.negate)?.value
   const project = projects.find((p) => p.slug === search.project)
+  const name = project?.name ?? search.project
   const [selected, setSelected] = useState<number[]>([])
   const go = (change: Partial<Search>) => {
     setSelected([])
@@ -66,7 +67,7 @@ function Issues() {
   const chosen = issues.filter((i) => selected.includes(i.id))
   const oneProject = new Set(chosen.map((i) => i.project_id)).size === 1
   return (
-    <Shell wide>
+    <Shell wide crumbs={name ? [<Link to="/issues">Issues</Link>, name] : ['Issues']}>
       <PageHeader title="Issues">{project?.name}</PageHeader>
       <div className="mb-3">
         <SearchBar

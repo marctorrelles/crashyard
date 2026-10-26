@@ -93,6 +93,7 @@ function spanText(ms: number) {
 function Logs() {
   const search = Route.useSearch()
   const data = Route.useLoaderData()
+  const name = useProjects().find((p) => p.slug === search.project)?.name ?? search.project
   const navigate = useNavigate({ from: Route.fullPath })
   const query = search.query ?? ''
   const go = (change: Partial<Search>) => void navigate({ search: (s) => ({ ...s, ...change }) })
@@ -108,8 +109,8 @@ function Logs() {
   const sampled = data.facets.filter((f) => f.key === 'level').reduce((sum, f) => sum + f.n, 0)
   const chart = chartOf(data, search.groupBy)
   return (
-    <Shell wide>
-      <PageHeader title="Logs">{useProjects().find((p) => p.slug === search.project)?.name}</PageHeader>
+    <Shell wide crumbs={name ? [<Link to="/logs">Logs</Link>, name] : ['Logs']}>
+      <PageHeader title="Logs">{name}</PageHeader>
       <div className="mb-3 flex flex-wrap gap-2">
         <div className="min-w-60 flex-1">
           <SearchBar

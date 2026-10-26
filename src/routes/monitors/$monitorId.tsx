@@ -37,12 +37,7 @@ function MonitorPage() {
   const times = d.results.filter((r) => r.ms !== null).map((r) => r.ms!)
   const median = times.length ? [...times].sort((a, b) => a - b)[Math.floor(times.length / 2)] : null
   return (
-    <Shell>
-      <div className="mb-1 text-sm">
-        <Link to="/monitors" className="text-muted-foreground hover:text-foreground">
-          Monitors
-        </Link>
-      </div>
+    <Shell crumbs={[<Link to="/monitors">Monitors</Link>, m.name]}>
       <PageHeader
         title={
           <span className="flex items-center gap-2">
