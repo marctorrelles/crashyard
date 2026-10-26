@@ -22,6 +22,7 @@ environment, each with its own thresholds, and send them to channels.
   `EMAIL_FROM`; the address it sends to must be a verified destination).
 - `dispatch.ts`: `dispatch` sends each notice to its routes' channels, or holds it in `held_notifications` in quiet
   hours; `flushHeld` (the cron, every minute) sends what was held as one message once they end. A failing channel
-  is logged and doesn't stop the others.
+  is logged, written to `notification_failures` (channel, the notice's kind, the error's first 500 characters; for
+  Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them after 30 days.
 
 `notify.test.ts` covers routes, thresholds, channel formats, quiet hours and the signed links.

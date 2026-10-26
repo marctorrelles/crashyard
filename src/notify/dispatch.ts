@@ -5,6 +5,24 @@ import { channelIds, type Notice, routeTakes, type Route, thresholdFor } from '.
 
 export type NotifyEnv = { DB: D1Database; EMAIL?: SendEmail; EMAIL_FROM?: string }
 
+/** A send a channel refused, for Settings, Health; never throws, so one failure doesn't stop the rest */
+async function failed(db: D1Database, channel: Channel, notice: Notice, error: unknown, now: number) {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(`notify: ${channel.kind} channel ${channel.name}: ${message}`)
+  await db
+    .prepare('INSERT INTO notification_failures (channel_id, kind, error, at) VALUES (?, ?, ?, ?)')
+    .bind(channel.id, notice.kind, message.slice(0, 500), now)
+    .run()
+    .catch(() => {})
+}
+
+/** The hourly cron: failures older than 30 days */
+export const pruneFailures = (db: D1Database, now: number) =>
+  db
+    .prepare('DELETE FROM notification_failures WHERE at < ?')
+    .bind(now - 30 * 864e5)
+    .run()
+
 export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now()): Promise<void> {
   if (!notices.length) return
   const routes = (await env.DB.prepare('SELECT * FROM routes').all<Route>()).results
@@ -32,9 +50,7 @@ export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now
       try {
         await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
       } catch (error) {
-        console.error(
-          `notify: ${channel.kind} channel ${channel.name}: ${error instanceof Error ? error.message : error}`,
-        )
+        await failed(env.DB, channel, notice, error, now)
       }
     }
   }
@@ -70,7 +86,7 @@ export async function flushHeld(env: NotifyEnv, now = Date.now()): Promise<void>
       try {
         await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
       } catch (error) {
-        console.error(`notify: held for ${channel.name}: ${error instanceof Error ? error.message : error}`)
+        await failed(env.DB, channel, notice, error, now)
       }
     }
     await env.DB.prepare(`DELETE FROM held_notifications WHERE id IN (${rows.map(() => '?').join(',')})`)

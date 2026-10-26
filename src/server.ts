@@ -58,11 +58,16 @@ export default {
   },
 }
 
-// The cron: monitors (missed check-ins, uptime checks), held notifications, envelopes to try again, and hourly,
-// retention. Each job is on its own: one that throws doesn't stop the others
+// The cron: its heartbeat, monitors (missed check-ins, uptime checks), held notifications, envelopes to try again, and
+// hourly, retention. Each job is on its own: one that throws doesn't stop the others
 async function everyMinute(env: Env, now: number) {
   const at = new Date(now)
   const notices: Notice[] = []
+  // Settings, Health shows the cron as late when this is over 3 minutes old
+  await job('heartbeat', async () => {
+    const { CRON_KEY, setSetting } = await import('./data/settings')
+    await setSetting(env.DB, CRON_KEY, now, null, now)
+  })
   await job('monitors', async () => {
     const { runMonitors } = await import('./monitors/monitors')
     notices.push(...(await runMonitors(env, now)))
@@ -79,7 +84,7 @@ async function everyMinute(env: Env, now: number) {
       const { weeklySummaries } = await import('./data/projects')
       notices.push(...(await weeklySummaries(env.DB, env.PUBLIC_URL ?? '', now)))
     })
-  const { dispatch, flushHeld } = await import('./notify/dispatch')
+  const { dispatch, flushHeld, pruneFailures } = await import('./notify/dispatch')
   await job('notifications', () => dispatch(env, notices, now))
   await job('held notifications', () => flushHeld(env, now))
   // Envelopes that failed in their request, tried again
@@ -99,6 +104,8 @@ async function everyMinute(env: Env, now: number) {
     await job('performance retention', () => prunePerformance(env.DB, now))
     await job('monitor retention', () => pruneMonitors(env.DB, now))
   }
+  // Hourly, at :20: notification failures past 30 days
+  if (at.getUTCMinutes() === 20) await job('notification failures', () => pruneFailures(env.DB, now))
 }
 
 async function job(name: string, run: () => Promise<unknown>) {

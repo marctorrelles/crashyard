@@ -26,6 +26,8 @@ export const setSetting = (db: D1Database, key: string, value: unknown, by: stri
 const DEFAULTS_KEY = 'defaults.project'
 /** Field names to scrub at ingest, on top of the built-in ones (src/ingest/scrub.ts) */
 export const SCRUB_KEY = 'privacy.scrub_fields'
+/** When the cron last ran, in ms: written each minute, late on Settings, Health after 3 minutes */
+export const CRON_KEY = 'cron.last_run'
 /** Whether agents, signed in with an Access service token, may change issues through MCP: off unless turned on */
 export const AGENTS_KEY = 'agents.can_change'
 

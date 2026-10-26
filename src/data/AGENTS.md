@@ -100,6 +100,13 @@ helpers (`change`).
   an event matched to a file (`matchFile`: the file whose path ends with the most of the frame's, from its absolute
   path, its file, or for Java and Kotlin its package's folders and file; none on a tie) at the release's commit, else
   `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed.
+- `health.ts`: `usage` (Settings, Usage: per UTC day over N days from `project_days`, of every project or one: events,
+  logs, transactions, `dropped` (whole envelopes a limit turned away), `filtered`, `failed`) and `health` (Settings,
+  Health: the database's size, `meta.size_after` of a `SELECT 1`, against D1's 10 GB; the sizes of debug files,
+  bundles and attachments; the cron's heartbeat `cron.last_run`, late past 3 minutes or when never written;
+  notification failures in 7 days, the newest 20 with their channel's name; R2's `pending/` and `failed/`, one list of
+  1000 each, `more` when there are more; events and logs past retention by the prune's own joins, counted up to 10,000,
+  `BACKLOG_CAP`). `health.test.ts` covers both.
 - `tokens.ts`: upload tokens (`cyt_`, kept as a SHA-256, shown once), each for one project (`project_id`) or every
   project (null), listed with their project's slug; `tokenOf` marks one used; `uploadsOf`, a project's debug files and
   bundles. `source.ts`'s `storeCommits` takes `only`, a scoped token's project.
