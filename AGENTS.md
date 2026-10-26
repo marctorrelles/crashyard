@@ -61,9 +61,30 @@ Where things are:
   gets its own AGENTS.md, with a CLAUDE.md of `@AGENTS.md` beside it, and a line under "Where things are" here.
 - **Tests are fast:** pure functions with fixtures; the few that run the worker keep under 30 seconds together.
 - **Dependencies are few** and MIT-compatible; say why in the commit that adds one.
-- **Writing:** what the app says reads like a careful product team wrote it: plain sentences in sentence case, no
-  parentheses or semicolons, buttons that say what they do ("Create token", not "Make a token"), errors that say
-  what happened and what to do. An empty state names what's missing, adds one line of light humour or reassurance at
-  most, and says how it fills. Meta rows of values may join them with " · ".
+- **Writing:** everything a user reads follows the tone below.
 - **UI:** shadcn/ui components, light and dark following the system, usable on a phone. Look at every UI change in
   light and dark, on a phone and a desktop.
+
+## Tone
+
+What people read, in the app, in its alerts, in error messages and in the README, sounds like a careful product team
+wrote it: calm, direct and useful. `docs/` pages move to it as they're edited. These AGENTS.md files and code comments
+are for contributors and keep their own terse style.
+
+- **Plain sentences.** Sentence case, short sentences, everyday words. No parentheses and no semicolons: split the
+  thought into two sentences, or drop the aside.
+- **Say what it is, not how it's built.** "Daily event limit", not "events a day quota". "Symbols and source maps", not
+  "readable stacks".
+- **Buttons and menus say what happens.** A verb and its object: "Create token", "Add uptime check", "Resolve in next
+  release". The same action keeps the same name in its button, its confirmation and its toast.
+- **Errors say what happened and what to do.** "That isn't a bot token. Copy the token from @BotFather, it looks like
+  123456789:AA…", not "Telegram answered 404". No apologies, no blame, no bare status codes.
+- **Confirmations say what will be lost.** "Delete Crashes and all its widgets? This can't be undone."
+- **Empty states invite the next step.** A title naming what's missing, one line saying how it fills, and the action
+  when there is one. One touch of light humour or reassurance at most, and only where nothing is wrong: "Not a single
+  open issue. Enjoy it while it lasts." Never joke about a failure.
+- **Alerts read at a glance.** The issue or monitor as the title, then a line of facts joined by " · ": "pocketband ·
+  1.0 (10) · Reached 100 events".
+- **Numbers carry their unit in words.** "Event retention in days", "Timeout in seconds", "up 50% on the week before".
+- **Product words stay the same everywhere.** Issue, event, release, project, monitor, channel, route, alert,
+  dashboard, widget, log, transaction.

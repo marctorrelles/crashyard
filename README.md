@@ -2,67 +2,81 @@
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/marctorrelles/crashyard/badge)](https://scorecard.dev/viewer/?uri=github.com/marctorrelles/crashyard)
 
-Crash, error and log reporting you run on your own Cloudflare account. Apps send to it with the official Sentry SDKs
-(Swift, Android, JavaScript, Node and any other), and it groups crashes into issues, makes them searchable, reads
-their stacks from your uploaded debug files and source maps, and tells you when something new breaks. One Cloudflare
-Worker, D1 and R2: free on Cloudflare's free plan for most apps.
+Crash reporting, error tracking and logs that run on your own Cloudflare account.
 
-crashyard is Sentry-compatible and isn't affiliated with Sentry.
+Your apps keep the official Sentry SDKs they already use. crashyard groups their crashes into issues, turns stack
+traces back into readable code, and tells you when something new breaks. It is a single Cloudflare Worker with D1 and
+R2, so most apps stay within Cloudflare's free plan.
+
+crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/issues-dark.jpg">
-  <img alt="crashyard's issues list: crashes from three apps, each with its project, culprit, a 14-day chart and its count" src="docs/images/issues-light.jpg">
+  <img alt="crashyard's issues list: crashes from three apps, each with its project, location, a 14-day chart and its count" src="docs/images/issues-light.jpg">
 </picture>
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard)
+## Get started
 
-Then put Cloudflare Access in front: [docs/deploying.md](docs/deploying.md) has every step, and the same from a clone.
+1. Deploy it to your Cloudflare account.
+
+   [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard)
+
+2. Put Cloudflare Access in front of the dashboard, so only your team can sign in.
+3. Create a project for each app and give its Sentry SDK the project's DSN.
+
+[docs/deploying.md](docs/deploying.md) walks through every step, including deploying from a clone.
 
 ## What it does
 
-- **Issues:** crashes and errors grouped as Sentry groups them, with resolve (now or in the next release), ignore (for
-  good, for a while, for N more events), regressions, merges, notes, tags' top values and Sentry's search syntax.
-- **Readable stacks:** dSYMs, ProGuard/R8 mappings, Android native libraries and source maps uploaded with
-  `sentry-cli` or the build plugins, unchanged; Sentry's own `symbolic`, compiled to WebAssembly, reads them in the
-  worker. An upload after the crash re-reads the crash.
-- **Logs:** Sentry's logs, searchable, with a live tail and links to their trace's issues.
-- **Monitors:** cron check-ins from the SDKs and `sentry-cli monitors run`, and uptime checks every few minutes.
-- **Performance, light:** transactions by p95 per name, how much slower since the release before, the slowest with
-  their spans; crash-free sessions per release.
-- **Notifications:** Telegram (a bot of yours), email and webhooks (Slack, Discord, JSON), routed by kind, project, level
-  and environment, with quiet hours.
-- **Releases:** what's new, back and gone in each release against the one before, and a push when a crash comes from
-  App Review or TestFlight.
-- **An MCP server**, so an agent can search issues and logs, read a symbolicated stack, resolve and note
-  ([docs/mcp.md](docs/mcp.md)).
+- **Issues.** Crashes and errors are grouped the way Sentry groups them. Resolve them now or in the next release, ignore
+  them for a while, merge duplicates, add notes, and search with Sentry's query syntax. A resolved issue that comes back
+  is flagged as a regression.
+- **Readable stack traces.** Upload dSYMs, ProGuard and R8 mappings, Android native libraries and source maps with
+  `sentry-cli` or the Sentry build plugins. crashyard reads them with Sentry's own `symbolic` library, and crashes that
+  arrived before their files are processed again automatically.
+- **Links to your code.** Each stack frame opens its line on GitHub or GitLab, and each release lists the commits it
+  shipped.
+- **Releases.** See what is new, what regressed and what is gone in each release, with crash-free sessions. Crashes from
+  App Review and TestFlight are called out.
+- **Logs.** Search Sentry logs, follow them live, group them and jump to the issues in the same trace.
+- **Dashboards.** Build charts, numbers and tables from issues, events and logs, or start from the Crashes template.
+- **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs.
+- **Performance.** Transactions by p95, how each release changed them, and the slowest ones with their spans.
+- **Notifications.** Alerts through Telegram, Slack, Discord, email or a JSON webhook, routed by alert type, project,
+  level and environment, with quiet hours and a weekly summary.
+- **MCP server.** Lets an AI agent search issues and logs, read a stack trace, resolve issues and add notes. See
+  [docs/mcp.md](docs/mcp.md).
 
-## SDKs
+## Supported SDKs
 
-|                                          | Status                                    | Stacks                                     |
-| ---------------------------------------- | ----------------------------------------- | ------------------------------------------ |
-| Apple (sentry-cocoa)                     | works                                     | symbolicated from dSYMs                    |
-| Android (sentry-android, with NDK)       | expected to work, not yet seen end to end | from the R8 mapping and native `.so` files |
-| JavaScript in a browser                  | works                                     | from source maps                           |
-| Node                                     | works                                     | as sent                                    |
-| Python, Ruby, PHP, Go, Java, .NET, Rust… | expected to work                          | as sent, or from debug files               |
+| SDK                                      | Status           | Stack traces                             |
+| ---------------------------------------- | ---------------- | ---------------------------------------- |
+| Apple, sentry-cocoa                      | Works            | Symbolicated from dSYMs                  |
+| Android, sentry-android with NDK         | Expected to work | From the R8 mapping and native libraries |
+| JavaScript in the browser                | Works            | From source maps                         |
+| Node.js                                  | Works            | As sent                                  |
+| Python, Ruby, PHP, Go, Java, .NET, Rust… | Expected to work | As sent, or from debug files             |
 
-Linking an app: [docs/linking.md](docs/linking.md). What of Sentry's protocol and API works, exactly:
-[docs/sentry-compatibility.md](docs/sentry-compatibility.md).
+To connect an app, see [docs/linking.md](docs/linking.md). For exactly which parts of Sentry's protocol and API work,
+see [docs/sentry-compatibility.md](docs/sentry-compatibility.md).
 
 ## Privacy
 
-No telemetry: crashyard sends nothing about you or your apps anywhere. The one request it makes on its own is asking
-GitHub, once a day, whether a newer release is out, to say so on the home page. It keeps no IP addresses, keeps a
-user only as the app's id hashed, and scrubs what looks like a password, token or email from events and logs.
+crashyard sends no telemetry. The only request it makes on its own is a daily check with GitHub for a newer release, so
+the overview can tell you about it. It stores no IP addresses, keeps a user only as a hash of the app's user ID, and
+removes anything that looks like a password, token or email address from events and logs.
 
-## Developing
+## Development
 
 ```sh
 pnpm install
 pnpm dev      # the dashboard at http://localhost:3000, with local D1 and R2
-pnpm seed     # a month of made-up crashes, logs and transactions in it
-pnpm check    # lint, format, types, unused code, tests and the build: what CI runs
+pnpm seed     # fills it with a month of sample crashes, logs and transactions
+pnpm check    # lint, formatting, types, unused code, tests and the build, as CI runs them
 ```
 
-How it fits together: [docs/architecture.md](docs/architecture.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
-Upgrading a deployment: [docs/upgrading.md](docs/upgrading.md). Licensed under [MIT](LICENSE).
+- [How it fits together](docs/architecture.md)
+- [Contributing](CONTRIBUTING.md)
+- [Upgrading a deployment](docs/upgrading.md)
+
+crashyard is released under the [MIT license](LICENSE).
