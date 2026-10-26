@@ -5,7 +5,6 @@ import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { SearchIcon, XIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ButtonGroup } from '@/components/ui/button-group'
 import { Command, CommandGroup, CommandItem, CommandList, CommandShortcut } from '@/components/ui/command'
 import {
   DropdownMenu,
@@ -53,7 +52,9 @@ function operatorLabel(t: Token) {
 const idOf = (s: Suggestion) =>
   s.kind === 'key' ? `key ${s.key}` : s.kind === 'value' ? `value ${s.value}` : `operator ${s.op}`
 
-const PILL = 'max-sm:h-10 max-sm:px-2.5'
+// A pill's parts: as tall as the pill, square inside it, a hairline between each; on a phone each reaches past it to a 44 px tap
+const PILL =
+  'relative h-full rounded-none px-1.5 font-normal max-sm:px-2 max-sm:text-sm max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5'
 
 export function SearchBar({
   scope,
@@ -211,10 +212,20 @@ export function SearchBar({
             const compare = info?.kind === 'number' || info?.kind === 'time'
             const shownValue = t.values ? t.values.join(', ') : t.value
             return (
-              <ButtonGroup key={`${i} ${unparse([t])}`} className="max-w-full min-w-0 rounded-lg bg-muted">
+              <span
+                key={`${i} ${unparse([t])}`}
+                role="group"
+                aria-label={`${t.key} ${operatorLabel(t)} ${shownValue}`}
+                className="flex h-6 max-w-full min-w-0 items-stretch overflow-hidden rounded-md border bg-muted/60 *:not-first:border-l-border max-sm:h-8"
+              >
                 {/* `is:unresolved` reads "is · unresolved": its key would say "is" twice */}
                 {t.key !== 'is' && (
-                  <Button variant="ghost" size="xs" className={PILL} onClick={() => unpill(i, true)}>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className={`${PILL} text-muted-foreground`}
+                    onClick={() => unpill(i, true)}
+                  >
                     {t.key}
                   </Button>
                 )}
@@ -252,13 +263,18 @@ export function SearchBar({
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="ghost" size="xs" className={`${PILL} min-w-0`} onClick={() => unpill(i, true)}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className={`${PILL} min-w-0 font-semibold`}
+                  onClick={() => unpill(i, true)}
+                >
                   <span className="truncate">{shownValue}</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  className="max-sm:size-10"
+                  className={`${PILL} w-6 px-0 text-muted-foreground max-sm:w-8 max-sm:px-0`}
                   aria-label={`Remove ${t.key}`}
                   onClick={() =>
                     search(
@@ -269,7 +285,7 @@ export function SearchBar({
                 >
                   <XIcon />
                 </Button>
-              </ButtonGroup>
+              </span>
             )
           })}
           <InputGroupInput

@@ -19,8 +19,9 @@
   (relative to a `now` from the loader), `Level`, `count`, `percent`.
 - `performance.tsx`: `ms` (a duration), `Period` and `Waterfall` (spans as
   bars, indented by depth; on a phone the bar goes under its name).
-- `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (a `ButtonGroup`: key,
-  operator menu, value, ×; the key or value turns it back into text with the value selected), free words stay in the
+- `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (key, operator
+  menu, value, × with a hairline between, the key and operator grey, the value bold; on a phone each reaches to a 44 px
+  tap; `is:` has no key; the key or value turns it back into text with the value selected), free words stay in the
   input. A popover (`Popover` anchored on the bar, its width; `Command`, unfiltered, highlighted from the input)
   proposes what `src/search/suggest.ts` says for the caret. ↑ ↓ move, Enter picks what's highlighted or else searches
   (nothing is highlighted until an arrow is pressed, so a plain search never loses its Enter), Tab picks the first or
