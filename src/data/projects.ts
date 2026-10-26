@@ -1,6 +1,7 @@
 // Projects: what the home page lists and charts, and creating, changing and deleting one.
 import type { Notice } from '../notify/notice'
 import { topWithOther } from './charts'
+import { projectDefaults } from './settings'
 
 export const PLATFORMS = ['apple', 'android', 'javascript', 'node', 'other'] as const
 export type Platform = (typeof PLATFORMS)[number]
@@ -10,7 +11,7 @@ export type ProjectRow = {
   slug: string
   name: string
   platform: Platform
-  public_key: string
+  public_key: string // its first key; ingest reads project_keys
   daily_event_quota: number
   event_retention_days: number
   daily_log_quota: number
@@ -19,9 +20,9 @@ export type ProjectRow = {
   created_at: number
 }
 
-export const dsnOf = (origin: string, p: Pick<ProjectRow, 'id' | 'public_key'>) => {
+export const dsnOf = (origin: string, projectId: number, publicKey: string) => {
   const url = new URL(origin)
-  return `${url.protocol}//${p.public_key}@${url.host}/${p.id}`
+  return `${url.protocol}//${publicKey}@${url.host}/${projectId}`
 }
 
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10)
@@ -169,9 +170,25 @@ export async function createProject(db: D1Database, name: string, platform: Plat
   )
   let slug = base
   for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`
+  const d = await projectDefaults(db)
+  // Its first key, in project_keys too, by the trigger of migration 0013
   return (await db
-    .prepare('INSERT INTO projects (slug, name, platform, public_key, created_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
-    .bind(slug, name, platform, newKey(), now)
+    .prepare(
+      `INSERT INTO projects (slug, name, platform, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota,
+         event_retention_days, log_retention_days, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+    )
+    .bind(
+      slug,
+      name,
+      platform,
+      newKey(),
+      d.daily_event_quota,
+      d.daily_log_quota,
+      d.daily_transaction_quota,
+      d.event_retention_days,
+      d.log_retention_days,
+      now,
+    )
     .first<ProjectRow>())!
 }
 
@@ -207,9 +224,45 @@ export async function updateProject(
     .run()
 }
 
-/** A new key: apps with the old DSN stop being heard (within a minute: ingest caches projects that long) */
-export const rotateKey = (db: D1Database, id: number) =>
-  db.prepare('UPDATE projects SET public_key = ? WHERE id = ?').bind(newKey(), id).run()
+export type KeyRow = {
+  id: number
+  public_key: string
+  label: string
+  enabled: number
+  daily_limit: number | null
+  created_at: number
+  today: number // events it sent today, UTC
+}
+
+/** A project's client keys, oldest first, with the events each sent today */
+export const keysOf = async (db: D1Database, projectId: number, now: number) =>
+  (
+    await db
+      .prepare(
+        `SELECT k.id, k.public_key, k.label, k.enabled, k.daily_limit, k.created_at, COALESCE(d.events, 0) AS today
+         FROM project_keys k LEFT JOIN key_days d ON d.key_id = k.id AND d.day = ? WHERE k.project_id = ? ORDER BY k.id`,
+      )
+      .bind(day(now), projectId)
+      .all<KeyRow>()
+  ).results
+
+export const createKey = (db: D1Database, projectId: number, label: string, now: number) =>
+  db
+    .prepare('INSERT INTO project_keys (project_id, public_key, label, created_at) VALUES (?, ?, ?, ?)')
+    .bind(projectId, newKey(), label, now)
+    .run()
+
+/** A key's label, switch and daily limit (null: none). Ingest caches keys a minute, so a change takes that long */
+export const updateKey = (
+  db: D1Database,
+  projectId: number,
+  id: number,
+  change: { label: string; enabled: boolean; daily_limit: number | null },
+) =>
+  db
+    .prepare('UPDATE project_keys SET label = ?, enabled = ?, daily_limit = ? WHERE id = ? AND project_id = ?')
+    .bind(change.label, change.enabled ? 1 : 0, change.daily_limit, id, projectId)
+    .run()
 
 /** Deletes the project with its issues and events (foreign keys cascade); its raw envelopes expire from R2 */
 export const deleteProject = (db: D1Database, id: number) =>

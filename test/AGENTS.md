@@ -9,7 +9,8 @@ Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
   under 30 seconds.
 - `fakes.ts`: for unit tests, `sqliteD1()` (node:sqlite in memory with every migration, `.sqlite` for seeding) and
   `memoryR2()` (a map with `customMetadata`, `.objects`): only what `src/` calls.
-- `dev.ts`: `startDev(port, state)`: a dev server with its own state, wiped each run, and project 1 (`e2e`).
+- `dev.ts`: `startDev(port, state)`: a dev server with its own state, wiped each run, and project 1 (`e2e`), whose
+  key `KEY` 0013's trigger puts in `project_keys`.
 - `uploads.e2e.test.ts`: sentry-cli 3.8 uploading a dSYM (after the crash that needed it: re-symbolicated and
   regrouped), source maps (`sourcemaps inject` then `upload`), a ProGuard mapping, and `releases set-commits --local`
   from a git repository made in the test (`GIT_DIR`: the second release gets only the commits since the first); port 3997.

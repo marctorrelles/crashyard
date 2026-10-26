@@ -56,20 +56,34 @@ const KEPT = new Set([
   'sessions',
 ])
 
-// Projects change rarely; a minute's cache spares a read per request
-const projects = new Map<string, { project: Project | null; at: number }>()
-async function projectFor(db: D1Database, id: number, key: string): Promise<Project | null> {
+// Projects and keys change rarely; a minute's cache spares a read per request
+type Keyed = { project: Project; key: { id: number; enabled: boolean; daily_limit: number | null } }
+const projects = new Map<string, { found: Keyed | null; at: number }>()
+async function projectFor(db: D1Database, id: number, key: string): Promise<Keyed | null> {
   const cacheKey = `${id}:${key}`
   const hit = projects.get(cacheKey)
-  if (hit && Date.now() - hit.at < 60_000) return hit.project
-  const project = await db
+  if (hit && Date.now() - hit.at < 60_000) return hit.found
+  const row = await db
     .prepare(
-      'SELECT id, slug, name, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota FROM projects WHERE id = ? AND public_key = ?',
+      `SELECT p.id, p.slug, p.name, p.daily_event_quota, p.daily_log_quota, p.daily_transaction_quota,
+         k.id AS key_id, k.enabled, k.daily_limit
+       FROM project_keys k JOIN projects p ON p.id = k.project_id WHERE k.project_id = ? AND k.public_key = ?`,
     )
     .bind(id, key)
-    .first<Project>()
-  projects.set(cacheKey, { project, at: Date.now() })
-  return project
+    .first<Project & { key_id: number; enabled: number; daily_limit: number | null }>()
+  const found = row && {
+    project: {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      daily_event_quota: row.daily_event_quota,
+      daily_log_quota: row.daily_log_quota,
+      daily_transaction_quota: row.daily_transaction_quota,
+    },
+    key: { id: row.key_id, enabled: !!row.enabled, daily_limit: row.daily_limit },
+  }
+  projects.set(cacheKey, { found, at: Date.now() })
+  return found
 }
 
 const secondsToMidnight = (now: number) => Math.ceil((86_400_000 - (now % 86_400_000)) / 1000)
@@ -112,20 +126,28 @@ export async function handleIngest(
     key = projectKey(request, url)
   }
   if (!key) return answer({ detail: 'Missing project key' }, 401)
-  const project = await projectFor(env.DB, projectId, key)
-  if (!project) return answer({ detail: 'Invalid DSN' }, 403)
+  const found = await projectFor(env.DB, projectId, key)
+  if (!found) return answer({ detail: 'Invalid DSN' }, 403)
+  // Relay's answer to a key that's turned off
+  if (!found.key.enabled) return answer({ detail: 'event submission rejected with_reason: ProjectId' }, 403)
+  const { project } = found
 
-  // The project's daily quotas, events and logs apart: past one, the SDK is told when to try that kind again, as
-  // Sentry tells it (X-Sentry-Rate-Limits, by category); an envelope with nothing left to keep gets a 429
-  const today = await env.DB.prepare(
-    'SELECT events, logs, transactions FROM project_days WHERE project_id = ? AND day = ?',
-  )
-    .bind(project.id, dayOf(now))
-    .first<{ events: number; logs: number; transactions: number }>()
+  // The project's daily quotas, events and logs apart, and its key's daily event limit: past one, the SDK is told
+  // when to try that kind again, as Sentry tells it (X-Sentry-Rate-Limits, by category and scope); an envelope with
+  // nothing left to keep gets a 429
+  const [today, keyToday] = await env.DB.batch<{ events: number; logs?: number; transactions?: number }>([
+    env.DB.prepare('SELECT events, logs, transactions FROM project_days WHERE project_id = ? AND day = ?').bind(
+      project.id,
+      dayOf(now),
+    ),
+    env.DB.prepare('SELECT events FROM key_days WHERE key_id = ? AND day = ?').bind(found.key.id, dayOf(now)),
+  ])
+  const day = today.results[0]
+  const keyOver = found.key.daily_limit !== null && (keyToday.results[0]?.events ?? 0) >= found.key.daily_limit
   const exceeded = {
-    events: (today?.events ?? 0) >= project.daily_event_quota,
-    logs: (today?.logs ?? 0) >= project.daily_log_quota,
-    transactions: (today?.transactions ?? 0) >= project.daily_transaction_quota,
+    events: (day?.events ?? 0) >= project.daily_event_quota,
+    logs: (day?.logs ?? 0) >= project.daily_log_quota,
+    transactions: (day?.transactions ?? 0) >= project.daily_transaction_quota,
   }
   // Check-ins and sessions are few, and say something's alive: no quota
   const over = (type: string) =>
@@ -135,18 +157,25 @@ export async function handleIngest(
         ? exceeded.logs
         : type === 'transaction' || type === 'span'
           ? exceeded.transactions
-          : exceeded.events
+          : exceeded.events || keyOver
   const retry = String(secondsToMidnight(now))
+  const ERRORS = 'error;default;security;attachment;feedback'
   const categories = [
-    exceeded.events && 'error;default;security;attachment;feedback',
+    exceeded.events && ERRORS,
     exceeded.logs && 'log_item',
     exceeded.transactions && 'transaction;span',
   ].filter(Boolean)
-  const limits = categories.length
-    ? exceeded.events && exceeded.logs && exceeded.transactions
-      ? `${retry}::organization:usage_exceeded`
-      : `${retry}:${categories.join(';')}:organization:usage_exceeded`
-    : undefined
+  const limits =
+    [
+      categories.length
+        ? exceeded.events && exceeded.logs && exceeded.transactions
+          ? `${retry}::organization:usage_exceeded`
+          : `${retry}:${categories.join(';')}:organization:usage_exceeded`
+        : undefined,
+      keyOver && !exceeded.events ? `${retry}:${ERRORS}:key:key_quota` : undefined,
+    ]
+      .filter(Boolean)
+      .join(', ') || undefined
   const kept = items.filter((i) => KEPT.has(i.header.type ?? 'event'))
   if (limits && kept.length && kept.every((i) => over(i.header.type ?? 'event'))) {
     ctx.waitUntil(
@@ -165,6 +194,16 @@ export async function handleIngest(
     const type = item.header.type ?? 'event'
     return KEPT.has(type) && !over(type) ? [String(i)] : []
   })
+  // The key's events today, counted as they're let in, so a retry doesn't count them again
+  const events = todo.filter((i) => (items[Number(i)].header.type ?? 'event') === 'event').length
+  if (events)
+    ctx.waitUntil(
+      env.DB.prepare(
+        'INSERT INTO key_days (key_id, day, events) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET events = events + excluded.events',
+      )
+        .bind(found.key.id, dayOf(now), events)
+        .run(),
+    )
   const held = todo.length
     ? await hold(env.FILES, pendingKey(project.id, now), body, endpoint, todo.length < kept.length ? todo : undefined)
     : undefined
@@ -305,7 +344,7 @@ export async function retryEnvelope(
   todo: Todo | undefined,
 ): Promise<Todo> {
   const project = await env.DB.prepare(
-    'SELECT id, slug, name, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota FROM projects WHERE id = ?',
+    'SELECT id, slug, name, daily_event_quota, daily_log_quota, daily_transaction_quota FROM projects WHERE id = ?',
   )
     .bind(held.projectId)
     .first<Project>()

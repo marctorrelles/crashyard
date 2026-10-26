@@ -58,4 +58,5 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   for each hour and level.
 
 Checked against `@sentry/node` 11.9 (the e2e test) and GlitchTip's incoming event fixtures (`test/fixtures`).
-`ingest.test.ts` covers each function.
+`ingest.test.ts` covers each function, and client keys through `handleIngest` (on `test/fakes.ts`, the Wasm module and
+`dispatch` mocked): a second key, one turned off, one past its daily limit.

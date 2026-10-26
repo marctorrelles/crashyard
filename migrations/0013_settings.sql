@@ -28,7 +28,13 @@ CREATE TABLE project_keys (
   created_at INTEGER NOT NULL -- ms
 );
 CREATE INDEX project_keys_project ON project_keys (project_id, id);
-INSERT INTO project_keys (project_id, public_key, label, created_at) SELECT id, public_key, 'Default', created_at FROM projects;
+INSERT INTO project_keys (project_id, public_key, label, created_at)
+SELECT id, public_key, 'Default', created_at FROM projects;
+-- A new project's first key, whoever inserts it: createProject, a worker from before 0013, the seed or a test
+CREATE TRIGGER projects_default_key AFTER INSERT ON projects BEGIN
+  INSERT INTO project_keys (project_id, public_key, label, created_at)
+  VALUES (new.id, new.public_key, 'Default', new.created_at);
+END;
 
 -- Events each key sent per UTC day, for its daily limit and the keys page
 CREATE TABLE key_days (

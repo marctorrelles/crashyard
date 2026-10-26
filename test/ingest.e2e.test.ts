@@ -145,9 +145,12 @@ describe('ingest, through the real SDK', () => {
     )
     expect((await send(crash('app@3'), 'wrongkey000000000000000000000000')).status).toBe(403)
     await db().prepare('UPDATE projects SET daily_event_quota = 1 WHERE id = 1').run()
-    // The project cache lasts a minute: a new key on the same project id reads it afresh
+    // The project cache lasts a minute: a second key of the same project reads it afresh
     const quotaKey = 'e2e0quota0key00000000000000000cd'
-    await db().prepare('UPDATE projects SET public_key = ? WHERE id = 1').bind(quotaKey).run()
+    await db()
+      .prepare("INSERT INTO project_keys (project_id, public_key, label, created_at) VALUES (1, ?, 'Quota', 0)")
+      .bind(quotaKey)
+      .run()
     const refused = await send(crash('app@3'), quotaKey)
     expect(refused.status).toBe(429)
     expect(refused.headers.get('x-sentry-rate-limits')).toMatch(/^\d+:error;[a-z;]+:organization:usage_exceeded$/)
@@ -160,7 +163,7 @@ describe('ingest, through the real SDK', () => {
         values: [{ type, value: 'x', stacktrace: { frames: [{ function: type, filename: 'm.js', in_app: true }] } }],
       },
     })
-    await db().prepare('UPDATE projects SET daily_event_quota = 10000, public_key = ? WHERE id = 1').bind(KEY).run()
+    await db().prepare('UPDATE projects SET daily_event_quota = 10000 WHERE id = 1').run()
     await send(other('MergeA'))
     await send(other('MergeB'))
     const find = async (t: string) => (await issues()).find((i) => i.title === `${t}: x`)

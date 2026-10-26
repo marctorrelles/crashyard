@@ -22,6 +22,7 @@ in `pnpm run deploy`).
   `attachments.received`, from its event's time for the rows there were (0 when the event is gone, so they're pruned),
   indexed for pruning. A worker from before 0012 writes attachments with `received` 0: pruned at the next hour.
 - 0013: `settings` and `preferences` (JSON values, `src/data/settings.ts`); `project_keys`, a project's client keys,
-  filled with each project's `public_key` as its "Default" key (`projects.public_key` stays, unread by ingest, so a
+  filled with each project's `public_key` as its "Default" key, and a trigger (`projects_default_key`) gives every
+  new project its first key from `public_key`, whoever inserts it (`projects.public_key` stays, unread by ingest, so a
   worker from before still takes that key), and `key_days` (events per key and UTC day); `notification_failures`;
   `tokens.project_id` (null: every project, as before); `projects.auto_resolve_days` (null: off).

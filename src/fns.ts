@@ -97,8 +97,24 @@ export const getProjectSettings = createServerFn()
   .handler(async ({ data }) => {
     const project = await projects.projectBySlug(env.DB, data.slug)
     if (!project) return null
-    const [list, uploads] = await Promise.all([tokens.listTokens(env.DB), tokens.uploadsOf(env.DB, project.id)])
-    return { project, dsn: projects.dsnOf(origin(), project), origin: origin(), tokens: list, uploads, now: Date.now() }
+    const now = Date.now()
+    const [list, uploads, keys] = await Promise.all([
+      tokens.listTokens(env.DB),
+      tokens.uploadsOf(env.DB, project.id),
+      projects.keysOf(env.DB, project.id, now),
+    ])
+    // The DSN to show: the first key that's on
+    const key = keys.find((k) => k.enabled) ?? keys[0]
+    return {
+      project,
+      keys: keys.map((k) => ({ ...k, dsn: projects.dsnOf(origin(), project.id, k.public_key) })),
+      dsn: key ? projects.dsnOf(origin(), project.id, key.public_key) : '',
+      publicKey: key?.public_key ?? '',
+      origin: origin(),
+      tokens: list,
+      uploads,
+      now,
+    }
   })
 
 export const updateProject = createServerFn({ method: 'POST' })
@@ -117,9 +133,12 @@ export const updateProject = createServerFn({ method: 'POST' })
   })
   .handler(({ data: { id, ...change } }) => projects.updateProject(env.DB, id, change))
 
-export const rotateKey = createServerFn({ method: 'POST' })
-  .validator((d: unknown) => ({ id: int(object(d).id) }))
-  .handler(({ data }) => projects.rotateKey(env.DB, data.id).then(() => undefined))
+export const createKey = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { project: int(o.project), label: text(o.label ?? '', 80).trim() || 'Untitled' }
+  })
+  .handler(({ data }) => projects.createKey(env.DB, data.project, data.label, Date.now()).then(() => undefined))
 
 export const deleteProject = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))

@@ -51,7 +51,9 @@ An envelope is accepted before it's processed, as Sentry's Relay does. If storin
 Rate limits answer the way Sentry's do. When nothing in an envelope can be kept, the answer is a `429` with
 `Retry-After`. `X-Sentry-Rate-Limits` names each category that is over its limit, as
 `error;default;security;attachment;feedback`, `log_item` or `transaction;span`, so SDKs stop sending that kind until the
-next day.
+next day. A client key past its own daily event limit gets the same answer for errors, scoped to the key.
+
+A project can have several client keys. A key that's turned off answers `403` with Relay's body for a disabled key.
 
 ## Endpoints
 

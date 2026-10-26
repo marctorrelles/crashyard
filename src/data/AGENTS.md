@@ -8,12 +8,13 @@ helpers (`change`).
   project or the page's: events per day from `project_days`, the 8 projects with the most and the rest as one; issues
   first seen per day, and how many in the last 24 hours; issues resolved per day, distinct, from `issue_activity`'s
   `resolved`, by `issue_activity_kind_at`; crash-free sessions of each project's two newest releases by their first
-  session in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new key),
-  changing, rotating its key, deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
+  session in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new key,
+  in `project_keys` too by 0013's trigger, the limits and retention of `projectDefaults`), changing, its client keys
+  (`keysOf` with today's events from `key_days`, `createKey`, `updateKey`: label, on or off, daily limit), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;
-  `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`), `dsnOf`, `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
+  `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`), `dsnOf` (a project id and a key), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
   a tenth so a crash never reads 100%; one batch of four).

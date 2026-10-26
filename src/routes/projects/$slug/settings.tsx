@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { deleteProject, getProjectSettings, rotateKey, updateProject } from '@/fns'
+import { createKey, deleteProject, getProjectSettings, updateProject } from '@/fns'
 
 export const Route = createFileRoute('/projects/$slug/settings')({
   loader: async ({ params }) => {
@@ -32,7 +32,7 @@ function Card({ title, children, description }: { title: string; description?: s
 }
 
 function Settings() {
-  const { project, dsn, origin, tokens, uploads, now } = Route.useLoaderData()
+  const { project, dsn, publicKey, origin, tokens, uploads, now } = Route.useLoaderData()
   const router = useRouter()
   const navigate = useNavigate()
   const [platform, setPlatform] = useState(project.platform)
@@ -57,7 +57,7 @@ function Settings() {
             <Label>DSN</Label>
             <Code text={dsn} />
           </div>
-          <Linking platform={platform} dsn={dsn} origin={origin} id={project.id} publicKey={project.public_key} />
+          <Linking platform={platform} dsn={dsn} origin={origin} id={project.id} publicKey={publicKey} />
         </Card>
 
         <Card
@@ -224,9 +224,8 @@ function Settings() {
           <Button
             variant="outline"
             onClick={async () => {
-              if (!confirm('Create a new key? Every app will need the new DSN.')) return
-              await rotateKey({ data: { id: project.id } })
-              toast.success('New key created')
+              await createKey({ data: { project: project.id, label: 'Untitled' } })
+              toast.success('Key created')
               await router.invalidate()
             }}
           >

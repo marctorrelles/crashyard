@@ -1,13 +1,19 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { handleIngest } from '../api/ingest'
+import { updateKey } from '../data/projects'
 import { projectKey } from './auth'
 import { readBody } from './body'
 import { EnvelopeError, parseEnvelope, payloadJson } from './envelope'
 import { eventIdOf, normalizeEvent, timestampOf } from './event'
 import { fingerprintOf, mask } from './grouping'
 import { scrub, scrubText } from './scrub'
-import { sqliteD1 } from '../../test/fakes'
+import { memoryR2, sqliteD1 } from '../../test/fakes'
 import { type Project, storeEvent, TAG_VALUES, transitionOf } from './store'
+
+// handleIngest without the Wasm module or the channels: nothing here needs symbols or sends a notice
+vi.mock('../symbols/module', () => ({ sharedSymbolic: () => Promise.reject(new Error('no symbols in tests')) }))
+vi.mock('../notify/dispatch', () => ({ dispatch: async () => {} }))
 
 const fixture = (path: string) => readFileSync(`test/fixtures/${path}`)
 const event = (name: string) => JSON.parse(readFileSync(`test/fixtures/events/${name}.json`, 'utf8'))
@@ -275,5 +281,71 @@ describe('storing', () => {
     expect(values[0]).toEqual({ value: 'other', count: 25 })
     expect(values.filter((v) => v.count === 2)).toHaveLength(25)
     expect(values.reduce((n, v) => n + v.count, 0)).toBe(TAG_VALUES + 50)
+  })
+})
+
+describe('client keys', () => {
+  const NOW = Date.UTC(2026, 9, 26, 12)
+  // Ingest caches a key a minute, by project and key: each test has a project of its own
+  let next = 10
+  async function setup() {
+    const id = next++
+    const env = { DB: sqliteD1(), FILES: memoryR2() }
+    env.DB.sqlite
+      .exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (${id}, 'k', 'k', 'first', 0);
+      INSERT INTO project_keys (project_id, public_key, label, created_at) VALUES (${id}, 'second', 'CI', 0);`)
+    const send = async (key: string, project = id) => {
+      const waits: Promise<unknown>[] = []
+      const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) } as unknown as ExecutionContext
+      const event = { event_id: crypto.randomUUID().replace(/-/g, ''), message: 'hello', timestamp: NOW / 1000 }
+      const response = await handleIngest(
+        new Request(`https://x/api/${project}/store/?sentry_key=${key}`, {
+          method: 'POST',
+          body: JSON.stringify(event),
+        }),
+        env,
+        ctx,
+        project,
+        'store',
+      )
+      await Promise.all(waits)
+      return response
+    }
+    const keyId = (key: string) =>
+      (env.DB.sqlite.prepare('SELECT id FROM project_keys WHERE public_key = ?').get(key) as { id: number }).id
+    return { env, send, keyId, id }
+  }
+
+  it('takes the key made from the project’s own, and a second key of the same project', async () => {
+    const { env, send, keyId, id } = await setup()
+    expect((await send('first')).status).toBe(200)
+    expect((await send('second')).status).toBe(200)
+    expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM events WHERE project_id = ?').get(id)).toEqual({ n: 2 })
+    expect(env.DB.sqlite.prepare('SELECT events FROM key_days WHERE key_id = ?').get(keyId('second'))).toEqual({
+      events: 1,
+    })
+    expect((await send('second', id + 100)).status).toBe(403)
+  })
+
+  it('answers a turned-off key with Relay’s 403', async () => {
+    const { env, send, keyId, id } = await setup()
+    await updateKey(env.DB, id, keyId('second'), { label: 'CI', enabled: false, daily_limit: null })
+    const refused = await send('second')
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toEqual({ detail: 'event submission rejected with_reason: ProjectId' })
+    expect((await send('first')).status).toBe(200)
+  })
+
+  it('holds a key past its daily limit with a 429 and the key’s rate limit, and not the project’s other keys', async () => {
+    const { env, send, keyId, id } = await setup()
+    await updateKey(env.DB, id, keyId('second'), { label: 'CI', enabled: true, daily_limit: 2 })
+    expect((await send('second')).status).toBe(200)
+    expect((await send('second')).status).toBe(200)
+    const refused = await send('second')
+    expect(refused.status).toBe(429)
+    expect(refused.headers.get('x-sentry-rate-limits')).toMatch(
+      /^\d+:error;default;security;attachment;feedback:key:key_quota$/,
+    )
+    expect((await send('first')).status).toBe(200)
   })
 })
