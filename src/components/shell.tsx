@@ -248,7 +248,7 @@ function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Sign out">
+            <SidebarMenuButton asChild tooltip="Sign out" className="h-auto">
               {/* Cloudflare Access signs out of every app behind it on this domain */}
               <a href="/cdn-cgi/access/logout">
                 <LogOutIcon />
