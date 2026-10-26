@@ -2,7 +2,8 @@
 // breadcrumbs, tags, contexts and the raw JSON.
 import { IconChevronRight, IconExternalLink } from '@tabler/icons-react'
 import { useState } from 'react'
-import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent, Thread } from '@/ingest/event'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
+import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent, RequestInfo, Thread } from '@/ingest/event'
 import { cn } from '@/lib/utils'
 
 /** `links`: a frame's line in the repository, by `exception.frame` (their indexes in the event, `frameLinks`) */
@@ -35,6 +36,7 @@ export function EventView({ event, links = {} }: { event: NormalizedEvent; links
       )}
       <Threads event={event} />
       {event.breadcrumbs.length > 0 && <Breadcrumbs crumbs={event.breadcrumbs} />}
+      {event.request && <Request request={event.request} />}
       {Object.keys(event.tags).length > 0 && (
         <Section title="Tags">
           <dl className="flex flex-wrap gap-1.5">
@@ -48,6 +50,13 @@ export function EventView({ event, links = {} }: { event: NormalizedEvent; links
         </Section>
       )}
       {Object.keys(event.contexts).length > 0 && <Contexts contexts={event.contexts} />}
+      {event.extra && (
+        <Section title="Additional data">
+          <Pairs
+            pairs={Object.entries(event.extra).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])}
+          />
+        </Section>
+      )}
       <details className="group rounded-xl border">
         <summary className="flex cursor-pointer items-center gap-1 px-4 py-3 text-sm font-medium">
           <IconChevronRight className="size-4 transition-transform group-open:rotate-90" />
@@ -323,6 +332,60 @@ function Breadcrumbs({ crumbs }: { crumbs: Breadcrumb[] }) {
         ))}
       </ol>
     </Section>
+  )
+}
+
+function Request({ request: r }: { request: RequestInfo }) {
+  return (
+    <Section title="Request">
+      <div className="grid gap-3">
+        {(r.method || r.url) && (
+          <p className="font-mono text-sm break-all">
+            {r.method && <span className="mr-2 font-semibold">{r.method}</span>}
+            {r.url}
+          </p>
+        )}
+        {r.query && <Labelled label="Query string" text={r.query} />}
+        {r.headers && (
+          <div>
+            <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">Headers</h4>
+            <Pairs pairs={r.headers} />
+          </div>
+        )}
+        {r.body && <Labelled label="Body" text={r.body} />}
+      </div>
+    </Section>
+  )
+}
+
+function Labelled({ label, text }: { label: string; text: string }) {
+  return (
+    <div>
+      <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">{label}</h4>
+      <pre className="max-h-64 overflow-auto rounded-xl border bg-muted/30 p-3 font-mono text-xs break-all whitespace-pre-wrap">
+        {text}
+      </pre>
+    </div>
+  )
+}
+
+/** Names and values as a two-column table; on a phone each value goes under its name */
+function Pairs({ pairs }: { pairs: [string, string][] }) {
+  return (
+    <div className="overflow-hidden rounded-xl border">
+      <Table className="text-xs">
+        <TableBody>
+          {pairs.map(([k, v], i) => (
+            <TableRow key={i} className="max-sm:flex max-sm:flex-col">
+              <TableCell className="w-1/3 align-top whitespace-normal text-muted-foreground max-sm:w-full max-sm:pb-0">
+                {k}
+              </TableCell>
+              <TableCell className="font-mono break-all whitespace-normal">{v}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 

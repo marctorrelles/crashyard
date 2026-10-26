@@ -33,6 +33,10 @@ Set the SDK's DSN to the one a crashyard project gives you. Nothing else changes
 | `session`, `sessions`                                                  | Counted per release and day for crash-free rates                                       |
 | `profile`, `replay`, `replay_recording`, `client_report` and any other | Accepted with a 200 and dropped                                                        |
 
+An event keeps its `request`, meaning the method, URL, query string, headers and up to 8 KB of body, and up to 16 KB of
+its `extra` data. Both are scrubbed like the rest of the event, and headers such as `Authorization` and `Cookie` are
+filtered.
+
 An event keeps up to 32 of its threads, each with its last 100 frames. The crashed thread's stack is shown as the
 exception's, and the others are listed under it.
 

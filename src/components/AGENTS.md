@@ -63,7 +63,8 @@
   lines; a frame with a link, from `frameLinks` by its indexes in the event, has a button opening its line in the
   repository, 40 px on a phone; `Stack` folds a list of frames), then "Other threads" ("Threads" without an exception)
   folded: a row per thread with a stack, its name or id and top frame (its app's, else the innermost), opening to its
-  stack; breadcrumbs, tags, contexts, raw JSON. Nested `<details>` use named groups (`group/threads`) so a chevron
+  stack; breadcrumbs, "Request" (method and URL, query string, headers as a two-column `Pairs` table, a name over its
+  value on a phone, body), tags, contexts, "Additional data" (`extra` as `Pairs`), raw JSON. Nested `<details>` use named groups (`group/threads`) so a chevron
   turns only with its own.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
   same, keep them in step).

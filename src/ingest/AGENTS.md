@@ -16,7 +16,10 @@ order.
   of 100 frames each, the innermost; crashed, then current, first; the thread an exception matches, by `thread_id` or
   `crashed`, keeps no frames, as its stack is the exception's; grouping reads only the exceptions; events stored
   before have none), tags (pairs or object, plus derived: level, release,
-  os, device, browser, runtime, handled, mechanism). A `captureMessage` sends a made-up exception: `synthetic`, titled
+  os, device, browser, runtime, handled, mechanism), `request` (method, URL, query string, headers as pairs, body as
+  text of 8 KB at most; header and query keys that name a secret are filtered as in `scrub`, query values in the URL
+  too, the rest masked as tags), `extra` (scrubbed, keys in order while they fit in 16 KB of JSON) and `_trimmed`
+  (what was cut: `request body`, `extra`). A `captureMessage` sends a made-up exception: `synthetic`, titled
   by its message, `type` `message`.
 - `grouping.ts`: the fingerprint. Exception type + the top 5 in-app frames; a native frame without symbols is its
   image's basename + offset; an anonymous function (`?`, `<anonymous>`) is its context line, or file and line; a

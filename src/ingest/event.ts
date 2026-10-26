@@ -26,6 +26,8 @@ export type ExceptionValue = {
   synthetic?: boolean // made by the SDK to carry a stack (captureMessage), not thrown
   frames: Frame[] // oldest first: the last frame is where it happened
 }
+/** The HTTP request an event happened in, scrubbed: headers as pairs, the body as text of 8 KB at most */
+export type RequestInfo = { method?: string; url?: string; query?: string; headers?: [string, string][]; body?: string }
 /** A thread at the time of the event. The one whose stack is the exception's keeps no frames of its own */
 export type Thread = { id?: string; name?: string; crashed?: boolean; current?: boolean; frames: Frame[] }
 export type DebugImage = { type: string; debugId?: string; codeFile?: string; imageAddr?: string; imageSize?: number }
@@ -63,6 +65,10 @@ export type NormalizedEvent = {
   url?: string
   sdk?: { name?: string; version?: string }
   debugImages: DebugImage[]
+  request?: RequestInfo
+  extra?: Record<string, unknown> // the SDK's extra data, scrubbed, 16 KB of JSON at most
+  /** What was cut to keep the event within its limits: `extra`, `request body`, or what `trimEvent` names */
+  _trimmed?: string[]
   /** Debug files the event needed and crashyard didn't have, so its frames stay addresses (set by symbolication) */
   missingDebugFiles?: { debugId: string; codeFile?: string; type: string }[]
 }
@@ -160,6 +166,67 @@ function threadsOf(threads: Json[], used: Set<Json>): Thread[] {
       current: t.current === true || undefined,
       frames: used.has(t) ? [] : framesOf(t.stacktrace).slice(-THREAD_FRAMES),
     }))
+}
+
+export const REQUEST_BODY = 8 * 1024
+export const EXTRA = 16 * 1024
+
+const pairsOf = (v: unknown): [string, unknown][] =>
+  Array.isArray(v)
+    ? v.filter((p) => Array.isArray(p) && typeof p[0] === 'string').map((p) => [p[0] as string, p[1]])
+    : Object.entries(obj(v))
+
+function requestOf(raw: unknown, trimmed: string[]): RequestInfo | undefined {
+  const r = obj(raw)
+  // Headers and query keys that name a secret are filtered, as in contexts; the rest is masked as tags are
+  const headers = Object.entries(obj(scrub(Object.fromEntries(pairsOf(r.headers).slice(0, 100)))))
+    .map(([k, v]): [string, string] => [cut(k, 200), cut(str(v) ?? '', 2000)])
+    .filter(([, v]) => v)
+  const query = queryOf(
+    typeof r.query_string === 'string' ? [...new URLSearchParams(r.query_string)] : pairsOf(r.query_string),
+  )
+  const [path, search] = (str(r.url) ?? '').split(/\?(.*)/s)
+  const data = r.data
+  let body =
+    typeof data === 'string' ? scrubText(data) : data && typeof data === 'object' ? JSON.stringify(scrub(data)) : ''
+  if (body.length > REQUEST_BODY) {
+    body = cut(body, REQUEST_BODY)
+    trimmed.push('request body')
+  }
+  const request: RequestInfo = {
+    method: str(r.method)?.toUpperCase().slice(0, 16),
+    url: path
+      ? cut(scrubText(search ? `${path}?${queryOf([...new URLSearchParams(search)])}` : path), 2000)
+      : undefined,
+    query: query ? cut(query, 2000) : undefined,
+    headers: headers.length ? headers : undefined,
+    body: body || undefined,
+  }
+  return Object.values(request).some((v) => v !== undefined) ? request : undefined
+}
+
+/** A query string with the values of secret-looking keys filtered and the rest masked */
+const queryOf = (pairs: [string, unknown][]) =>
+  new URLSearchParams(
+    pairs.slice(0, 100).map(([k, v]): [string, string] => [k, str(obj(scrub({ [k]: str(v) ?? '' }))[k]) ?? '']),
+  )
+    .toString()
+    .replace(/%5BFiltered%5D/g, '[Filtered]')
+
+/** The extra data, scrubbed, its keys in order while they fit in 16 KB of JSON */
+function extraOf(raw: unknown, trimmed: string[]): Record<string, unknown> | undefined {
+  const extra: Record<string, unknown> = {}
+  let size = 2
+  for (const [key, value] of Object.entries(obj(scrub(obj(raw))))) {
+    const n = JSON.stringify(key).length + (JSON.stringify(value)?.length ?? 4) + 2
+    if (size + n > EXTRA) {
+      trimmed.push('extra')
+      break
+    }
+    extra[key] = value
+    size += n
+  }
+  return Object.keys(extra).length ? extra : undefined
 }
 
 function messageOf(event: Json): string {
@@ -263,6 +330,9 @@ export async function normalizeEvent(
   const user = obj(event.user)
   const userKey = str(user.id) ?? str(user.email) ?? str(user.username)
   const url = str(obj(event.request).url)
+  const trimmed: string[] = []
+  const request = requestOf(event.request, trimmed)
+  const extra = extraOf(event.extra, trimmed)
 
   return {
     id: eventIdOf(event.event_id) ?? fallbackId ?? crypto.randomUUID().replace(/-/g, ''),
@@ -299,6 +369,9 @@ export async function normalizeEvent(
       .map(str)
       .filter((s): s is string => !!s),
     transaction,
+    request,
+    extra,
+    _trimmed: trimmed.length ? trimmed : undefined,
     traceId: str(obj(contexts.trace).trace_id),
     url: url?.split('?')[0],
     sdk: str(obj(event.sdk).name)

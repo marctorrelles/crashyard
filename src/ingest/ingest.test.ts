@@ -108,6 +108,39 @@ describe('events', () => {
     expect(cli.type).toBe('message')
   })
 
+  it('keeps the request and extra data, scrubbed, within their limits', async () => {
+    const e = await normalizeEvent({
+      message: 'x',
+      request: {
+        method: 'post',
+        url: 'https://api.example.org/songs?token=abc&page=2',
+        query_string: [
+          ['api_key', 'k'],
+          ['q', 'me@mail.example.org'],
+        ],
+        headers: { Authorization: 'Bearer secret', 'User-Agent': 'App/1.0', Cookie: 'sid=1' },
+        data: { password: 'p', title: 'a'.repeat(10_000) },
+      },
+      extra: { build: 42, secret: 'x', blob: 'b'.repeat(20_000), after: 1 },
+    })
+    expect(e.request).toMatchObject({
+      method: 'POST',
+      url: 'https://api.example.org/songs?token=[Filtered]&page=2',
+      query: 'api_key=[Filtered]&q=%5Bemail%5D',
+      headers: [
+        ['Authorization', '[Filtered]'],
+        ['User-Agent', 'App/1.0'],
+        ['Cookie', '[Filtered]'],
+      ],
+    })
+    expect(e.request!.body!.length).toBe(8 * 1024)
+    expect(e.request!.body).toMatch(/^\{"password":"\[Filtered\]","title":"aaa/)
+    expect(e.extra).toEqual({ build: 42, secret: '[Filtered]' })
+    expect(e._trimmed).toEqual(['request body', 'extra'])
+    const plain = await normalizeEvent(event('small-js-error'))
+    expect(plain._trimmed).toBeUndefined()
+  })
+
   it('reads timestamps and ids in either form', () => {
     expect(timestampOf(1700000000.5)).toBe(1700000000500)
     expect(timestampOf('2026-04-22T16:10:51Z')).toBe(Date.parse('2026-04-22T16:10:51Z'))
