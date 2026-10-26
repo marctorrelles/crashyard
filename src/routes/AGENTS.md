@@ -37,8 +37,28 @@ server, the build, or `tsr generate`): never edit it.
   before (`?days=1|30`), a section per project; `projects/$slug/performance/transaction.tsx` (`?name=`): p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and trace links.
-- `projects/$slug/settings.tsx`: the DSN and how to link an app, uploads, the repository and how to send a release's
-  commits, name, platform, quota, retention, new key, delete.
+- `settings/`: the settings area. `route.tsx` is its frame: `Shell` with Settings, the project when it's a project's
+  page, then the page; the page's name as the title; `SettingsNav` (`src/components/settings.tsx`) beside the page
+  (a select over it on a phone). `index.tsx` goes to General. The deployment's pages, the group "crashyard": `general`
+  (public URL and Access, read-only, each saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
+  and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
+  `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload
+  tokens with their project or All projects, who made them, when last used, Delete; Create token with a name and a
+  project, the token shown once; Agents: the MCP URL and Let agents change issues, `agents.can_change`), `usage` (30
+  UTC days of events with rate-limited, filtered and failed, logs and transactions, each a chart and totals,
+  `?project=`), `health` (the database against 10 GB, warning from 80%; stored files; the cron, late after 3 minutes; failed
+  notifications; envelopes pending and failed; the pruning backlog) and `about` (the version, a newer release,
+  the docs). Each loads its own server function (`getInstanceSettings`, `getTokens`, `getUsage`, `getHealth`).
+  `projects/$slug/route.tsx` loads the project's settings once (`getProjectSettings`: the project, its keys with their
+  DSNs, the DSN of the first key that's on, uploads) for its pages, the group named by the project: `general` (name,
+  platform, slug; a changed slug warns that `SENTRY_PROJECT` must change, and the page moves to the new slug),
+  `issues` (Resolve issues not seen for N days, `auto_resolve_days`, off by default), `keys` (Create key; per key its
+  DSN, name, daily event limit, empty for none, events today, and an on switch that asks before turning a key off),
+  `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
+  send commits), `connect` (the DSN and `Linking`), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug
+  files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;
+  the newest 10 source map bundles) and `delete`. Each page saves only its own fields through `updateProject`, whose
+  checks are per field. `projects/$slug/settings.tsx` redirects to the project's General.
 - `logs.tsx`: the logs explorer. The search lives in the URL (`project`, `query`, `range`, `from`, `to`, `groupBy`): the
   search bar (`SearchBar`), a time range, and over the list logs per bucket and level (`getLogChart`, loaded with the
   list; the period before as a dashed line). A drag across the chart sets `from` and `to` (ms, clamped to the chart's

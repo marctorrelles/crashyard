@@ -89,3 +89,48 @@ export async function uploadsOf(db: D1Database, projectId: number) {
     }[],
   }
 }
+
+export type DebugFile = {
+  id: number
+  debug_id: string
+  kind: string
+  arch: string | null
+  name: string
+  size: number
+  created_at: number
+}
+
+/** Settings, Debug files: the newest 500, all searched in the page */
+export const debugFilesOf = async (db: D1Database, projectId: number) =>
+  (
+    await db
+      .prepare(
+        'SELECT id, debug_id, kind, arch, name, size, created_at FROM debug_files WHERE project_id = ? ORDER BY created_at DESC LIMIT 500',
+      )
+      .bind(projectId)
+      .all<DebugFile>()
+  ).results
+
+/**
+ * A debug file's row and its R2 objects, the file and its symcache, unless another row still uses them (the archs of
+ * one fat binary share the file). Stacks already symbolicated keep their names
+ */
+export async function deleteDebugFile(db: D1Database, files: R2Bucket, projectId: number, id: number) {
+  const row = await db
+    .prepare('SELECT file_key, symcache_key FROM debug_files WHERE id = ? AND project_id = ?')
+    .bind(id, projectId)
+    .first<{ file_key: string; symcache_key: string | null }>()
+  if (!row) return
+  await db.prepare('DELETE FROM debug_files WHERE id = ?').bind(id).run()
+  const keys = [row.file_key, row.symcache_key].filter((k): k is string => !!k)
+  const used = await db
+    .prepare(
+      `SELECT file_key AS k FROM debug_files WHERE file_key IN (${keys.map(() => '?').join(',')})
+       UNION SELECT symcache_key FROM debug_files WHERE symcache_key IN (${keys.map(() => '?').join(',')})`,
+    )
+    .bind(...keys, ...keys)
+    .all<{ k: string }>()
+  const still = new Set(used.results.map((r) => r.k))
+  const gone = keys.filter((k) => !still.has(k))
+  if (gone.length) await files.delete(gone)
+}

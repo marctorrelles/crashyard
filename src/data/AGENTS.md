@@ -10,7 +10,8 @@ helpers (`change`).
   `resolved`, by `issue_activity_kind_at`; crash-free sessions of each project's two newest releases by their first
   session in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new key,
   in `project_keys` too by 0013's trigger, the limits and retention of `projectDefaults`), changing, its client keys
-  (`keysOf` with today's events from `key_days`, `createKey`, `updateKey`: label, on or off, daily limit), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
+  (`keysOf` with today's events from `key_days`, `createKey`, `updateKey`: label, on or off, daily limit),
+  `updateProject` (only the fields given, of `PROJECT_FIELDS`; a slug another project has throws), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;
@@ -112,7 +113,8 @@ helpers (`change`).
   `BACKLOG_CAP`). `health.test.ts` covers both, and `autoResolve`.
 - `tokens.ts`: upload tokens (`cyt_`, kept as a SHA-256, shown once), each for one project (`project_id`) or every
   project (null), listed with their project's slug; `tokenOf` marks one used; `uploadsOf`, a project's debug files and
-  bundles. `source.ts`'s `storeCommits` takes `only`, a scoped token's project.
+  bundles; `debugFilesOf` (the newest 500) and `deleteDebugFile` (the row, then its file and symcache in R2 unless
+  another row still names them: a fat binary's archs share one file). `source.ts`'s `storeCommits` takes `only`, a scoped token's project.
 - `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `projectDefaults`: what `createProject` starts with, the columns' defaults under what

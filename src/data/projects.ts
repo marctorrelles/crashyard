@@ -16,7 +16,9 @@ export type ProjectRow = {
   event_retention_days: number
   daily_log_quota: number
   log_retention_days: number
+  daily_transaction_quota: number
   repo_url: string | null // where its code is, for stacks and commits to link to (`source.ts`)
+  auto_resolve_days: number | null // resolve issues not seen for this many days; null is off
   created_at: number
 }
 
@@ -192,35 +194,32 @@ export async function createProject(db: D1Database, name: string, platform: Plat
     .first<ProjectRow>())!
 }
 
-export async function updateProject(
-  db: D1Database,
-  id: number,
-  change: Pick<
-    ProjectRow,
-    | 'name'
-    | 'platform'
-    | 'daily_event_quota'
-    | 'event_retention_days'
-    | 'daily_log_quota'
-    | 'log_retention_days'
-    | 'repo_url'
-  >,
-) {
+/** What a project's settings pages change, each page its own fields */
+export const PROJECT_FIELDS = [
+  'name',
+  'slug',
+  'platform',
+  'daily_event_quota',
+  'event_retention_days',
+  'daily_log_quota',
+  'log_retention_days',
+  'daily_transaction_quota',
+  'repo_url',
+  'auto_resolve_days',
+] as const
+export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>
+
+/** Only the fields given change; a slug another project has is refused */
+export async function updateProject(db: D1Database, id: number, change: ProjectChange) {
+  const fields = PROJECT_FIELDS.filter((f) => change[f] !== undefined)
+  if (!fields.length) return
+  if (change.slug !== undefined) {
+    const taken = await db.prepare('SELECT 1 FROM projects WHERE slug = ? AND id != ?').bind(change.slug, id).first()
+    if (taken) throw new Error('Another project has that slug. Pick a different one.')
+  }
   await db
-    .prepare(
-      `UPDATE projects SET name = ?, platform = ?, daily_event_quota = ?, event_retention_days = ?, daily_log_quota = ?,
-       log_retention_days = ?, repo_url = ? WHERE id = ?`,
-    )
-    .bind(
-      change.name,
-      change.platform,
-      change.daily_event_quota,
-      change.event_retention_days,
-      change.daily_log_quota,
-      change.log_retention_days,
-      change.repo_url,
-      id,
-    )
+    .prepare(`UPDATE projects SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`)
+    .bind(...fields.map((f) => change[f]), id)
     .run()
 }
 

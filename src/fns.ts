@@ -5,6 +5,7 @@ import { getCookie, getRequest, getRequestHeader } from '@tanstack/react-start/s
 import { env } from 'cloudflare:workers'
 import * as charts from './data/charts'
 import * as dashboards from './data/dashboards'
+import * as health from './data/health'
 import * as issues from './data/issues'
 import * as logs from './data/logs'
 import * as monitors from './data/monitors'
@@ -12,11 +13,14 @@ import * as notifications from './data/notifications'
 import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
+import * as settings from './data/settings'
 import * as source from './data/source'
 import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
 import { telegramChats, telegramToken } from './notify/channels'
+import { mailerOf } from './notify/email'
+import { version } from '../package.json'
 import { ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
@@ -98,8 +102,7 @@ export const getProjectSettings = createServerFn()
     const project = await projects.projectBySlug(env.DB, data.slug)
     if (!project) return null
     const now = Date.now()
-    const [list, uploads, keys] = await Promise.all([
-      tokens.listTokens(env.DB),
+    const [uploads, keys] = await Promise.all([
       tokens.uploadsOf(env.DB, project.id),
       projects.keysOf(env.DB, project.id, now),
     ])
@@ -111,27 +114,43 @@ export const getProjectSettings = createServerFn()
       dsn: key ? projects.dsnOf(origin(), project.id, key.public_key) : '',
       publicKey: key?.public_key ?? '',
       origin: origin(),
-      tokens: list,
       uploads,
       now,
     }
   })
 
+// A project's settings: each page sends only its own fields, each checked as here
+const limit = (v: unknown) => int(v, 0, 10_000_000)
+const retention = (v: unknown) => int(v, 1, 3650)
+const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => projects.ProjectChange[K] } = {
+  name: (v) => {
+    const name = text(v, 80).trim()
+    if (!name) throw new Error('Give the project a name.')
+    return name
+  },
+  slug: (v) => {
+    const slug = text(v, 40).trim()
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(slug))
+      throw new Error('A slug is lowercase letters, numbers and dashes, and starts with a letter or number.')
+    return slug
+  },
+  platform: oneOf(projects.PLATFORMS),
+  daily_event_quota: limit,
+  event_retention_days: retention,
+  daily_log_quota: limit,
+  log_retention_days: retention,
+  daily_transaction_quota: limit,
+  repo_url: (v) => source.repoUrl(text(v ?? '', 300)),
+  auto_resolve_days: (v) => (v === null || v === '' ? null : int(v, 1, 3650)),
+}
 export const updateProject = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    return {
-      id: int(o.id),
-      name: text(o.name, 80).trim(),
-      platform: oneOf(projects.PLATFORMS)(o.platform),
-      daily_event_quota: int(o.daily_event_quota, 0, 10_000_000),
-      event_retention_days: int(o.event_retention_days, 1, 3650),
-      daily_log_quota: int(o.daily_log_quota, 0, 10_000_000),
-      log_retention_days: int(o.log_retention_days, 1, 3650),
-      repo_url: source.repoUrl(text(o.repo_url ?? '', 300)),
-    }
+    const change: Record<string, unknown> = {}
+    for (const [field, check] of Object.entries(PROJECT_CHECKS)) if (field in o) change[field] = check(o[field])
+    return { id: int(o.id), change: change as projects.ProjectChange }
   })
-  .handler(({ data: { id, ...change } }) => projects.updateProject(env.DB, id, change))
+  .handler(({ data }) => projects.updateProject(env.DB, data.id, data.change))
 
 export const createKey = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
@@ -139,6 +158,21 @@ export const createKey = createServerFn({ method: 'POST' })
     return { project: int(o.project), label: text(o.label ?? '', 80).trim() || 'Untitled' }
   })
   .handler(({ data }) => projects.createKey(env.DB, data.project, data.label, Date.now()).then(() => undefined))
+
+export const updateKey = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      project: int(o.project),
+      id: int(o.id),
+      change: {
+        label: text(o.label, 80).trim() || 'Untitled',
+        enabled: o.enabled === true,
+        daily_limit: optional((v) => int(v, 0, 10_000_000))(o.daily_limit) ?? null,
+      },
+    }
+  })
+  .handler(({ data }) => projects.updateKey(env.DB, data.project, data.id, data.change).then(() => undefined))
 
 export const deleteProject = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
@@ -650,3 +684,105 @@ export const pauseMonitor = createServerFn({ method: 'POST' })
 export const deleteMonitor = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => monitors.deleteMonitor(env.DB, data.id).then(() => undefined))
+
+// Settings: the deployment's (anyone signed in may change them, as every other page) and the viewer's own
+
+export const getProjectPage = createServerFn()
+  .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
+  .handler(async ({ data }) => {
+    const project = await projects.projectBySlug(env.DB, data.slug)
+    return project ? { debugFiles: await tokens.debugFilesOf(env.DB, project.id), now: Date.now() } : null
+  })
+
+export const deleteDebugFile = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { project: int(o.project), id: int(o.id) }
+  })
+  .handler(({ data }) => tokens.deleteDebugFile(env.DB, env.FILES, data.project, data.id))
+
+export const getInstanceSettings = createServerFn().handler(async () => {
+  const [defaults, scrubFields, agentsCanChange, update] = await Promise.all([
+    settings.projectDefaults(env.DB),
+    settings.getSetting<string[]>(env.DB, settings.SCRUB_KEY, []),
+    settings.getSetting(env.DB, settings.AGENTS_KEY, false),
+    updates.update(),
+  ])
+  return {
+    origin: origin(),
+    publicUrl: env.PUBLIC_URL || null,
+    access: { team: env.ACCESS_TEAM_DOMAIN || null, audience: !!env.ACCESS_AUD },
+    emailFrom: env.EMAIL_FROM || null,
+    defaults,
+    scrubFields,
+    agentsCanChange,
+    version,
+    update,
+  }
+})
+
+export const saveProjectDefaults = createServerFn({ method: 'POST' })
+  .validator((d: unknown): settings.ProjectDefaults => {
+    const o = object(d)
+    return {
+      daily_event_quota: limit(o.daily_event_quota),
+      daily_log_quota: limit(o.daily_log_quota),
+      daily_transaction_quota: limit(o.daily_transaction_quota),
+      event_retention_days: retention(o.event_retention_days),
+      log_retention_days: retention(o.log_retention_days),
+    }
+  })
+  .handler(({ data }) => settings.setSetting(env.DB, 'defaults.project', data, viewer()).then(() => undefined))
+
+export const saveScrubFields = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const list = object(d).fields
+    if (!Array.isArray(list) || list.length > 100) throw new Error('expected a list')
+    return { fields: [...new Set(list.map((f) => text(f, 80).trim()).filter(Boolean))] }
+  })
+  .handler(({ data }) => settings.setSetting(env.DB, settings.SCRUB_KEY, data.fields, viewer()).then(() => undefined))
+
+export const saveAgentsCanChange = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ on: object(d).on === true }))
+  .handler(({ data }) => settings.setSetting(env.DB, settings.AGENTS_KEY, data.on, viewer()).then(() => undefined))
+
+export const sendTestEmail = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const to = text(object(d).to, 200).trim()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error('That isn’t an email address.')
+    return { to }
+  })
+  .handler(async ({ data }) => {
+    const mailer = mailerOf(env.EMAIL)
+    if (!mailer || !env.EMAIL_FROM) throw new Error('Email isn’t set up. Set EMAIL_FROM, then deploy again.')
+    try {
+      await mailer.send(
+        env.EMAIL_FROM,
+        data.to,
+        'crashyard test email',
+        `This is a test from crashyard at ${origin()}. Email notifications will reach this address.`,
+      )
+    } catch (error) {
+      console.error('test email failed', error)
+      throw new Error(`The email wasn’t sent. Check that ${data.to} is a verified destination in Email Routing.`, {
+        cause: error,
+      })
+    }
+  })
+
+export const getTokens = createServerFn().handler(async () => ({
+  tokens: await tokens.listTokens(env.DB),
+  projects: await projects.allProjects(env.DB),
+  agentsCanChange: await settings.getSetting(env.DB, settings.AGENTS_KEY, false),
+  origin: origin(),
+  now: Date.now(),
+}))
+
+export const getUsage = createServerFn()
+  .validator((d: unknown) => ({ project: optional((v) => text(v, 60))(object(d).project) }))
+  .handler(async ({ data }) => health.usage(env.DB, await projectIdOf(data.project), 30, Date.now()))
+
+export const getHealth = createServerFn().handler(async () => {
+  const now = Date.now()
+  return { ...(await health.health(env, now)), now }
+})

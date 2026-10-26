@@ -10,14 +10,15 @@
   nothing wider than the screen) and in light and dark.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
   pages whatever's picked, Overview, Dashboards, Issues, Releases, Performance, Logs, Monitors, Notifications, and at
-  the foot who's signed in with Sign out, Access's `/cdn-cgi/access/logout`), `Shell` (a page: the top bar with the
+  the foot Settings, then who's signed in with Sign out, Access's `/cdn-cgi/access/logout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
   section), `useProjects`. The lists (overview, dashboards, issues, releases, performance, logs)
   take the filter as `?project=` (on a dashboard, picking a project keeps it and its range); the project shown comes
   from that, `/projects/$slug` or an issue's own; pages of no project keep the one last picked (cookie
   `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The filter's menu also has the
-  picked project's settings.
+  picked project's settings (`/settings/projects/<slug>/general`); picking a project on one of its settings pages
+  keeps the page for the new project, and All projects goes to the deployment's General.
 - `bits.tsx`: `Sparkline` (SVG bars, no chart library; `label` for what they are when not events per day), `Ago`
   (relative to a `now` from the loader), `Level`, `count`, `percent`.
 - `performance.tsx`: `ms` (a duration), `Period` and `Waterfall` (spans as
@@ -71,5 +72,11 @@
   gif, webp, `attachmentType`) as a 48 px thumbnail opening full size in a `Dialog`, and `view-hierarchy.json`
   (sentry-cocoa's and sentry-android's name for it) as an indented tree of type, identifier and frame, fetched when
   opened, 2000 views at most. Files come from `/attachments/<id>`.
+- `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's, `PERSONAL`), `SettingsNav` (the list,
+  the project's group for the page's project, else the one picked last, else the first; a `Select` of every page on a
+  phone), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
+  `Hint`, `LimitInputs` (a project's limits and retention as form fields, also New-project defaults), `useSave` (runs
+  a save, toasts Saved or the error, invalidates) and `SaveButton`.
+- `uploads.tsx`: `UploadSteps`, the variables sentry-cli reads and each platform's upload steps, on Debug files; `size`.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
   same, keep them in step).

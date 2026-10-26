@@ -1,5 +1,5 @@
 // The frame every page sits in. The sidebar, in the root layout so it stays put between pages: the project filter on
-// top, the same pages under it whichever project is picked, and who's signed in with Sign out at the foot. `Shell` is a page's
+// top, the same pages under it whichever project is picked, and Settings and who's signed in with Sign out at the foot. `Shell` is a page's
 // width; `PageHeader` and `Empty` are what pages are made of.
 import { getRouteApi, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
@@ -141,7 +141,7 @@ const dashboardOf = (path: string) => path.match(/^\/dashboards\/([^/]+)$/)?.[1]
 
 /** The project a page is of: a slug, null for every project's, undefined for a page that's no project's */
 function projectOf({ path, search, issueProject }: Page) {
-  const slug = path.match(/^\/projects\/([^/]+)/)?.[1]
+  const slug = path.match(/^\/(?:settings\/)?projects\/([^/]+)/)?.[1]
   if (slug) return decodeURIComponent(slug)
   if (isList(path) || dashboardOf(path)) return typeof search.project === 'string' ? search.project : null
   return issueProject
@@ -255,6 +255,13 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <Item label="Settings" icon={IconSettings} active={at('/settings')}>
+            {(c) => (
+              <Link to="/settings" onClick={close}>
+                {c}
+              </Link>
+            )}
+          </Item>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Sign out" className="h-auto">
               {/* Cloudflare Access signs out of every app behind it on this domain */}
@@ -321,7 +328,9 @@ function ProjectSwitcher({
     onPick()
     keep(slug ?? null)
     const search = { project: slug }
-    const sub = page.path.match(/^\/projects\/[^/]+\/(releases|performance|settings)/)?.[1]
+    const sub = page.path.match(/^\/projects\/[^/]+\/(releases|performance)/)?.[1]
+    // A project's settings page stays, for the project picked; every project's goes to the deployment's settings
+    const settingsPage = page.path.match(/^\/settings\/projects\/[^/]+\/([^/]+)/)?.[1]
     const dashboardId = dashboardOf(page.path)
     if (isList(page.path)) void navigate({ to: page.path, search })
     // A dashboard stays, with its range, narrowed to the project
@@ -331,8 +340,8 @@ function ProjectSwitcher({
         params: { dashboardId },
         search: (s) => ({ ...s, project: slug }),
       })
-    else if (sub === 'settings')
-      void navigate(slug ? { to: '/projects/$slug/settings', params: { slug } } : { to: '/' })
+    else if (settingsPage)
+      void navigate({ to: slug ? `/settings/projects/${slug}/${settingsPage}` : '/settings/general' })
     else if (sub) void navigate({ to: `/${sub}`, search })
     else if (page.path.startsWith('/issues/')) void navigate({ to: '/issues', search })
   }
@@ -370,7 +379,7 @@ function ProjectSwitcher({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/projects/$slug/settings" params={{ slug: current.slug }} onClick={onPick}>
+                  <Link to="/settings/projects/$slug/general" params={{ slug: current.slug }} onClick={onPick}>
                     <IconSettings />
                     {current.name} settings
                   </Link>

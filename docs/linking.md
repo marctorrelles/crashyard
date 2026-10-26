@@ -1,8 +1,8 @@
 # Connecting an app
 
 crashyard speaks Sentry's protocol, so an app connects with the official Sentry SDK pointed at a crashyard DSN. Create a
-project with **New project** on the overview. Its settings page shows the DSN and the steps below with the DSN already
-filled in.
+project with **New project** on the overview. Its settings, under Connect an app, show the DSN and the steps below with
+the DSN already filled in. A project can have several keys, one per app or build, under Client keys.
 
 A DSN looks like `https://<public key>@crashyard.example.com/<project id>`. The key is public by design. It ships inside
 your apps and only allows sending events.
@@ -88,7 +88,7 @@ Point them at crashyard:
 export SENTRY_URL=https://crashyard.example.com/
 export SENTRY_ORG=crashyard            # any name works, a deployment is a single organization
 export SENTRY_PROJECT=<project slug>
-export SENTRY_AUTH_TOKEN=<a token>     # created in the project's settings, under Symbols and source maps
+export SENTRY_AUTH_TOKEN=<a token>     # created in Settings, then Tokens, for this project or every project
 ```
 
 - **Apple.** After archiving, run `sentry-cli debug-files upload --include-sources path/to/dSYMs`.
@@ -104,7 +104,7 @@ Uploads need the Workers Paid plan. Turning a debug file into a lookup table tak
 
 ### Links to your code
 
-Add the project's repository in its settings, for example `https://github.com/owner/repo`. GitHub and GitLab are
+Add the project's repository in its settings, under Source code, for example `https://github.com/owner/repo`. GitHub and GitLab are
 supported. Then send each release's commits from its checkout, using the release name the SDK reports:
 
 ```sh

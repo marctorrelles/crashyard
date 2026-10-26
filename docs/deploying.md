@@ -129,8 +129,14 @@ there.
 3. In the `vars` of `wrangler.local.json`, set `EMAIL_FROM` to an address on your domain, such as
    `crashyard@example.com`. The address doesn't need to exist. Then deploy again.
 
-Finally, add an email channel under Notifications in the dashboard. Telegram, Slack, Discord and webhook channels need
-no setup here.
+To check it, open Settings, then Email, and choose **Send test email** with the address you verified. Then add an
+email channel under Notifications in the dashboard. Telegram, Slack, Discord and webhook channels need no setup here.
+
+## Upload tokens
+
+sentry-cli and the build plugins need a token to upload debug files and source maps. Create one in Settings, then
+Tokens. A token can be for one project or for every project. A token for one project is refused for any other, so give
+each app its own.
 
 ## Check that it works
 
@@ -138,6 +144,8 @@ no setup here.
 - Sign in. You should see the crashyard dashboard.
 - Run `curl -X POST https://crashyard.example.com/api/1/envelope/`. The answer should come from crashyard, not from
   Cloudflare's sign-in page, which shows the bypass works.
+- Open Settings, then General. It shows the public URL and whether Access is set up. Settings, then Health, says
+  whether the schedule runs every minute.
 
 ## Troubleshooting
 
