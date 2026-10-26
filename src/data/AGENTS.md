@@ -4,7 +4,7 @@ The dashboard's SQL: plain functions that take the D1 database (and `now`), so t
 directly. `src/fns.ts` wraps them as server functions; pages never import these for anything but types, constants and pure
 helpers (`change`).
 
-- `projects.ts`: the home page's overview (unresolved, events per day) and `overviewCharts` (30 UTC days, of every
+- `projects.ts`: the home page's overview (unresolved, events per day) and `overviewCharts` (30 UTC days or `n`, of every
   project or the page's: events per day from `project_days`, the 8 projects with the most and the rest as one; issues
   first seen per day, and how many in the last 24 hours; issues resolved per day, distinct, from `issue_activity`'s
   `resolved`, by `issue_activity_kind_at`; crash-free sessions of each project's two newest releases by their first

@@ -78,13 +78,13 @@ export async function overview(db: D1Database, now: number) {
 }
 
 /**
- * The overview's charts over the last 30 UTC days (of every project, or of `projectIds`): events per day of the 8
+ * The overview's charts over the last `n` UTC days, 30 by default (of every project, or of `projectIds`): events per day of the 8
  * projects with the most and the rest as one, issues first seen and issues resolved per day (and how many first seen in
  * the last 24 hours), and the crash-free sessions of each project's two newest releases (by their first session, in
  * the last 90 days).
  */
-export async function overviewCharts(db: D1Database, projectIds: number[] | undefined, now: number) {
-  const days = lastDays(30, now)
+export async function overviewCharts(db: D1Database, projectIds: number[] | undefined, now: number, n = 30) {
+  const days = lastDays(n, now)
   const since = Date.parse(`${days[0]}T00:00:00Z`)
   const ids = projectIds ?? []
   const only = (column: string) => (projectIds ? ` AND ${column} IN (${ids.map(() => '?').join(',')})` : '')

@@ -1,7 +1,8 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { IconPencil, IconPlayerPause, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
-import { Ago, LocalTime } from '@/components/bits'
+import { Ago } from '@/components/bits'
+import { Time } from '@/components/time'
 import { Beats, incidentReason, MonitorStatus } from '@/components/beats'
 import { Code } from '@/components/linking'
 import { type Editing, MonitorForm } from '@/components/monitor-form'
@@ -138,7 +139,7 @@ function MonitorPage() {
             <p className="mt-2 text-xs text-muted-foreground">
               {m.next_due && m.status !== 'paused' ? (
                 <>
-                  Late if nothing arrives by <LocalTime at={m.next_due} />.
+                  Late if nothing arrives by <Time at={m.next_due} />.
                 </>
               ) : (
                 'Paused. Nothing counts as late until you resume it.'

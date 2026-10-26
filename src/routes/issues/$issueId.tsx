@@ -2,7 +2,8 @@ import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tansta
 import { IconChevronLeft, IconChevronRight, IconTrash } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Ago, count, Level, LocalTime } from '@/components/bits'
+import { Ago, count, Level } from '@/components/bits'
+import { Time } from '@/components/time'
 import { BarList, LEVEL_COLORS, TimeChart } from '@/components/charts'
 import { EventView } from '@/components/event-view'
 import { IssueActions } from '@/components/issue-actions'
@@ -163,7 +164,7 @@ function StatusBadge({ issue, now }: { issue: Data['issue']; now: number }) {
         {!issue.ignore_until_count && issue.ignore_until ? (
           <>
             {' until '}
-            <LocalTime at={issue.ignore_until} />
+            <Time at={issue.ignore_until} />
           </>
         ) : null}
       </Badge>
@@ -286,7 +287,7 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
       `Ignored for ${x.forEvents} more events`
     ) : x.until ? (
       <>
-        Ignored until <LocalTime at={x.until as number} />
+        Ignored until <Time at={x.until as number} />
       </>
     ) : (
       'Ignored'

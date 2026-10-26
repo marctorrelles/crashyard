@@ -65,6 +65,9 @@ const root = getRouteApi('__root__')
 /** Every project, from the root's loader */
 export const useProjects = () => root.useLoaderData().projects
 
+/** The viewer's preferences (Settings, You), from the root's loader */
+export const usePreferences = () => root.useLoaderData().preferences
+
 /** The project the sidebar is on, and the cookie that keeps it for pages that aren't any project's */
 const PROJECT_COOKIE = 'crashyard_project'
 

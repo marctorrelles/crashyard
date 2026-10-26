@@ -1,4 +1,5 @@
 // A monitor's recent history as bars: green for a good check or check-in, red for a bad one, taller when slower.
+import { formatTime, useTimePrefs } from '@/components/time'
 import { cn } from '@/lib/utils'
 
 export function Beats({
@@ -8,6 +9,7 @@ export function Beats({
   beats: { at: number; ok: number; ms: number | null; status: string | number | null }[]
   className?: string
 }) {
+  const prefs = useTimePrefs()
   const max = Math.max(1, ...beats.map((b) => b.ms ?? 0))
   const slots = 30
   const padded = [...Array(Math.max(0, slots - beats.length)).fill(null), ...beats.slice(-slots)]
@@ -21,7 +23,7 @@ export function Beats({
         b ? (
           <span
             key={i}
-            title={`${new Date(b.at).toISOString().slice(0, 16).replace('T', ' ')} UTC · ${b.status ?? ''}${b.ms !== null ? ` · ${b.ms} ms` : ''}`}
+            title={`${formatTime(b.at, prefs)} · ${b.status ?? ''}${b.ms !== null ? ` · ${b.ms} ms` : ''}`}
             className={cn('w-1.5 rounded-sm', b.ok ? 'bg-emerald-500' : 'bg-red-500')}
             style={{ height: `${b.ok && b.ms !== null ? Math.max(25, (b.ms / max) * 100) : 100}%` }}
           />

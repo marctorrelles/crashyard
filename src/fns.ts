@@ -1,7 +1,7 @@
 // The dashboard's server functions: what pages load and change, behind Access (src/server.ts). Each checks its input
 // here and calls src/data/, which holds the SQL.
 import { createServerFn } from '@tanstack/react-start'
-import { getCookie, getRequest, getRequestHeader } from '@tanstack/react-start/server'
+import { getCookie, getRequest, getRequestHeader, setCookie } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 import * as charts from './data/charts'
 import * as dashboards from './data/dashboards'
@@ -24,6 +24,7 @@ import { version } from '../package.json'
 import { ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
+const ZONES = new Set([...Intl.supportedValuesOf('timeZone'), 'UTC'])
 const origin = () => new URL(getRequest().url).origin
 
 // Input checks: what a page sends is untrusted until it's been through these
@@ -71,20 +72,42 @@ export const getOverview = createServerFn().handler(async () => ({
 // The overview's charts: 30 days of events per project, new and resolved issues per day, crash-free per release;
 // one project's with `project`
 export const getOverviewCharts = createServerFn()
-  .validator((d: unknown) => ({ project: optional((v) => text(v, 60))(object(d).project) }))
+  .validator((d: unknown) => {
+    const o = object(d)
+    const days = int(o.days ?? 30)
+    if (!charts.CHART_DAYS.includes(days as charts.ChartDays)) throw new Error('expected 14, 30 or 90 days')
+    return { project: optional((v) => text(v, 60))(o.project), days }
+  })
   .handler(async ({ data }) => {
     const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
-    return projects.overviewCharts(env.DB, data.project ? [project?.id ?? -1] : undefined, Date.now())
+    return projects.overviewCharts(env.DB, data.project ? [project?.id ?? -1] : undefined, Date.now(), data.days)
   })
 
+/** Where the overview opens, from the viewer's Settings, Home: a project that still exists and a range */
+export const getHome = createServerFn().handler(async () => {
+  const prefs = await settings.getPreferences(env.DB, viewer())
+  const project = prefs.homeProject && (await projects.projectBySlug(env.DB, prefs.homeProject))
+  return { project: project ? project.slug : undefined, days: prefs.homeRange ? Number(prefs.homeRange) : undefined }
+})
+
 // The sidebar: every project, the one picked last (a cookie it sets, only ever matched against the list), whether
-// it was folded (shadcn's own cookie) and who's signed in
-export const getSidebar = createServerFn().handler(async () => ({
-  projects: await projects.allProjects(env.DB),
-  lastProject: getCookie('crashyard_project') ?? null,
-  viewer: viewer(),
-  sidebarOpen: getCookie('sidebar_state') !== 'false',
-}))
+// it was folded (shadcn's own cookie) and who's signed in, with their preferences. Times show in their chosen zone, else
+// the browser's (a cookie the root's script keeps, `tz`), else UTC on a first visit; server and browser render the same.
+export const getSidebar = createServerFn().handler(async () => {
+  const [list, preferences] = await Promise.all([
+    projects.allProjects(env.DB),
+    settings.getPreferences(env.DB, viewer()),
+  ])
+  const browserZone = getCookie('tz')
+  return {
+    projects: list,
+    lastProject: getCookie('crashyard_project') ?? null,
+    viewer: viewer(),
+    sidebarOpen: getCookie('sidebar_state') !== 'false',
+    preferences,
+    zone: preferences.timeZone ?? (browserZone && ZONES.has(browserZone) ? browserZone : 'UTC'),
+  }
+})
 
 export const createProject = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
@@ -786,3 +809,31 @@ export const getHealth = createServerFn().handler(async () => {
   const now = Date.now()
   return { ...(await health.health(env, now)), now }
 })
+
+const PREFERENCE_CHECKS: { [K in keyof settings.Preferences]-?: (v: unknown) => settings.Preferences[K] | undefined } =
+  {
+    theme: oneOf(['system', 'light', 'dark'] as const),
+    timeZone: optional((v) => {
+      const zone = text(v, 64)
+      if (!ZONES.has(zone)) throw new Error('expected a time zone')
+      return zone
+    }),
+    clock: oneOf(['24', '12'] as const),
+    stackOrder: oneOf(['newest', 'oldest'] as const),
+    showOtherFrames: (v) => v === true,
+    homeProject: optional((v) => text(v, 60)),
+    homeRange: optional(oneOf(['14', '30', '90'] as const)),
+  }
+
+/** One preference of the viewer's; the theme goes in a cookie too, for the script that sets it before paint */
+export const savePreference = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    const key = oneOf(Object.keys(PREFERENCE_CHECKS) as (keyof settings.Preferences)[])(o.key)
+    return { key, value: PREFERENCE_CHECKS[key](o.value) }
+  })
+  .handler(async ({ data }) => {
+    await settings.setPreference(env.DB, viewer(), data.key, data.value)
+    if (data.key === 'theme')
+      setCookie('theme', String(data.value), { path: '/', maxAge: 31_536_000, sameSite: 'lax', secure: true })
+  })

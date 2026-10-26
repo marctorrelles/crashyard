@@ -3,6 +3,8 @@
 import { IconChevronRight, IconExternalLink } from '@tabler/icons-react'
 import { useState } from 'react'
 import { type Attachment, Attachments } from '@/components/attachments'
+import { usePreferences } from '@/components/shell'
+import { Time } from '@/components/time'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent, RequestInfo, Thread } from '@/ingest/event'
 import { cn } from '@/lib/utils'
@@ -100,9 +102,13 @@ function Section({ title, children, aside }: { title: string; children: React.Re
 type Linked = Frame & { link?: string }
 
 function Exception({ exception: e, link }: { exception: ExceptionValue; link: (frame: number) => string | undefined }) {
-  const [all, setAll] = useState(false)
-  // Most recent call first, as Sentry shows them
-  const frames: Linked[] = e.frames.map((f, j) => ({ ...f, link: link(j) })).reverse()
+  const prefs = usePreferences()
+  const [all, setAll] = useState(prefs.showOtherFrames)
+  // Most recent call first, as Sentry shows them, unless the viewer reads them oldest first
+  const frames = ordered(
+    e.frames.map((f, j): Linked => ({ ...f, link: link(j) })),
+    prefs.stackOrder,
+  )
   const anyInApp = frames.some((f) => f.inApp)
   return (
     <Section
@@ -145,8 +151,12 @@ function Exception({ exception: e, link }: { exception: ExceptionValue; link: (f
   )
 }
 
-/** Frames, most recent first: runs of other code fold into one line, unless `all` */
+/** Frames as the SDK sends them, oldest first, in the viewer's order */
+const ordered = <T,>(frames: T[], order: 'newest' | 'oldest') => (order === 'newest' ? [...frames].reverse() : frames)
+
+/** Frames in the viewer's order: runs of other code fold into one line, unless `all`; the crashing frame opens */
 function Stack({ frames, all, className }: { frames: Linked[]; all: boolean; className?: string }) {
+  const crash = usePreferences().stackOrder === 'newest' ? frames[0] : frames.at(-1)
   const anyInApp = frames.some((f) => f.inApp)
   const groups: { inApp: boolean; frames: Linked[] }[] = []
   for (const f of frames) {
@@ -159,7 +169,7 @@ function Stack({ frames, all, className }: { frames: Linked[]; all: boolean; cla
     <ol className={cn('divide-y overflow-hidden rounded-xl border', className)}>
       {groups.map((g, i) =>
         g.inApp ? (
-          g.frames.map((f, j) => <FrameRow key={`${i}-${j}`} frame={f} open={i === 0 && j === 0} />)
+          g.frames.map((f, j) => <FrameRow key={`${i}-${j}`} frame={f} open={f === crash} />)
         ) : (
           <FoldedFrames key={i} frames={g.frames} />
         ),
@@ -190,8 +200,10 @@ function Threads({ event }: { event: NormalizedEvent }) {
 }
 
 function ThreadRow({ thread: t }: { thread: Thread }) {
-  const frames = [...t.frames].reverse()
-  const top = frames.find((f) => f.inApp) ?? frames[0]
+  const prefs = usePreferences()
+  const frames = ordered(t.frames, prefs.stackOrder)
+  // Its app's innermost frame, else the innermost
+  const top = t.frames.findLast((f) => f.inApp) ?? t.frames.at(-1)
   return (
     <li>
       <details className="group/thread">
@@ -210,7 +222,7 @@ function ThreadRow({ thread: t }: { thread: Thread }) {
             )}
           </span>
         </summary>
-        <Stack frames={frames} all={false} className="mx-3 mb-3" />
+        <Stack frames={frames} all={prefs.showOtherFrames} className="mx-3 mb-3" />
       </details>
     </li>
   )
@@ -339,9 +351,11 @@ function Breadcrumbs({ crumbs }: { crumbs: Breadcrumb[] }) {
                 (b.data ? <span className="font-mono text-muted-foreground">{JSON.stringify(b.data)}</span> : '')}
             </span>
             {b.timestamp !== undefined && (
-              <time className="text-muted-foreground tabular-nums max-sm:col-start-2">
-                {new Date(b.timestamp).toISOString().slice(11, 23)}
-              </time>
+              <Time
+                at={b.timestamp}
+                style="seconds"
+                className="text-muted-foreground tabular-nums max-sm:col-start-2"
+              />
             )}
           </li>
         ))}

@@ -13,14 +13,17 @@
   the foot Settings, then who's signed in with Sign out, Access's `/cdn-cgi/access/logout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
-  section), `useProjects`. The lists (overview, dashboards, issues, releases, performance, logs)
+  section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). The lists (overview, dashboards, issues, releases, performance, logs)
   take the filter as `?project=` (on a dashboard, picking a project keeps it and its range); the project shown comes
   from that, `/projects/$slug` or an issue's own; pages of no project keep the one last picked (cookie
   `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The filter's menu also has the
   picked project's settings (`/settings/projects/<slug>/general`); picking a project on one of its settings pages
   keeps the page for the new project, and All projects goes to the deployment's General.
 - `bits.tsx`: `Sparkline` (SVG bars, no chart library; `label` for what they are when not events per day), `Ago`
-  (relative to a `now` from the loader), `Level`, `count`, `percent`.
+  (relative to a `now` from the loader, the whole date in its title), `Level`, `count`, `percent`.
+- `time.tsx`: `formatTime(at, { zone, clock }, style)` (`Intl.DateTimeFormat` in English, `hourCycle` from the clock,
+  formats cached; an unknown zone writes UTC), `useTimePrefs` and `<Time>`. Every date or time the app shows goes
+  through them, so the server and the browser write the same text.
 - `performance.tsx`: `ms` (a duration), `Period` and `Waterfall` (spans as
   bars, indented by depth; on a phone the bar goes under its name).
 - `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (key, operator
@@ -42,7 +45,7 @@
   fine pointer only, `useFinePointer` in `src/hooks/`: on touch a tap shows the tooltip, and the table or legend drill
   in), `previous` (the period before) as a dashed line in the text's colour, faded, a tooltip per bucket, and with
   `onZoom` a drag across it gives the buckets' exact span (the logs page zooms with it). Days are written as the UTC day
-  they are; hours in the browser's time, and over two days or more of hours a tick a day with its date (over less, a
+  they are; hours in the viewer's zone and clock (`useTimePrefs`), and over two days or more of hours a tick a day with its date (over less, a
   tick that starts a day says its date); it draws inside `<ClientOnly>`, a `Skeleton` of its size before. Colours: a
   series' own, else `LEVEL_COLORS` by key, the same as `Level`'s dots (fatal red 600, error orange 500, warning and
   logs' warn amber 400, info sky 500, debug zinc 400, logs' trace fainter), else the theme's `--chart-n`; `PALETTE`, 8
@@ -60,7 +63,8 @@
   `addValue` for the first two, only for a key the grammar can write (`isSearchableKey`); its trigger sits above a row's
   link (`z-10`), its tap area 40 px high on a phone.
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.
-- `event-view.tsx`: an event as Sentry shows it: exception and stack (my code first, other frames folded, context
+- `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's
+  `stackOrder`, the crashing frame open; my code first, other frames folded unless `showOtherFrames`, context
   lines; a frame with a link, from `frameLinks` by its indexes in the event, has a button opening its line in the
   repository, 40 px on a phone; `Stack` folds a list of frames), then "Other threads" ("Threads" without an exception)
   folded: a row per thread with a stack, its name or id and top frame (its app's, else the innermost), opening to its

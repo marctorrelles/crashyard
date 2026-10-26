@@ -41,7 +41,12 @@ const PROJECT: Page[] = [
   { label: 'Debug files', path: 'debug-files' },
   { label: 'Delete project', path: 'delete' },
 ]
-const PERSONAL: Page[] = []
+const PERSONAL: Page[] = [
+  { label: 'Appearance', path: '/settings/appearance' },
+  { label: 'Date and time', path: '/settings/date-and-time' },
+  { label: 'Stack traces', path: '/settings/stack-traces' },
+  { label: 'Home', path: '/settings/home' },
+]
 
 /** The groups, the project's for `slug` (the page's, else the one picked last, else the first) */
 function groupsFor(project?: { slug: string; name: string }): Group[] {
@@ -55,7 +60,7 @@ function groupsFor(project?: { slug: string; name: string }): Group[] {
           },
         ]
       : []),
-    ...(PERSONAL.length ? [{ label: 'You', pages: PERSONAL }] : []),
+    { label: 'You', pages: PERSONAL },
   ]
 }
 

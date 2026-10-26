@@ -6,11 +6,13 @@ import { getSidebar } from '@/fns'
 import favicon from '../favicon.svg?url'
 import appCss from '../styles.css?url'
 
-// Light or dark follows the system, set before paint so nothing flashes, and again when the system changes
-const THEME_SCRIPT = `(function(){var m=window.matchMedia('(prefers-color-scheme: dark)');function s(){document.documentElement.classList.toggle('dark',m.matches);document.documentElement.style.colorScheme=m.matches?'dark':'light'}s();m.addEventListener('change',s)})()`
+// Before paint, so nothing flashes: light or dark as the viewer chose (the `theme` cookie, Settings, Appearance), else
+// as the system is, and again when it changes. It also keeps the browser's time zone in the `tz` cookie, so the server
+// writes times in it (src/components/time.tsx)
+const THEME_SCRIPT = `(function(){var d=document.documentElement,c=document.cookie.match(/(?:^|; )theme=(light|dark)/),m=window.matchMedia('(prefers-color-scheme: dark)');function s(){var k=c?c[1]==='dark':m.matches;d.classList.toggle('dark',k);d.style.colorScheme=k?'dark':'light'}s();m.addEventListener('change',s);try{var z=Intl.DateTimeFormat().resolvedOptions().timeZone;if(z&&document.cookie.indexOf('tz='+encodeURIComponent(z))<0)document.cookie='tz='+encodeURIComponent(z)+'; path=/; max-age=31536000; samesite=lax'}catch(e){}})()`
 
 export const Route = createRootRoute({
-  // The sidebar: the projects, the one picked last, folded or not
+  // The sidebar: the projects, the one picked last, folded or not; the viewer's preferences and time zone
   loader: () => getSidebar(),
   head: () => ({
     meta: [

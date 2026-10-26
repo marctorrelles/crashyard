@@ -1,21 +1,41 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
 import { IconApps } from '@tabler/icons-react'
 import { incidentReason } from '@/components/beats'
 import { Ago, count, Level, percent, Sparkline } from '@/components/bits'
 import { BarList, BigNumber, PALETTE, TimeChart } from '@/components/charts'
 import { NewProject, PLATFORM_NAMES } from '@/components/new-project'
 import { Empty, PageHeader, Shell } from '@/components/shell'
-import { change } from '@/data/charts'
-import { getOverview, getOverviewCharts } from '@/fns'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CHART_DAYS, change, type ChartDays } from '@/data/charts'
+import { getHome, getOverview, getOverviewCharts } from '@/fns'
+
+const DEFAULT_DAYS = 30
 
 export const Route = createFileRoute('/')({
-  // The sidebar's project filter: every project's cards, failing monitors and new issues, or one's
-  validateSearch: (s: Record<string, unknown>): { project?: string } => ({
+  // The sidebar's project filter: every project's cards, failing monitors and new issues, or one's; the charts' days
+  validateSearch: (s: Record<string, unknown>): { project?: string; days?: ChartDays } => ({
     project: typeof s.project === 'string' && s.project ? s.project : undefined,
+    days:
+      CHART_DAYS.includes(Number(s.days) as ChartDays) && Number(s.days) !== DEFAULT_DAYS
+        ? (Number(s.days) as ChartDays)
+        : undefined,
   }),
-  loaderDeps: ({ search }) => ({ project: search.project }),
+  // Opening crashyard (a page load of / as it is, not a click on All projects) lands on the viewer's Home settings
+  beforeLoad: async ({ search }) => {
+    if (typeof window !== 'undefined' || search.project || search.days) return
+    const home = await getHome()
+    if (home.project || (home.days && home.days !== DEFAULT_DAYS))
+      throw redirect({
+        to: '/',
+        search: { project: home.project, days: home.days === DEFAULT_DAYS ? undefined : (home.days as ChartDays) },
+      })
+  },
+  loaderDeps: ({ search }) => ({ project: search.project, days: search.days }),
   loader: async ({ deps }) => {
-    const [overview, charts] = await Promise.all([getOverview(), getOverviewCharts({ data: deps })])
+    const [overview, charts] = await Promise.all([
+      getOverview(),
+      getOverviewCharts({ data: { project: deps.project, days: deps.days ?? DEFAULT_DAYS } }),
+    ])
     return { ...overview, charts, now: Date.now() }
   },
   component: Home,
@@ -23,7 +43,8 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   const data = Route.useLoaderData()
-  const { project } = Route.useSearch()
+  const { project, days } = Route.useSearch()
+  const navigate = useNavigate()
   const { update, now } = data
   const only = <T,>(list: T[], slug: (t: T) => string) => (project ? list.filter((t) => slug(t) === project) : list)
   const projects = only(data.projects, (p) => p.slug)
@@ -89,7 +110,30 @@ function Home() {
         </div>
       )}
       {projects.length > 0 && (
-        <section className="mt-8 grid gap-3" aria-label="The last 30 days">
+        <section className="mt-8 grid gap-3" aria-label={`The last ${charts.days.length} days`}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-medium">The last {charts.days.length} days</h2>
+            <Select
+              value={String(days ?? DEFAULT_DAYS)}
+              onValueChange={(v) =>
+                void navigate({
+                  to: '/',
+                  search: (s) => ({ ...s, days: Number(v) === DEFAULT_DAYS ? undefined : (Number(v) as ChartDays) }),
+                })
+              }
+            >
+              <SelectTrigger size="sm" className="w-32" aria-label="Period">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {CHART_DAYS.map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    {d} days
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-3 rounded-xl border p-4 sm:grid-cols-4">
             <BigNumber label="Events yesterday" value={yesterday} change={change(yesterday, dayBefore)} />
             <BigNumber label="Unresolved" value={projects.reduce((a, p) => a + p.unresolved, 0)} />

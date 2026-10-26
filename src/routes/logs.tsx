@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useHydrated, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import {
   IconChevronRight,
   IconLogs,
@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { count } from '@/components/bits'
 import { BarList, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
 import { SearchBar } from '@/components/search-bar'
+import { Time } from '@/components/time'
 import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import {
@@ -532,22 +533,7 @@ function LogStream({
 }
 
 function Clock({ at }: { at: number }) {
-  // The browser's time once it's here; the server renders UTC
-  const hydrated = useHydrated()
-  const d = new Date(at)
-  const pad = (n: number, w = 2) => String(n).padStart(w, '0')
-  const text = hydrated
-    ? `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`
-    : `${d.toISOString().slice(11, 23)}Z`
-  return (
-    <time
-      dateTime={d.toISOString()}
-      title={hydrated ? d.toLocaleString() : d.toUTCString()}
-      className="text-muted-foreground tabular-nums"
-    >
-      {text}
-    </time>
-  )
+  return <Time at={at} style="seconds" className="text-muted-foreground tabular-nums" />
 }
 
 /** One field of an expanded log; with `field`, its value is a menu to show only or exclude it, or copy it */

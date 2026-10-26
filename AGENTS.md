@@ -65,7 +65,8 @@ Where things are:
 - **Tests are fast:** pure functions with fixtures; the few that run the worker keep under 30 seconds together.
 - **Dependencies are few** and MIT-compatible; say why in the commit that adds one.
 - **Writing:** everything a user reads follows the tone below.
-- **UI:** shadcn/ui components, light and dark following the system, usable on a phone. Look at every UI change in
+- **UI:** shadcn/ui components, light and dark following the system or the viewer's choice, usable on a phone. Times
+  through `src/components/time.tsx`. Look at every UI change in
   light and dark, on a phone and a desktop.
 
 ## Tone

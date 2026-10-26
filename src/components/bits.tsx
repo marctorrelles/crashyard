@@ -1,5 +1,5 @@
-// Small pieces the pages share: a sparkline, "3h ago", a date in the browser's time, an issue's level.
-import { useHydrated } from '@tanstack/react-router'
+// Small pieces the pages share: a sparkline, "3h ago", an issue's level.
+import { formatTime, useTimePrefs } from '@/components/time'
 import { cn } from '@/lib/utils'
 
 /** Bars for a count per day, oldest first; `label` says what they are when they aren't events per day */
@@ -49,23 +49,15 @@ export function ago(at: number, now: number) {
   return 'just now'
 }
 
-/** A date as the browser's locale and time zone write it; the server, which knows neither, writes UTC */
-export function LocalTime({ at }: { at: number }) {
-  const hydrated = useHydrated()
-  const date = new Date(at)
-  return (
-    <time dateTime={date.toISOString()}>
-      {hydrated
-        ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-        : `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`}
-    </time>
-  )
-}
-
 export function Ago({ at, now, className }: { at: number; now: number; className?: string }) {
   const date = new Date(at)
+  const prefs = useTimePrefs()
   return (
-    <time dateTime={date.toISOString()} title={date.toUTCString()} className={cn('whitespace-nowrap', className)}>
+    <time
+      dateTime={date.toISOString()}
+      title={formatTime(at, prefs, 'full')}
+      className={cn('whitespace-nowrap', className)}
+    >
       {ago(at, now)}
     </time>
   )

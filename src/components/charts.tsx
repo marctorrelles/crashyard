@@ -5,6 +5,7 @@ import { IconMinus, IconPlus } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Area, Bar, CartesianGrid, ComposedChart, Line, ReferenceArea, XAxis, YAxis } from 'recharts'
 import { count } from '@/components/bits'
+import { formatTime, type TimePrefs, useTimePrefs } from '@/components/time'
 import { Button } from '@/components/ui/button'
 import {
   type ChartConfig,
@@ -57,27 +58,23 @@ export const PALETTE = [
 ]
 
 const DAY = 864e5
-// A day (`YYYY-MM-DD`) is a UTC day: written as that day wherever the browser is. A bucket start (ms) shorter than a
-// day is written in the browser's time.
+// A day (`YYYY-MM-DD`) is a UTC day: written as that day wherever the viewer is. A bucket start (ms) shorter than a
+// day is written in the viewer's zone and clock (Settings, Date and time)
 const startOf = (x: number | string) => (typeof x === 'string' ? Date.parse(`${x}T00:00:00Z`) : x)
-function tick(x: number | string, step: number) {
-  const at = new Date(startOf(x))
-  if (typeof x === 'string' || step >= DAY)
-    return at.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })
-  return at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+const utc = (prefs: TimePrefs): TimePrefs => ({ ...prefs, zone: 'UTC' })
+function tick(x: number | string, step: number, prefs: TimePrefs) {
+  if (typeof x === 'string' || step >= DAY) return formatTime(startOf(x), utc(prefs), 'day')
+  return formatTime(x, prefs, 'time')
 }
-const dateOf = (x: number) => new Date(x).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-// The buckets that start a day in the browser's time (shorter buckets than a day), for ticks that say the date
-function dayStarts(x: number[] | string[], step: number): number[] {
+// The buckets that start a day in the viewer's zone (shorter buckets than a day), for ticks that say the date
+function dayStarts(x: number[] | string[], step: number, prefs: TimePrefs): number[] {
   if (step >= DAY || typeof x[0] !== 'number') return []
-  const days = (x as number[]).map((at) => new Date(at).toDateString())
+  const days = (x as number[]).map((at) => formatTime(at, prefs, 'key'))
   return days.flatMap((d, i) => (i > 0 && d !== days[i - 1] ? [i] : []))
 }
-function title(x: number | string, step: number) {
-  const at = new Date(startOf(x))
-  if (typeof x === 'string' || step >= DAY)
-    return at.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
-  return at.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+function title(x: number | string, step: number, prefs: TimePrefs) {
+  if (typeof x === 'string' || step >= DAY) return formatTime(startOf(x), utc(prefs), 'weekday')
+  return formatTime(x, prefs, 'dayTime')
 }
 
 type Props = {
@@ -99,8 +96,8 @@ type Props = {
 }
 
 /**
- * Counts per bucket, stacked (lines aren't): `x` is bucket starts in ms or UTC days. Labels are in the browser's
- * locale and time, so it draws once hydrated, a skeleton of its size before. `className` can set the height per
+ * Counts per bucket, stacked (lines aren't): `x` is bucket starts in ms or UTC days. Labels are in the viewer's zone
+ * and clock; it draws once hydrated (recharts measures the page), a skeleton of its size before. `className` can set the height per
  * screen size (`h-30 md:h-50`); `height` is the fixed one otherwise.
  */
 export function TimeChart(props: Props) {
@@ -130,9 +127,10 @@ function Chart({
   // The buckets a drag has covered so far, by index
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null)
   const fine = useFinePointer()
+  const prefs = useTimePrefs()
   const step = x.length > 1 ? startOf(x[1]) - startOf(x[0]) : DAY
   // Over two days or more of hours, a tick a day, with its date; over less, a tick that starts a day says its date
-  const starts = dayStarts(x, step)
+  const starts = dayStarts(x, step, prefs)
   const daily = starts.length > 0 && x.length * step >= 2 * DAY
   const startsAt = new Set(starts)
   const config: ChartConfig = Object.fromEntries([
@@ -185,7 +183,11 @@ function Chart({
           minTickGap={28}
           ticks={daily ? starts : undefined}
           tickFormatter={(i: number) =>
-            x[i] === undefined ? '' : startsAt.has(i) ? dateOf(x[i] as number) : tick(x[i], step)
+            x[i] === undefined
+              ? ''
+              : startsAt.has(i)
+                ? formatTime(x[i] as number, prefs, 'day')
+                : tick(x[i], step, prefs)
           }
         />
         <YAxis
@@ -214,7 +216,7 @@ function Chart({
               className="min-w-40"
               labelFormatter={(_, payload) => {
                 const i = (payload[0]?.payload as { i?: number } | undefined)?.i
-                return i === undefined ? '' : title(x[i], step)
+                return i === undefined ? '' : title(x[i], step, prefs)
               }}
             />
           }
