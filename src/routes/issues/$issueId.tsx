@@ -6,7 +6,7 @@ import { Ago, count, Level } from '@/components/bits'
 import { Time } from '@/components/time'
 import { BarList, LEVEL_COLORS, TimeChart } from '@/components/charts'
 import { EventView } from '@/components/event-view'
-import { IssueActions } from '@/components/issue-actions'
+import { IssueActions, UnmergeButton } from '@/components/issue-actions'
 import { PRIORITY_LABELS, PriorityBadge } from '@/components/priority'
 import { Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
@@ -67,7 +67,10 @@ function IssuePage() {
             {issue.culprit && <span className="font-mono text-xs break-all">{issue.culprit}</span>}
           </p>
         </div>
-        <IssueActions ids={[issue.id]} status={issue.status} lastRelease={issue.last_release} releases={d.releases} />
+        <div className="flex flex-wrap items-center gap-2">
+          {d.merged > 0 && <UnmergeButton id={issue.id} now={now} />}
+          <IssueActions ids={[issue.id]} status={issue.status} lastRelease={issue.last_release} releases={d.releases} />
+        </div>
       </div>
 
       <dl className="mb-6 grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm sm:grid-cols-4">
@@ -394,6 +397,11 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
       'Ignored'
     ),
   reopened: () => 'Reopened',
+  unmerged: (x) =>
+    x.issue
+      ? `Unmerged “${(x.issue as { title: string }).title}” into its own issue`
+      : 'Unmerged a fingerprint with no events kept',
+  unmerged_from: (x) => `Unmerged from issue ${(x.issue as { id: number }).id}`,
   merged: (x) => `Merged with ${(x.issues as { title: string }[]).map((i) => `“${i.title}”`).join(', ')}`,
   review_crash: () => 'Crashed in App Review or TestFlight',
   escalating: (x) => `Escalating with ${x.count} events in an hour${x.wasIgnored ? ', so it’s no longer ignored' : ''}`,

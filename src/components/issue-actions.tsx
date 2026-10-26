@@ -1,6 +1,14 @@
 // What can be done to issues, for one (its page) or many (the list): resolve, ignore, reopen, merge, delete.
-import { useRouter } from '@tanstack/react-router'
-import { IconCheck, IconChevronDown, IconEyeOff, IconGitMerge, IconRotate, IconTrash } from '@tabler/icons-react'
+import { useNavigate, useRouter } from '@tanstack/react-router'
+import {
+  IconArrowsSplit,
+  IconCheck,
+  IconChevronDown,
+  IconEyeOff,
+  IconGitMerge,
+  IconRotate,
+  IconTrash,
+} from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,6 +19,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -21,7 +30,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { changeIssues, mergeIssues } from '@/fns'
+import { Ago, count } from '@/components/bits'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { changeIssues, getMergedFingerprints, mergeIssues, unmergeIssue } from '@/fns'
+import type { MergedFingerprint } from '@/data/issues'
 
 type Change =
   | { action: 'resolve'; inRelease?: boolean; current?: boolean; release?: string }
@@ -273,5 +286,89 @@ export function IssueActions({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+  )
+}
+
+/** Unmerge on a merged issue: its merged fingerprints with their events, one moved back out to an issue of its own */
+export function UnmergeButton({ id, now }: { id: number; now: number }) {
+  const router = useRouter()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [list, setList] = useState<MergedFingerprint[] | null>(null)
+  const [chosen, setChosen] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = async (next: boolean) => {
+    setOpen(next)
+    if (!next) return
+    setList(null)
+    const fingerprints = await getMergedFingerprints({ data: { id } })
+    setList(fingerprints)
+    setChosen(fingerprints[0]?.fingerprint ?? '')
+  }
+  const unmerge = async () => {
+    setBusy(true)
+    try {
+      const made = await unmergeIssue({ data: { id, fingerprint: chosen } })
+      setOpen(false)
+      toast.success(made ? 'Unmerged into a new issue' : 'Unmerged. Its next event opens a new issue')
+      await router.invalidate()
+      if (made) await navigate({ to: '/issues/$issueId', params: { issueId: String(made) } })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The issue couldn’t be unmerged. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Dialog open={open} onOpenChange={(next) => void load(next)}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <IconArrowsSplit data-icon="inline-start" />
+          Unmerge
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Unmerge</DialogTitle>
+          <DialogDescription>
+            Pick what was merged into this issue. Its events, days and tags move back to an issue of its own, and new
+            events go there too.
+          </DialogDescription>
+        </DialogHeader>
+        {!list ? (
+          <p className="text-sm text-muted-foreground">Loading what was merged…</p>
+        ) : (
+          <RadioGroup value={chosen} onValueChange={setChosen} className="max-h-80 overflow-auto">
+            {list.map((f) => (
+              <Label
+                key={f.fingerprint}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal has-data-[state=checked]:border-primary"
+              >
+                <RadioGroupItem value={f.fingerprint} className="mt-0.5" />
+                <span className="grid min-w-0 gap-0.5">
+                  <span className="truncate text-sm">{f.title ?? 'No events kept'}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {f.events === 1 ? '1 event' : `${count(f.events)} events`}
+                    {f.last ? (
+                      <>
+                        {' · last '}
+                        <Ago at={f.last} now={now} />
+                      </>
+                    ) : null}
+                    {' · '}
+                    <span className="font-mono">{f.fingerprint.slice(0, 12)}</span>
+                  </span>
+                </span>
+              </Label>
+            ))}
+          </RadioGroup>
+        )}
+        <DialogFooter>
+          <Button onClick={unmerge} disabled={busy || !chosen}>
+            Unmerge
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

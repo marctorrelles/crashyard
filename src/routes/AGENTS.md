@@ -38,7 +38,7 @@ server, the build, or `tsr generate`): never edit it.
   on a phone; sort by priority too; each row has its priority's menu. Saved searches beside the bar (`getSavedSearches`, loaded first): with no
   `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. Bulk resolve,
   ignore, merge and delete.
-- `issues/$issueId.tsx`: one issue: its priority (a menu), status (Escalating, ignored until it escalates or N
+- `issues/$issueId.tsx`: one issue: Unmerge beside the actions when fingerprints were merged into it, its priority (a menu), status (Escalating, ignored until it escalates or N
   users, resolved in a release), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
   newer), Suspect commits under the stack (sha linked through `commitUrl`, message, author, when, the files), Similar
   issues, each with Merge into this issue (a confirmation, then `mergeIssues` with this one first), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved

@@ -36,7 +36,18 @@ helpers (`change`).
   (`until_escalating`, the default in the UI: only escalation opens it) and `forUsers` (`ignore_until_users`, the user
   count that ends it, as `ignore_until_count`); `priority` sets `issues.priority` with a `priority` activity entry;
   `SORTS.priority` is high first, then the most recently seen. A merge adds the merged issues' `event_hours` into the
-  first.
+  first. `getIssue`'s `merged` counts its `issue_fingerprints`. `mergedFingerprints` lists them with their kept events
+  (by `events.fingerprint`, `events_issue_fingerprint`), the newest's first line as a title; `unmergeIssue` moves one
+  out: a new issue with that fingerprint (title, culprit and level from its newest event, the source's priority,
+  `ongoing`), its events and their feedback, then days, `event_hours`, tags and users rebuilt from the moved events
+  and taken off the source (rows at 0 deleted; a user stays on the source while it has events of theirs), both
+  issues' counts and the new one's first and last seen and releases from its events, the fingerprint out of
+  `issue_fingerprints`, an `unmerged` entry on the source and `unmerged_from` on the new one; one batch. Only kept
+  events move: what spike protection only counted, or retention pruned, stays counted on the source. A fingerprint
+  with no events kept just leaves `issue_fingerprints` (answers null), so its next event opens a new issue. Events
+  stored before 0016 have no fingerprint: both first hash up to 2000 of the issue's from their JSON with version 1 and
+  no rules, as ingest did then, and write it (`backfillFingerprints`; the list is a GET that writes, derived data
+  only).
 - `escalation.ts`: `escalating(hours)`: the last of a week of hourly counts plus the hour just ended escalates with 10
   events or more (`MIN_EVENTS`) and more than twice (`FACTOR`) the busiest hour before it, so steady traffic, however
   busy, and its usual peaks don't. `checkEscalation` (the cron, hourly at :25, 20 seconds): the hour just ended's

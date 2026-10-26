@@ -348,6 +348,17 @@ export const mergeIssues = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ ids: ints(object(d).ids) }))
   .handler(({ data }) => issues.mergeIssues(env.DB, data.ids, viewer(), Date.now()))
 
+export const getMergedFingerprints = createServerFn()
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => issues.mergedFingerprints(env.DB, data.id))
+
+export const unmergeIssue = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), fingerprint: text(o.fingerprint, 200) }
+  })
+  .handler(({ data }) => issues.unmergeIssue(env.DB, data.id, data.fingerprint, viewer(), Date.now()))
+
 export const addNote = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)

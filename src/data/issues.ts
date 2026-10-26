@@ -1,4 +1,6 @@
 // Issues: the list (searched, sorted, with a sparkline each), one issue with its events, and what can be done to them.
+import type { NormalizedEvent } from '../ingest/event'
+import { HASHERS } from '../ingest/grouping'
 import type { Priority } from '../ingest/priority'
 import { issueFilter } from '../search/query'
 import { scoped } from './charts'
@@ -114,7 +116,7 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
     .first<IssueRow & { project: string; project_name: string }>()
   if (!issue) return null
   const days = lastDays(90, now)
-  const [tags, events, feedback, activity] = await db.batch<Record<string, unknown>>([
+  const [tags, events, feedback, activity, merged] = await db.batch<Record<string, unknown>>([
     // The top values of each tag, as Sentry's tag sidebar
     db
       .prepare(
@@ -134,6 +136,7 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
     db
       .prepare('SELECT id, kind, data, by, at FROM issue_activity WHERE issue_id = ? ORDER BY at DESC, id DESC')
       .bind(id),
+    db.prepare('SELECT COUNT(*) AS n FROM issue_fingerprints WHERE issue_id = ?').bind(id),
   ])
   const list = events.results as {
     id: string
@@ -183,6 +186,7 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
       at: number
     }[],
     activity: activity.results as Activity[],
+    merged: (merged.results[0] as { n: number }).n, // fingerprints merged into it, for Unmerge
     // The project's releases with events, newest first, for "Resolve in a release…"
     releases: (
       await db
@@ -414,4 +418,189 @@ export async function autoResolve(db: D1Database, now: number, deadline = Date.n
     total += ids.length
   }
   return total
+}
+
+/** Events of an issue stored before 0016 have no fingerprint: computed from their JSON, as ingest hashed them then */
+const BACKFILL = 2000
+async function backfillFingerprints(db: D1Database, issueId: number) {
+  const rows = (
+    await db
+      .prepare('SELECT id, data FROM events WHERE issue_id = ? AND fingerprint IS NULL LIMIT ?')
+      .bind(issueId, BACKFILL)
+      .all<{ id: string; data: string }>()
+  ).results
+  if (!rows.length) return
+  const byPrint = new Map<string, string[]>()
+  for (const r of rows) {
+    let print: string
+    try {
+      print = await HASHERS[1](JSON.parse(r.data) as NormalizedEvent)
+    } catch {
+      continue
+    }
+    byPrint.set(print, [...(byPrint.get(print) ?? []), r.id])
+  }
+  const statements: D1PreparedStatement[] = []
+  for (const [print, ids] of byPrint)
+    for (let i = 0; i < ids.length; i += 90) {
+      const part = ids.slice(i, i + 90)
+      statements.push(
+        db
+          .prepare(`UPDATE events SET fingerprint = ?, grouping_version = 1 WHERE id IN (${marks(part.length)})`)
+          .bind(print, ...part),
+      )
+    }
+  if (statements.length) await db.batch(statements)
+}
+
+export type MergedFingerprint = { fingerprint: string; events: number; last: number | null; title: string | null }
+
+/** The fingerprints merged into an issue, with their kept events, newest first, for Unmerge */
+export async function mergedFingerprints(db: D1Database, issueId: number): Promise<MergedFingerprint[]> {
+  await backfillFingerprints(db, issueId)
+  const rows = (
+    await db
+      .prepare(
+        `SELECT f.fingerprint, COUNT(e.id) AS events, MAX(e.received) AS last,
+           (SELECT message FROM events WHERE issue_id = f.issue_id AND fingerprint = f.fingerprint
+            ORDER BY received DESC LIMIT 1) AS title
+         FROM issue_fingerprints f LEFT JOIN events e ON e.issue_id = f.issue_id AND e.fingerprint = f.fingerprint
+         WHERE f.issue_id = ? GROUP BY f.fingerprint ORDER BY last DESC`,
+      )
+      .bind(issueId)
+      .all<MergedFingerprint>()
+  ).results
+  return rows.map((r) => ({ ...r, title: r.title?.split('\n')[0] ?? null }))
+}
+
+/**
+ * Moves one merged fingerprint back out to an issue of its own: its kept events, their days, hours, tags, users and
+ * feedback, rebuilt from those events and taken off this issue; new events follow. With no events kept, only the
+ * fingerprint leaves, so its next event opens a new issue. Answers the new issue's id, or null then
+ */
+export async function unmergeIssue(db: D1Database, id: number, fingerprint: string, by: string, now: number) {
+  const source = await db
+    .prepare(
+      `SELECT i.id, i.project_id, i.priority FROM issue_fingerprints f JOIN issues i ON i.id = f.issue_id
+       WHERE f.issue_id = ? AND f.fingerprint = ?`,
+    )
+    .bind(id, fingerprint)
+    .first<{ id: number; project_id: number; priority: string }>()
+  if (!source) throw new Error('That fingerprint isn’t merged into this issue. Open the issue again to see its own.')
+  await backfillFingerprints(db, id)
+  const latest = await db
+    .prepare('SELECT data FROM events WHERE issue_id = ? AND fingerprint = ? ORDER BY received DESC LIMIT 1')
+    .bind(id, fingerprint)
+    .first<{ data: string }>()
+  const left = db
+    .prepare('DELETE FROM issue_fingerprints WHERE project_id = ? AND fingerprint = ?')
+    .bind(source.project_id, fingerprint)
+  if (!latest) {
+    await db.batch([
+      left,
+      db
+        .prepare("INSERT INTO issue_activity (issue_id, kind, data, by, at) VALUES (?, 'unmerged', ?, ?, ?)")
+        .bind(id, JSON.stringify({ fingerprint, issue: null }), by, now),
+    ])
+    return null
+  }
+  const e = JSON.parse(latest.data) as NormalizedEvent
+  const made = await db
+    .prepare(
+      `INSERT INTO issues (project_id, fingerprint, title, culprit, type, level, platform, substatus, first_seen, last_seen, priority)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'ongoing', ?, ?, ?) ON CONFLICT (project_id, fingerprint) DO NOTHING RETURNING id`,
+    )
+    .bind(source.project_id, fingerprint, e.title, e.culprit, e.type, e.level, e.platform, now, now, source.priority)
+    .first<{ id: number }>()
+  if (!made) throw new Error('Another issue already has that fingerprint. Merge the two instead.')
+  const into = made.id
+  const moved = 'SELECT id FROM events WHERE issue_id = ?2'
+  await db.batch([
+    db.prepare('UPDATE events SET issue_id = ? WHERE issue_id = ? AND fingerprint = ?').bind(into, id, fingerprint),
+    db.prepare(`UPDATE feedback SET issue_id = ?2 WHERE issue_id = ?1 AND event_id IN (${moved})`).bind(id, into),
+    // Days, hours and tags of the moved events: added to the new issue, taken off this one, rows left at 0 deleted
+    db
+      .prepare(
+        `INSERT INTO issue_days (issue_id, day, count) SELECT ?, strftime('%Y-%m-%d', received / 1000, 'unixepoch'), COUNT(*)
+         FROM events WHERE issue_id = ? GROUP BY 2`,
+      )
+      .bind(into, into),
+    db
+      .prepare(
+        `UPDATE issue_days SET count = MAX(0, count - (SELECT COUNT(*) FROM events e WHERE e.issue_id = ?2
+           AND strftime('%Y-%m-%d', e.received / 1000, 'unixepoch') = issue_days.day)) WHERE issue_id = ?1`,
+      )
+      .bind(id, into),
+    db
+      .prepare(
+        `INSERT INTO event_hours (project_id, issue_id, hour, level, release, environment, count)
+         SELECT project_id, ?1, received - received % 3600000, level, COALESCE(release, ''), COALESCE(environment, ''), COUNT(*)
+         FROM events WHERE issue_id = ?1 GROUP BY 3, 4, 5, 6`,
+      )
+      .bind(into),
+    db
+      .prepare(
+        `UPDATE event_hours SET count = MAX(0, count - (SELECT COUNT(*) FROM events e WHERE e.issue_id = ?2
+           AND e.received - e.received % 3600000 = event_hours.hour AND e.level = event_hours.level
+           AND COALESCE(e.release, '') = event_hours.release AND COALESCE(e.environment, '') = event_hours.environment))
+         WHERE issue_id = ?1`,
+      )
+      .bind(id, into),
+    db
+      .prepare(
+        `INSERT INTO issue_tag_values (issue_id, key, value, count, last_seen)
+         SELECT ?1, t.key, t.value, COUNT(*), MAX(e.received) FROM event_tags t JOIN events e ON e.id = t.event_id
+         WHERE e.issue_id = ?1 GROUP BY t.key, t.value`,
+      )
+      .bind(into),
+    db
+      .prepare(
+        `UPDATE issue_tag_values SET count = MAX(0, count - (SELECT COUNT(*) FROM event_tags t JOIN events e ON e.id = t.event_id
+           WHERE e.issue_id = ?2 AND t.key = issue_tag_values.key AND t.value = issue_tag_values.value)) WHERE issue_id = ?1`,
+      )
+      .bind(id, into),
+    db.prepare('DELETE FROM issue_days WHERE issue_id = ? AND count = 0').bind(id),
+    db.prepare('DELETE FROM event_hours WHERE issue_id = ? AND count = 0').bind(id),
+    db.prepare('DELETE FROM issue_tag_values WHERE issue_id = ? AND count = 0').bind(id),
+    // Users: the moved events' go along; this issue keeps those it still has events of
+    db
+      .prepare(
+        'INSERT OR IGNORE INTO issue_users (issue_id, user_hash) SELECT ?1, user_hash FROM events WHERE issue_id = ?1 AND user_hash IS NOT NULL',
+      )
+      .bind(into),
+    db
+      .prepare(
+        `DELETE FROM issue_users WHERE issue_id = ?1 AND user_hash IN (SELECT user_hash FROM events WHERE issue_id = ?2)
+           AND user_hash NOT IN (SELECT user_hash FROM events WHERE issue_id = ?1 AND user_hash IS NOT NULL)`,
+      )
+      .bind(id, into),
+    db
+      .prepare(
+        `UPDATE issues SET count = (SELECT COUNT(*) FROM events WHERE issue_id = ?1),
+           user_count = (SELECT COUNT(*) FROM issue_users WHERE issue_id = ?1),
+           first_seen = (SELECT MIN(received) FROM events WHERE issue_id = ?1),
+           last_seen = (SELECT MAX(received) FROM events WHERE issue_id = ?1),
+           first_release = (SELECT release FROM events WHERE issue_id = ?1 AND release IS NOT NULL ORDER BY received LIMIT 1),
+           last_release = (SELECT release FROM events WHERE issue_id = ?1 AND release IS NOT NULL ORDER BY received DESC LIMIT 1),
+           last_event_id = (SELECT id FROM events WHERE issue_id = ?1 ORDER BY received DESC LIMIT 1)
+         WHERE id = ?1`,
+      )
+      .bind(into),
+    db
+      .prepare(
+        `UPDATE issues SET count = MAX(0, count - (SELECT count FROM issues WHERE id = ?2)),
+           user_count = (SELECT COUNT(*) FROM issue_users WHERE issue_id = ?1),
+           last_event_id = (SELECT id FROM events WHERE issue_id = ?1 ORDER BY received DESC LIMIT 1)
+         WHERE id = ?1`,
+      )
+      .bind(id, into),
+    left,
+    db
+      .prepare("INSERT INTO issue_activity (issue_id, kind, data, by, at) VALUES (?, 'unmerged', ?, ?, ?)")
+      .bind(id, JSON.stringify({ fingerprint, issue: { id: into, title: e.title } }), by, now),
+    db
+      .prepare("INSERT INTO issue_activity (issue_id, kind, data, by, at) VALUES (?, 'unmerged_from', ?, ?, ?)")
+      .bind(into, JSON.stringify({ issue: { id, fingerprint } }), by, now),
+  ])
+  return into
 }

@@ -79,6 +79,9 @@
   button: its click ignores until it escalates; the menu has that first, then forever, N more times, N more users and
   for a time. Resolve's menu: now, in next release, in current release (naming one issue's latest; hidden when it
   has none), and on one issue Resolve in a release…, a dialog with a `Select` of `releases`. Delete is a menu: Delete, and Delete and discard future events (`discard`), each confirmed.
+- `issue-actions.tsx`'s `UnmergeButton`: a dialog that loads the merged fingerprints when it opens
+  (`getMergedFingerprints`), a `RadioGroup` of them with their events and when last seen, and Unmerge, which opens
+  the new issue.
 - `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a
   menu to change it, above a list row's link, 40 px on a phone; `PRIORITY_LABELS`.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's
