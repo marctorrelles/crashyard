@@ -28,7 +28,7 @@ flowchart LR
   dashboard --> d1
   mcp --> d1
   cron --> d1
-  ingest -- notices --> notify["ntfy, Bark, email, webhooks"]
+  ingest -- notices --> notify["Telegram, email, webhooks"]
   cron -- notices --> notify
 ```
 

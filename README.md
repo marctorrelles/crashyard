@@ -29,8 +29,8 @@ Then put Cloudflare Access in front: [docs/deploying.md](docs/deploying.md) has 
 - **Monitors:** cron check-ins from the SDKs and `sentry-cli monitors run`, and uptime checks every few minutes.
 - **Performance, light:** transactions by p95 per name, how much slower since the release before, the slowest with
   their spans; crash-free sessions per release.
-- **Notifications:** ntfy (with Resolve and Ignore buttons on the push), Bark (iPhone), email and webhooks (Slack,
-  Discord, JSON), routed by kind, project, level and environment, with quiet hours.
+- **Notifications:** Telegram (a bot of yours), email and webhooks (Slack, Discord, JSON), routed by kind, project, level
+  and environment, with quiet hours.
 - **Releases:** what's new, back and gone in each release against the one before, and a push when a crash comes from
   App Review or TestFlight.
 - **An MCP server**, so an agent can search issues and logs, read a symbolicated stack, resolve and note
@@ -59,7 +59,6 @@ user only as the app's id hashed, and scrubs what looks like a password, token o
 
 ```sh
 pnpm install
-cp .dev.vars.example .dev.vars
 pnpm dev      # the dashboard at http://localhost:3000, with local D1 and R2
 pnpm seed     # a month of made-up crashes, logs and transactions in it
 pnpm check    # lint, format, types, unused code, tests and the build: what CI runs

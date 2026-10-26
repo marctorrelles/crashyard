@@ -3,7 +3,7 @@
 Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
 
 - `ingest.e2e.test.ts`: the official `@sentry/node` (errors, logs, check-ins, spans) sending to `vite dev` (ports
-  3999, and 3998 for a stub ntfy) with its own state in `.wrangler/e2e`, wiped each run; the cron at set times
+  3999, and 3998 for a stub Telegram Bot API) with its own state in `.wrangler/e2e`, wiped each run; the cron at set times
   (`/__dev/cron?now=`: missed check-ins, uptime, Monday's summary). Seeds rows through `getPlatformProxy`. Keep it
   under 30 seconds.
 - `dev.ts`: `startDev(port, state)`: a dev server with its own state, wiped each run, and project 1 (`e2e`).

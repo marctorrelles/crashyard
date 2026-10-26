@@ -1,17 +1,17 @@
-// Sending a notice through a channel: ntfy, Bark, email (Cloudflare Email Routing) or a webhook.
+// Sending a notice through a channel: Telegram, email (Cloudflare Email Routing) or a webhook.
 import { type Notice, noticeLine } from './notice'
 
 export type Channel = {
   id: number
-  kind: 'ntfy' | 'bark' | 'email' | 'webhook'
+  kind: 'telegram' | 'email' | 'webhook'
   name: string
   config: string // JSON
   quiet_from: number | null
   quiet_to: number | null
 }
 
-type NtfyConfig = { server?: string; topic: string; token?: string }
-type BarkConfig = { server?: string; key: string } // the device key the Bark app shows
+// A bot's token (from @BotFather), the chat it writes to and that chat's name; `server`, a local Bot API server
+type TelegramConfig = { token: string; chat: string; name?: string; server?: string }
 type EmailConfig = { to: string }
 type WebhookConfig = { url: string; format?: 'json' | 'slack' | 'discord' }
 
@@ -25,63 +25,43 @@ export function isQuiet(channel: Pick<Channel, 'quiet_from' | 'quiet_to'>, at: n
   return from < to ? minute >= from && minute < to : minute >= from || minute < to
 }
 
-// Pushed louder: what wants a look now
-const URGENT: string[] = ['new', 'regression', 'review_crash', 'monitor_down']
+const TELEGRAM = 'https://api.telegram.org'
+const html = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-export function ntfyRequest(config: NtfyConfig, notice: Notice): Request {
-  const headers: Record<string, string> = {
-    Title: notice.issue.title.slice(0, 250),
-    Click: notice.url,
-    Tags:
-      notice.kind === 'monitor_down'
-        ? 'rotating_light'
-        : notice.kind === 'monitor_up'
-          ? 'white_check_mark'
-          : notice.kind === 'regression'
-            ? 'repeat'
-            : notice.kind === 'weekly'
-              ? 'bar_chart'
-              : notice.issue.level === 'fatal'
-                ? 'boom'
-                : 'warning',
-    Priority: URGENT.includes(notice.kind) ? 'high' : notice.kind === 'weekly' ? 'low' : 'default',
-  }
-  if (notice.actions) {
-    headers.Actions = `http, Resolve, ${notice.actions.resolve}, method=POST, clear=true; http, Ignore, ${notice.actions.ignore}, method=POST, clear=true`
-  }
-  if (config.token) headers.Authorization = `Bearer ${config.token}`
-  const server = (config.server || 'https://ntfy.sh').replace(/\/$/, '')
-  return new Request(`${server}/${encodeURIComponent(config.topic)}`, {
+/** A message from the channel's bot: the title in bold, the line under it, and a button opening it in crashyard */
+export function telegramRequest(config: TelegramConfig, notice: Notice): Request {
+  return new Request(`${(config.server || TELEGRAM).replace(/\/$/, '')}/bot${config.token}/sendMessage`, {
     method: 'POST',
-    headers,
-    body: noticeLine(notice),
-  })
-}
-
-/** A Bark key as typed, or the app's whole URL (its server and key, then a title and body) */
-export function barkSettings(key: string, server: string) {
-  const url = key.trim().match(/^(https?:\/\/[^/]+)\/([^/?#]+)/)
-  return url
-    ? { server: url[1] === 'https://api.day.app' ? undefined : url[1], key: url[2] }
-    : { server: server || undefined, key: key.trim() }
-}
-
-/** A push through Bark (iPhone): its JSON API, on its public server unless the channel names another */
-export function barkRequest(config: BarkConfig, notice: Notice): Request {
-  const server = (config.server || 'https://api.day.app').replace(/\/$/, '')
-  return new Request(`${server}/push`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json; charset=utf-8' },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      device_key: config.key,
-      title: notice.issue.title.slice(0, 250),
-      body: noticeLine(notice),
-      url: notice.url,
-      group: notice.project.name,
-      // Time sensitive breaks through Focus; the week's summary waits in Notification Centre
-      level: URGENT.includes(notice.kind) ? 'timeSensitive' : notice.kind === 'weekly' ? 'passive' : 'active',
+      chat_id: config.chat,
+      text: `<b>${html(notice.issue.title.slice(0, 250))}</b>\n${html(noticeLine(notice))}`,
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+      // The week's summary arrives without a sound
+      disable_notification: notice.kind === 'weekly',
+      reply_markup: { inline_keyboard: [[{ text: 'Open in crashyard', url: notice.url }]] },
     }),
   })
+}
+
+type TelegramAnswer<T> = { ok: boolean; result?: T; description?: string }
+
+/** Who wrote to the bot lately (Telegram keeps a day of updates): the chats it can write to, newest first */
+export async function telegramChats(token: string): Promise<{ id: string; name: string }[]> {
+  const response = await fetch(`${TELEGRAM}/bot${token}/getUpdates`)
+  const answer = (await response.json().catch(() => ({ ok: false }))) as TelegramAnswer<
+    { message?: { chat: { id: number; title?: string; first_name?: string; username?: string } } }[]
+  >
+  if (!answer.ok)
+    throw new Error(`Telegram answered ${response.status}${answer.description ? `: ${answer.description}` : ''}`)
+  const chats = new Map<string, string>()
+  for (const u of (answer.result ?? []).toReversed()) {
+    const chat = u.message?.chat
+    if (chat && !chats.has(String(chat.id)))
+      chats.set(String(chat.id), chat.title ?? chat.first_name ?? chat.username ?? String(chat.id))
+  }
+  return [...chats].map(([id, name]) => ({ id, name }))
 }
 
 export function webhookBody(format: WebhookConfig['format'], notice: Notice): unknown {
@@ -100,18 +80,11 @@ export function webhookBody(format: WebhookConfig['format'], notice: Notice): un
 
 export async function send(channel: Channel, notice: Notice, mailer?: Mailer, from?: string): Promise<void> {
   const config = JSON.parse(channel.config)
-  if (channel.kind === 'ntfy') {
-    const response = await fetch(ntfyRequest(config as NtfyConfig, notice))
+  if (channel.kind === 'telegram') {
+    const response = await fetch(telegramRequest(config as TelegramConfig, notice))
     if (!response.ok) {
-      // ntfy says why as JSON: {"code":42901,"error":"limit reached: too many requests",…}
-      const why = ((await response.json().catch(() => null)) as { error?: string } | null)?.error
-      throw new Error(`ntfy answered ${response.status}${why ? `: ${why}` : ''}`)
-    }
-  } else if (channel.kind === 'bark') {
-    const response = await fetch(barkRequest(config as BarkConfig, notice))
-    if (!response.ok) {
-      const why = ((await response.json().catch(() => null)) as { message?: string } | null)?.message
-      throw new Error(`Bark answered ${response.status}${why ? `: ${why}` : ''}`)
+      const why = ((await response.json().catch(() => null)) as TelegramAnswer<unknown> | null)?.description
+      throw new Error(`Telegram answered ${response.status}${why ? `: ${why}` : ''}`)
     }
   } else if (channel.kind === 'webhook') {
     const { url, format } = config as WebhookConfig

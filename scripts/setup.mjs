@@ -1,9 +1,8 @@
 // Sets up a deployment from a clone (docs/deploying.md): asks for its domain and Access values, writes them to
-// wrangler.local.json (git-ignored), then offers to deploy, set the push buttons' secret and add the R2 cleanup rules.
+// wrangler.local.json (git-ignored), then offers to deploy and add the R2 cleanup rules.
 // Run again to change a value: what's there is the default. Needs `pnpm wrangler login` first.
 //   pnpm run setup
 import { execFileSync } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createInterface } from 'node:readline/promises'
 
@@ -41,8 +40,6 @@ console.log(`Wrote ${file}.`)
 
 if (await yes('Deploy now (build, migrate the D1 database, deploy)?')) {
   run(['run', 'deploy'])
-  if (await yes('Set the secret that signs the Resolve and Ignore buttons on pushes?'))
-    run(['wrangler', 'secret', 'put', 'ACTION_SECRET'], randomBytes(32).toString('hex'))
   if (await yes('Have R2 delete raw envelopes after 30 days and unfinished uploads after one?')) {
     run([
       'wrangler',

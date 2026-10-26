@@ -9,7 +9,6 @@ You need Node (the version in `.nvmrc`) and pnpm (`corepack enable` gives you th
 
 ```sh
 pnpm install   # also installs the git hooks (lefthook): lint and format on what you stage
-cp .dev.vars.example .dev.vars   # local secrets: the push buttons' signing key, which the tests check
 pnpm dev       # http://localhost:3000, with local D1 and R2; Cloudflare Access is off locally
 ```
 

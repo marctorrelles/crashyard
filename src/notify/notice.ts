@@ -33,7 +33,6 @@ export type Notice = {
   issue: { id: number; title: string; culprit: string; level: string; count: number }
   event: { release?: string; environment?: string; level: string; device?: string; os?: string }
   url: string // the issue in the dashboard
-  actions?: { resolve: string; ignore: string } // signed links the push's buttons call
 }
 
 export type Route = {

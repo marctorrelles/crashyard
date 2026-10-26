@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { verifyAction, actionUrl } from './actions'
-import { barkRequest, barkSettings, isQuiet, ntfyRequest, webhookBody } from './channels'
-import { crossed, type Notice, noticeLine, type Route, routeTakes, thresholdFor } from './notice'
+import { isQuiet, telegramRequest, webhookBody } from './channels'
+import { crossed, type Notice, type Route, routeTakes, thresholdFor } from './notice'
 
 const notice = (over: Partial<Notice> = {}): Notice => ({
   kind: 'new',
@@ -43,40 +42,25 @@ describe('routes', () => {
 })
 
 describe('channels', () => {
-  it('push to ntfy with the issue as the title and its buttons as actions', () => {
-    const request = ntfyRequest(
-      { topic: 'secret topic' },
-      notice({ actions: { resolve: 'https://r', ignore: 'https://i' } }),
+  it('write through a Telegram bot: the title in bold, escaped, and a button to the issue', async () => {
+    const request = telegramRequest(
+      { token: '1:abc', chat: '42' },
+      notice({ issue: { ...notice().issue, title: 'a < b & c' } }),
     )
-    expect(request.url).toBe('https://ntfy.sh/secret%20topic')
-    expect(request.headers.get('title')).toBe('EXC_BAD_ACCESS: doCrash')
-    expect(request.headers.get('actions')).toBe(
-      'http, Resolve, https://r, method=POST, clear=true; http, Ignore, https://i, method=POST, clear=true',
-    )
-    expect(noticeLine(notice())).toBe('pocketband · 1.0 (10) · iPad13,1 · new')
-  })
-
-  it('push through Bark, time sensitive for a new issue, the week quietly', async () => {
-    const request = barkRequest({ key: 'k3y' }, notice())
-    expect(request.url).toBe('https://api.day.app/push')
+    expect(request.url).toBe('https://api.telegram.org/bot1:abc/sendMessage')
     expect(await request.json()).toMatchObject({
-      device_key: 'k3y',
-      title: 'EXC_BAD_ACCESS: doCrash',
-      body: 'pocketband · 1.0 (10) · iPad13,1 · new',
-      level: 'timeSensitive',
+      chat_id: '42',
+      text: '<b>a &lt; b &amp; c</b>\npocketband · 1.0 (10) · iPad13,1 · new',
+      parse_mode: 'HTML',
+      disable_notification: false,
+      reply_markup: { inline_keyboard: [[{ text: 'Open in crashyard', url: notice().url }]] },
     })
-    const weekly = barkRequest({ key: 'k', server: 'https://bark.example.com/' }, notice({ kind: 'weekly' }))
-    expect(weekly.url).toBe('https://bark.example.com/push')
-    expect(((await weekly.json()) as { level: string }).level).toBe('passive')
-  })
-
-  it('read a Bark key, or the app’s whole URL', () => {
-    expect(barkSettings(' k3y ', '')).toEqual({ server: undefined, key: 'k3y' })
-    expect(barkSettings('https://api.day.app/k3y/title/body', '')).toEqual({ server: undefined, key: 'k3y' })
-    expect(barkSettings('https://bark.example.com/k3y/', '')).toEqual({
-      server: 'https://bark.example.com',
-      key: 'k3y',
-    })
+    const weekly = telegramRequest(
+      { token: 't', chat: '1', server: 'http://localhost:8081/' },
+      notice({ kind: 'weekly' }),
+    )
+    expect(weekly.url).toBe('http://localhost:8081/bott/sendMessage')
+    expect(((await weekly.json()) as { disable_notification: boolean }).disable_notification).toBe(true)
   })
 
   it('speak Slack’s and Discord’s webhook formats', () => {
@@ -90,18 +74,5 @@ describe('channels', () => {
     expect(isQuiet({ quiet_from: 22 * 60, quiet_to: 7 * 60 }, at(3))).toBe(true)
     expect(isQuiet({ quiet_from: 22 * 60, quiet_to: 7 * 60 }, at(12))).toBe(false)
     expect(isQuiet({ quiet_from: null, quiet_to: null }, at(3))).toBe(false)
-  })
-})
-
-describe('push buttons', () => {
-  it('only work for their issue and action, and until they expire', async () => {
-    const url = new URL(await actionUrl('https://c.example', 'secret', 7, 'resolve', 1000))
-    const expires = Number(url.searchParams.get('expires'))
-    const signature = url.searchParams.get('signature')!
-    expect(await verifyAction('secret', 7, 'resolve', expires, signature, 2000)).toBe(true)
-    expect(await verifyAction('secret', 8, 'resolve', expires, signature, 2000)).toBe(false)
-    expect(await verifyAction('secret', 7, 'ignore', expires, signature, 2000)).toBe(false)
-    expect(await verifyAction('other', 7, 'resolve', expires, signature, 2000)).toBe(false)
-    expect(await verifyAction('secret', 7, 'resolve', expires, signature, expires + 1)).toBe(false)
   })
 })

@@ -9,7 +9,6 @@ import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
 import { fromSpans, sessionCounts, storeSessions, storeTransaction, summarize } from '../performance/ingest'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
-import { actionUrl } from '../notify/actions'
 import { sharedSymbolic } from '../symbols/module'
 import { symbolicate } from '../symbols/symbolicate'
 import type { Notice } from '../notify/notice'
@@ -17,7 +16,6 @@ import type { Notice } from '../notify/notice'
 export type IngestEnv = {
   DB: D1Database
   FILES: R2Bucket
-  ACTION_SECRET?: string
   EMAIL?: SendEmail
   EMAIL_FROM?: string
 }
@@ -221,12 +219,6 @@ async function noticesFor(
       os: event.tags.os,
     },
     url: `${origin}/issues/${stored.issue.id}`,
-    actions: env.ACTION_SECRET
-      ? {
-          resolve: await actionUrl(origin, env.ACTION_SECRET, stored.issue.id, 'resolve'),
-          ignore: await actionUrl(origin, env.ACTION_SECRET, stored.issue.id, 'ignore'),
-        }
-      : undefined,
   }
   const notices: Notice[] = []
   if (stored.isNew) notices.push({ ...base, kind: 'new' })

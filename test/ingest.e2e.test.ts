@@ -1,5 +1,5 @@
 // The real thing: the official @sentry/node SDK sending to `vite dev` (the worker, local D1 and R2), and notifications
-// reaching a stub ntfy server. Kept under 30 seconds.
+// reaching a stub Telegram Bot API. Kept under 30 seconds.
 import { createServer, type Server } from 'node:http'
 import * as Sentry from '@sentry/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -10,13 +10,13 @@ import { bucketOf } from '../src/performance/histogram'
 import { KEY, startDev, waitFor } from './dev'
 
 const PORT = 3999
-const NTFY_PORT = 3998
+const STUB_PORT = 3998
 const origin = `http://localhost:${PORT}`
 const dsn = `http://${KEY}@localhost:${PORT}/1`
 
 let dev: Awaited<ReturnType<typeof startDev>>
-let ntfy: Server
-const pushes: { title: string; body: string; actions?: string }[] = []
+let stub: Server
+const pushes: { title: string; body: string }[] = []
 
 const db = () => dev.db
 const issues = async () =>
@@ -48,22 +48,24 @@ const crash = (release: string) => ({
 })
 
 beforeAll(async () => {
-  ntfy = createServer((req, res) => {
+  stub = createServer((req, res) => {
     // Also what the uptime checks ask: /health answers, /down doesn't
     if (req.url === '/health') return void res.end('catalog ok')
     if (req.url === '/down') return void ((res.statusCode = 503), res.end())
     let body = ''
     req.on('data', (c) => (body += c))
     req.on('end', () => {
-      pushes.push({ title: String(req.headers.title), body, actions: req.headers.actions as string | undefined })
+      // A bot's message: the title in bold, then the line under it
+      const [title, line] = (JSON.parse(body) as { text: string }).text.split('\n')
+      pushes.push({ title: title.replace(/<\/?b>/g, ''), body: line })
       res.end('{}')
     })
-  }).listen(NTFY_PORT)
+  }).listen(STUB_PORT)
   dev = await startDev(PORT, '.wrangler/e2e')
   await db().batch([
     db()
-      .prepare("INSERT INTO channels (id, kind, name, config, created_at) VALUES (1, 'ntfy', 'stub', ?, 0)")
-      .bind(JSON.stringify({ server: `http://localhost:${NTFY_PORT}`, topic: 'e2e' })),
+      .prepare("INSERT INTO channels (id, kind, name, config, created_at) VALUES (1, 'telegram', 'stub', ?, 0)")
+      .bind(JSON.stringify({ server: `http://localhost:${STUB_PORT}`, token: 'e2e', chat: '1' })),
     db().prepare(
       `INSERT INTO routes (kinds, thresholds, channel_ids, created_at) VALUES ('["new","threshold","regression","monitor_down","monitor_up","weekly"]', '[10]', '[1]', 0)`,
     ),
@@ -73,7 +75,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await Sentry.close()
-  ntfy?.close()
+  stub?.close()
   await dev?.stop()
 })
 
@@ -85,7 +87,6 @@ describe('ingest, through the real SDK', () => {
     expect(issue).toMatchObject({ title: 'Error: the first crash', count: 1, status: 'unresolved', substatus: 'new' })
     const push = await waitFor(() => pushes.find((p) => p.title === 'Error: the first crash'))
     expect(push.body).toContain('new')
-    expect(push.actions).toMatch(/Resolve, http:\/\/localhost:3999\/api\/actions\/\d+\/resolve\?expires=/)
   })
 
   it('adds the same error to the same issue, and keeps a message apart', async () => {
@@ -261,7 +262,7 @@ describe('ingest, through the real SDK', () => {
   })
 
   it('checks a URL, and opens an incident after two failures in a row', async () => {
-    const config = { url: `http://localhost:${NTFY_PORT}/health`, intervalMinutes: 1, mustContain: 'catalog' }
+    const config = { url: `http://localhost:${STUB_PORT}/health`, intervalMinutes: 1, mustContain: 'catalog' }
     const base = {
       project_id: 1,
       name: 'Sync server',
@@ -275,7 +276,7 @@ describe('ingest, through the real SDK', () => {
     expect(await db().prepare('SELECT status FROM monitors WHERE id = ?').bind(id).first()).toEqual({ status: 'ok' })
     await saveMonitor(
       db(),
-      { ...base, id, kind: 'uptime', config: { ...config, url: `http://localhost:${NTFY_PORT}/down` } },
+      { ...base, id, kind: 'uptime', config: { ...config, url: `http://localhost:${STUB_PORT}/down` } },
       now,
     )
     await fetch(`${origin}/__dev/cron?now=${now + 1000}`, { method: 'POST' })

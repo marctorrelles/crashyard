@@ -581,9 +581,9 @@ for (let d = 0; d < 14; d++) {
 
 const channel = await db
   .prepare(
-    "INSERT INTO channels (kind, name, config, quiet_from, quiet_to, created_at) VALUES ('ntfy', 'My phone', ?, 1320, 420, ?) RETURNING id",
+    "INSERT INTO channels (kind, name, config, quiet_from, quiet_to, created_at) VALUES ('telegram', 'My phone', ?, 1320, 420, ?) RETURNING id",
   )
-  .bind(JSON.stringify({ topic: `crashyard-${hex(16)}` }), now)
+  .bind(JSON.stringify({ token: `1:${hex(16)}`, chat: '1', name: 'Me' }), now)
   .first()
 await db
   .prepare(

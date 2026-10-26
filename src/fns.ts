@@ -16,6 +16,7 @@ import * as source from './data/source'
 import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
+import { telegramChats } from './notify/channels'
 import { ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
@@ -319,7 +320,7 @@ export const saveChannel = createServerFn({ method: 'POST' })
     const o = object(d)
     return {
       id: optional((v) => int(v))(o.id),
-      kind: oneOf(['ntfy', 'bark', 'email', 'webhook'] as const)(o.kind),
+      kind: oneOf(['telegram', 'email', 'webhook'] as const)(o.kind),
       name: text(o.name, 80).trim() || 'Untitled',
       config: json(o.config),
       quiet_from: minuteOfDay(o.quiet_from) ?? null,
@@ -327,6 +328,11 @@ export const saveChannel = createServerFn({ method: 'POST' })
     }
   })
   .handler(({ data }) => notifications.saveChannel(env.DB, data, Date.now()))
+
+/** The chats that wrote to a Telegram bot lately, for its channel's chat */
+export const findTelegramChats = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ token: text(object(d).token, 100).trim() }))
+  .handler(({ data }) => telegramChats(data.token))
 
 export const deleteChannel = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))

@@ -1,6 +1,5 @@
 import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/server'
 import { env as workerEnv } from 'cloudflare:workers'
-import { handleAction } from './api/actions'
 import { handleIngest } from './api/ingest'
 import { viewerOf } from './auth/access'
 
@@ -8,15 +7,12 @@ const start = createStartHandler(defaultStreamHandler)
 
 // What apps and build tools call: plain handlers, each checking its own key or token, ahead of Start
 const INGEST = /^\/api\/(\d+)\/(envelope|store)\/?$/
-const ACTION = /^\/api\/actions\/(\d+)\/(resolve|ignore)\/?$/
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
     const ingest = url.pathname.match(INGEST)
     if (ingest) return handleIngest(request, env, ctx, Number(ingest[1]), ingest[2] as 'envelope' | 'store')
-    const action = url.pathname.match(ACTION)
-    if (action) return handleAction(request, env, Number(action[1]), action[2] as 'resolve' | 'ignore')
     // Local dev only (compiled out of every build): SQL for the end-to-end tests, so only this process opens the
     // local database (a second one on the same file trips over its locks)
     if (import.meta.env.DEV && url.pathname === '/__dev/sql' && request.method === 'POST') {

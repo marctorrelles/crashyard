@@ -7,7 +7,7 @@ plans.
 
 The README's **Deploy to Cloudflare** button copies this repository to your GitHub, makes the D1 database and the R2
 bucket in your account, and deploys to `crashyard.<your account>.workers.dev`, redeploying whenever your copy changes.
-Then follow steps 3 to 6 below, putting the values they mention in your copy's `wrangler.jsonc` (its `routes` and
+Then follow steps 3 to 5 below, putting the values they mention in your copy's `wrangler.jsonc` (its `routes` and
 `vars`) rather than in `wrangler.local.json`: commit them, and it deploys again.
 
 ## What you need
@@ -18,7 +18,7 @@ Then follow steps 3 to 6 below, putting the values they mention in your copy's `
 
 ## 1. Point it at your domain (from a clone)
 
-`pnpm run setup` asks for this step's and step 3's values, writes the file, and offers steps 2, 4 and 5 for you; run
+`pnpm run setup` asks for this step's and step 3's values, writes the file, and offers steps 2 and 4 for you; run
 it again to change a value. By hand:
 
 Your deployment's own values go in `wrangler.local.json` at the repo root, which git ignores and the build lays over
@@ -95,17 +95,7 @@ Access does the signing in; crashyard has no accounts of its own. Go to [one.das
 
 Open your subdomain: Cloudflare's sign-in comes first, then crashyard.
 
-## 4. The secret for push buttons
-
-Pushes carry Resolve and Ignore buttons; their links are signed with a secret only the worker knows:
-
-```sh
-openssl rand -hex 32 | pnpm wrangler secret put ACTION_SECRET
-```
-
-Without it, pushes still arrive, without the buttons.
-
-## 5. Keep raw envelopes a month, and clean up uploads (optional)
+## 4. Keep raw envelopes a month, and clean up uploads (optional)
 
 Every envelope is also kept as it arrived in R2, to reprocess or debug. A lifecycle rule deletes them after 30 days:
 
@@ -116,7 +106,7 @@ pnpm wrangler r2 bucket lifecycle add crashyard-files chunks chunks/ --expire-da
 
 The second drops upload chunks left behind by an upload that never finished.
 
-## 6. Email notifications (optional)
+## 5. Email notifications (optional)
 
 crashyard sends email through Cloudflare Email Routing, to addresses you've verified there.
 
@@ -125,7 +115,7 @@ crashyard sends email through Cloudflare Email Routing, to addresses you've veri
 3. In `wrangler.local.json`'s `vars`, set `EMAIL_FROM` to an address on your domain, such as `crashyard@example.com` (it needn't
    exist), and deploy again.
 
-Then add an email channel in the dashboard's notification settings. ntfy, Bark and webhook channels need nothing here.
+Then add an email channel in the dashboard's notification settings. Telegram and webhook channels need nothing here.
 
 ## Checking it
 

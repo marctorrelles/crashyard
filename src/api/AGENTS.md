@@ -24,4 +24,3 @@ signature; `/mcp` comes after the Access check.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
   web page can't call it with someone's Access cookie. See docs/mcp.md.
-- `actions.ts`: `POST /api/actions/<issue>/<resolve|ignore>`, the buttons on a push, checked by `verifyAction`.

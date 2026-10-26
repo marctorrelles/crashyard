@@ -1,11 +1,11 @@
 import { ClientOnly, createFileRoute, useRouter } from '@tanstack/react-router'
 import {
-  BellIcon,
   MailIcon,
   PencilIcon,
   PlusIcon,
   SendIcon,
-  SmartphoneIcon,
+  SearchIcon,
+  SendHorizontalIcon,
   Trash2Icon,
   WebhookIcon,
 } from 'lucide-react'
@@ -25,9 +25,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { deleteChannel, deleteRoute, getNotifications, saveChannel, saveRoute, testRoute } from '@/fns'
+import {
+  deleteChannel,
+  deleteRoute,
+  findTelegramChats,
+  getNotifications,
+  saveChannel,
+  saveRoute,
+  testRoute,
+} from '@/fns'
 import type { Channel } from '@/notify/channels'
-import { barkSettings } from '@/notify/channels'
 import { KINDS, LEVELS, type Route as NotifyRoute } from '@/notify/notice'
 
 export const Route = createFileRoute('/notifications')({
@@ -37,7 +44,7 @@ export const Route = createFileRoute('/notifications')({
 })
 
 type Data = Awaited<ReturnType<typeof getNotifications>>
-const ICONS = { ntfy: BellIcon, bark: SmartphoneIcon, email: MailIcon, webhook: WebhookIcon }
+const ICONS = { telegram: SendHorizontalIcon, email: MailIcon, webhook: WebhookIcon }
 const list = <T,>(json: string | null): T[] => (json ? (JSON.parse(json) as T[]) : [])
 
 function Notifications() {
@@ -58,7 +65,7 @@ function Notifications() {
         </div>
         {d.channels.length === 0 ? (
           <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            None yet. An ntfy topic is the quickest: install the ntfy app, make up a long topic name, add it here.
+            None yet. A Telegram bot is the quickest: make one with @BotFather, write to it, add it here.
           </p>
         ) : (
           <ul className="divide-y rounded-xl border">
@@ -122,10 +129,7 @@ function Notifications() {
 
 function summary(c: Channel) {
   const config = JSON.parse(c.config) as Record<string, string>
-  if (c.kind === 'ntfy')
-    return `ntfy · ${(config.server || 'https://ntfy.sh').replace(/^https?:\/\//, '')}/${config.topic.slice(0, 4)}…`
-  if (c.kind === 'bark')
-    return `Bark · ${(config.server || 'https://api.day.app').replace(/^https?:\/\//, '')}/${config.key.slice(0, 4)}…`
+  if (c.kind === 'telegram') return `Telegram · ${config.name ?? `chat ${config.chat}`}`
   if (c.kind === 'email') return `email · ${config.to}`
   return `${config.format ?? 'json'} webhook · ${new URL(config.url).host}`
 }
@@ -206,7 +210,7 @@ function ChannelDialog({
 }) {
   const router = useRouter()
   const config = channel ? (JSON.parse(channel.config) as Record<string, string>) : {}
-  const [kind, setKind] = useState<Channel['kind']>(channel?.kind ?? 'ntfy')
+  const [kind, setKind] = useState<Channel['kind']>(channel?.kind ?? 'telegram')
   const [format, setFormat] = useState(config.format ?? 'json')
   const [quiet, setQuiet] = useState(channel?.quiet_from != null)
   const done = async () => {
@@ -221,14 +225,13 @@ function ChannelDialog({
           onSubmit={async (e) => {
             e.preventDefault()
             const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>
+            if (kind === 'telegram' && !f.chat) return toast.error('Find the chat first: write to the bot, then Find')
             const settings =
-              kind === 'ntfy'
-                ? { server: f.server || undefined, topic: f.topic, token: f.token || undefined }
-                : kind === 'bark'
-                  ? barkSettings(f.key, f.server)
-                  : kind === 'email'
-                    ? { to: f.to }
-                    : { url: f.url, format }
+              kind === 'telegram'
+                ? { token: f.token.trim(), chat: f.chat.trim(), name: f.chatName || undefined }
+                : kind === 'email'
+                  ? { to: f.to }
+                  : { url: f.url, format }
             try {
               await saveChannel({
                 data: {
@@ -258,51 +261,14 @@ function ChannelDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ntfy">ntfy push</SelectItem>
-                  <SelectItem value="bark">Bark push (iPhone)</SelectItem>
+                  <SelectItem value="telegram">Telegram bot</SelectItem>
                   <SelectItem value="email">Email (Cloudflare Email Routing)</SelectItem>
                   <SelectItem value="webhook">Webhook (JSON, Slack, Discord)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <Field id="name" label="Name" defaultValue={channel?.name} placeholder="My phone" required />
-            {kind === 'ntfy' && (
-              <>
-                <Field
-                  id="topic"
-                  label="Topic"
-                  defaultValue={config.topic}
-                  required
-                  hint="Anyone who knows it can read it: make it long and secret."
-                />
-                <Field
-                  id="server"
-                  label="Server"
-                  defaultValue={config.server}
-                  placeholder="https://ntfy.sh"
-                  type="url"
-                />
-                <Field id="token" label="Access token" defaultValue={config.token} hint="Only for a protected topic." />
-              </>
-            )}
-            {kind === 'bark' && (
-              <>
-                <Field
-                  id="key"
-                  label="Device key"
-                  defaultValue={config.key}
-                  required
-                  hint="Paste the key, or one of the Bark app’s URLs as it is (https://api.day.app/<key>/…)."
-                />
-                <Field
-                  id="server"
-                  label="Server"
-                  defaultValue={config.server}
-                  placeholder="https://api.day.app"
-                  type="url"
-                />
-              </>
-            )}
+            {kind === 'telegram' && <TelegramFields config={config} />}
             {kind === 'email' && (
               <Field
                 id="to"
@@ -383,6 +349,68 @@ function ChannelDialog({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** A bot's token and the chat it writes to, found from the bot's latest messages */
+function TelegramFields({ config }: { config: Record<string, string> }) {
+  const [token, setToken] = useState(config.token ?? '')
+  const [chat, setChat] = useState({ id: config.chat ?? '', name: config.name ?? '' })
+  const [found, setFound] = useState<{ id: string; name: string }[]>([])
+  const find = async () => {
+    try {
+      const chats = await findTelegramChats({ data: { token } })
+      if (!chats.length) return toast.error('No messages yet: write to your bot in Telegram, then find again.')
+      setFound(chats)
+      setChat(chats[0])
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Telegram didn’t answer')
+    }
+  }
+  return (
+    <>
+      <Field
+        id="token"
+        label="Bot token"
+        value={token}
+        onChange={(e) => setToken(e.target.value)}
+        required
+        hint="In Telegram, @BotFather’s /newbot gives a bot and its token. Then write anything to your bot."
+      />
+      <div className="grid gap-2">
+        <Label htmlFor="f-chat">Chat</Label>
+        <div className="flex gap-2">
+          {found.length > 1 ? (
+            <Select value={chat.id} onValueChange={(id) => setChat(found.find((c) => c.id === id)!)}>
+              <SelectTrigger id="f-chat" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {found.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              id="f-chat"
+              value={chat.name ? `${chat.name} (${chat.id})` : chat.id}
+              readOnly
+              required
+              placeholder="Write to the bot, then find it"
+            />
+          )}
+          <Button type="button" variant="outline" disabled={!token.trim()} onClick={find}>
+            <SearchIcon data-icon="inline-start" />
+            Find
+          </Button>
+        </div>
+        <input type="hidden" name="chat" value={chat.id} />
+        <input type="hidden" name="chatName" value={chat.name} />
+      </div>
+    </>
   )
 }
 

@@ -21,10 +21,10 @@ Where things are:
   through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications; hourly, slower
   releases; Mondays at 07:00 UTC, each project's week; at 03:00 UTC, retention). In local dev only, `/__dev/sql` and
   `/__dev/cron` let the end-to-end tests reach the database and run the cron.
-- `src/api/`: ingest, the push buttons and Sentry's upload API (`/api/0/`), outside Access, and the MCP server,
+- `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside Access, and the MCP server,
   inside (see its AGENTS.md).
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
-- `src/notify/`: routes, channels (ntfy, email, webhooks), quiet hours (see its AGENTS.md).
+- `src/notify/`: routes, channels (Telegram, email, webhooks), quiet hours (see its AGENTS.md).
 - `src/auth/`: the Access check (see its AGENTS.md).
 - `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`.
   `src/start.ts` limits them to same-origin calls (CSRF).
@@ -43,7 +43,7 @@ Where things are:
 - `scripts/`: `pnpm seed` for a local database with data in it (see its AGENTS.md).
 - `wrangler.jsonc`: the worker, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and empty `vars`, generic so
   anyone can deploy it; a deployment's own domain and Access values are in the git-ignored `wrangler.local.json`,
-  which `vite.config.ts` lays over it. Secrets: `ACTION_SECRET` (`wrangler secret put`; `.dev.vars` locally).
+  which `vite.config.ts` lays over it.
 - `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
   three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root), issue
   and PR templates, Dependabot. Actions are pinned by commit SHA.
