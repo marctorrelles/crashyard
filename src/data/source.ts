@@ -13,7 +13,13 @@ export type GitCommit = {
 
 /** The commits go to every project with this release (only `only`'s, for a project's token); its head becomes the
  * release's ref */
-export async function storeCommits(db: D1Database, version: string, commits: GitCommit[], only: number | null = null) {
+export async function storeCommits(
+  db: D1Database,
+  version: string,
+  commits: GitCommit[],
+  only: number | null = null,
+  now = Date.now(),
+) {
   const projects = (
     await db.prepare('SELECT project_id FROM releases WHERE version = ?').bind(version).all<{ project_id: number }>()
   ).results
@@ -50,9 +56,48 @@ export async function storeCommits(db: D1Database, version: string, commits: Git
     db
       .prepare('DELETE FROM source_files WHERE project_id = ? AND path IN (SELECT value FROM json_each(?))')
       .bind(project, JSON.stringify(deleted)),
+    // Each commit's own files, for suspect commits (src/data/suspects.ts): one statement a commit
+    ...commits
+      .filter((c) => c.patch_set?.length)
+      .map((c) =>
+        db
+          .prepare(
+            `INSERT OR REPLACE INTO commit_files (project_id, sha, path, kind)
+             SELECT ?, ?, json_extract(value, '$.path'), json_extract(value, '$.type') FROM json_each(?)
+             WHERE json_extract(value, '$.path') IS NOT NULL`,
+          )
+          .bind(project, c.id, JSON.stringify(c.patch_set!.map((f) => ({ path: f.path, type: f.type || 'M' })))),
+      ),
+    // "Fixes CRASHYARD-12" or "fixes crashyard#12" resolves that issue of this project in this release, once a commit
+    ...commits.flatMap((c) =>
+      fixedIssues(c.message ?? '').flatMap((id) => {
+        const commit = JSON.stringify({ sha: c.id, message: (c.message ?? '').trim().split('\n')[0].slice(0, 200) })
+        return [
+          db
+            .prepare(
+              `INSERT INTO issue_activity (issue_id, kind, data, at)
+               SELECT id, 'resolved', json_object('release', ?, 'commit', json(?)), ? FROM issues
+               WHERE id = ? AND project_id = ? AND COALESCE(resolved_in_commit, '') != ?`,
+            )
+            .bind(version, commit, now, id, project, c.id),
+          db
+            .prepare(
+              `UPDATE issues SET status = 'resolved', substatus = NULL, resolved_in_release = NULL, fixed_in_release = ?,
+                 resolved_in_commit = ?, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL
+               WHERE id = ? AND project_id = ? AND COALESCE(resolved_in_commit, '') != ?`,
+            )
+            .bind(version, c.id, id, project, c.id),
+        ]
+      }),
+    ),
   ])
   if (statements.length) await db.batch(statements)
 }
+
+/** The issue ids a commit message says it fixes: `Fixes CRASHYARD-12` or `fixes crashyard#12`, any case */
+export const fixedIssues = (message: string) => [
+  ...new Set([...message.matchAll(/\bfixes\s+crashyard(?:-|#)(\d+)\b/gi)].map((m) => Number(m[1]))),
+]
 
 /** The newest release before this one, of the same projects, that has commits */
 export const previousWithCommits = (db: D1Database, version: string) =>

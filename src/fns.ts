@@ -17,6 +17,7 @@ import * as searches from './data/searches'
 import * as settings from './data/settings'
 import * as source from './data/source'
 import * as suggestions from './data/suggest'
+import * as suspectsData from './data/suspects'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
 import * as widgets from './data/widgets'
@@ -305,8 +306,13 @@ export const getIssue = createServerFn()
     const issue = await issues.getIssue(env.DB, data.id, data.event, now)
     if (!issue) return null
     const project = (await projects.projectBySlug(env.DB, issue.issue.project))!
-    const links = issue.eventJson ? await source.frameLinks(env.DB, project, JSON.parse(issue.eventJson)) : {}
-    return { ...issue, links, now, viewer: viewer() }
+    const event = issue.eventJson ? JSON.parse(issue.eventJson) : null
+    const [links, suspects, similar] = await Promise.all([
+      event ? source.frameLinks(env.DB, project, event) : {},
+      suspectsData.suspectCommits(env.DB, issue.issue, event, project.repo_url),
+      suspectsData.similarIssues(env.DB, issue.issue, event),
+    ])
+    return { ...issue, links, suspects, similar, now, viewer: viewer() }
   })
 
 export const changeIssues = createServerFn({ method: 'POST' })

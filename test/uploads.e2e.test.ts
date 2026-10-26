@@ -222,6 +222,15 @@ describe('readable stacks, uploaded with sentry-cli', () => {
     expect(ref?.ref).toBe(head2)
     const files = await dev.db.prepare('SELECT path FROM source_files ORDER BY path').all<{ path: string }>()
     expect(files.results.map((f) => f.path)).toEqual(['apple/Studio.swift', 'apple/Sync.swift', 'web/app.ts'])
+    // And each commit's own files, as sentry-cli's patch_set names them, for suspect commits
+    const own = await dev.db
+      .prepare('SELECT path, kind FROM commit_files WHERE sha = ? ORDER BY path')
+      .bind(head2)
+      .all<{ path: string; kind: string }>()
+    expect(own.results).toEqual([
+      { path: 'old.txt', kind: 'D' },
+      { path: 'web/app.ts', kind: 'A' },
+    ])
   })
 
   it('refuses uploads without a token', async () => {

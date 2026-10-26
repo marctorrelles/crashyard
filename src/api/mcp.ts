@@ -3,6 +3,7 @@
 // Access service token (CF-Access-Client-Id and CF-Access-Client-Secret headers), and only read unless the setting
 // "Let agents change issues" is on. See docs/mcp.md.
 import * as issues from '../data/issues'
+import { suspectCommits } from '../data/suspects'
 import { listLogs, RANGES, type Range } from '../data/logs'
 import { projectBySlug } from '../data/projects'
 import { AGENTS_KEY, getSetting } from '../data/settings'
@@ -140,7 +141,21 @@ const TOOLS: Tool[] = [
     ]),
     run: async (a, { db, origin }) => {
       const d = await issues.getIssue(db, need(argInt(a.id), 'id'), argString(a.event, 64), Date.now())
-      return d ? issueText(d, origin) : 'No such issue.'
+      if (!d) return 'No such issue.'
+      const repo = await db
+        .prepare('SELECT repo_url FROM projects WHERE id = ?')
+        .bind(d.issue.project_id)
+        .first<{ repo_url: string | null }>()
+      const event = d.eventJson ? (JSON.parse(d.eventJson) as NormalizedEvent) : null
+      const suspects = await suspectCommits(db, d.issue, event, repo?.repo_url ?? null)
+      const text = issueText(d, origin)
+      if (!suspects.length) return text
+      return `${text}\n\n## Suspect commits, in ${d.issue.first_release}, that changed a file in the stack\n${suspects
+        .map(
+          (c) =>
+            `- ${c.sha.slice(0, 12)} ${c.message.split('\n')[0]}${c.author ? ` · ${c.author}` : ''} · ${c.files.join(', ')}`,
+        )
+        .join('\n')}`
     },
   },
   {

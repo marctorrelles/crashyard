@@ -49,4 +49,4 @@ signature; `/mcp` comes after the Access check.
   web page can't call it with someone's Access cookie. Agents, viewers `service:<common name>` (an Access service
   token), only read: the tools marked `changes` (`resolve_issue`, `ignore_issue`, `add_note`) answer an `isError`
   result saying where to allow them until the setting `agents.can_change` (Settings, Tokens) is on; people signed in
-  always can. See docs/mcp.md.
+  always can. See docs/mcp.md. `get_issue` ends with the issue's suspect commits (`suspectCommits`), when there are any.

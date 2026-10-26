@@ -8,7 +8,7 @@ CREATE TABLE commit_files (
   sha TEXT NOT NULL,
   path TEXT NOT NULL,                        -- from the repository's root
   kind TEXT NOT NULL,                        -- A, M or D
-  PRIMARY KEY (project_id, path, sha)
+  PRIMARY KEY (project_id, sha, path)
 ) WITHOUT ROWID;
 
 -- Fingerprint and stack trace rules in Sentry's syntax, one a line (src/ingest/rules.ts); null for none

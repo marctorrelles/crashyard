@@ -40,7 +40,8 @@ server, the build, or `tsr generate`): never edit it.
   ignore, merge and delete.
 - `issues/$issueId.tsx`: one issue: its priority (a menu), status (Escalating, ignored until it escalates or N
   users, resolved in a release), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
-  newer), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
+  newer), Suspect commits under the stack (sha linked through `commitUrl`, message, author, when, the files), Similar
+  issues, each with Merge into this issue (a confirmation, then `mergeIssues` with this one first), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events, feedback, activity and notes.
 - `releases.tsx`: releases (crash-free sessions when the SDK sends them), a section per project for every project;
   `projects/$slug/releases/$release.tsx`: one release's commits since the one before (from set-commits, each opening on

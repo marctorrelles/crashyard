@@ -118,6 +118,11 @@ crashyard learns which files exist from the commits it receives. That's why the 
 and later ones only send the commits since the previous release. crashyard never reads the repository itself, so a
 private repository needs no token. The links open for anyone who has access to it.
 
+An issue then shows its suspect commits: the commits in its first release that changed a file in its stack. A commit
+can also resolve an issue. Put `Fixes CRASHYARD-<issue id>` or `fixes crashyard#<issue id>` in its message, with the
+number from the issue's address. When set-commits sends it, the issue is resolved in that release, and its activity
+names the commit. An event from that release or a newer one opens it again.
+
 ## Logs
 
 Send logs with `Sentry.logger.info('song opened', { song: 42 })`, or with `warn`, `error` and the other levels. They

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
-import { IconChevronLeft, IconChevronRight, IconTrash } from '@tabler/icons-react'
+import { IconChevronLeft, IconChevronRight, IconGitCommit, IconGitMerge, IconTrash } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Ago, count, Level } from '@/components/bits'
@@ -12,7 +12,7 @@ import { Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { addNote, deleteNote, getIssue } from '@/fns'
+import { addNote, deleteNote, getIssue, mergeIssues } from '@/fns'
 import type { NormalizedEvent } from '@/ingest/event'
 import { addValue, isSearchableKey, NEW_FOR } from '@/search/query'
 
@@ -117,6 +117,7 @@ function IssuePage() {
                 </div>
               </div>
               <EventView event={event} links={d.links} attachments={d.attachments} />
+              <Suspects d={d} />
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -138,6 +139,7 @@ function IssuePage() {
               </ul>
             </section>
           )}
+          <Similar d={d} />
           <Events d={d} current={event?.id} />
         </div>
         <aside className="grid content-start gap-6">
@@ -250,6 +252,85 @@ function Tags({ tags, project }: { tags: Data['tags']; project: string }) {
           </div>
         ))}
       </div>
+    </section>
+  )
+}
+
+// The first release's commits that changed a file of the top in-app frames
+function Suspects({ d }: { d: Data }) {
+  if (!d.suspects.length) return null
+  return (
+    <section className="mt-8">
+      <h2 className="mb-1 text-sm font-medium">Suspect commits</h2>
+      <p className="mb-2 text-xs text-muted-foreground">
+        Commits in {d.issue.first_release} that changed a file in this stack.
+      </p>
+      <ul className="divide-y rounded-xl border text-sm">
+        {d.suspects.map((c) => (
+          <li key={c.sha} className="flex items-start gap-3 px-3 py-2">
+            <IconGitCommit className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate">{c.message.split('\n')[0] || 'No message'}</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {c.url ? (
+                  <a href={c.url} target="_blank" rel="noreferrer" className="font-mono underline">
+                    {c.sha.slice(0, 7)}
+                  </a>
+                ) : (
+                  <span className="font-mono">{c.sha.slice(0, 7)}</span>
+                )}
+                {c.author && ` · ${c.author}`}
+                {c.at ? (
+                  <>
+                    {' · '}
+                    <Ago at={c.at} now={d.now} />
+                  </>
+                ) : null}
+                {` · ${c.files.map((f) => f.split('/').at(-1)).join(', ')}`}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+// Issues that look like this one under another fingerprint, each with a merge into this one
+function Similar({ d }: { d: Data }) {
+  const router = useRouter()
+  if (!d.similar.length) return null
+  const merge = async (other: Data['similar'][number]) => {
+    if (!confirm(`Merge “${other.title}” into this issue? Its events, and any future ones, move here.`)) return
+    try {
+      await mergeIssues({ data: { ids: [d.issue.id, other.id] } })
+      toast.success('Merged into this issue')
+      await router.invalidate()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The issues couldn’t be merged')
+    }
+  }
+  return (
+    <section className="mt-8">
+      <h2 className="mb-1 text-sm font-medium">Similar issues</h2>
+      <p className="mb-2 text-xs text-muted-foreground">The same error in the same function, grouped apart.</p>
+      <ul className="divide-y rounded-xl border text-sm">
+        {d.similar.map((i) => (
+          <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+            <Link to="/issues/$issueId" params={{ issueId: String(i.id) }} className="min-w-0 flex-1 hover:underline">
+              <span className="block truncate">{i.title}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {count(i.count)} events · <Ago at={i.last_seen} now={d.now} />
+                {i.status !== 'unresolved' && ` · ${i.status}`}
+              </span>
+            </Link>
+            <Button size="sm" variant="outline" className="max-sm:h-9" onClick={() => merge(i)}>
+              <IconGitMerge data-icon="inline-start" />
+              Merge into this issue
+            </Button>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }

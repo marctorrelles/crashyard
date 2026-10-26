@@ -164,7 +164,22 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   `previousWithCommits`; `releaseCommits` (each linked to the project's `repo_url`); `frameLinks`, each in-app frame of
   an event matched to a file (`matchFile`: the file whose path ends with the most of the frame's, from its absolute
   path, its file, or for Java and Kotlin its package's folders and file; none on a tie) at the release's commit, else
-  `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed.
+  `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed. `storeCommits` also
+  writes each commit's `patch_set` into `commit_files` (one `json_each` statement a commit, `INSERT OR REPLACE`, so
+  sending a release again rewrites the same rows), and resolves what a message fixes (`fixedIssues`: "Fixes
+  CRASHYARD-id" or "fixes crashyard#id", any case, a word boundary first so "Prefixes" doesn't): the issue, of a
+  project the release is in, resolved in that release (`fixed_in_release`, `resolved_in_commit` the sha) with a
+  `resolved` activity entry `{ release, commit: { sha, message's first line } }` by crashyard, both only while the
+  issue's `resolved_in_commit` isn't already that sha, so a second set-commits adds nothing.
+- `suspects.ts`: `suspectCommits(db, issue, event, repo)`: the top 5 in-app frames of the event's last exception,
+  matched (`matchFile`) against the paths the issue's first release's commits changed (`release_commits` joined to
+  `commit_files` by `(project_id, sha)`, deletions left out), and the commits that changed a matched path, by position,
+  so newest first, each with those paths and its URL; none without a first release, in-app frames or commit files.
+  `similarIssues(db, issue, event)`: issues of the project, error type only, with the same culprit (the top in-app
+  frame's module and function, `culpritOf`) and a title that is the event's exception type or starts with it and `: `
+  (no exception type column is kept; the title starts with it), unresolved first then by events, 10 at most; none for
+  a message or a synthetic exception. Plan: `issues_project_last_seen` by project. `suspects.test.ts` on
+  `test/fakes.ts`, with resolving by commit.
 - `health.ts`: `usage` (Settings, Usage: per UTC day over N days from `project_days`, of every project or one: events,
   logs, transactions, `dropped` (whole envelopes a limit turned away), `filtered`, `failed`) and `health` (Settings,
   Health: the database's size, `meta.size_after` of a `SELECT 1`, against D1's 10 GB; the sizes of debug files,
