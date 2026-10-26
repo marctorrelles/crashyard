@@ -151,6 +151,10 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   `toCsv` (a header, then a record a row: fields with a quote, comma or line break quoted and their quotes doubled;
   one starting `=` `+` `-` `@`, a tab or a return gets a `'` first so a spreadsheet runs nothing) and `toJsonLines`.
   Tested in `logs.test.ts`.
+- `searches.ts`: saved searches (`saved_searches`) of a page (`PAGES`: issues, logs, explore): the viewer's own and
+  everyone's shared ones, theirs pinned first, then by name, 100 at most (`saved_searches_page`); a pin is its
+  owner's, one a page and email (`pinSearch` unpins the rest in the same batch); only the owner pins or deletes.
+  `searches.test.ts` on `test/fakes.ts`.
 - `source.ts`: stacks linked to the code. `storeCommits` (a release's commits from set-commits, its head as the
   release's `ref`, and `source_files`, every path the commits sent so far left: added or changed, not deleted since);
   `previousWithCommits`; `releaseCommits` (each linked to the project's `repo_url`); `frameLinks`, each in-app frame of

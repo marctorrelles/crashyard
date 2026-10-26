@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { count } from '@/components/bits'
 import { BarList, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
-import { SearchBar } from '@/components/search-bar'
+import { SavedSearches, SearchBar } from '@/components/search-bar'
 import { Time } from '@/components/time'
 import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
@@ -49,7 +49,16 @@ import { GroupBy as FieldSelect, WidgetView } from '@/components/widget'
 import { change } from '@/data/charts'
 import { GROUP_COLUMNS, MAX_SPAN } from '@/data/logs'
 import { type Aggregate, aggregateError, aggregatesOf, MAX_QUERIES, type Widget } from '@/data/widgets'
-import { addWidget, getDashboards, getLogChart, getLogGroups, getLogMaths, getLogs, getSuggestions } from '@/fns'
+import {
+  addWidget,
+  getDashboards,
+  getLogChart,
+  getLogGroups,
+  getLogMaths,
+  getLogs,
+  getSavedSearches,
+  getSuggestions,
+} from '@/fns'
 import { cn } from '@/lib/utils'
 import { addValue, isSearchableKey, logAttributeKey } from '@/search/query'
 
@@ -85,7 +94,8 @@ export const Route = createFileRoute('/logs')({
     const exact = from !== undefined && to !== undefined && from < to && to - from <= MAX_SPAN
     return {
       project: typeof s.project === 'string' && s.project ? s.project : undefined,
-      query: typeof s.query === 'string' && s.query ? s.query : undefined,
+      // An empty query is kept: it's "everything", not the pinned search
+      query: typeof s.query === 'string' ? s.query : undefined,
       range: typeof s.range === 'string' && s.range in RANGES ? (s.range as Range) : undefined,
       from: exact ? from : undefined,
       to: exact ? to : undefined,
@@ -98,7 +108,10 @@ export const Route = createFileRoute('/logs')({
   // With a group-by, the chart is its groups (and the table over the list); else logs by level. Other functions, and
   // two group-bys, are read as a logs widget is (`getLogMaths`)
   loader: async ({ deps }) => {
-    const params = paramsOf(deps)
+    // With no query in the URL, the viewer's pinned search opens
+    const saved = await getSavedSearches({ data: { page: 'logs' } })
+    const opening = saved.find((s) => s.pinned)?.query ?? ''
+    const params = paramsOf({ ...deps, query: deps.query ?? opening })
     const fns = functionsOf(deps.fn)
     const groupBy = listOf(deps.groupBy)
     const own = ownChart(fns, groupBy)
@@ -112,7 +125,7 @@ export const Route = createFileRoute('/logs')({
         ? getLogMaths({ data: { ...params, functions: others, groupBy, table: table ? fns : [] } })
         : undefined,
     ])
-    return { ...list, chart, groups, charts: maths?.charts ?? [], table: maths?.table }
+    return { ...list, chart, groups, charts: maths?.charts ?? [], table: maths?.table, saved, opening }
   },
   head: () => ({ meta: [{ title: 'Logs · crashyard' }] }),
   component: Logs,
@@ -153,9 +166,10 @@ function Logs() {
   const data = Route.useLoaderData()
   const name = useProjects().find((p) => p.slug === search.project)?.name ?? search.project
   const navigate = useNavigate({ from: Route.fullPath })
-  const query = search.query ?? ''
+  const query = search.query ?? data.opening
+  // An empty search stays in the URL while a pinned one would open instead
   const go = (change: Partial<Search>) => void navigate({ search: (s) => ({ ...s, ...change }) })
-  const searchFor = (q: string) => q || undefined
+  const searchFor = (q: string) => q || (data.opening ? '' : undefined)
   const [live, setLive] = useState(false)
   const [adding, setAdding] = useState<Widget | null>(null)
   const params = paramsOf({ ...search, query })
@@ -225,6 +239,7 @@ function Logs() {
             onSearch={(q) => go({ query: searchFor(q) })}
           />
         </div>
+        <SavedSearches page="logs" query={query} searches={data.saved} onPick={(q) => go({ query: searchFor(q) })} />
         <Select
           value={custom ? 'custom' : (search.range ?? '24h')}
           onValueChange={(v) => go({ range: v === '24h' ? undefined : (v as Range), from: undefined, to: undefined })}

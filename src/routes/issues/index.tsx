@@ -5,7 +5,7 @@ import { Ago, count, Level, Sparkline } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
 import { IssueActions } from '@/components/issue-actions'
 import { PriorityBadge } from '@/components/priority'
-import { SearchBar } from '@/components/search-bar'
+import { SavedSearches, SearchBar } from '@/components/search-bar'
 import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ValueMenu } from '@/components/value-menu'
 import { CHART_DAYS, type ChartDays } from '@/data/charts'
-import { getIssueChart, getIssues } from '@/fns'
+import { getIssueChart, getIssues, getSavedSearches } from '@/fns'
 import { addValue, NEW_FOR, tokenize, withToken } from '@/search/query'
 
 const SORTS = {
@@ -40,12 +40,15 @@ export const Route = createFileRoute('/issues/')({
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
-    const query = deps.query ?? DEFAULT_QUERY
+    // With no query in the URL, the viewer's pinned search opens, else the unresolved issues
+    const saved = await getSavedSearches({ data: { page: 'issues' } })
+    const opening = saved.find((s) => s.pinned)?.query ?? DEFAULT_QUERY
+    const query = deps.query ?? opening
     const [list, chart] = await Promise.all([
       getIssues({ data: { project: deps.project, query, sort: deps.sort, page: deps.page ?? 0 } }),
       getIssueChart({ data: { project: deps.project, query, days: deps.days ?? DEFAULT_DAYS } }),
     ])
-    return { ...list, chart }
+    return { ...list, chart, saved, opening }
   },
   head: () => ({ meta: [{ title: 'Issues · crashyard' }] }),
   component: Issues,
@@ -61,10 +64,10 @@ const STATUSES = [
 
 function Issues() {
   const search = Route.useSearch()
-  const { issues, more, now, chart } = Route.useLoaderData()
+  const { issues, more, now, chart, saved, opening } = Route.useLoaderData()
   const projects = useProjects()
   const navigate = useNavigate({ from: Route.fullPath })
-  const query = search.query ?? DEFAULT_QUERY
+  const query = search.query ?? opening
   const status = tokenize(query).find((t) => t.key === 'is' && !t.negate)?.value
   const project = projects.find((p) => p.slug === search.project)
   const name = project?.name ?? search.project
@@ -78,14 +81,17 @@ function Issues() {
   return (
     <Shell wide crumbs={name ? [<Link to="/issues">Issues</Link>, name] : ['Issues']}>
       <PageHeader title="Issues">{project?.name}</PageHeader>
-      <div className="mb-3">
-        <SearchBar
-          scope="issues"
-          query={query}
-          project={search.project}
-          placeholder='is:unresolved release:1.0.1 device:iPad* "audio engine"'
-          onSearch={(q) => go({ query: q })}
-        />
+      <div className="mb-3 flex flex-wrap gap-2">
+        <div className="min-w-60 flex-1">
+          <SearchBar
+            scope="issues"
+            query={query}
+            project={search.project}
+            placeholder='is:unresolved release:1.0.1 device:iPad* "audio engine"'
+            onSearch={(q) => go({ query: q })}
+          />
+        </div>
+        <SavedSearches page="issues" query={query} searches={saved} onPick={(q) => go({ query: q })} />
       </div>
       <section className="mb-3 rounded-xl border p-3 pb-1" aria-label="Events per day">
         <div className="mb-2 flex items-center justify-between gap-2">

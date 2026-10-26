@@ -37,7 +37,10 @@
   on focus and values 150 ms after typing stops (each kind with its own timer, so one never cancels the other), from
   `getSuggestions`, cached by scope, project, range, key and prefix for the page's life (a late reply only fills its own
   entry; while one is on its way, a shorter prefix's narrows). `onChange` reports the whole query as it stands (pills
-  and typed text) on every change. On the issues and logs pages, and in the widget dialog.
+  and typed text) on every change. On the issues and logs pages, and in the widget dialog. `SavedSearches`, beside the bar on Issues and
+  Logs: a popover of the saved searches (pinned first, a pin and a people icon for shared ones, the owner of someone
+  else's), a pick searches it; on the viewer's own, Pin (so the page opens with it), Unpin and Delete after a
+  confirmation; Save search names the current query and can share it with everyone.
 - `charts.tsx`: shadcn's `ChartContainer` over recharts. `TimeChart`: counts per bucket (`x` is bucket starts in ms or
   UTC days `YYYY-MM-DD`), series stacked as bars or areas (lines aren't; `stacked={false}` puts bars side by side), a
   series' own `kind` and `axis: 'right'` (a second axis, `formatRight`; the transaction page's count under its p95),

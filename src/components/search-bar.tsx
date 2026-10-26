@@ -3,8 +3,29 @@
 // The query stays the one truth: pills are tokens of it, and every pill change hands the whole query to `onSearch`.
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { IconSearch, IconX } from '@tabler/icons-react'
+import { useRouter } from '@tanstack/react-router'
+import {
+  IconBookmark,
+  IconPin,
+  IconPinFilled,
+  IconPinnedOff,
+  IconPlus,
+  IconSearch,
+  IconTrash,
+  IconUsers,
+  IconX,
+} from '@tabler/icons-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Command, CommandGroup, CommandItem, CommandList, CommandShortcut } from '@/components/ui/command'
 import {
   DropdownMenu,
@@ -13,10 +34,13 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Kbd } from '@/components/ui/kbd'
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
-import { getSuggestions } from '@/fns'
+import { Label } from '@/components/ui/label'
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { SavedSearch, SearchPage } from '@/data/searches'
+import { deleteSearch, getSuggestions, pinSearch, saveSearch } from '@/fns'
 import { ISSUE_KEYS, type KeyInfo, LOG_KEYS, type Token, tokenize, unparse } from '@/search/query'
 import { apply, contextAt, type Suggestion, suggest } from '@/search/suggest'
 
@@ -386,5 +410,176 @@ export function SearchBar({
         </Command>
       </PopoverContent>
     </Popover>
+  )
+}
+
+/**
+ * "Saved searches" beside a search bar: the viewer's pinned one first, then their own and everyone's shared ones; a
+ * pick searches it. Each of the viewer's own can be pinned, opening the page by default, or deleted. "Save search"
+ * names the current one and can share it with everyone
+ */
+export function SavedSearches({
+  page,
+  query,
+  searches,
+  onPick,
+}: {
+  page: SearchPage
+  query: string
+  searches: SavedSearch[]
+  onPick: (query: string) => void
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const run = async (f: () => Promise<unknown>, done: string) => {
+    setBusy(true)
+    try {
+      await f()
+      await router.invalidate()
+      toast.success(done)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'That didn’t work. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="max-sm:h-10">
+            <IconBookmark data-icon="inline-start" />
+            Saved searches
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-80 p-1">
+          {searches.length === 0 ? (
+            <p className="px-3 py-4 text-sm text-muted-foreground">
+              No saved searches yet. Save one to come back to it in a click.
+            </p>
+          ) : (
+            <ul className="max-h-80 overflow-y-auto">
+              {searches.map((s) => (
+                <li key={s.id} className="group flex items-center gap-1 rounded-md hover:bg-muted/60">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 px-2 py-1.5 text-left max-sm:min-h-10"
+                    onClick={() => {
+                      setOpen(false)
+                      onPick(s.query)
+                    }}
+                  >
+                    <span className="flex items-center gap-1.5 text-sm">
+                      <span className="truncate">{s.name}</span>
+                      {s.pinned && (
+                        <IconPinFilled className="size-3 shrink-0 text-muted-foreground" aria-label="Pinned" />
+                      )}
+                      {s.shared && <IconUsers className="size-3 shrink-0 text-muted-foreground" aria-label="Shared" />}
+                    </span>
+                    <span className="block truncate font-mono text-xs text-muted-foreground">
+                      {s.query || 'Everything'}
+                      {!s.mine && ` · ${s.email}`}
+                    </span>
+                  </button>
+                  {s.mine && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="max-sm:size-10"
+                        disabled={busy}
+                        aria-label={s.pinned ? `Unpin ${s.name}` : `Pin ${s.name}`}
+                        title={s.pinned ? 'Unpin' : 'Pin, so the page opens with it'}
+                        onClick={() =>
+                          run(
+                            () => pinSearch({ data: { id: s.id, pinned: !s.pinned } }),
+                            s.pinned ? 'Unpinned' : 'Pinned',
+                          )
+                        }
+                      >
+                        {s.pinned ? <IconPinnedOff /> : <IconPin />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="max-sm:size-10"
+                        disabled={busy}
+                        aria-label={`Delete ${s.name}`}
+                        onClick={() => {
+                          if (confirm(`Delete the saved search ${s.name}?`))
+                            void run(() => deleteSearch({ data: { id: s.id } }), 'Deleted')
+                        }}
+                      >
+                        <IconTrash />
+                      </Button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="border-t p-1">
+            <Button
+              variant="ghost"
+              className="w-full justify-start max-sm:h-10"
+              onClick={() => {
+                setOpen(false)
+                setSaving(true)
+              }}
+            >
+              <IconPlus data-icon="inline-start" />
+              Save search
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+      {saving && (
+        <Dialog open onOpenChange={(o) => !o && setSaving(false)}>
+          <DialogContent>
+            <form
+              className="contents"
+              onSubmit={(e) => {
+                e.preventDefault()
+                const f = new FormData(e.currentTarget)
+                void run(
+                  () =>
+                    saveSearch({
+                      data: { page, name: String(f.get('name')), query, shared: f.get('shared') === 'on' },
+                    }),
+                  'Saved',
+                ).then(() => setSaving(false))
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>Save search</DialogTitle>
+                <DialogDescription className="font-mono break-all">{query || 'Everything'}</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-2">
+                <Label htmlFor="search-name">Name</Label>
+                <Input
+                  id="search-name"
+                  name="name"
+                  required
+                  maxLength={80}
+                  autoComplete="off"
+                  placeholder="Fatal on iOS"
+                />
+              </div>
+              <Label className="flex items-center gap-2 font-normal">
+                <Checkbox name="shared" />
+                Share with everyone
+              </Label>
+              <DialogFooter>
+                <Button type="submit" disabled={busy}>
+                  Save search
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   )
 }

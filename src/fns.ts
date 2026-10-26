@@ -13,6 +13,7 @@ import * as notifications from './data/notifications'
 import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
+import * as searches from './data/searches'
 import * as settings from './data/settings'
 import * as source from './data/source'
 import * as suggestions from './data/suggest'
@@ -1031,3 +1032,28 @@ export const savePreference = createServerFn({ method: 'POST' })
     if (data.key === 'theme')
       setCookie('theme', String(data.value), { path: '/', maxAge: 31_536_000, sameSite: 'lax', secure: true })
   })
+
+// Saved searches of a page: the viewer's own and everyone's shared ones, the viewer's pinned one first
+export const getSavedSearches = createServerFn()
+  .validator((d: unknown) => ({ page: oneOf(searches.PAGES)(object(d).page) }))
+  .handler(({ data }) => searches.listSavedSearches(env.DB, viewer(), data.page))
+
+export const saveSearch = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    const name = text(o.name, 80).trim()
+    if (!name) throw new Error('Give the search a name.')
+    return { page: oneOf(searches.PAGES)(o.page), name, query: text(o.query ?? '', 1000), shared: o.shared === true }
+  })
+  .handler(({ data }) => searches.saveSearch(env.DB, viewer(), data, Date.now()))
+
+export const pinSearch = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), pinned: o.pinned === true }
+  })
+  .handler(({ data }) => searches.pinSearch(env.DB, viewer(), data.id, data.pinned))
+
+export const deleteSearch = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => searches.deleteSearch(env.DB, viewer(), data.id))

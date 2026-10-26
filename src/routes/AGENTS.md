@@ -35,7 +35,8 @@ server, the build, or `tsr generate`): never edit it.
   search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
   issues it matches for the last 14, 30 or 90 days (`?days=`, `getIssueChart`, loaded with the list), the period
   before as a dashed line. Status tabs: Unresolved, Escalating (`is:escalating`), Resolved, Ignored, All, scrolling
-  on a phone; sort by priority too; each row has its priority's menu. A row's project and release are menus to show only or exclude that value. Bulk resolve,
+  on a phone; sort by priority too; each row has its priority's menu. Saved searches beside the bar (`getSavedSearches`, loaded first): with no
+  `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. Bulk resolve,
   ignore, merge and delete.
 - `issues/$issueId.tsx`: one issue: its priority (a menu), status (Escalating, ignored until it escalates or N
   users), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
@@ -93,7 +94,8 @@ server, the build, or `tsr generate`): never edit it.
   comma-separated (By, Then); with two, or with more functions than a count, the table is a row per group and a column
   per function (`getLogMaths`' table) instead of the groups table. Each chart's menu: Add to dashboard (a dashboard
   and a title, `addWidget`), Create alert for a count (`/notifications?metric=log_count&query=…&project=…`), Remove
-  chart. Export: CSV or JSON Lines of the current search, through `logs_.export.ts`.
+  chart. Export: CSV or JSON Lines of the current search, through `logs_.export.ts`. Saved searches beside the bar: with no `query` in the
+  URL the viewer's pinned one opens, so a search cleared while one is pinned stays in the URL as `query=`.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
   monitor, and one monitor: its results or check-ins, how to check in, incidents, pause, edit, delete.
 - `notifications.tsx`: channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
