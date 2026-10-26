@@ -88,7 +88,10 @@ function Dashboards() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{d.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {d.widgets} {d.widgets === 1 ? 'widget' : 'widgets'} · {d.updated_by}
+                    {d.widgets === null
+                      ? 'Widgets that can’t be read'
+                      : `${d.widgets} ${d.widgets === 1 ? 'widget' : 'widgets'}`}{' '}
+                    · {d.updated_by}
                   </p>
                 </div>
                 <Ago at={d.updated} now={now} className="shrink-0 text-xs text-muted-foreground" />

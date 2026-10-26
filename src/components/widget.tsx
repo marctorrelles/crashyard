@@ -85,9 +85,15 @@ export function WidgetCard({
       <CardHeader>
         <CardTitle className="truncate">{widget.title}</CardTitle>
         <CardDescription className="truncate text-xs">
-          {DATASET_NAMES[widget.dataset]}
-          {widget.groupBy && <> by {widget.groupBy}</>}
-          {widget.query && <span className="font-mono"> · {widget.query}</span>}
+          {widget.invalid ? (
+            'Remove it, or edit it anew'
+          ) : (
+            <>
+              {DATASET_NAMES[widget.dataset]}
+              {widget.groupBy && <> by {widget.groupBy}</>}
+              {widget.query && <span className="font-mono"> · {widget.query}</span>}
+            </>
+          )}
         </CardDescription>
         {actions && <CardAction className="flex">{actions}</CardAction>}
       </CardHeader>
@@ -166,7 +172,9 @@ function WidgetView({
     return (
       <p className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
         <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-        <span className="min-w-0 break-words">This search can’t be shown: {data.message}</span>
+        <span className="min-w-0 break-words">
+          {w.invalid ? 'This widget can’t be read' : 'This search can’t be shown'}: {data.message}
+        </span>
       </p>
     )
   if (data.kind === 'number')
@@ -297,9 +305,9 @@ function WidgetView({
 
 const newId = () => [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('')
 
-/** A widget as it's saved: a group-by only where it's shown, level (the default) as none */
+/** A widget as it's saved: a group-by only where it's shown, level (the default) as none; one redone is valid again */
 function normalized(w: Widget): Widget {
-  const { groupBy, ...rest } = w
+  const { groupBy, invalid: _, ...rest } = w
   return groupBy && groupBy !== 'level' && w.dataset !== 'issues' && w.display !== 'number'
     ? { ...rest, groupBy }
     : rest
@@ -330,6 +338,8 @@ export function WidgetDialog({
     () => widget ?? { id: newId(), title: '', dataset: 'events', query: '', display: 'bar', width: 1 },
   )
   const set = (change: Partial<Widget>) => setW((old) => ({ ...old, ...change }))
+  // The search as it stands in the bar, searched or not: Add saves it (the preview follows what was searched)
+  const [typed, setTyped] = useState(w.query)
   // The title doesn't change what's shown, so typing it asks for nothing
   const shown = normalized({ ...w, title: 'Preview' })
   const key = JSON.stringify([shown, project, range])
@@ -362,14 +372,14 @@ export function WidgetDialog({
           className="contents"
           onSubmit={(e) => {
             e.preventDefault()
-            onSave(normalized({ ...w, title: w.title.trim() }), preview?.key === key ? preview.data : undefined)
+            const saved = { ...w, query: typed, title: w.title.trim() }
+            const same = typed === w.query && preview?.key === key
+            onSave(normalized(saved), same ? preview.data : undefined)
           }}
         >
           <DialogHeader>
             <DialogTitle>{widget ? 'Edit widget' : 'Add a widget'}</DialogTitle>
-            <DialogDescription>
-              A search, and how to show what it finds. Enter in the search applies it.
-            </DialogDescription>
+            <DialogDescription>A search, and how to show what it finds.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
@@ -390,13 +400,15 @@ export function WidgetDialog({
                 value={w.dataset}
                 onValueChange={(v) => {
                   const dataset = v as Dataset
+                  // Issues and events share the issues' search; logs have their own
+                  const query = (dataset === 'logs') === (w.dataset === 'logs') ? typed : ''
                   set({
                     dataset,
                     display: DISPLAYS[dataset].includes(w.display) ? w.display : DISPLAYS[dataset][0],
                     groupBy: undefined,
-                    // Issues and events share the issues' search; logs have their own
-                    query: (dataset === 'logs') === (w.dataset === 'logs') ? w.query : '',
+                    query,
                   })
+                  setTyped(query)
                 }}
               >
                 <SelectTrigger id="widget-dataset" className="w-full">
@@ -421,7 +433,11 @@ export function WidgetDialog({
               project={project}
               range={range}
               placeholder={w.dataset === 'logs' ? 'level:error release:1.0' : 'is:unresolved level:fatal'}
-              onSearch={(query) => set({ query })}
+              onSearch={(query) => {
+                set({ query })
+                setTyped(query)
+              }}
+              onChange={setTyped}
             />
           </div>
           <div className="grid gap-2">

@@ -27,7 +27,8 @@
   keys are left to it. Picking a value makes a pill and searches; changing or removing a pill searches. Keys come once
   on focus and values 150 ms after typing stops (each kind with its own timer, so one never cancels the other), from
   `getSuggestions`, cached by scope, project, range, key and prefix for the page's life (a late reply only fills its own
-  entry; while one is on its way, a shorter prefix's narrows). On the issues and logs pages.
+  entry; while one is on its way, a shorter prefix's narrows). `onChange` reports the whole query as it stands (pills
+  and typed text) on every change. On the issues and logs pages, and in the widget dialog.
 - `charts.tsx`: shadcn's `ChartContainer` over recharts. `TimeChart`: counts per bucket (`x` is bucket starts in ms or
   UTC days `YYYY-MM-DD`), series stacked as bars or areas (lines aren't; `stacked={false}` puts bars side by side), a
   series' own `kind` and `axis: 'right'` (a second axis, `formatRight`; the transaction page's count under its p95),
@@ -42,11 +43,13 @@
   colours for groups and projects. `BarList`: values with a bar for their share, count and percent (or `format`'s text),
   - (show only) and − (exclude) on hover, always shown on touch. `BigNumber`: a number, its label and its change (more
     reads red, less green, none as rounded muted), on the overview and dashboards.
-- `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset, group-by and query, then the number with its
-  change, the chart, the table of values with their change, the issues, or what went wrong; a series or a value
-  opens the logs or issues with it added), `WidgetActions` (edit mode: edit, up, down, remove; 40 px on a phone) and
-  `WidgetDialog` (title, dataset, `SearchBar` of its scope, display `ToggleGroup`, group-by, width, and a preview
-  from `previewWidget` 400 ms after a change, a reply for an older widget never shown).
+- `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset, group-by and query, then the number with its change,
+  the chart, the table of values with their change, the issues, or what went wrong, a placeholder saying it can't be
+  read and to remove or redo it; a series or a value opens the logs or issues with it added), `WidgetActions` (edit
+  mode: edit, up, down, remove; 40 px on a phone) and `WidgetDialog` (title, dataset, `SearchBar` of its scope (what's
+  in it is saved on Add, searched or not, by its `onChange`; a placeholder redone is valid again), display
+  `ToggleGroup`, group-by, width, and a preview from `previewWidget` 400 ms after a change, a reply for an older widget
+  never shown).
 - `value-menu.tsx`: `ValueMenu`, a value on a page as a `DropdownMenu`: show only this, exclude this, copy. Pages pass
   `addValue` for the first two, only for a key the grammar can write (`isSearchableKey`); its trigger sits above a row's
   link (`z-10`), its tap area 40 px high on a phone.

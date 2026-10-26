@@ -14,13 +14,13 @@ server, the build, or `tsr generate`): never edit it.
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
   (bars side by side) and crash-free per release (`getOverviewCharts`, 30 days, loaded with the overview, narrowed by
   `?project=`); failing monitors, new issues.
-- `dashboards/index.tsx`: the dashboards (name, widgets, when saved and by whom), New dashboard (a name, then it opens
-  in edit mode, `?edit=true`), and with none, Start with Crashes (`STARTER`). `dashboards/$dashboardId.tsx`: one
-  dashboard over a range (`?range=`, the logs page's), narrowed by `?project=` (`getDashboard`, every widget's data
-  in one call); its widgets in a grid of thirds (one column on a phone). Edit keeps a draft (name, widgets added,
-  changed, moved, removed; the range is fixed meanwhile, a changed widget shows its preview) until Save writes the
-  whole dashboard; Cancel drops it; Delete asks first. A chart's series or a table's value opens the logs or issues
-  with the widget's query and that value.
+- `dashboards/index.tsx`: the dashboards (name, widgets or that they can't be read, when saved and by whom), New
+  dashboard (a name, then it opens in edit mode, `?edit=true`), and with none, Start with Crashes (`STARTER`).
+  `dashboards/$dashboardId.tsx`: one dashboard over a range (`?range=`, the logs page's), narrowed by `?project=`
+  (`getDashboard`, every widget's data in one call); its widgets in a grid of thirds (one column on a phone). Edit keeps
+  a draft (name, widgets added, changed, moved, removed; the range is fixed meanwhile, a changed widget shows its
+  preview) until Save writes the whole dashboard; Cancel drops it; Delete asks first. A chart's series or a table's
+  value opens the logs or issues with the widget's query and that value.
 - `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`, `days`); the
   search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
   issues it matches for the last 14, 30 or 90 days (`?days=`, `getIssueChart`, loaded with the list), the period

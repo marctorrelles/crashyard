@@ -70,19 +70,22 @@ helpers (`change`).
   UTC day and level, or project with `by` (grouped by id, the slugs looked up after: `slugsOf`), of the issues a search
   matches, from `issue_days`). Plan: the issues by the filter (a scan, or a project's by `issues_project_last_seen`),
   then each one's days by `issue_days`' primary key; with no filter, the days by `issue_days_day`.
-- `dashboards.ts`: dashboards (`dashboards`, one row each, its widgets as JSON, who saved it last) and their
-  widgets. `parseWidgets` checks what the browser sends field by field: 20 at most, ids 8 hex digits and unique, a
-  title (80), a query (1000), a dataset (`issues`, `events`, `logs`) and a display it has (`DISPLAYS`: issues as a
-  number or a list; events and logs as a number, bars, area, line or a table), a width of 1 to 3 thirds and a
-  group-by (60, a field name; events by `level` or `project`, `EVENT_GROUPS`; logs a column or an attribute, which
-  `logGroups` only binds; none for issues); keys that aren't a widget's are dropped. `widgetData` reads one widget
-  through the lists' own functions and turns any error into `{ kind: 'error' }`. Logs: `logsByBucket` (by level),
-  `logGroups` (a group-by, and the table, by level when none). Events come from `issue_days`, so they're whole UTC
-  days (`eventDays`): a number or table counts every day the window touches (24 hours: yesterday and today) against
-  as many days before; a chart shows those days, a week at least, 90 at most. Issues are as they are now, the window
-  doesn't narrow them (`lastSeen:-24h` in the query does): a number counts the matching ones against those of them
-  first seen before the window began, a list the 10 with most events. `STARTER` is the "Crashes" dashboard. Plan:
-  the list by `dashboards_updated`; a dashboard by its primary key.
+- `dashboards.ts`: dashboards (`dashboards`, one row each, its widgets as JSON, who saved it last) and their widgets.
+  `parseWidgets` checks what the browser sends field by field: 20 at most, ids 8 hex digits and unique, a title (80), a
+  query (1000), a dataset (`issues`, `events`, `logs`) and a display it has (`DISPLAYS`: issues as a number or a list;
+  events and logs as a number, bars, area, line or a table), a width of 1 to 3 thirds and a group-by (60, a field name;
+  events by `level` or `project`, `EVENT_GROUPS`; logs a column or an attribute, which `logGroups` only binds; none for
+  issues); keys that aren't a widget's are dropped, and a placeholder (`invalid`) is refused. `readWidgets` reads the
+  stored ones one by one: a widget that no longer checks out (or text that isn't JSON or a list) becomes a placeholder
+  in its place, `invalid` holding why, with an id free (as is a repeated one's), so the dashboard opens and it can be
+  removed or redone; `listDashboards` counts widgets only of valid JSON (else `null`). `widgetData` reads one widget
+  through the lists' own functions and turns any error into `{ kind: 'error' }` (a placeholder's is its reason, without
+  a read). Logs: `logsByBucket` (by level), `logGroups` (a group-by, and the table, by level when none). Events come
+  from `issue_days`, so they're whole UTC days (`eventDays`): a number or table counts every day the window touches (24
+  hours: yesterday and today) against as many days before; a chart shows those days, a week at least, 90 at most. Issues
+  are as they are now, the window doesn't narrow them (`lastSeen:-24h` in the query does): a number counts the matching
+  ones against those of them first seen before the window began, a list the 10 with most events. `STARTER` is the
+  "Crashes" dashboard. Plan: the list by `dashboards_updated`; a dashboard by its primary key.
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 

@@ -62,6 +62,7 @@ export function SearchBar({
   range,
   placeholder,
   onSearch,
+  onChange,
 }: {
   scope: 'issues' | 'logs'
   query: string
@@ -69,6 +70,8 @@ export function SearchBar({
   range?: string
   placeholder: string
   onSearch: (query: string) => void
+  // The whole query as it stands in the bar, pills and typed text, each time it changes (searched or not)
+  onChange?: (query: string) => void
 }) {
   // The pills and text, made again from `query` when it changes (a link, the back button); when it's the query the
   // bar just searched, what's in the bar stays as it is (the caret, a space typed after the text)
@@ -128,6 +131,7 @@ export function SearchBar({
 
   // Text and caret together, with the caret placed once the input shows the new text
   const edit = (next: { pills?: Token[]; text: string }, from: number, to = from) => {
+    onChange?.(join(next.pills ?? pills, next.text))
     flushSync(() => {
       setDraft((d) => ({ ...d, pills: next.pills ?? d.pills, text: next.text }))
       setCaret(from)
@@ -140,6 +144,7 @@ export function SearchBar({
   }
 
   const search = (nextPills: Token[], nextText: string) => {
+    onChange?.(join(nextPills, nextText))
     setDraft((d) => ({ ...d, pills: nextPills, text: nextText }))
     onSearch(join(nextPills, nextText))
   }
@@ -279,6 +284,7 @@ export function SearchBar({
             onChange={(e) => {
               const next = e.currentTarget.value
               const at = caretOf(e)
+              onChange?.(join(pills, next))
               setDraft((d) => ({ ...d, text: next }))
               setCaret(at)
               setHighlight(-1)

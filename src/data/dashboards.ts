@@ -27,6 +27,8 @@ export type Widget = {
   display: Display
   groupBy?: string // 60 at most; events: level or project; logs: a column or an attribute
   width: 1 | 2 | 3 // thirds of the grid's row
+  // A stored widget that no longer reads as one (`readWidgets`): why, shown in its place until it's removed or redone
+  invalid?: string
 }
 export type Dashboard = { id: number; name: string; widgets: Widget[]; updated: number; updated_by: string }
 
@@ -55,6 +57,7 @@ export function parseWidgets(json: unknown): Widget[] {
   return json.map((w: unknown): Widget => {
     if (!w || typeof w !== 'object' || Array.isArray(w)) return fail('must be an object')
     const o = w as Record<string, unknown>
+    if (o.invalid !== undefined) fail('that couldn’t be read must be removed or redone first')
     const id = typeof o.id === 'string' && /^[0-9a-f]{8}$/.test(o.id) ? o.id : fail('id is 8 hex digits')
     if (ids.has(id)) fail('id is used twice')
     ids.add(id)
@@ -103,14 +106,56 @@ export const STARTER: { name: string; widgets: Widget[] } = {
   ],
 }
 
+/**
+ * Stored widgets, read one by one so one that no longer checks out (or text that isn't JSON) doesn't keep the
+ * dashboard from opening: it stays in its place as an `invalid` placeholder, to remove or redo in edit mode
+ */
+export function readWidgets(text: string): Widget[] {
+  let json: unknown
+  try {
+    json = JSON.parse(text)
+  } catch {
+    json = [{ invalid: 'the widgets aren’t JSON' }]
+  }
+  const list = Array.isArray(json) ? json.slice(0, MAX_WIDGETS) : [{ invalid: 'the widgets aren’t a list' }]
+  const read = list.map((raw: unknown): Widget | string => {
+    try {
+      return parseWidgets([raw])[0]
+    } catch (error) {
+      const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+      if (typeof o.invalid === 'string') return o.invalid
+      return error instanceof Error ? error.message : 'This widget couldn’t be read'
+    }
+  })
+  // Ids stay unique: a repeated one, or a placeholder's, gets the next one free
+  const ids = new Set<string>()
+  const free = () => {
+    let n = 0
+    while (ids.has(n.toString(16).padStart(8, '0'))) n++
+    return n.toString(16).padStart(8, '0')
+  }
+  return read.map((w, i) => {
+    if (typeof w !== 'string' && !ids.has(w.id)) {
+      ids.add(w.id)
+      return w
+    }
+    const raw = list[i] && typeof list[i] === 'object' ? (list[i] as Record<string, unknown>) : {}
+    const id = free()
+    ids.add(id)
+    const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim().slice(0, 80) : 'A widget'
+    const invalid = typeof w === 'string' ? w : 'a widget id is used twice'
+    return { id, title, dataset: 'issues', query: '', display: 'number', width: 3, invalid }
+  })
+}
+
 export async function listDashboards(db: D1Database) {
   return (
     await db
       .prepare(
-        `SELECT id, name, json_array_length(widgets) AS widgets, updated, updated_by FROM dashboards
-         ORDER BY updated DESC`,
+        `SELECT id, name, CASE WHEN json_valid(widgets) THEN json_array_length(widgets) END AS widgets, updated,
+         updated_by FROM dashboards ORDER BY updated DESC`,
       )
-      .all<{ id: number; name: string; widgets: number; updated: number; updated_by: string }>()
+      .all<{ id: number; name: string; widgets: number | null; updated: number; updated_by: string }>()
   ).results
 }
 
@@ -119,7 +164,7 @@ export async function getDashboard(db: D1Database, id: number): Promise<Dashboar
     .prepare('SELECT id, name, widgets, updated, updated_by FROM dashboards WHERE id = ?')
     .bind(id)
     .first<Omit<Dashboard, 'widgets'> & { widgets: string }>()
-  return row && { ...row, widgets: parseWidgets(JSON.parse(row.widgets)) }
+  return row && { ...row, widgets: readWidgets(row.widgets) }
 }
 
 /** A new dashboard (no `id`) or a whole one written over; its id */
@@ -261,6 +306,7 @@ export async function widgetData(
   window: Window,
   now: number,
 ): Promise<WidgetData> {
+  if (w.invalid) return { kind: 'error', message: w.invalid }
   try {
     if (w.dataset === 'events') return await eventsData(db, w, projectId, window, now)
     if (w.dataset === 'logs') return await logsData(db, w, projectId, window, now)
