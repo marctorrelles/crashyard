@@ -67,6 +67,11 @@ export function EventView({
           />
         </Section>
       )}
+      {event._trimmed?.length ? (
+        <p className="text-xs text-muted-foreground">
+          This event was too large to keep whole, so some of it was cut: {event._trimmed.join(', ')}.
+        </p>
+      ) : null}
       <details className="group rounded-xl border">
         <summary className="flex cursor-pointer items-center gap-1 px-4 py-3 text-sm font-medium">
           <IconChevronRight className="size-4 transition-transform group-open:rotate-90" />

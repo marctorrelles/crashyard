@@ -1,4 +1,5 @@
 // Writing an event: its issue (made, counted, reopened), the event itself, its tags and the counts, in one D1 batch.
+import { eventJson } from './budget'
 import type { NormalizedEvent } from './event'
 
 export type Project = {
@@ -171,7 +172,7 @@ export async function storeEvent(
           event.release ?? null,
           event.environment ?? null,
           `${event.title}\n${event.message}`.trim(),
-          JSON.stringify(event),
+          eventJson(event), // within its size budget: the full envelope stays in R2
           envelopeKey ?? null,
           event.traceId ?? null,
         ),

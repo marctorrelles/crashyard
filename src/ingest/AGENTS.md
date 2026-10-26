@@ -33,6 +33,11 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   first 100), so a search for such a value doesn't find the issue. An issue
   found with a count of 0 was made by a try whose batch then failed: the event is still its first (`isNew`, a "New
   issue" alert and the `created` activity); two first events racing may both say so.
+- `budget.ts`: `trimEvent` (`eventJson` in `storeEvent`, just before the JSON is written; the envelope stays whole in
+  R2) keeps the stored JSON under 900 KB: only an event over it is copied and cut, each cut only while still over,
+  least missed first: the newest 100 breadcrumbs, 32 threads of 100 frames (crashed first), an exception's innermost
+  200 frames, texts over 4 KB anywhere, then whole parts (other threads, breadcrumb data, contexts, extra, request,
+  breadcrumbs, all but 20 frames, threads). `_trimmed` names each, shown under the event.
 - `retry.ts`: durable ingest (docs/decisions/0004). `hold` puts the body at `pending/<project>/<received ms>-<16 hex>`
   with `customMetadata` `{ endpoint, attempts, items? }` (`items` only when some were left out, by quota or as done);
   `settle` after a pass: nothing failed deletes it, else it's rewritten with what failed and the attempts so far (the
