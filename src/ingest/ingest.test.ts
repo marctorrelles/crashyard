@@ -141,6 +141,28 @@ describe('events', () => {
     expect(plain._trimmed).toBeUndefined()
   })
 
+  it('keeps no client IP from a request’s headers or env', async () => {
+    const ip = '203.0.113.7'
+    const e = await normalizeEvent({
+      message: 'x',
+      request: {
+        url: 'https://example.org/',
+        headers: [
+          ['X-Forwarded-For', ip],
+          ['x-real-ip', ip],
+          ['CF-Connecting-IP', ip],
+          ['True-Client-IP', ip],
+          ['Forwarded', `for=${ip}`],
+          ['Fastly-Client-IP', ip],
+          ['Accept', 'text/html'],
+        ],
+        env: { REMOTE_ADDR: ip },
+      },
+    })
+    expect(e.request!.headers).toEqual([['Accept', 'text/html']])
+    expect(JSON.stringify(e)).not.toContain(ip)
+  })
+
   it('reads timestamps and ids in either form', () => {
     expect(timestampOf(1700000000.5)).toBe(1700000000500)
     expect(timestampOf('2026-04-22T16:10:51Z')).toBe(Date.parse('2026-04-22T16:10:51Z'))

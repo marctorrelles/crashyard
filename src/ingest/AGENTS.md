@@ -18,7 +18,9 @@ order.
   before have none), tags (pairs or object, plus derived: level, release,
   os, device, browser, runtime, handled, mechanism), `request` (method, URL, query string, headers as pairs, body as
   text of 8 KB at most; header and query keys that name a secret are filtered as in `scrub`, query values in the URL
-  too, the rest masked as tags), `extra` (scrubbed, keys in order while they fit in 16 KB of JSON) and `_trimmed`
+  too, the rest masked as tags; headers that carry the client's IP, `x-forwarded-for`, `cf-connecting-ip`,
+  `forwarded` and the like (`IP_HEADERS`), are dropped and `request.env` with `REMOTE_ADDR` isn't kept, as crashyard
+  stores no IPs), `extra` (scrubbed, keys in order while they fit in 16 KB of JSON) and `_trimmed`
   (what was cut: `request body`, `extra`). A `captureMessage` sends a made-up exception: `synthetic`, titled
   by its message, `type` `message`.
 - `grouping.ts`: the fingerprint. Exception type + the top 5 in-app frames; a native frame without symbols is its

@@ -176,10 +176,26 @@ const pairsOf = (v: unknown): [string, unknown][] =>
     ? v.filter((p) => Array.isArray(p) && typeof p[0] === 'string').map((p) => [p[0] as string, p[1]])
     : Object.entries(obj(v))
 
+// Headers that carry the client's IP address: never kept, as crashyard stores no IPs. `request.env`, where SDKs put
+// REMOTE_ADDR, isn't kept at all
+const IP_HEADERS = new Set([
+  'x-forwarded-for',
+  'x-real-ip',
+  'cf-connecting-ip',
+  'cf-connecting-ipv6',
+  'true-client-ip',
+  'x-client-ip',
+  'x-cluster-client-ip',
+  'fastly-client-ip',
+  'forwarded',
+  'x-original-forwarded-for',
+])
+
 function requestOf(raw: unknown, trimmed: string[]): RequestInfo | undefined {
   const r = obj(raw)
   // Headers and query keys that name a secret are filtered, as in contexts; the rest is masked as tags are
-  const headers = Object.entries(obj(scrub(Object.fromEntries(pairsOf(r.headers).slice(0, 100)))))
+  const kept = pairsOf(r.headers).filter(([k]) => !IP_HEADERS.has(k.toLowerCase()))
+  const headers = Object.entries(obj(scrub(Object.fromEntries(kept.slice(0, 100)))))
     .map(([k, v]): [string, string] => [cut(k, 200), cut(str(v) ?? '', 2000)])
     .filter(([, v]) => v)
   const query = queryOf(
