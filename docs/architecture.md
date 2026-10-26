@@ -1,12 +1,13 @@
 # How crashyard is built
 
-One Cloudflare Worker does everything: it takes what the Sentry SDKs and sentry-cli send, serves the dashboard, and
-runs a cron every minute. D1 (SQLite) holds everything that's searched or listed; R2 holds files.
+A single Cloudflare Worker does everything. It receives what the Sentry SDKs and sentry-cli send, serves the
+dashboard and runs a scheduled task every minute. D1, Cloudflare's SQLite database, holds everything that is searched or
+listed. R2 holds files.
 
 ```mermaid
 flowchart LR
-  apps["Apps<br/>(Sentry SDKs)"] -- "POST /api/&lt;project&gt;/envelope/<br/>DSN key" --> ingest
-  cli["sentry-cli and build plugins"] -- "/api/0/ (uploads, releases)<br/>auth token" --> upload
+  apps["Apps with Sentry SDKs"] -- "POST /api/&lt;project&gt;/envelope/<br/>DSN key" --> ingest
+  cli["sentry-cli and build plugins"] -- "/api/0/ uploads and releases<br/>auth token" --> upload
   you["You, in a browser"] -- "Cloudflare Access" --> dashboard
   agent["An agent"] -- "/mcp, Access service token" --> mcp
 
@@ -15,7 +16,7 @@ flowchart LR
     upload["Sentry's upload API<br/>src/api/sentry.ts"]
     dashboard["Dashboard<br/>TanStack Start, src/routes/"]
     mcp["MCP server<br/>src/api/mcp.ts"]
-    cron["Cron, every minute<br/>monitors, held notifications,<br/>slower releases, retention"]
+    cron["Cron, every minute<br/>monitors, held alerts,<br/>slower releases, weekly summary,<br/>retention"]
     symbolic["symbolic in WebAssembly<br/>src/symbols/"]
   end
 
@@ -28,21 +29,23 @@ flowchart LR
   dashboard --> d1
   mcp --> d1
   cron --> d1
-  ingest -- notices --> notify["Telegram, email, webhooks"]
-  cron -- notices --> notify
+  ingest -- alerts --> notify["Telegram, Slack, Discord,<br/>email, webhooks"]
+  cron -- alerts --> notify
 ```
 
-- **Ingest** (`src/api/ingest.ts`, `src/ingest/`): an envelope is read, checked against its project's key and daily
-  quotas, and each item handled: an event is scrubbed, symbolicated, fingerprinted and stored into its issue; logs,
-  check-ins, transactions and sessions go to their own tables. What it causes (a new issue, a regression, a threshold)
-  becomes notices, sent after the answer (`ctx.waitUntil`).
-- **Readable stacks** (`src/symbols/`, `symcache/`): Sentry's own `symbolic`, in Rust, built to WebAssembly and run in
-  the worker. Uploads become SymCaches and SourceMapCaches in R2; an upload re-reads the recent events that needed it.
-- **The dashboard** (`src/routes/`, `src/fns.ts`, `src/data/`): React rendered on the server, its data from server
-  functions over D1. The worker checks Access's token on every request itself, so a dashboard route that Access
-  missed stays closed.
-- **The cron** (`scheduled` in `src/server.ts`): uptime checks and missed check-ins (`src/monitors/`), notifications
-  held through quiet hours, hourly the slower-release check, and at 03:00 UTC retention.
-- **Search** (`src/search/`): Sentry's query syntax turned into SQL with parameters, FTS5 for free text.
+- **Ingest**, in `src/api/ingest.ts` and `src/ingest/`. Each envelope is checked against its project's key and daily
+  limits, then each item in it is handled. An event is scrubbed, symbolicated, fingerprinted and stored in its issue.
+  Logs, check-ins, transactions and sessions go to their own tables. Anything worth an alert, such as a new issue, a
+  regression or a threshold, becomes an alert that is sent after the response, through `ctx.waitUntil`.
+- **Readable stack traces**, in `src/symbols/` and `symcache/`. Sentry's own `symbolic` library, written in Rust, is
+  compiled to WebAssembly and runs in the worker. Uploads are turned into SymCaches and SourceMapCaches in R2, and each
+  upload reprocesses the recent events that needed it.
+- **The dashboard**, in `src/routes/`, `src/fns.ts` and `src/data/`. React is rendered on the server, with data from
+  server functions that query D1. The worker verifies the Access token on every request, so a dashboard route that
+  Access misses stays closed.
+- **The scheduled task**, `scheduled` in `src/server.ts`. Every minute it runs uptime checks and looks for missed
+  check-ins, in `src/monitors/`, and sends alerts held through quiet hours. Every hour it looks for slower releases. On
+  Mondays at 07:00 UTC it sends the weekly summary, and at 03:00 UTC every day it deletes data past its retention.
+- **Search**, in `src/search/`. Sentry's query syntax is turned into parameterized SQL, with FTS5 for free text.
 
-Why these choices: [decisions/](decisions/).
+The reasons behind these choices are in [decisions/](decisions/).

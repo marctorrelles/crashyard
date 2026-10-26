@@ -11,6 +11,6 @@ body:
   - type: textarea
     attributes:
       label: What it sent and what crashyard answered
-      description: The request (envelope or API call) and the response, with secrets removed
+      description: The request, an envelope or an API call, and the response. Remove any secrets first.
     validations:
       required: true

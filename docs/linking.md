@@ -1,15 +1,16 @@
-# Linking an app
+# Connecting an app
 
-crashyard speaks Sentry's protocol: an app links with the official Sentry SDK, pointed at a crashyard DSN. Make a
-project in the dashboard (Projects → New project); its Settings page shows the DSN and these same steps with it
+crashyard speaks Sentry's protocol, so an app connects with the official Sentry SDK pointed at a crashyard DSN. Create a
+project with **New project** on the overview. Its settings page shows the DSN and the steps below with the DSN already
 filled in.
 
-A DSN looks like `https://<public key>@crashyard.example.com/<project id>`. The key is public: it ships inside apps,
-and only lets them send.
+A DSN looks like `https://<public key>@crashyard.example.com/<project id>`. The key is public by design. It ships inside
+your apps and only allows sending events.
 
-## Apple (Swift)
+## Apple
 
-Add [sentry-cocoa](https://github.com/getsentry/sentry-cocoa) with Swift Package Manager, and start it first thing:
+Add [sentry-cocoa](https://github.com/getsentry/sentry-cocoa) with Swift Package Manager, and start it before anything
+else runs:
 
 ```swift
 import Sentry
@@ -23,7 +24,7 @@ SentrySDK.start { options in
 }
 ```
 
-## Android (Kotlin)
+## Android
 
 ```kotlin
 // build.gradle.kts
@@ -48,7 +49,7 @@ import * as Sentry from '@sentry/browser'
 Sentry.init({ dsn: '<your DSN>', environment: import.meta.env.MODE, release: import.meta.env.VITE_RELEASE })
 ```
 
-## Node
+## Node.js
 
 ```sh
 pnpm add @sentry/node
@@ -60,54 +61,77 @@ import * as Sentry from '@sentry/node'
 Sentry.init({ dsn: '<your DSN>', environment: process.env.NODE_ENV ?? 'production' })
 ```
 
-## Readable stacks
+## Other platforms
 
-Release builds ship without names: crashes arrive as addresses (Apple, NDK), obfuscated names (Android with R8) or
-minified code (web). Upload what maps them back and crashyard shows functions, files and lines, as Sentry does,
-with Sentry's own tools: sentry-cli, the Xcode build phase, the Gradle plugin, `@sentry/vite-plugin`. Point them here:
+Any Sentry SDK works. Set its DSN to the one crashyard gives you.
+
+## Check that events arrive
+
+```sh
+curl -X POST 'https://crashyard.example.com/api/<project id>/envelope/?sentry_key=<public key>' \
+  --data-binary $'{}\n{"type":"event"}\n{"message":"Hello from curl","level":"info"}\n'
+```
+
+The message appears under Issues. Events from the `development` environment are stored like any other, but new routes
+only send alerts for `production` until you change them.
+
+## Readable stack traces
+
+Release builds lose their names. Crashes arrive as memory addresses on Apple and in native Android code, as obfuscated
+names in Android apps built with R8, and as minified code on the web. Upload the files that map them back, and crashyard
+shows function names, files and line numbers just as Sentry does.
+
+Use Sentry's own tools for the uploads: sentry-cli, the Xcode build phase, the Gradle plugin or `@sentry/vite-plugin`.
+Point them at crashyard:
 
 ```sh
 export SENTRY_URL=https://crashyard.example.com/
-export SENTRY_ORG=crashyard            # any name: a deployment is one organisation
+export SENTRY_ORG=crashyard            # any name works, a deployment is a single organization
 export SENTRY_PROJECT=<project slug>
 export SENTRY_AUTH_TOKEN=<a token>     # created in the project's settings, under Symbols and source maps
 ```
 
-- Apple: `sentry-cli debug-files upload --include-sources path/to/dSYMs` after archiving.
-- Android: the Sentry Gradle plugin uploads the ProGuard mapping and NDK symbols on release builds (point it here
-  in `sentry.properties`: `defaults.url`, `defaults.org`, `defaults.project`).
-- Web: `@sentry/vite-plugin` with `build.sourcemap: true`, or `sentry-cli sourcemaps inject dist` then
+- **Apple.** After archiving, run `sentry-cli debug-files upload --include-sources path/to/dSYMs`.
+- **Android.** The Sentry Gradle plugin uploads the ProGuard mapping and NDK symbols on every release build. Point it at
+  crashyard with `defaults.url`, `defaults.org` and `defaults.project` in `sentry.properties`.
+- **Web.** Use `@sentry/vite-plugin` with `build.sourcemap: true`, or run `sentry-cli sourcemaps inject dist` and then
   `sentry-cli sourcemaps upload dist`.
 
-Crashes that came in before their files did are read again when the files arrive (the last 30 days).
+Crashes from the last 30 days that arrived before their files are processed again once the files are uploaded.
 
-### Linking to the code
+Uploads need the Workers Paid plan. Turning a debug file into a lookup table takes more CPU time than the free plan's
+10 ms per request.
 
-Give the project its repository in its settings (GitHub or GitLab, like `https://github.com/owner/repo`), and with
-each release send its commits from its checkout, the release named as the SDK names it:
+### Links to your code
+
+Add the project's repository in its settings, for example `https://github.com/owner/repo`. GitHub and GitLab are
+supported. Then send each release's commits from its checkout, using the release name the SDK reports:
 
 ```sh
 sentry-cli releases new -p <project slug> "$RELEASE"
 sentry-cli releases set-commits "$RELEASE" --local --initial-depth 100000
 ```
 
-The release then lists its commits since the one before, and a stack's frames open their line at the release's commit.
-crashyard learns the repository's files from the commits, so the first time send the whole history (the depth); after
-that only the commits since the release before go. Nothing reads the repository itself, so a private one needs no
-token: the links open for whoever can see it.
+Each release then lists its commits since the previous one, and stack frames open their line at the release's commit.
 
-Uploads need Workers Paid: turning a debug file into a lookup table takes more CPU than the free plan's 10 ms a
-request.
+crashyard learns which files exist from the commits it receives. That's why the first upload sends the full history,
+and later ones only send the commits since the previous release. crashyard never reads the repository itself, so a
+private repository needs no token. The links open for anyone who has access to it.
 
 ## Logs
 
-The SDKs send logs with `Sentry.logger.info('song opened', { song: 42 })` (and `warn`, `error`…); they show under
-Logs, searchable by their attributes (`song:42`). Turn them on where the SDK needs it (`enableLogs: true` in older
-JavaScript SDKs, `options.experimental.enableLogs = true` on Apple, `io.sentry.logs.enabled` on Android).
+Send logs with `Sentry.logger.info('song opened', { song: 42 })`, or with `warn`, `error` and the other levels. They
+appear under Logs and can be searched by their attributes, for example `song:42`.
+
+Some SDKs need logs turned on first:
+
+- Older JavaScript SDKs: `enableLogs: true`.
+- Apple: `options.experimental.enableLogs = true`.
+- Android: `io.sentry.logs.enabled`.
 
 ## Cron jobs and uptime
 
-A scheduled job checks in, and crashyard tells you when a run is missed, fails or takes too long:
+A scheduled job checks in each time it runs, and crashyard alerts you when a run is missed, fails or takes too long:
 
 ```js
 const checkInId = Sentry.captureCheckIn(
@@ -118,33 +142,27 @@ const checkInId = Sentry.captureCheckIn(
 Sentry.captureCheckIn({ checkInId, monitorSlug: 'nightly-export', status: 'ok' })
 ```
 
-The first check-in with a schedule makes the monitor. Around any command: `sentry-cli monitors run nightly-export --
-./export.sh` (with `SENTRY_DSN` set). URLs to check every few minutes are added under Monitors.
+The first check-in that includes a schedule creates the monitor. To wrap any command instead, set `SENTRY_DSN` and run
+`sentry-cli monitors run nightly-export -- ./export.sh`.
+
+To watch a URL, add an uptime check under Monitors.
 
 ## Performance
 
-Set the SDK's `tracesSampleRate` (`options.tracesSampleRate = 0.1` in Swift and Kotlin, `tracesSampleRate: 0.1` in
-JavaScript) and its screen loads, requests and jobs show under the project's Performance tab: count, p50/p95/p99 per
-name, the change in p95 since the release before, and the ten slowest a day with their spans. Crash-free sessions show
-on Releases once the SDK sends sessions (Apple and Android do by default; browser and Node with their session
-integrations). crashyard keeps summaries, not every span: hours and percentiles for 90 days, examples for 30.
+Set the SDK's sample rate, `options.tracesSampleRate = 0.1` in Swift and Kotlin or `tracesSampleRate: 0.1` in
+JavaScript. Screen loads, requests and jobs then appear under Performance, with:
 
-## Anything else
+- the count and the p50, p95 and p99 duration for each name,
+- the change in p95 since the previous release,
+- the ten slowest each day, with their spans.
 
-Any Sentry SDK works: set its DSN to crashyard's.
+Crash-free sessions appear under Releases once the SDK sends sessions. The Apple and Android SDKs send them by default.
+In the browser and in Node.js, add their session integrations.
 
-## Check it arrives
-
-```sh
-curl -X POST 'https://crashyard.example.com/api/<project id>/envelope/?sentry_key=<public key>' \
-  --data-binary $'{}\n{"type":"event"}\n{"message":"Hello from curl","level":"info"}\n'
-```
-
-It shows up under Issues. Events from the `development` environment are kept like any other, but routes send
-notifications for `production` only unless you change them.
+crashyard keeps summaries rather than every span. Hourly figures and percentiles are kept for 90 days, and examples for 30.
 
 ## Where a build came from
 
-Tag events with `distribution` (`app_review`, `testflight`, `app_store`, `play_internal`, `web`…) and crashyard tells
-you, once per issue, when a crash comes from App Review or TestFlight (the route kind "App Review or TestFlight
-crash").
+Tag events with `distribution`, for example `app_review`, `testflight`, `app_store`, `play_internal` or `web`.
+crashyard then tells you, once per issue, when a crash comes from App Review or TestFlight. Routes send this as the
+"App Review or TestFlight crash" alert.

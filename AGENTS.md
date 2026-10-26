@@ -67,9 +67,9 @@ Where things are:
 
 ## Tone
 
-What people read, in the app, in its alerts, in error messages and in the README, sounds like a careful product team
-wrote it: calm, direct and useful. `docs/` pages move to it as they're edited. These AGENTS.md files and code comments
-are for contributors and keep their own terse style.
+What people read sounds like a careful product team wrote it: calm, direct and useful. That covers the app, its
+alerts and error messages, the README, `docs/`, CONTRIBUTING.md, SECURITY.md and the GitHub templates. The AGENTS.md
+files and code comments are for contributors and keep their own terse style.
 
 - **Plain sentences.** Sentence case, short sentences, everyday words. No parentheses and no semicolons: split the
   thought into two sentences, or drop the aside.

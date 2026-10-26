@@ -1,28 +1,29 @@
 # Deploying crashyard
 
-From a Cloudflare account to a running crashyard, in about fifteen minutes. Everything here works on Cloudflare's free
-plans.
+This guide takes a Cloudflare account to a running crashyard in about fifteen minutes. Everything in it works on
+Cloudflare's free plans.
 
-## With the button
+## Deploy with the button
 
-The README's **Deploy to Cloudflare** button copies this repository to your GitHub, makes the D1 database and the R2
-bucket in your account, and deploys to `crashyard.<your account>.workers.dev`, redeploying whenever your copy changes.
-Then follow steps 3 to 5 below, putting the values they mention in your copy's `wrangler.jsonc` (its `routes` and
-`vars`) rather than in `wrangler.local.json`: commit them, and it deploys again.
+The README's **Deploy to Cloudflare** button copies this repository to your GitHub account, creates the D1 database and
+the R2 bucket, and deploys to `crashyard.<your account>.workers.dev`. It redeploys whenever your copy changes.
+
+After that, follow steps 3 to 5 below. Put the values they mention in your copy's `wrangler.jsonc`, under `routes` and
+`vars`, instead of in `wrangler.local.json`. Commit them and it deploys again.
 
 ## What you need
 
-- A Cloudflare account with a domain on it (crashyard gets a subdomain, such as `crashyard.example.com`).
-- Node (the version in `.nvmrc`) and pnpm (`corepack enable`).
-- This repository, cloned.
+- A Cloudflare account with a domain on it. crashyard runs on a subdomain such as `crashyard.example.com`.
+- Node.js at the version in `.nvmrc`, and pnpm. Running `corepack enable` installs the right pnpm.
+- A clone of this repository.
 
-## 1. Point it at your domain (from a clone)
+## 1. Point it at your domain
 
-`pnpm run setup` asks for this step's and step 3's values, writes the file, and offers steps 2 and 4 for you; run
-it again to change a value. By hand:
+`pnpm run setup` asks for the values in this step and in step 3, writes the file for you and offers to run steps 2 and 4. Run it again whenever you want to change a value. To do it by hand instead, read on.
 
-Your deployment's own values go in `wrangler.local.json` at the repo root, which git ignores and the build lays over
-`wrangler.jsonc` (its `vars` merged in, anything else replacing `wrangler.jsonc`'s). Make it with your subdomain:
+Your deployment's own values live in `wrangler.local.json` at the root of the repository. Git ignores it, and the build
+lays it over `wrangler.jsonc`: its `vars` are merged in, and any other key replaces the one in `wrangler.jsonc`. Create
+it with your subdomain:
 
 ```json
 {
@@ -32,8 +33,8 @@ Your deployment's own values go in `wrangler.local.json` at the repo root, which
 }
 ```
 
-Cloudflare creates the DNS record and the certificate when you deploy. `PUBLIC_URL` is where the dashboard is, for the
-links in notifications that the cron sends (monitors). Without the file, crashyard deploys to
+Cloudflare creates the DNS record and the certificate when you deploy. `PUBLIC_URL` is the dashboard's address, used in
+the links of alerts sent by scheduled checks such as monitors. Without this file, crashyard deploys to
 `crashyard.<your account>.workers.dev`.
 
 ## 2. Deploy
@@ -44,40 +45,42 @@ pnpm wrangler login
 pnpm run deploy
 ```
 
-The first deploy creates the D1 database (`crashyard`) and the R2 bucket (`crashyard-files`) in your account: their
-ids aren't in `wrangler.jsonc`, so Wrangler makes them. It also applies the migrations.
+The first deploy creates the D1 database, `crashyard`, and the R2 bucket, `crashyard-files`, in your account. Their IDs
+aren't in `wrangler.jsonc`, so Wrangler creates them. The deploy also applies the database migrations.
 
-Open your subdomain: it says "Sign in through Cloudflare Access to open crashyard". That's crashyard refusing everyone
-because Access isn't set up yet, which is what you want.
+Open your subdomain. It says "Sign in through Cloudflare Access to open crashyard". That means crashyard is refusing
+every visitor because Access isn't set up yet, which is exactly what should happen at this point.
 
 ## 3. Put Cloudflare Access in front
 
-Access does the signing in; crashyard has no accounts of its own. Go to [one.dash.cloudflare.com](https://one.dash.cloudflare.com)
-(Cloudflare One, also called Zero Trust).
+Cloudflare Access handles sign-in, so crashyard has no accounts of its own. Open
+[one.dash.cloudflare.com](https://one.dash.cloudflare.com), which Cloudflare calls Cloudflare One or Zero Trust.
 
-1. **The plan.** The first time, Cloudflare asks you to choose a plan: pick **Free** ($0, up to 50 users). It may ask for
-   a payment method even so; the total stays $0. If it shows more, you've picked the wrong plan.
-2. **The dashboard's application.** Access → Applications → **Add an application** → **Self-hosted**.
+1. **Choose a plan.** The first time, Cloudflare asks for a plan. Choose **Free**, which costs nothing for up to 50
+   users. It may still ask for a payment method. The total stays at $0, and if it shows more, you've picked the wrong
+   plan.
+2. **Add the dashboard application.** Go to Access, then Applications, then **Add an application**, and choose
+   **Self-hosted**.
    - Name: `crashyard`.
-   - Public hostname: your subdomain (`crashyard` on `example.com`), no path.
-   - Policy: create one, action **Allow**, Include → **Emails** → the emails of the people who may sign in (or
-     **Emails ending in** `@example.com` for a whole domain).
-   - Login methods: leave the default ("accept all available identity providers"). One-time PIN, a code sent by email,
-     is on for every team; add Google or GitHub under Settings → Authentication if you like.
+   - Public hostname: your subdomain, such as `crashyard` on `example.com`, with no path.
+   - Policy: create one with the action **Allow**. Under Include, choose **Emails** and list the people who may sign
+     in, or choose **Emails ending in** and enter `@example.com` to allow a whole domain.
+   - Login methods: keep the default, which accepts every available identity provider. One-time PIN, a code sent by
+     email, is on for every team. You can add Google or GitHub under Settings, then Authentication.
    - Save.
-3. **The apps' way in.** Apps send crashes to `/api/…` and can't sign in, so that path skips Access (crashyard checks
-   each project's key there itself). **Add an application** → **Self-hosted** again.
+3. **Let apps through.** Apps send their crashes to `/api/…` and can't sign in, so that path has to skip Access.
+   crashyard checks each project's key there itself. Choose **Add an application** and **Self-hosted** again.
    - Name: `crashyard api`.
-   - Public hostname: the same subdomain, **path `api/`**.
-   - Policy: create one, action **Bypass**, Include → **Everyone** (no value).
+   - Public hostname: the same subdomain, with the **path `api/`**.
+   - Policy: create one with the action **Bypass**. Under Include, choose **Everyone**, with no value.
    - Save.
-4. **The two values crashyard checks.** crashyard verifies Access's token on every dashboard request, so a route left
-   out of Access by mistake stays closed. It needs:
-   - **The application's audience:** open the `crashyard` application (not the api one) and copy its **Application
+4. **Copy the two values crashyard checks.** crashyard verifies the Access token on every dashboard request, so a route
+   accidentally left outside Access stays closed. It needs two values:
+   - **The application audience.** Open the `crashyard` application, not the api one, and copy its **Application
      Audience (AUD) Tag**.
-   - **Your team domain:** `<team>.cloudflareaccess.com`. It's under Settings → Custom pages (Team domain). It isn't
-     always your team's display name: the surest way is to open your crashyard subdomain in a private window and look
-     at the address Cloudflare's sign-in page is on.
+   - **Your team domain.** It has the form `<team>.cloudflareaccess.com` and appears under Settings, then Custom pages,
+     as the team domain. It isn't always the same as your team's display name. The surest way to find it is to open your
+     crashyard subdomain in a private window and read the address of the sign-in page.
 
    Add both to the `vars` in `wrangler.local.json` and deploy again:
 
@@ -93,43 +96,48 @@ Access does the signing in; crashyard has no accounts of its own. Go to [one.das
    pnpm run deploy
    ```
 
-Open your subdomain: Cloudflare's sign-in comes first, then crashyard.
+Open your subdomain again. Cloudflare's sign-in page comes first, then the crashyard dashboard.
 
-## 4. Keep raw envelopes a month, and clean up uploads (optional)
+## 4. Clean up stored files
 
-Every envelope is also kept as it arrived in R2, to reprocess or debug. A lifecycle rule deletes them after 30 days:
+This step is optional but recommended. crashyard keeps every envelope in R2 exactly as it arrived, so it can be
+reprocessed or inspected. These lifecycle rules delete envelopes after 30 days, and delete the pieces of uploads that
+never finished after one day:
 
 ```sh
 pnpm wrangler r2 bucket lifecycle add crashyard-files envelopes envelopes/ --expire-days 30
 pnpm wrangler r2 bucket lifecycle add crashyard-files chunks chunks/ --expire-days 1
 ```
 
-The second drops upload chunks left behind by an upload that never finished.
+## 5. Email notifications
 
-## 5. Email notifications (optional)
+This step is optional. crashyard sends email through Cloudflare Email Routing, and only to addresses you have verified
+there.
 
-crashyard sends email through Cloudflare Email Routing, to addresses you've verified there.
+1. In the Cloudflare dashboard, open your domain, then Email, then Email Routing, and turn it on. Cloudflare adds the DNS
+   records it needs.
+2. Under Destination addresses, add the address that should get alerts, and open the confirmation link Cloudflare sends
+   to it.
+3. In the `vars` of `wrangler.local.json`, set `EMAIL_FROM` to an address on your domain, such as
+   `crashyard@example.com`. The address doesn't need to exist. Then deploy again.
 
-1. In the Cloudflare dashboard, your domain → Email → Email Routing → enable it (it adds the DNS records).
-2. Destination addresses → add the address that gets notifications, and click the link Cloudflare emails it.
-3. In `wrangler.local.json`'s `vars`, set `EMAIL_FROM` to an address on your domain, such as `crashyard@example.com` (it needn't
-   exist), and deploy again.
+Finally, add an email channel under Notifications in the dashboard. Telegram, Slack, Discord and webhook channels need
+no setup here.
 
-Then add an email channel in the dashboard's notification settings. Telegram and webhook channels need nothing here.
+## Check that it works
 
-## Checking it
+- Open your subdomain in a private window. You should see Cloudflare's sign-in page.
+- Sign in. You should see the crashyard dashboard.
+- Run `curl -X POST https://crashyard.example.com/api/1/envelope/`. The answer should come from crashyard, not from
+  Cloudflare's sign-in page, which shows the bypass works.
 
-- Your subdomain in a private window → Cloudflare's sign-in page.
-- After signing in → crashyard's dashboard.
-- `curl -X POST https://crashyard.example.com/api/1/envelope/` → an answer from crashyard (not Cloudflare's sign-in
-  page): the bypass works.
+## Troubleshooting
 
-## When something's wrong
-
-- **"Sign in through Cloudflare Access to open crashyard" after signing in:** `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` don't
-  match. Check the team domain against the sign-in page's address, and that the AUD is the `crashyard` application's,
-  not the api one's.
-- **Apps' crashes don't arrive, and `curl` to `/api/` returns Cloudflare's sign-in page:** the bypass application is
-  missing, or its path isn't `api/`.
-- **Emails don't arrive:** the destination isn't verified in Email Routing, or `EMAIL_FROM` isn't on the domain.
-- **The deploy can't create the custom domain:** the domain must be on the same Cloudflare account.
+- **"Sign in through Cloudflare Access to open crashyard" appears after signing in.** `ACCESS_TEAM_DOMAIN` or
+  `ACCESS_AUD` doesn't match. Compare the team domain with the sign-in page's address, and make sure the AUD tag is the
+  `crashyard` application's, not the api one's.
+- **Crashes from apps don't arrive, and `curl` to `/api/` returns Cloudflare's sign-in page.** The bypass application
+  is missing, or its path isn't `api/`.
+- **Emails don't arrive.** The destination address isn't verified in Email Routing, or `EMAIL_FROM` isn't on your
+  domain.
+- **The deploy can't create the custom domain.** The domain has to be on the same Cloudflare account.

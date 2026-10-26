@@ -4,12 +4,12 @@ labels: [bug]
 body:
   - type: textarea
     attributes:
-      label: What happened, and what you expected
+      label: What happened, and what you expected to happen
     validations:
       required: true
   - type: textarea
     attributes:
-      label: How to make it happen
+      label: Steps to reproduce
   - type: input
     attributes:
-      label: crashyard version (or commit)
+      label: crashyard version or commit
