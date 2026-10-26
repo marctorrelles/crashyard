@@ -29,23 +29,35 @@ async function releasesOf(db: D1Database, projectId: number, since: number) {
   ).results.map((r) => r.release)
 }
 
+/** A sparkline's step for a period: an hour in a day, 6 hours in a week, a day beyond */
+const stepOf = (days: number) => (days <= 1 ? HOUR : days <= 7 ? 6 * HOUR : 24 * HOUR)
+
+/**
+ * A project's transactions over a period by p95, with p50 and p99, the change since the release before, and `trend`,
+ * the p95 of each step of the period (`stepOf`, oldest first, null where there were none)
+ */
 export async function transactions(db: D1Database, projectId: number, days: number, now: number) {
   const since = Math.floor((now - days * 864e5) / HOUR) * HOUR
+  const step = stepOf(days)
+  const first = since - (since % step)
+  const steps = Array.from({ length: Math.floor((now - first) / step) + 1 }, (_, i) => first + i * step)
   const [totals, buckets] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         'SELECT name, SUM(count) AS count, SUM(errors) AS errors, SUM(sum_ms) AS sum_ms FROM transaction_hours WHERE project_id = ? AND hour >= ? GROUP BY name',
       )
       .bind(projectId, since),
+    // `%` reads whole numbers, so a step's start is whole ms however D1 binds them
     db
       .prepare(
-        'SELECT name, release, bucket, SUM(count) AS count FROM transaction_buckets WHERE project_id = ? AND hour >= ? GROUP BY name, release, bucket',
+        'SELECT name, release, hour - hour % ? AS at, bucket, SUM(count) AS count FROM transaction_buckets WHERE project_id = ? AND hour >= ? GROUP BY name, release, at, bucket',
       )
-      .bind(projectId, since),
+      .bind(step, projectId, since),
   ])
-  const rows = buckets.results as Bucket[]
+  const rows = buckets.results as (Bucket & { at: number })[]
   const byName = histograms(rows, (r) => r.name)
   const byRelease = histograms(rows, (r) => `${r.name}\n${r.release}`)
+  const byStep = histograms(rows, (r) => `${r.name}\n${r.at}`)
   const [latest, previous] = await releasesOf(db, projectId, since)
   return {
     latest,
@@ -61,6 +73,7 @@ export async function transactions(db: D1Database, projectId: number, days: numb
           p95: percentile(h, 0.95),
           p99: percentile(h, 0.99),
           change: now95 && was95 ? now95 / was95 - 1 : null,
+          trend: steps.map((at) => percentile(byStep.get(`${t.name}\n${at}`) ?? new Map(), 0.95)),
         }
       })
       .sort((a, b) => (b.p95 ?? 0) - (a.p95 ?? 0)),

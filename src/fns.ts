@@ -61,6 +61,15 @@ export const getOverview = createServerFn().handler(async () => ({
   update: await updates.update(),
 }))
 
+// The overview's charts: 30 days of events per project, new and resolved issues per day, crash-free per release;
+// one project's with `project`
+export const getOverviewCharts = createServerFn()
+  .validator((d: unknown) => ({ project: optional((v) => text(v, 60))(object(d).project) }))
+  .handler(async ({ data }) => {
+    const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
+    return projects.overviewCharts(env.DB, data.project ? [project?.id ?? -1] : undefined, Date.now())
+  })
+
 // The sidebar: every project, the one picked last (a cookie it sets, only ever matched against the list), whether
 // it was folded (shadcn's own cookie) and who's signed in
 export const getSidebar = createServerFn().handler(async () => ({
@@ -386,6 +395,25 @@ export const getLogChart = createServerFn()
   .handler(async ({ data }) => {
     const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
     return logs.logsByBucket(env.DB, { ...data, projectId: project?.id ?? (data.project ? -1 : undefined) }, Date.now())
+  })
+
+// The logs chart and table by a field: a column (level, release, environment, project) or an attribute's key, which
+// is only ever bound
+export const getLogGroups = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    const groupBy = text(o.groupBy, 60)
+    if (!/^[\w.-]+$/.test(groupBy)) throw new Error('expected a field to group by')
+    return {
+      query: text(o.query ?? '', 1000),
+      project: optional((v) => text(v, 60))(o.project),
+      window: logWindow(o),
+      groupBy,
+    }
+  })
+  .handler(async ({ data }) => {
+    const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
+    return logs.logGroups(env.DB, { ...data, projectId: project?.id ?? (data.project ? -1 : undefined) }, Date.now())
   })
 
 // The search bar's suggestions: without a key, every key (the built-ins, then the tags or attributes stored, by how

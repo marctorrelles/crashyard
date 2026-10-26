@@ -1,15 +1,21 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Ago, count, Level, Sparkline } from '@/components/bits'
+import { Ago, count, Level, percent, Sparkline } from '@/components/bits'
+import { BarList, BigNumber, PALETTE, TimeChart } from '@/components/charts'
 import { NewProject, PLATFORM_NAMES } from '@/components/new-project'
 import { Empty, PageHeader, Shell } from '@/components/shell'
-import { getOverview } from '@/fns'
+import { change } from '@/data/charts'
+import { getOverview, getOverviewCharts } from '@/fns'
 
 export const Route = createFileRoute('/')({
   // The sidebar's project filter: every project's cards, failing monitors and new issues, or one's
   validateSearch: (s: Record<string, unknown>): { project?: string } => ({
     project: typeof s.project === 'string' && s.project ? s.project : undefined,
   }),
-  loader: async () => ({ ...(await getOverview()), now: Date.now() }),
+  loaderDeps: ({ search }) => ({ project: search.project }),
+  loader: async ({ deps }) => {
+    const [overview, charts] = await Promise.all([getOverview(), getOverviewCharts({ data: deps })])
+    return { ...overview, charts, now: Date.now() }
+  },
   component: Home,
 })
 
@@ -21,6 +27,11 @@ function Home() {
   const projects = only(data.projects, (p) => p.slug)
   const newIssues = only(data.newIssues, (i) => i.project)
   const failing = only(data.failing, (m) => m.project_slug)
+  const { charts } = data
+  const daily = charts.days.map((_, i) => charts.events.reduce((a, s) => a + s.counts[i], 0))
+  // The cards' "Events, 24h" (today and yesterday, UTC), against the two days before
+  const recent = daily.slice(-2).reduce((a, b) => a + b, 0)
+  const before = daily.slice(-4, -2).reduce((a, b) => a + b, 0)
   return (
     <Shell>
       <PageHeader title="Overview" actions={projects.length > 0 && <NewProject variant="outline" />} />
@@ -73,6 +84,59 @@ function Home() {
             </Link>
           ))}
         </div>
+      )}
+      {projects.length > 0 && (
+        <section className="mt-8 grid gap-3" aria-label="The last 30 days">
+          <div className="grid grid-cols-2 gap-3 rounded-xl border p-4 sm:grid-cols-4">
+            <BigNumber label="Events, 24h" value={recent} change={change(recent, before)} />
+            <BigNumber label="Unresolved" value={projects.reduce((a, p) => a + p.unresolved, 0)} />
+            <BigNumber label="New issues, 24h" value={charts.newRecent} />
+            <BigNumber label="Monitors failing" value={failing.length} />
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-xl border p-3 pb-1">
+              <h2 className="mb-2 text-sm font-medium">Events per day</h2>
+              <TimeChart
+                x={charts.days}
+                kind="area"
+                legend={charts.events.length > 1}
+                series={charts.events.map((s, i) => ({
+                  key: `p${i}`,
+                  label: s.name,
+                  values: s.counts,
+                  color: s.project === null ? 'var(--muted-foreground)' : PALETTE[i % PALETTE.length],
+                }))}
+                height={180}
+              />
+            </div>
+            <div className="rounded-xl border p-3 pb-1">
+              <h2 className="mb-2 text-sm font-medium">Issues new and resolved per day</h2>
+              <TimeChart
+                x={charts.days}
+                stacked={false}
+                legend
+                series={[
+                  { key: 'new', label: 'New', values: charts.newIssues, color: 'var(--color-red-500)' },
+                  { key: 'resolved', label: 'Resolved', values: charts.resolved, color: 'var(--color-emerald-500)' },
+                ]}
+                height={180}
+              />
+            </div>
+          </div>
+          {charts.crashFree.length > 0 && (
+            <div className="rounded-xl border p-4">
+              <h2 className="mb-2 text-sm font-medium">Crash-free sessions, the newest two releases</h2>
+              <BarList
+                items={charts.crashFree.map((c) => ({
+                  value: project ? c.release : `${c.project} ${c.release}`,
+                  count: c.value,
+                }))}
+                total={1}
+                format={percent}
+              />
+            </div>
+          )}
+        </section>
       )}
       {failing.length > 0 && (
         <section className="mt-8">

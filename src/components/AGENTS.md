@@ -13,9 +13,9 @@
   `?project=`; the project shown comes from that, `/projects/$slug` or an issue's own; pages of no project keep the one
   last picked (cookie `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The
   filter's menu also has the picked project's settings.
-- `bits.tsx`: `Sparkline` (SVG bars, no chart library), `Ago` (relative to a `now` from the loader), `Level`, `count`,
-  `percent`.
-- `performance.tsx`: `ms` (a duration), `Period`, `P95Chart` (p95 and count per hour, SVG) and `Waterfall` (spans as
+- `bits.tsx`: `Sparkline` (SVG bars, no chart library; `label` for what they are when not events per day), `Ago`
+  (relative to a `now` from the loader), `Level`, `count`, `percent`.
+- `performance.tsx`: `ms` (a duration), `Period` and `Waterfall` (spans as
   bars, indented by depth; on a phone the bar goes under its name).
 - `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (a `ButtonGroup`:
   key, operator menu, value, ×; the key or value turns it back into text with the value selected), free words stay
@@ -27,14 +27,16 @@
   stops, from `getSuggestions`, cached by scope, project, range, key and prefix for the page's life (a late reply only
   fills its own entry; while one is on its way, a shorter prefix's narrows). On the issues and logs pages.
 - `charts.tsx`: shadcn's `ChartContainer` over recharts. `TimeChart`: counts per bucket (`x` is bucket starts in ms or
-  UTC days `YYYY-MM-DD`), series stacked as bars or areas (lines aren't stacked), `previous` (the period before) as a
-  dashed line, a tooltip per bucket, and with `onZoom` a drag across it gives the buckets' exact span (the logs page
-  zooms with it). Days are written as the UTC day they are; hours in the browser's time; it draws inside
-  `<ClientOnly>`, a `Skeleton` of its size before. Colours: a series' own, else `LEVEL_COLORS` by key (fatal red 700,
-  error red 500, warning and logs' warn amber, info sky, debug muted, logs' trace fainter), else the theme's
-  `--chart-n`. `BarList`: values with a bar for their share, count and percent, + (show only) and − (exclude) on
-  hover, always shown on touch. `BigNumber`: a number, its label and its change (more reads red); not on a page yet
-  (tagged `@public` for knip until the overview takes it).
+  UTC days `YYYY-MM-DD`), series stacked as bars or areas (lines aren't; `stacked={false}` puts bars side by side), a
+  series' own `kind` and `axis: 'right'` (a second axis, `formatRight`; the transaction page's count under its p95),
+  null values skipped in a line (joined across), `legend`, `previous` (the period before) as a dashed line, a tooltip
+  per bucket, and with `onZoom` a drag across it gives the buckets' exact span (the logs page zooms with it). Days are
+  written as the UTC day they are; hours in the browser's time; it draws inside `<ClientOnly>`, a `Skeleton` of its
+  size before. Colours: a series' own, else `LEVEL_COLORS` by key (fatal red 700, error red 500, warning and logs'
+  warn amber, info sky, debug muted, logs' trace fainter), else the theme's `--chart-n`; `PALETTE`, 8 colours for
+  groups and projects. `BarList`: values with a bar for their share, count and percent (or `format`'s text), + (show
+  only) and − (exclude) on hover, always shown on touch. `BigNumber`: a number, its label and its change (more reads
+  red), on the overview.
 - `value-menu.tsx`: `ValueMenu`, a value on a page as a `DropdownMenu`: show only this, exclude this, copy. Pages pass
   `addValue` for the first two; its trigger sits above a row's link (`z-10`), its tap area 40 px high on a phone.
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.

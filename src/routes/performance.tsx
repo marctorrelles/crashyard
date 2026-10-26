@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
-import { count } from '@/components/bits'
+import { count, Sparkline } from '@/components/bits'
 import { ms, Period } from '@/components/performance'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { getPerformance } from '@/fns'
@@ -82,6 +82,9 @@ function Transactions({
             <th className="px-3 py-2 text-right font-medium">Count</th>
             <th className="px-3 py-2 text-right font-medium max-sm:hidden">Errors</th>
             <th className="px-3 py-2 text-right font-medium max-sm:hidden">p50</th>
+            <th className="px-3 py-2 text-right font-medium max-sm:hidden">
+              <span className="sr-only">p95 over the period</span>
+            </th>
             <th className="px-3 py-2 text-right font-medium">p95</th>
             <th className="px-3 py-2 text-right font-medium max-sm:hidden">p99</th>
             <th className="px-4 py-2 text-right font-medium">Change</th>
@@ -105,6 +108,13 @@ function Transactions({
                 {t.errors ? `${((t.errors / t.count) * 100).toFixed(1)}%` : '–'}
               </td>
               <td className="px-3 py-2.5 text-right max-sm:hidden">{ms(t.p50)}</td>
+              <td className="px-3 py-2.5 max-sm:hidden">
+                <Sparkline
+                  values={t.trend.map((p) => p ?? 0)}
+                  label={`p95 over the period, up to ${ms(Math.max(0, ...t.trend.map((p) => p ?? 0)))}`}
+                  className="ml-auto h-5 w-24"
+                />
+              </td>
               <td className="px-3 py-2.5 text-right font-medium">{ms(t.p95)}</td>
               <td className="px-3 py-2.5 text-right max-sm:hidden">{ms(t.p99)}</td>
               <td className="px-4 py-2.5 text-right">

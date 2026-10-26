@@ -1,4 +1,4 @@
-// Pieces of the performance pages: durations, the period picker, the p95 chart and a span waterfall.
+// Pieces of the performance pages: durations, the period picker and a span waterfall.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Span } from '@/performance/ingest'
 import { cn } from '@/lib/utils'
@@ -29,43 +29,6 @@ export function Period({ days, onChange }: { days: number; onChange: (days: numb
         ))}
       </SelectContent>
     </Select>
-  )
-}
-
-/** p95 per hour as bars, and how many under them */
-export function P95Chart({ series }: { series: { hour: number; count: number; p95: number | null }[] }) {
-  const max = Math.max(1, ...series.map((s) => s.p95 ?? 0))
-  const most = Math.max(1, ...series.map((s) => s.count))
-  return (
-    <figure>
-      <svg
-        viewBox={`0 0 ${series.length} 100`}
-        preserveAspectRatio="none"
-        className="h-32 w-full"
-        role="img"
-        aria-label={`p95 per hour, up to ${ms(max)}`}
-      >
-        {series.map((s, i) => {
-          const h = s.p95 ? Math.max(1.5, (s.p95 / max) * 80) : 0
-          const c = (s.count / most) * 16
-          return (
-            <g key={s.hour}>
-              {h > 0 && <rect x={i + 0.1} y={80 - h} width={0.8} height={h} className="fill-foreground/70" />}
-              <rect
-                x={i + 0.1}
-                y={100 - c}
-                width={0.8}
-                height={c}
-                className={s.count ? 'fill-muted-foreground/40' : 'fill-border'}
-              />
-            </g>
-          )
-        })}
-      </svg>
-      <figcaption className="mt-1 flex justify-between text-xs text-muted-foreground">
-        <span>p95 per hour (top, up to {ms(max)}) and count (bottom)</span>
-      </figcaption>
-    </figure>
   )
 }
 

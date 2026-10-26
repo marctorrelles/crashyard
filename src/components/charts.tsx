@@ -6,11 +6,29 @@ import { useState } from 'react'
 import { Area, Bar, CartesianGrid, ComposedChart, Line, ReferenceArea, XAxis, YAxis } from 'recharts'
 import { count } from '@/components/bits'
 import { Button } from '@/components/ui/button'
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
-export type Series = { key: string; label: string; values: number[]; color?: string }
+/**
+ * One series: `key` names it in CSS (letters, digits, `-`), `values` a count per bucket (null draws a gap in a line).
+ * `kind` overrides the chart's for this one; `axis: 'right'` measures it on a second axis.
+ */
+export type Series = {
+  key: string
+  label: string
+  values: (number | null)[]
+  color?: string
+  kind?: 'bar' | 'area' | 'line'
+  axis?: 'right'
+}
 
 /** A level's colour in the charts (issues' levels and logs'), most severe the darkest red, the least the faintest */
 export const LEVEL_COLORS: Record<string, string> = {
@@ -22,6 +40,18 @@ export const LEVEL_COLORS: Record<string, string> = {
   debug: 'var(--muted-foreground)',
   trace: 'color-mix(in oklab, var(--muted-foreground) 50%, transparent)',
 }
+
+/** Colours for series that aren't levels (a group's values, projects), apart in light and dark */
+export const PALETTE = [
+  'var(--color-sky-500)',
+  'var(--color-violet-500)',
+  'var(--color-amber-500)',
+  'var(--color-emerald-500)',
+  'var(--color-rose-500)',
+  'var(--color-cyan-500)',
+  'var(--color-lime-500)',
+  'var(--color-fuchsia-500)',
+]
 
 const DAY = 864e5
 // A day (`YYYY-MM-DD`) is a UTC day: written as that day wherever the browser is. A bucket start (ms) shorter than a
@@ -49,6 +79,10 @@ type Props = {
   className?: string
   onZoom?: (from: number, to: number) => void
   format?: (v: number) => string
+  formatRight?: (v: number) => string
+  // Bars and areas are stacked unless this is false (side by side)
+  stacked?: boolean
+  legend?: boolean
 }
 
 /**
@@ -73,6 +107,9 @@ function Chart({
   kind = 'bar',
   onZoom,
   format = count,
+  formatRight = count,
+  stacked = true,
+  legend = false,
   size,
   style,
 }: Props & { size: string; style?: React.CSSProperties }) {
@@ -88,12 +125,12 @@ function Chart({
   ])
   const rows = x.map((_, i) => ({
     i,
-    ...Object.fromEntries(series.map((s) => [s.key, s.values[i] ?? 0])),
+    ...Object.fromEntries(series.map((s) => [s.key, s.values[i] === undefined ? 0 : s.values[i]])),
     ...(previous ? { previous: previous[i] ?? 0 } : {}),
   }))
   const indexOf = (state: { activeIndex?: number | string | null }) =>
     state.activeIndex === undefined || state.activeIndex === null ? undefined : Number(state.activeIndex)
-  const stack = kind === 'line' ? undefined : 'counts'
+  const right = series.some((s) => s.axis === 'right')
   return (
     <ChartContainer
       config={config}
@@ -129,7 +166,25 @@ function Chart({
           minTickGap={28}
           tickFormatter={(i: number) => (x[i] === undefined ? '' : tick(x[i], step))}
         />
-        <YAxis width={36} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={format} />
+        <YAxis
+          yAxisId="left"
+          width={format === count ? 36 : 52}
+          tickLine={false}
+          axisLine={false}
+          allowDecimals={false}
+          tickFormatter={format}
+        />
+        {right && (
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            width={formatRight === count ? 36 : 52}
+            tickLine={false}
+            axisLine={false}
+            allowDecimals={false}
+            tickFormatter={formatRight}
+          />
+        )}
         <ChartTooltip
           cursor={kind === 'bar' ? { fill: 'var(--muted)', opacity: 0.6 } : true}
           content={
@@ -142,12 +197,25 @@ function Chart({
             />
           }
         />
-        {series.map((s) =>
-          kind === 'bar' ? (
-            <Bar key={s.key} dataKey={s.key} stackId={stack} fill={`var(--color-${s.key})`} isAnimationActive={false} />
-          ) : kind === 'area' ? (
+        {legend && <ChartLegend content={<ChartLegendContent />} />}
+        {series.map((s) => {
+          const as = s.kind ?? kind
+          const axis = s.axis ?? 'left'
+          // Lines aren't stacked; bars and areas are, each kind on each axis apart
+          const stack = stacked && as !== 'line' ? `${as}-${axis}` : undefined
+          return as === 'bar' ? (
+            <Bar
+              key={s.key}
+              yAxisId={axis}
+              dataKey={s.key}
+              stackId={stack}
+              fill={`var(--color-${s.key})`}
+              isAnimationActive={false}
+            />
+          ) : as === 'area' ? (
             <Area
               key={s.key}
+              yAxisId={axis}
               dataKey={s.key}
               stackId={stack}
               type="monotone"
@@ -159,17 +227,21 @@ function Chart({
           ) : (
             <Line
               key={s.key}
+              yAxisId={axis}
               dataKey={s.key}
               type="monotone"
               stroke={`var(--color-${s.key})`}
               strokeWidth={2}
+              // A bucket with nothing to measure (a p95 of no transactions) is skipped, not drawn as zero
+              connectNulls
               dot={false}
               isAnimationActive={false}
             />
-          ),
-        )}
+          )
+        })}
         {previous && (
           <Line
+            yAxisId="left"
             dataKey="previous"
             type="monotone"
             stroke="var(--color-previous)"
@@ -181,7 +253,12 @@ function Chart({
           />
         )}
         {drag && drag.from !== drag.to && (
-          <ReferenceArea x1={Math.min(drag.from, drag.to)} x2={Math.max(drag.from, drag.to)} fillOpacity={0.15} />
+          <ReferenceArea
+            yAxisId="left"
+            x1={Math.min(drag.from, drag.to)}
+            x2={Math.max(drag.from, drag.to)}
+            fillOpacity={0.15}
+          />
         )}
       </ComposedChart>
     </ChartContainer>
@@ -199,11 +276,14 @@ export function BarList({
   total,
   onInclude,
   onExclude,
+  format,
 }: {
   items: { value: string; count: number }[]
   total: number
   onInclude?: (v: string) => void
   onExclude?: (v: string) => void
+  // What's written beside a value instead of its count and share
+  format?: (count: number) => string
 }) {
   // Shown on hover where there's a pointer that hovers; always on touch
   const action = 'max-sm:size-10 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100'
@@ -221,7 +301,7 @@ export function BarList({
                 {it.value}
               </span>
               <span className="shrink-0 text-muted-foreground tabular-nums">
-                {count(it.count)} · {share(it.count, total)}
+                {format ? format(it.count) : `${count(it.count)} · ${share(it.count, total)}`}
               </span>
             </div>
           </div>
@@ -255,10 +335,7 @@ export function BarList({
   )
 }
 
-/**
- * One number, what it is, and its change against the period before (more reads red: these count what went wrong).
- * @public Not on a page yet: the overview takes it up next.
- */
+/** One number, what it is, and its change against the period before (more reads red: these count what went wrong) */
 export function BigNumber({
   value,
   label,

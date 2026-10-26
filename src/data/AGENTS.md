@@ -1,9 +1,14 @@
 # Data
 
 The dashboard's SQL: plain functions that take the D1 database (and `now`), so tests and `scripts/seed.mjs` call them
-directly. `src/fns.ts` wraps them as server functions; pages never import these for anything but types and constants.
+directly. `src/fns.ts` wraps them as server functions; pages never import these for anything but types, constants and pure
+helpers (`change`).
 
-- `projects.ts`: the home page's overview (unresolved, events per day), creating a project (slug from the name, a new
+- `projects.ts`: the home page's overview (unresolved, events per day) and `overviewCharts` (30 UTC days, of every
+  project or the page's: events per day from `project_days`, the 8 projects with the most and the rest as one; issues
+  first seen per day, and how many in the last 24 hours; issues resolved per day, distinct, from `issue_activity`'s
+  `resolved`, a scan of it, small; crash-free sessions of each project's two newest releases by their first session
+  in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new
   key), changing, rotating its key, deleting (foreign keys cascade), `pruneEvents` (the daily cron: events past their
   project's retention; issues and counts stay), `dsnOf`.
 - `issues.ts`: `listIssues` (a search from `src/search/`, sorted, 50 a page, with a 14-day series each), `getIssue`
@@ -18,16 +23,25 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   out, 90 days at most, `MAX_SPAN`); facets over the newest 1000 that match; `logsByBucket`, logs per bucket and level
   over the window (the bucket from `intervalFor`, `timestamp - timestamp % size`: `%` reads integers, whatever D1
   binds) and the span just before it, of the same length, each log shifted by the span onto the bucket it's behind,
-  so `previous` lines up with the buckets, partial first bucket included; `pruneLogs` (the daily cron). Plan: the
+  so `previous` lines up with the buckets, partial first bucket included; `logGroups`, logs by a field over the
+  window (a column of `GROUP_COLUMNS`, level, release, environment, project, a missing one as `''`; or an attribute,
+  its key bound, only the logs that have it): the 8 values with the most, each with its count in the span before (one
+  read of both spans, every value's totals by a window function so the rest, value `null`, is exact), then per bucket
+  a series of each (`CASE … IN` the 8, the rest as `null`); the group-by honours the whole search, its own key's
+  tokens too, so it, the chart and the list count the same logs. Plan: the window by `logs_time` (a project's,
+  `logs_project_time`), an attribute by `log_attributes`' primary key, temp B-trees for the groups; `pruneLogs`
+  (the daily cron). Plan: the
   window by `logs_time` (a project's, `logs_project_time`), then a temp B-tree for the groups; it reads every log in
   the window, so a filter or a project keeps it small.
 - `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents, making,
   changing, pausing (a resumed one starts again from pending) and deleting; failing monitors for home.
 - `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
-  change since the release before (the project's two newest releases with transactions); one transaction's hours,
-  releases and slowest examples; sessions per release and `crashFree`; `checkSlowerReleases` (the cron, hourly at
-  :05: a p95 50% longer in the newest release than the one before, 50 transactions in each at least, told once via
-  `slower_releases`); `prunePerformance` (the daily cron: summaries after 90 days, examples after 30).
+  change since the release before and `trend`, the p95 of each step (an hour in a day, 6 hours in a week, a day in 30;
+  from the same read of `transaction_buckets`, grouped by the step too) (the project's two newest releases with
+  transactions); one transaction's hours, releases and slowest examples; sessions per release and `crashFree`;
+  `checkSlowerReleases` (the cron, hourly at :05: a p95 50% longer in the newest release than the one before, 50
+  transactions in each at least, told once via `slower_releases`); `prunePerformance` (the daily cron: summaries after
+  90 days, examples after 30).
 - `updates.ts`: whether a newer crashyard is out, from the repo's latest GitHub release, asked once a day through
   the Cache API, for home's banner; nothing about the deployment is sent.
 - `suggest.ts`: the search bar's keys and values from what's stored. Issues: tag keys by how many issues have them,
@@ -41,8 +55,10 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   and values search `log_attributes` by primary key (`log_id`, and `key`) for the sample, which reads `logs_time` (a
   project's, `logs_project_time`).
 - `charts.ts`: `intervalFor` (a minute up to an hour, 5 minutes up to 6 hours, an hour up to a week, else a day),
-  `buckets` (UTC bucket starts for `1m`, `5m`, `1h`, `1d`), `fill` (sparse rows, a day or a bucket's start with a level
-  and count, as a series per level, zeros where none, most severe first, logs' `warn` and `trace` among them), `scoped` (an issue filter narrowed to the page's project and to its `project:`
+  `buckets` (UTC bucket starts for `1m`, `5m`, `1h`, `1d`), `topWithOther` (the n series with most, the rest summed
+  bucket by bucket as `null`), `change` (now against before as a fraction, `null` when before was 0), `fill` (sparse
+  rows, a day or a bucket's start with a level and count, as a series per level, zeros where none, most severe first,
+  logs' `warn` and `trace` among them), `scoped` (an issue filter narrowed to the page's project and to its `project:`
   slugs: `listIssues` uses it too, so the chart and the list count the same issues) and `issueEventsByDay` (events per
   UTC day and level of the issues a search matches, from `issue_days`). Plan: the issues by the filter (a scan, or a
   project's by `issues_project_last_seen`), then each one's days by `issue_days`' primary key; with no filter, a scan

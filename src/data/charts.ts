@@ -44,6 +44,25 @@ export function fill<X extends string | number>(rows: { at: X; level: string; co
   return [...series].map(([level, counts]) => ({ level, counts })).sort((a, b) => rank(a.level) - rank(b.level))
 }
 
+/**
+ * The `n` series with the most in them, largest first, and the rest summed bucket by bucket into one row whose value
+ * is `null` (none when nothing's left)
+ */
+export function topWithOther(rows: { value: string; counts: number[] }[], n: number) {
+  const total = (r: { counts: number[] }) => r.counts.reduce((a, b) => a + b, 0)
+  const sorted = rows.map((r) => ({ ...r, total: total(r) })).sort((a, b) => b.total - a.total)
+  const top: { value: string | null; counts: number[] }[] = sorted
+    .slice(0, n)
+    .map((r) => ({ value: r.value, counts: r.counts }))
+  const rest = sorted.slice(n)
+  if (rest.length)
+    top.push({ value: null, counts: rest[0].counts.map((_, i) => rest.reduce((a, r) => a + (r.counts[i] ?? 0), 0)) })
+  return top
+}
+
+/** How much more (or less) than before, as a fraction: `null` when there was nothing before */
+export const change = (now: number, before: number) => (before ? now / before - 1 : null)
+
 const marks = (n: number) => Array(n).fill('?').join(',')
 
 /** An issue filter's conditions narrowed to a project (the page's) and to the slugs of its `project:` tokens */

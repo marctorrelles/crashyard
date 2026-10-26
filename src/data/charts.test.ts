@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buckets, fill, intervalFor, scoped } from './charts'
+import { buckets, change, fill, intervalFor, scoped, topWithOther } from './charts'
 
 describe('charts', () => {
   it('starts hourly buckets at the hour that holds `from`, up to `to`', () => {
@@ -83,5 +83,21 @@ describe('charts', () => {
       params: ['error', 7, 'a', 'b'],
     })
     expect(scoped({ where: [], params: [], projectSlugs: [] }, undefined)).toEqual({ where: [], params: [] })
+  })
+
+  it('keeps the largest series in order and sums the rest into other, bucket by bucket', () => {
+    const rows = Array.from({ length: 10 }, (_, i) => ({ value: `v${i}`, counts: [i, 1] }))
+    const top = topWithOther(rows, 8)
+    expect(top.map((r) => r.value)).toEqual(['v9', 'v8', 'v7', 'v6', 'v5', 'v4', 'v3', 'v2', null])
+    expect(top.at(-1)!.counts).toEqual([1, 2])
+    expect(topWithOther(rows.slice(0, 3), 8).map((r) => r.value)).toEqual(['v2', 'v1', 'v0'])
+    expect(topWithOther([], 8)).toEqual([])
+  })
+
+  it('gives the change against before, none when there was nothing before', () => {
+    expect(change(15, 10)).toBe(0.5)
+    expect(change(5, 10)).toBe(-0.5)
+    expect(change(5, 0)).toBeNull()
+    expect(change(0, 0)).toBeNull()
   })
 })

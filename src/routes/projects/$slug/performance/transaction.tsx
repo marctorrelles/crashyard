@@ -1,7 +1,8 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Ago, count } from '@/components/bits'
-import { ms, P95Chart, Period, Waterfall } from '@/components/performance'
+import { TimeChart } from '@/components/charts'
+import { ms, Period, Waterfall } from '@/components/performance'
 import { PageHeader, Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { getTransaction } from '@/fns'
@@ -54,8 +55,32 @@ function Transaction() {
       <p className="mb-5 text-sm text-muted-foreground">
         {count(total)} in this period{errors > 0 && <> · {count(errors)} failed</>}
       </p>
-      <section className="mb-6 rounded-xl border p-4">
-        <P95Chart series={d.series} />
+      <section className="mb-6 rounded-xl border p-3 pb-1" aria-label="p95 and count per hour">
+        <p className="mb-2 text-sm text-muted-foreground">
+          p95 per hour (the line, left) and how many (the bars, right)
+        </p>
+        <TimeChart
+          x={d.series.map((s) => s.hour)}
+          series={[
+            {
+              key: 'count',
+              label: 'Count',
+              values: d.series.map((s) => s.count),
+              kind: 'bar',
+              axis: 'right',
+              color: 'color-mix(in oklab, var(--muted-foreground) 35%, transparent)',
+            },
+            {
+              key: 'p95',
+              label: 'p95, ms',
+              values: d.series.map((s) => s.p95),
+              kind: 'line',
+              color: 'var(--foreground)',
+            },
+          ]}
+          format={(v) => ms(v)}
+          className="h-40 md:h-52"
+        />
       </section>
       {d.releases.length > 0 && (
         <section className="mb-6">

@@ -141,6 +141,79 @@ export async function logsByBucket(db: D1Database, opts: Search, now: number) {
   return { from, to, x, interval, levels: fill(current.results, x), previous }
 }
 
+// What logs can be grouped by besides an attribute: their own columns (a missing release or environment as '')
+export const GROUP_COLUMNS: Record<string, string> = {
+  level: 'l.level',
+  release: "COALESCE(l.release, '')",
+  environment: "COALESCE(l.environment, '')",
+  project: '(SELECT slug FROM projects WHERE id = l.project_id)',
+}
+const TOP = 8
+
+/**
+ * Logs by one field over a window: a column of `GROUP_COLUMNS` or an attribute (its key bound, only the logs that
+ * have it). The 8 values with the most logs, each with its count in the span just before (of the same length), and
+ * the rest as one group whose value is `null`; and per bucket, a series for each of those.
+ */
+export async function logGroups(db: D1Database, opts: Search & { groupBy: string }, now: number) {
+  const { from, to } = spanOf(opts.window, now)
+  const span = to - from
+  const interval = intervalFor(span)
+  const x = buckets(from, to - 1, interval)
+  const { where, params } = conditions(opts, now)
+  const filter = where.map((w) => ` AND ${w}`).join('')
+  const column = Object.hasOwn(GROUP_COLUMNS, opts.groupBy) ? GROUP_COLUMNS[opts.groupBy] : undefined
+  const value = column ?? 'g.value'
+  const join = column ? '' : ' JOIN log_attributes g ON g.log_id = l.id AND g.key = ?'
+  const key = column ? [] : [opts.groupBy]
+  // One read of both spans: each value's count in the window and in the span before, and every value's totals
+  const top = (
+    await db
+      .prepare(
+        `SELECT value, count, previous, total, total_previous FROM (
+           SELECT value, count, previous, SUM(count) OVER () AS total, SUM(previous) OVER () AS total_previous FROM (
+             SELECT ${value} AS value, SUM(l.timestamp >= ?) AS count, SUM(l.timestamp < ?) AS previous
+             FROM logs l${join} WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY value))
+         WHERE count > 0 ORDER BY count DESC, value LIMIT ?`,
+      )
+      .bind(from, from, ...key, from - span, to, ...params, TOP + 1)
+      .all<{ value: string; count: number; previous: number; total: number; total_previous: number }>()
+  ).results
+  const total = top[0]?.total ?? 0
+  const totalPrevious = top[0]?.total_previous ?? 0
+  const shown = top.slice(0, TOP)
+  const groups: { value: string | null; count: number; previous: number }[] = shown.map((g) => ({
+    value: g.value,
+    count: g.count,
+    previous: g.previous,
+  }))
+  const sum = (f: (g: (typeof shown)[number]) => number) => shown.reduce((a, g) => a + f(g), 0)
+  if (top.length > TOP)
+    groups.push({ value: null, count: total - sum((g) => g.count), previous: totalPrevious - sum((g) => g.previous) })
+
+  const series = groups.map((g) => ({ value: g.value, counts: x.map(() => 0) }))
+  if (shown.length) {
+    const marks = shown.map(() => '?').join(',')
+    const rows = (
+      await db
+        .prepare(
+          `SELECT l.timestamp - l.timestamp % ? AS at, CASE WHEN ${value} IN (${marks}) THEN ${value} END AS value,
+           COUNT(*) AS count FROM logs l${join} WHERE l.timestamp >= ? AND l.timestamp < ?${filter} GROUP BY at, 2`,
+        )
+        .bind(SIZE[interval], ...shown.map((g) => g.value), ...key, from, to, ...params)
+        .all<{ at: number; value: string | null; count: number }>()
+    ).results
+    const index = new Map(x.map((at, i) => [at, i]))
+    const of = new Map(series.map((s) => [s.value, s.counts]))
+    for (const r of rows) {
+      const i = index.get(r.at)
+      const counts = of.get(r.value)
+      if (i !== undefined && counts) counts[i] += r.count
+    }
+  }
+  return { from, to, x, interval, total, groups, series }
+}
+
 /** The daily cron: logs past their project's retention */
 export async function pruneLogs(db: D1Database, now: number) {
   await db

@@ -2,8 +2,8 @@
 import { useHydrated } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 
-/** Bars for a count per day, oldest first */
-export function Sparkline({ values, className }: { values: number[]; className?: string }) {
+/** Bars for a count per day, oldest first; `label` says what they are when they aren't events per day */
+export function Sparkline({ values, className, label }: { values: number[]; className?: string; label?: string }) {
   const max = Math.max(1, ...values)
   const w = 4
   const gap = 1.5
@@ -12,7 +12,7 @@ export function Sparkline({ values, className }: { values: number[]; className?:
       viewBox={`0 0 ${values.length * (w + gap) - gap} 24`}
       preserveAspectRatio="none"
       className={cn('h-6 w-24 text-muted-foreground/60', className)}
-      aria-label={`${values.reduce((a, b) => a + b, 0)} events in ${values.length} days`}
+      aria-label={label ?? `${values.reduce((a, b) => a + b, 0)} events in ${values.length} days`}
       role="img"
     >
       {values.map((v, i) => {

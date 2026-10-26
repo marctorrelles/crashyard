@@ -1,22 +1,32 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from '@tanstack/react-router'
-import { ChevronRightIcon, PauseIcon, PlayIcon, XIcon } from 'lucide-react'
+import { ChevronRightIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, XIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { count } from '@/components/bits'
-import { BarList, TimeChart } from '@/components/charts'
+import { BarList, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
 import { SearchBar } from '@/components/search-bar'
 import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ValueMenu } from '@/components/value-menu'
-import { MAX_SPAN } from '@/data/logs'
-import { getLogChart, getLogs } from '@/fns'
+import { change } from '@/data/charts'
+import { GROUP_COLUMNS, MAX_SPAN } from '@/data/logs'
+import { getLogChart, getLogGroups, getLogs, getSuggestions } from '@/fns'
 import { cn } from '@/lib/utils'
 import { addValue } from '@/search/query'
 
 const RANGES = { '1h': 'Last hour', '24h': 'Last day', '7d': 'Last week', '30d': 'Last 30 days' } as const
 type Range = keyof typeof RANGES
 // `from` and `to` (ms, a drag on the chart) stand in for `range` while they're set; `range` stays for Reset
-type Search = { project?: string; query?: string; range?: Range; from?: number; to?: number }
+type Search = { project?: string; query?: string; range?: Range; from?: number; to?: number; groupBy?: string }
 
 const whole = (v: unknown) => (Number.isSafeInteger(Number(v)) && Number(v) >= 0 ? Number(v) : undefined)
 
@@ -32,13 +42,19 @@ export const Route = createFileRoute('/logs')({
       range: typeof s.range === 'string' && s.range in RANGES ? (s.range as Range) : undefined,
       from: exact ? from : undefined,
       to: exact ? to : undefined,
+      groupBy: typeof s.groupBy === 'string' && /^[\w.-]{1,60}$/.test(s.groupBy) ? s.groupBy : undefined,
     }
   },
   loaderDeps: ({ search }) => search,
+  // With a group-by, the chart is its groups (and the table over the list); else logs by level
   loader: async ({ deps }) => {
     const params = paramsOf(deps)
-    const [list, chart] = await Promise.all([getLogs({ data: params }), getLogChart({ data: params })])
-    return { ...list, chart }
+    const [list, chart, groups] = await Promise.all([
+      getLogs({ data: params }),
+      deps.groupBy ? undefined : getLogChart({ data: params }),
+      deps.groupBy ? getLogGroups({ data: { ...params, groupBy: deps.groupBy } }) : undefined,
+    ])
+    return { ...list, chart, groups }
   },
   head: () => ({ meta: [{ title: 'Logs · crashyard' }] }),
   component: Logs,
@@ -90,9 +106,7 @@ function Logs() {
   )
   // Every log has a level, so the levels' counts add up to the sample the facets count over
   const sampled = data.facets.filter((f) => f.key === 'level').reduce((sum, f) => sum + f.n, 0)
-  const { chart } = data
-  const total = chart.levels.reduce((sum, s) => sum + s.counts.reduce((a, b) => a + b, 0), 0)
-  const before = chart.previous.reduce((a, b) => a + b, 0)
+  const chart = chartOf(data, search.groupBy)
   return (
     <Shell wide>
       <PageHeader title="Logs">{useProjects().find((p) => p.slug === search.project)?.name}</PageHeader>
@@ -133,6 +147,12 @@ function Logs() {
             Reset
           </Button>
         )}
+        <GroupBy
+          value={search.groupBy}
+          project={search.project}
+          range={search.range}
+          onChange={(groupBy) => go({ groupBy })}
+        />
         <Button
           variant={live ? 'default' : 'outline'}
           onClick={() => setLive(!live)}
@@ -147,13 +167,15 @@ function Logs() {
 
       <section className="mb-3 rounded-xl border p-3 pb-1" aria-label="Logs over time">
         <p className="mb-2 text-sm">
-          <span className="font-medium tabular-nums">{count(total)}</span>{' '}
+          <span className="font-medium tabular-nums">{count(chart.total)}</span>{' '}
           <span className="text-muted-foreground">
-            logs, per {INTERVALS[chart.interval]}
-            {before > 0 && (
+            logs{search.groupBy && !Object.hasOwn(GROUP_COLUMNS, search.groupBy) && <> with {search.groupBy}</>}, per{' '}
+            {INTERVALS[chart.interval]}
+            {search.groupBy && Object.hasOwn(GROUP_COLUMNS, search.groupBy) && <> by {search.groupBy}</>}
+            {chart.before > 0 && (
               <span className="max-sm:hidden">
-                , {count(before)} in the {'range' in params ? PERIODS[params.range] : spanText(chart.to - chart.from)}{' '}
-                before
+                , {count(chart.before)} in the{' '}
+                {'range' in params ? PERIODS[params.range] : spanText(chart.to - chart.from)} before
               </span>
             )}
             <span className="pointer-coarse:hidden"> · drag across to zoom in</span>
@@ -161,12 +183,16 @@ function Logs() {
         </p>
         <TimeChart
           x={chart.x}
-          series={chart.levels.map((s) => ({ key: s.level, label: s.level, values: s.counts }))}
+          series={chart.series}
           previous={chart.previous}
           height={140}
           onZoom={(from, to) => go({ from: Math.max(from, chart.from), to: Math.min(to, chart.to) })}
         />
       </section>
+
+      {data.groups && search.groupBy && (
+        <Groups groups={data.groups.groups} total={data.groups.total} field={search.groupBy} onPick={pick} />
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)]">
         {facets.size > 0 && (
@@ -194,6 +220,207 @@ function Logs() {
         </div>
       </div>
     </Shell>
+  )
+}
+
+// What a group's value reads as: a missing release or environment is none, the rest beyond the top is other
+const groupLabel = (value: string | null) => (value === null ? 'Other' : value === '' ? '(none)' : value)
+
+/** The chart's view: logs by level (with the span before as a dashed line), or by the group-by's groups */
+function chartOf(
+  data: { chart?: Awaited<ReturnType<typeof getLogChart>>; groups?: Awaited<ReturnType<typeof getLogGroups>> },
+  groupBy?: string,
+) {
+  if (data.groups) {
+    const g = data.groups
+    return {
+      ...g,
+      before: g.groups.reduce((a, x) => a + x.previous, 0),
+      previous: undefined,
+      series: g.series.map((s, i): Series => ({
+        key: `g${i}`,
+        label: groupLabel(s.value),
+        values: s.counts,
+        color:
+          s.value === null
+            ? 'var(--muted-foreground)'
+            : groupBy === 'level' && LEVEL_COLORS[s.value]
+              ? LEVEL_COLORS[s.value]
+              : PALETTE[i % PALETTE.length],
+      })),
+    }
+  }
+  const c = data.chart!
+  return {
+    ...c,
+    total: c.levels.reduce((sum, s) => sum + s.counts.reduce((a, b) => a + b, 0), 0),
+    before: c.previous.reduce((a, b) => a + b, 0),
+    series: c.levels.map((s): Series => ({ key: s.level, label: s.level, values: s.counts })),
+  }
+}
+
+/** The group-by: a log column, or an attribute (the keys stored, asked for when the menu first opens) */
+function GroupBy({
+  value,
+  project,
+  range,
+  onChange,
+}: {
+  value?: string
+  project?: string
+  range?: Range
+  onChange: (groupBy: string | undefined) => void
+}) {
+  const [keys, setKeys] = useState<string[]>([])
+  const [asked, setAsked] = useState(false)
+  const load = (open: boolean) => {
+    if (!open || asked) return
+    setAsked(true)
+    void getSuggestions({ data: { scope: 'logs', project, range } }).then((r) => {
+      if ('keys' in r) setKeys(r.keys.filter((k) => k.kind === 'tag').map((k) => k.key))
+    })
+  }
+  const columns = Object.keys(GROUP_COLUMNS)
+  const attributes = [...new Set([...(value && !columns.includes(value) ? [value] : []), ...keys])]
+  return (
+    <Select value={value ?? 'none'} onValueChange={(v) => onChange(v === 'none' ? undefined : v)} onOpenChange={load}>
+      <SelectTrigger className="w-40" aria-label="Group by">
+        <span className="flex min-w-0 gap-1.5">
+          <span className="text-muted-foreground">By</span>
+          <SelectValue />
+        </span>
+      </SelectTrigger>
+      <SelectContent align="end">
+        <SelectGroup>
+          <SelectItem value="none">nothing</SelectItem>
+          {columns.map((c) => (
+            <SelectItem key={c} value={c}>
+              {c}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+        {attributes.length > 0 && (
+          <SelectGroup>
+            <SelectLabel>Attributes</SelectLabel>
+            {attributes.map((k) => (
+              <SelectItem key={k} value={k} className="font-mono">
+                {k}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        )}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/** The groups as a table: each value's logs, the change since the span before, its share; click to show only it */
+function Groups({
+  groups,
+  total,
+  field,
+  onPick,
+}: {
+  groups: { value: string | null; count: number; previous: number }[]
+  total: number
+  field: string
+  onPick: Pick
+}) {
+  if (!groups.length) return null
+  // Hovering shows + and −, as in the facets; always there on touch
+  const action = 'max-sm:size-10 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100'
+  return (
+    <section className="mb-3 overflow-hidden rounded-xl border" aria-label={`Logs by ${field}`}>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="font-mono">{field}</TableHead>
+            <TableHead className="text-right">Logs</TableHead>
+            <TableHead className="text-right">Change</TableHead>
+            <TableHead className="w-1/4 max-sm:hidden">Share</TableHead>
+            <TableHead className="w-0">
+              <span className="sr-only">Show only or exclude</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="tabular-nums">
+          {groups.map((g) => {
+            const filterable = g.value !== null && g.value !== ''
+            const diff = change(g.count, g.previous)
+            const share = total > 0 ? g.count / total : 0
+            return (
+              <TableRow key={g.value ?? '\u0000'} className="group">
+                <TableCell className="max-w-0 font-mono text-xs">
+                  {filterable ? (
+                    <button
+                      type="button"
+                      className="block max-w-full truncate text-left hover:underline max-sm:min-h-10"
+                      title={`Show only ${g.value}`}
+                      onClick={() => onPick(field, g.value!, false)}
+                    >
+                      {g.value}
+                    </button>
+                  ) : (
+                    <span className="text-muted-foreground">{groupLabel(g.value)}</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">{count(g.count)}</TableCell>
+                <TableCell
+                  className={cn(
+                    'text-right',
+                    diff === null || Math.abs(diff) < 0.005
+                      ? 'text-muted-foreground'
+                      : diff > 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-emerald-600 dark:text-emerald-400',
+                  )}
+                >
+                  {diff === null
+                    ? 'new'
+                    : `${diff > 0 ? '+' : diff < 0 ? '−' : '±'}${Math.round(Math.abs(diff) * 100)}%`}
+                </TableCell>
+                <TableCell className="max-sm:hidden">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-foreground/60" style={{ width: `${share * 100}%` }} />
+                    </div>
+                    <span className="w-9 text-right text-xs text-muted-foreground">
+                      {share > 0 && share < 0.01 ? '<1%' : `${Math.round(share * 100)}%`}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell className="py-0">
+                  {filterable && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className={action}
+                        aria-label={`Show only ${g.value}`}
+                        title="Show only this"
+                        onClick={() => onPick(field, g.value!, false)}
+                      >
+                        <PlusIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className={action}
+                        aria-label={`Exclude ${g.value}`}
+                        title="Exclude this"
+                        onClick={() => onPick(field, g.value!, true)}
+                      >
+                        <MinusIcon />
+                      </Button>
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </section>
   )
 }
 

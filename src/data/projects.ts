@@ -1,4 +1,5 @@
-// Projects: what the home page lists, and creating, changing and deleting one.
+// Projects: what the home page lists and charts, and creating, changing and deleting one.
+import { topWithOther } from './charts'
 
 export const PLATFORMS = ['apple', 'android', 'javascript', 'node', 'other'] as const
 export type Platform = (typeof PLATFORMS)[number]
@@ -68,6 +69,79 @@ export async function overview(db: D1Database, now: number) {
       first_seen: number
       project: string
     }[],
+  }
+}
+
+/**
+ * The overview's charts over the last 30 UTC days (of every project, or of `projectIds`): events per day of the 8
+ * projects with the most and the rest as one, issues first seen and issues resolved per day (and how many first seen in
+ * the last 24 hours), and the crash-free sessions of each project's two newest releases (by their first session, in
+ * the last 90 days).
+ */
+export async function overviewCharts(db: D1Database, projectIds: number[] | undefined, now: number) {
+  const days = lastDays(30, now)
+  const since = Date.parse(`${days[0]}T00:00:00Z`)
+  const ids = projectIds ?? []
+  const only = (column: string) => (projectIds ? ` AND ${column} IN (${ids.map(() => '?').join(',')})` : '')
+  const [events, fresh, resolved, sessions] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT p.slug, p.name, d.day, d.events FROM project_days d JOIN projects p ON p.id = d.project_id
+         WHERE d.day >= ?${only('d.project_id')}`,
+      )
+      .bind(days[0], ...ids),
+    db
+      .prepare(
+        `SELECT date(first_seen / 1000, 'unixepoch') AS day, COUNT(*) AS n, SUM(first_seen >= ?) AS recent FROM issues
+         WHERE first_seen >= ?${only('project_id')} GROUP BY day`,
+      )
+      .bind(now - 864e5, since, ...ids),
+    db
+      .prepare(
+        `SELECT date(a.at / 1000, 'unixepoch') AS day, COUNT(DISTINCT a.issue_id) AS n FROM issue_activity a
+         ${projectIds ? 'JOIN issues i ON i.id = a.issue_id ' : ''}WHERE a.kind = 'resolved' AND a.at >= ?${only('i.project_id')} GROUP BY day`,
+      )
+      .bind(since, ...ids),
+    db
+      .prepare(
+        `SELECT p.slug AS project, s.release, s.started, s.crashed FROM (
+           SELECT project_id, release, SUM(started) AS started, SUM(crashed) AS crashed,
+             ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY MIN(day) DESC, release DESC) AS r
+           FROM sessions_daily WHERE day >= ? AND release != ''${only('project_id')} GROUP BY project_id, release) s
+         JOIN projects p ON p.id = s.project_id WHERE s.r <= 2 AND s.started > 0 ORDER BY p.name, s.r`,
+      )
+      .bind(day(now - 90 * 864e5), ...ids),
+  ])
+  const index = new Map(days.map((d, i) => [d, i]))
+  const perDay = (rows: Record<string, unknown>[]) => {
+    const counts = days.map(() => 0)
+    for (const r of rows) {
+      const i = index.get(r.day as string)
+      if (i !== undefined) counts[i] += r.n as number
+    }
+    return counts
+  }
+  const byProject = new Map<string, { value: string; name: string; counts: number[] }>()
+  for (const r of events.results as { slug: string; name: string; day: string; events: number }[]) {
+    const i = index.get(r.day)
+    if (i === undefined) continue
+    let p = byProject.get(r.slug)
+    if (!p) byProject.set(r.slug, (p = { value: r.slug, name: r.name, counts: days.map(() => 0) }))
+    p.counts[i] += r.events
+  }
+  return {
+    days,
+    events: topWithOther([...byProject.values()], 8).map((s) => ({
+      project: s.value,
+      name: s.value === null ? 'Other projects' : byProject.get(s.value)!.name,
+      counts: s.counts,
+    })),
+    newIssues: perDay(fresh.results),
+    newRecent: fresh.results.reduce((a, r) => a + (r.recent as number), 0),
+    resolved: perDay(resolved.results),
+    crashFree: (sessions.results as { project: string; release: string; started: number; crashed: number }[]).map(
+      (s) => ({ project: s.project, release: s.release, value: 1 - s.crashed / s.started }),
+    ),
   }
 }
 
