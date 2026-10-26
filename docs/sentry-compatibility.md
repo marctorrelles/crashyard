@@ -58,5 +58,5 @@ they aren't tested here.
 
 ## Not there
 
-Seer, session replay, profiles, the issue owners and codeowners, metrics, dashboards' custom queries, the web API that
+Seer, session replay, profiles, the issue owners and codeowners, metrics, the web API that
 Sentry's own UI and integrations use. crashyard isn't affiliated with Sentry.
