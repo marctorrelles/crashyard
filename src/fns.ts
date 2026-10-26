@@ -4,6 +4,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getCookie, getRequest, getRequestHeader } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 import * as charts from './data/charts'
+import * as dashboards from './data/dashboards'
 import * as issues from './data/issues'
 import * as logs from './data/logs'
 import * as monitors from './data/monitors'
@@ -460,6 +461,61 @@ export const getSuggestions = createServerFn()
       ],
     }
   })
+
+export const getDashboards = createServerFn().handler(async () => ({
+  dashboards: await dashboards.listDashboards(env.DB),
+  now: Date.now(),
+}))
+
+// The project a page narrows to: its id, -1 when it doesn't exist (so nothing matches), none for every project
+const projectIdOf = async (slug?: string) =>
+  slug ? ((await projects.projectBySlug(env.DB, slug))?.id ?? -1) : undefined
+
+// A dashboard and what each of its widgets shows over the window (a range, or `from` and `to`), narrowed to `project`
+export const getDashboard = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), project: optional((v) => text(v, 60))(o.project), window: logWindow(o) }
+  })
+  .handler(async ({ data }) => {
+    const dashboard = await dashboards.getDashboard(env.DB, data.id)
+    if (!dashboard) return null
+    const projectId = await projectIdOf(data.project)
+    const now = Date.now()
+    // 20 widgets at most (`parseWidgets`), so as many reads at once at most
+    const shown = await Promise.all(
+      dashboard.widgets.map((w) => dashboards.widgetData(env.DB, w, projectId, data.window, now)),
+    )
+    return { dashboard, data: Object.fromEntries(dashboard.widgets.map((w, i) => [w.id, shown[i]])), now }
+  })
+
+// One widget's data before it's saved: the add-widget dialog's preview
+export const previewWidget = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      widget: dashboards.parseWidgets([o.widget])[0],
+      project: optional((v) => text(v, 60))(o.project),
+      window: logWindow(o),
+    }
+  })
+  .handler(async ({ data }) =>
+    dashboards.widgetData(env.DB, data.widget, await projectIdOf(data.project), data.window, Date.now()),
+  )
+
+// A whole dashboard written at once (a new one without `id`), every widget checked; who saved it is recorded
+export const saveDashboard = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    const name = text(o.name, 80).trim()
+    if (!name) throw new Error('a dashboard needs a name')
+    return { id: optional((v) => int(v))(o.id), name, widgets: dashboards.parseWidgets(o.widgets) }
+  })
+  .handler(({ data }) => dashboards.saveDashboard(env.DB, data, viewer(), Date.now()))
+
+export const deleteDashboard = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => dashboards.deleteDashboard(env.DB, data.id).then(() => undefined))
 
 export const createToken = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ name: text(object(d).name, 80).trim() || 'sentry-cli' }))

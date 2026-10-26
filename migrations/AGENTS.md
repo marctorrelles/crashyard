@@ -9,6 +9,8 @@ in `pnpm run deploy`).
   in the changelog with what to do.
 - Times are milliseconds since 1970 (`INTEGER`), days are `YYYY-MM-DD` in UTC, lists and objects are JSON text.
 - Every table a page lists from has the index it sorts by; say what a column holds in a comment beside it.
+- `dashboards.widgets` is JSON that `parseWidgets` (`src/data/dashboards.ts`) checks before it's written and again
+  when it's read: a change to a widget's shape keeps reading the rows already stored.
 - `issues_fts` is FTS5 over issue titles and culprits, kept in step by triggers.
 - D1's free tier writes 100,000 rows a day; an event writes about 30 (event, tags, counts, days). Keep new per-event
   writes few.

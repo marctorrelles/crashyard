@@ -9,6 +9,7 @@ import {
   CheckIcon,
   ChevronsUpDownIcon,
   GaugeIcon,
+  LayoutDashboardIcon,
   LayoutGridIcon,
   LogOutIcon,
   ScrollTextIcon,
@@ -83,16 +84,18 @@ export function Shell({ children, wide }: { children: React.ReactNode; wide?: bo
 
 type Page = { path: string; search: Record<string, unknown>; issueProject?: string }
 
-// The pages that list across projects and narrow to one with ?project=
-const LISTS = ['/', '/issues', '/releases', '/performance', '/logs'] as const
+// The pages that list across projects and narrow to one with ?project= (a dashboard too, below)
+const LISTS = ['/', '/dashboards', '/issues', '/releases', '/performance', '/logs'] as const
 type List = (typeof LISTS)[number]
 const isList = (path: string): path is List => (LISTS as readonly string[]).includes(path)
+// A dashboard's id, when the page is one
+const dashboardOf = (path: string) => path.match(/^\/dashboards\/([^/]+)$/)?.[1]
 
 /** The project a page is of: a slug, null for every project's, undefined for a page that's no project's */
 function projectOf({ path, search, issueProject }: Page) {
   const slug = path.match(/^\/projects\/([^/]+)/)?.[1]
   if (slug) return decodeURIComponent(slug)
-  if (isList(path)) return typeof search.project === 'string' ? search.project : null
+  if (isList(path) || dashboardOf(path)) return typeof search.project === 'string' ? search.project : null
   return issueProject
 }
 
@@ -138,6 +141,13 @@ function AppSidebar() {
             <Item label="Overview" icon={LayoutGridIcon} active={page.path === '/'}>
               {(c) => (
                 <Link to="/" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Dashboards" icon={LayoutDashboardIcon} active={at('/dashboards')}>
+              {(c) => (
+                <Link to="/dashboards" search={search} onClick={close}>
                   {c}
                 </Link>
               )}
@@ -264,7 +274,15 @@ function ProjectSwitcher({
     keep(slug ?? null)
     const search = { project: slug }
     const sub = page.path.match(/^\/projects\/[^/]+\/(releases|performance|settings)/)?.[1]
+    const dashboardId = dashboardOf(page.path)
     if (isList(page.path)) void navigate({ to: page.path, search })
+    // A dashboard stays, with its range, narrowed to the project
+    else if (dashboardId)
+      void navigate({
+        to: '/dashboards/$dashboardId',
+        params: { dashboardId },
+        search: (s) => ({ ...s, project: slug }),
+      })
     else if (sub === 'settings')
       void navigate(slug ? { to: '/projects/$slug/settings', params: { slug } } : { to: '/' })
     else if (sub) void navigate({ to: `/${sub}`, search })

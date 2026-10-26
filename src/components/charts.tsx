@@ -83,6 +83,8 @@ type Props = {
   // Bars and areas are stacked unless this is false (side by side)
   stacked?: boolean
   legend?: boolean
+  // A click on a series' bar, area or line (a dashboard's widget opens the list of that value)
+  onSeries?: (key: string) => void
 }
 
 /**
@@ -110,6 +112,7 @@ function Chart({
   formatRight = count,
   stacked = true,
   legend = false,
+  onSeries,
   size,
   style,
 }: Props & { size: string; style?: React.CSSProperties }) {
@@ -203,9 +206,11 @@ function Chart({
           const axis = s.axis ?? 'left'
           // Lines aren't stacked; bars and areas are, each kind on each axis apart
           const stack = stacked && as !== 'line' ? `${as}-${axis}` : undefined
+          const click = onSeries && { onClick: () => onSeries(s.key), className: 'cursor-pointer' }
           return as === 'bar' ? (
             <Bar
               key={s.key}
+              {...click}
               yAxisId={axis}
               dataKey={s.key}
               stackId={stack}
@@ -215,6 +220,7 @@ function Chart({
           ) : as === 'area' ? (
             <Area
               key={s.key}
+              {...click}
               yAxisId={axis}
               dataKey={s.key}
               stackId={stack}
@@ -227,6 +233,7 @@ function Chart({
           ) : (
             <Line
               key={s.key}
+              {...click}
               yAxisId={axis}
               dataKey={s.key}
               type="monotone"

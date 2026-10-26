@@ -80,16 +80,30 @@ export function scoped(f: Filter, projectId: number | undefined) {
   return { where, params }
 }
 
-/** Events per UTC day and level of the issues a filter matches, from `days[0]` to the last of `days` */
-export async function issueEventsByDay(db: D1Database, filter: Filter, projectId: number | undefined, days: string[]) {
+// What issues' events can be split by: the issue's level, or its project's slug (a dashboard's widget)
+export const EVENT_GROUPS = { level: 'i.level', project: '(SELECT slug FROM projects WHERE id = i.project_id)' }
+export type EventGroup = keyof typeof EVENT_GROUPS
+
+/**
+ * Events per UTC day and level of the issues a filter matches, from `days[0]` to the last of `days`; with `by`
+ * `project`, `level` holds the project's slug instead
+ */
+export async function issueEventsByDay(
+  db: D1Database,
+  filter: Filter,
+  projectId: number | undefined,
+  days: string[],
+  by: EventGroup = 'level',
+) {
   if (!days.length) return []
   const f = scoped(filter, projectId)
   return (
     await db
       .prepare(
-        `SELECT d.day AS at, i.level, SUM(d.count) AS count FROM issue_days d JOIN issues i ON i.id = d.issue_id
+        `SELECT d.day AS at, ${EVENT_GROUPS[by]} AS level, SUM(d.count) AS count
+         FROM issue_days d JOIN issues i ON i.id = d.issue_id
          WHERE d.day >= ? AND d.day <= ?${f.where.map((w) => ` AND ${w}`).join('')}
-         GROUP BY d.day, i.level`,
+         GROUP BY d.day, 2`,
       )
       .bind(days[0], days[days.length - 1], ...f.params)
       .all<{ at: string; level: string; count: number }>()

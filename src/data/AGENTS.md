@@ -60,9 +60,22 @@ helpers (`change`).
   rows, a day or a bucket's start with a level and count, as a series per level, zeros where none, most severe first,
   logs' `warn` and `trace` among them), `scoped` (an issue filter narrowed to the page's project and to its `project:`
   slugs: `listIssues` uses it too, so the chart and the list count the same issues) and `issueEventsByDay` (events per
-  UTC day and level of the issues a search matches, from `issue_days`). Plan: the issues by the filter (a scan, or a
-  project's by `issues_project_last_seen`), then each one's days by `issue_days`' primary key; with no filter, a scan
-  of `issue_days` for the days.
+  UTC day and level, or project with `by`, of the issues a search matches, from `issue_days`). Plan: the issues by the
+  filter (a scan, or a project's by `issues_project_last_seen`), then each one's days by `issue_days`' primary key; with
+  no filter, a scan of `issue_days` for the days.
+- `dashboards.ts`: dashboards (`dashboards`, one row each, its widgets as JSON, who saved it last) and their
+  widgets. `parseWidgets` checks what the browser sends field by field: 20 at most, ids 8 hex digits and unique, a
+  title (80), a query (1000), a dataset (`issues`, `events`, `logs`) and a display it has (`DISPLAYS`: issues as a
+  number or a list; events and logs as a number, bars, area, line or a table), a width of 1 to 3 thirds and a
+  group-by (60, a field name; events by `level` or `project`, `EVENT_GROUPS`; logs a column or an attribute, which
+  `logGroups` only binds; none for issues); keys that aren't a widget's are dropped. `widgetData` reads one widget
+  through the lists' own functions and turns any error into `{ kind: 'error' }`. Logs: `logsByBucket` (by level),
+  `logGroups` (a group-by, and the table, by level when none). Events come from `issue_days`, so they're whole UTC
+  days (`eventDays`): a number or table counts every day the window touches (24 hours: yesterday and today) against
+  as many days before; a chart shows those days, a week at least, 90 at most. Issues are as they are now, the window
+  doesn't narrow them (`lastSeen:-24h` in the query does): a number counts the matching ones against those of them
+  first seen before the window began, a list the 10 with most events. `STARTER` is the "Crashes" dashboard. Plan:
+  the list by `dashboards_updated`; a dashboard by its primary key.
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 

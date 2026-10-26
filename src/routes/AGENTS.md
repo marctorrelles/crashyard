@@ -4,16 +4,23 @@ TanStack Start's file-based routes: the dashboard's pages. `routeTree.gen.ts` is
 server, the build, or `tsr generate`): never edit it.
 
 - `__root.tsx`: the document. Light or dark follows the system (a script sets `.dark` before paint and when the system
-  changes); there's no toggle. The viewport covers the notch (`viewport-fit=cover`). It also has the error and
-  not-found pages. Its loader is the sidebar's (projects, the one last picked, folded or not, who's signed in) and its
-  component is `Layout` (`src/components/shell.tsx`). The lists (`/`, issues, releases, performance, logs) take the
-  sidebar's project filter as `?project=`, every project's when there's none; a project's pages are titled by the page
-  with the project under it.
+  changes); there's no toggle. The viewport covers the notch (`viewport-fit=cover`). It also has the error and not-found
+  pages. Its loader is the sidebar's (projects, the one last picked, folded or not, who's signed in) and its component
+  is `Layout` (`src/components/shell.tsx`). The lists (`/`, dashboards and each dashboard, issues, releases,
+  performance, logs) take the sidebar's project filter as `?project=`, every project's when there's none; a project's
+  pages are titled by the page with the project under it.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day and a 14-day sparkline; then events in 24 hours (the cards' today and yesterday, against the two days before),
   unresolved, new issues in 24 hours and monitors failing as numbers, events per day per project (stacked areas),
   issues new and resolved per day (bars side by side) and crash-free per release (`getOverviewCharts`, 30 days,
   loaded with the overview, narrowed by `?project=`); failing monitors, new issues.
+- `dashboards/index.tsx`: the dashboards (name, widgets, when saved and by whom), New dashboard (a name, then it opens
+  in edit mode, `?edit=true`), and with none, Start with Crashes (`STARTER`). `dashboards/$dashboardId.tsx`: one
+  dashboard over a range (`?range=`, the logs page's), narrowed by `?project=` (`getDashboard`, every widget's data
+  in one call); its widgets in a grid of thirds (one column on a phone). Edit keeps a draft (name, widgets added,
+  changed, moved, removed; the range is fixed meanwhile, a changed widget shows its preview) until Save writes the
+  whole dashboard; Cancel drops it; Delete asks first. A chart's series or a table's value opens the logs or issues
+  with the widget's query and that value.
 - `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`, `days`); the
   search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
   issues it matches for the last 14, 30 or 90 days (`?days=`, `getIssueChart`, loaded with the list), the period
