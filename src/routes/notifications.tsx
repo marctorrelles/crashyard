@@ -38,7 +38,7 @@ import {
   testRoute,
 } from '@/fns'
 import { cn } from '@/lib/utils'
-import type { Channel } from '@/notify/channels'
+import { type Channel, telegramToken } from '@/notify/channels'
 import { KINDS, LEVELS, type Route as NotifyRoute } from '@/notify/notice'
 
 export const Route = createFileRoute('/notifications')({
@@ -260,10 +260,14 @@ function ChannelDialog({
           onSubmit={async (e) => {
             e.preventDefault()
             const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>
-            if (kind === 'telegram' && !f.chat) return toast.error('Find the chat first: write to the bot, then Find')
+            const token = kind === 'telegram' ? telegramToken(f.token) : null
+            if (kind === 'telegram' && !token)
+              return toast.error('That isn’t a bot token: it looks like 123456789:AA…, in @BotFather’s message')
+            if (kind === 'telegram' && !f.chat.trim())
+              return toast.error('Find the chat first: write to the bot, then Find')
             const settings =
               kind === 'telegram'
-                ? { token: f.token.trim(), chat: f.chat.trim(), name: f.chatName || undefined }
+                ? { token, chat: f.chat.trim(), name: f.chatName || undefined }
                 : kind === 'email'
                   ? { to: f.to }
                   : { url: f.url.trim(), format: choice === 'webhook' ? 'json' : choice }
@@ -448,7 +452,8 @@ function TelegramFields({ config }: { config: Record<string, string> }) {
         value={token}
         onChange={(e) => setToken(e.target.value)}
         required
-        hint="In Telegram, @BotFather’s /newbot gives a bot and its token. Then write anything to your bot."
+        placeholder="123456789:AA…"
+        hint="In Telegram, @BotFather’s /newbot makes a bot and answers with its token: paste it, or its whole message. Then write anything to your bot."
       />
       <div className="grid gap-2">
         <Label htmlFor="f-chat">Chat</Label>
@@ -469,10 +474,12 @@ function TelegramFields({ config }: { config: Record<string, string> }) {
           ) : (
             <Input
               id="f-chat"
-              value={chat.name ? `${chat.name} (${chat.id})` : chat.id}
-              readOnly
-              required
-              placeholder="Write to the bot, then find it"
+              name="chat"
+              value={chat.id}
+              onChange={(e) => setChat({ id: e.target.value, name: '' })}
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="Write to the bot, then Find"
             />
           )}
           <Button type="button" variant="outline" disabled={!token.trim()} onClick={find}>
@@ -480,8 +487,13 @@ function TelegramFields({ config }: { config: Record<string, string> }) {
             Find
           </Button>
         </div>
-        <input type="hidden" name="chat" value={chat.id} />
+        {found.length > 1 && <input type="hidden" name="chat" value={chat.id} />}
         <input type="hidden" name="chatName" value={chat.name} />
+        <p className="text-xs text-muted-foreground">
+          {chat.name
+            ? `Writes to ${chat.name}.`
+            : 'Find fills it in from the bot’s latest message; a chat id works too.'}
+        </p>
       </div>
     </>
   )

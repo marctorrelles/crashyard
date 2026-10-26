@@ -16,7 +16,7 @@ import * as source from './data/source'
 import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
-import { telegramChats } from './notify/channels'
+import { telegramChats, telegramToken } from './notify/channels'
 import { ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
@@ -331,7 +331,11 @@ export const saveChannel = createServerFn({ method: 'POST' })
 
 /** The chats that wrote to a Telegram bot lately, for its channel's chat */
 export const findTelegramChats = createServerFn({ method: 'POST' })
-  .validator((d: unknown) => ({ token: text(object(d).token, 100).trim() }))
+  .validator((d: unknown) => {
+    const token = telegramToken(text(object(d).token, 500))
+    if (!token) throw new Error('That isn’t a bot token: it looks like 123456789:AA…, in @BotFather’s message')
+    return { token }
+  })
   .handler(({ data }) => telegramChats(data.token))
 
 export const deleteChannel = createServerFn({ method: 'POST' })

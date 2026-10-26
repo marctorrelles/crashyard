@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isQuiet, telegramRequest, webhookBody } from './channels'
+import { isQuiet, telegramError, telegramRequest, telegramToken, webhookBody } from './channels'
 import { crossed, type Notice, type Route, routeTakes, thresholdFor } from './notice'
 
 const notice = (over: Partial<Notice> = {}): Notice => ({
@@ -61,6 +61,15 @@ describe('channels', () => {
     )
     expect(weekly.url).toBe('http://localhost:8081/bott/sendMessage')
     expect(((await weekly.json()) as { disable_notification: boolean }).disable_notification).toBe(true)
+  })
+
+  it('find a bot token in what’s pasted, and say what Telegram’s refusals mean', () => {
+    const token = '8123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw'
+    expect(telegramToken(` Use this token to access the HTTP API:\n${token}\nKeep your token secure`)).toBe(token)
+    expect(telegramToken('@my_crashyard_bot')).toBeNull()
+    expect(telegramError(404)).toMatch(/no bot with that token/)
+    expect(telegramError(400, 'Bad Request: chat not found')).toMatch(/write to the bot first/)
+    expect(telegramError(500, 'oops')).toBe('Telegram answered 500: oops')
   })
 
   it('speak Slack’s blocks and Discord’s embeds, escaped, mentioning no one', () => {
