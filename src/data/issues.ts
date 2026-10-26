@@ -1,5 +1,6 @@
 // Issues: the list (searched, sorted, with a sparkline each), one issue with its events, and what can be done to them.
 import { issueFilter } from '../search/query'
+import { scoped } from './charts'
 import { lastDays } from './projects'
 
 export const SORTS = { lastSeen: 'i.last_seen', firstSeen: 'i.first_seen', events: 'i.count', users: 'i.user_count' }
@@ -51,15 +52,8 @@ export async function listIssues(
   opts: { query: string; projectId?: number; sort: Sort; page: number },
   now: number,
 ) {
-  const f = issueFilter(opts.query, now)
-  if (opts.projectId) {
-    f.where.push('i.project_id = ?')
-    f.params.push(opts.projectId)
-  }
-  if (f.projectSlugs.length) {
-    f.where.push(`i.project_id IN (SELECT id FROM projects WHERE slug IN (${marks(f.projectSlugs.length)}))`)
-    f.params.push(...f.projectSlugs)
-  }
+  // The chart over the list narrows the same way (`issueEventsByDay`), so the two agree
+  const f = scoped(issueFilter(opts.query, now), opts.projectId)
   const where = f.where.length ? `WHERE ${f.where.join(' AND ')}` : ''
   // One more than a page, to know there's another
   const rows = (

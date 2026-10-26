@@ -1,8 +1,9 @@
-import { createFileRoute, Link, notFound, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { ChevronLeftIcon, ChevronRightIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Ago, count, Level, LocalTime, Sparkline } from '@/components/bits'
+import { Ago, count, Level, LocalTime } from '@/components/bits'
+import { BarList, LEVEL_COLORS, TimeChart } from '@/components/charts'
 import { EventView } from '@/components/event-view'
 import { IssueActions } from '@/components/issue-actions'
 import { Shell } from '@/components/shell'
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { addNote, deleteNote, getIssue } from '@/fns'
 import type { NormalizedEvent } from '@/ingest/event'
-import { NEW_FOR } from '@/search/query'
+import { addValue, NEW_FOR } from '@/search/query'
 
 export const Route = createFileRoute('/issues/$issueId')({
   validateSearch: (s: Record<string, unknown>): { event?: string } => ({
@@ -66,11 +67,11 @@ function IssuePage() {
         <Stat label="First seen" value={<Ago at={issue.first_seen} now={now} />} sub={issue.first_release} />
         <Stat label="Last seen" value={<Ago at={issue.last_seen} now={now} />} sub={issue.last_release} />
         <div className="col-span-full">
-          <Sparkline values={d.series} className="h-14 w-full" />
-          <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-            <span>90 days ago</span>
-            <span>today</span>
-          </div>
+          <TimeChart
+            x={d.days}
+            series={[{ key: 'events', label: 'Events', values: d.series, color: LEVEL_COLORS[issue.level] }]}
+            height={120}
+          />
         </div>
       </dl>
 
@@ -131,7 +132,7 @@ function IssuePage() {
           <Events d={d} current={event?.id} />
         </div>
         <aside className="grid content-start gap-6">
-          <Tags tags={d.tags} />
+          <Tags tags={d.tags} project={issue.project} />
           <Activity d={d} />
         </aside>
       </div>
@@ -209,9 +210,14 @@ function EventLink({
   )
 }
 
-function Tags({ tags }: { tags: Data['tags'] }) {
+// Each tag's top values with their share of the issue's events; + and − list the unresolved issues of its project
+// with or without that value
+function Tags({ tags, project }: { tags: Data['tags']; project: string }) {
+  const navigate = useNavigate()
   const byKey = Map.groupBy(tags, (t) => t.key)
   if (!byKey.size) return null
+  const search = (key: string, value: string, negate: boolean) =>
+    void navigate({ to: '/issues', search: { query: addValue('is:unresolved', key, value, negate), project } })
   return (
     <section>
       <h2 className="mb-2 text-sm font-medium">Tags</h2>
@@ -219,24 +225,12 @@ function Tags({ tags }: { tags: Data['tags'] }) {
         {[...byKey].map(([key, values]) => (
           <div key={key}>
             <h3 className="mb-1 text-xs text-muted-foreground">{key}</h3>
-            <ul className="grid gap-1">
-              {values.map((v) => {
-                const share = Math.round((v.count / v.total) * 100)
-                return (
-                  <li key={v.value} className="relative overflow-hidden rounded-md text-xs">
-                    <div className="absolute inset-y-0 left-0 bg-muted" style={{ width: `${share}%` }} />
-                    <Link
-                      to="/issues"
-                      search={{ query: `is:unresolved ${key}:"${v.value}"` }}
-                      className="relative flex justify-between gap-2 px-2 py-1 hover:underline"
-                    >
-                      <span className="truncate font-mono">{v.value}</span>
-                      <span className="text-muted-foreground tabular-nums">{share}%</span>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+            <BarList
+              items={values}
+              total={values[0].total}
+              onInclude={(v) => search(key, v, false)}
+              onExclude={(v) => search(key, v, true)}
+            />
           </div>
         ))}
       </div>

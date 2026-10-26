@@ -3,6 +3,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getCookie, getRequest, getRequestHeader } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
+import * as charts from './data/charts'
 import * as issues from './data/issues'
 import * as logs from './data/logs'
 import * as monitors from './data/monitors'
@@ -13,7 +14,7 @@ import * as releases from './data/releases'
 import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
-import { ISSUE_KEYS, type KeyInfo, LOG_KEYS } from './search/query'
+import { ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
 const origin = () => new URL(getRequest().url).origin
@@ -129,6 +130,40 @@ export const getIssues = createServerFn()
       Date.now(),
     )
     return { ...list, now: Date.now() }
+  })
+
+// The chart over the issues list: events per day and level of the issues the search matches, over the last 14, 30
+// or 90 days, and the total per day of the same length of time just before (aligned to the days shown)
+export const getIssueChart = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    const days = int(o.days ?? 14)
+    if (!charts.CHART_DAYS.includes(days as charts.ChartDays)) throw new Error('expected 14, 30 or 90 days')
+    return {
+      query: text(o.query ?? '', 1000),
+      project: optional((v) => text(v, 60))(o.project),
+      days: days as charts.ChartDays,
+    }
+  })
+  .handler(async ({ data }) => {
+    const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
+    const now = Date.now()
+    const days = projects.lastDays(data.days, now)
+    const before = projects.lastDays(data.days, now - data.days * 864e5)
+    const rows = await charts.issueEventsByDay(
+      env.DB,
+      issueFilter(data.query, now),
+      project?.id ?? (data.project ? -1 : undefined),
+      [...before, ...days],
+    )
+    return {
+      days,
+      series: charts.fill(rows, days),
+      previous: charts.fill(rows, before).reduce(
+        (sum, s) => sum.map((n, i) => n + s.counts[i]),
+        before.map(() => 0),
+      ),
+    }
   })
 
 export const getIssue = createServerFn()

@@ -1,20 +1,23 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { SearchIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Ago, count, Level, Sparkline } from '@/components/bits'
+import { TimeChart } from '@/components/charts'
 import { IssueActions } from '@/components/issue-actions'
+import { SearchBar } from '@/components/search-bar'
 import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getIssues } from '@/fns'
-import { NEW_FOR, tokenize, withToken } from '@/search/query'
+import { ValueMenu } from '@/components/value-menu'
+import { CHART_DAYS, type ChartDays } from '@/data/charts'
+import { getIssueChart, getIssues } from '@/fns'
+import { addValue, NEW_FOR, tokenize, withToken } from '@/search/query'
 
 const SORTS = { lastSeen: 'Last seen', firstSeen: 'First seen', events: 'Events', users: 'Users' } as const
-type Search = { project?: string; query?: string; sort?: keyof typeof SORTS; page?: number }
+type Search = { project?: string; query?: string; sort?: keyof typeof SORTS; page?: number; days?: ChartDays }
 const DEFAULT_QUERY = 'is:unresolved'
+const DEFAULT_DAYS = 14
 
 export const Route = createFileRoute('/issues/')({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -22,12 +25,20 @@ export const Route = createFileRoute('/issues/')({
     query: typeof s.query === 'string' ? s.query : undefined,
     sort: typeof s.sort === 'string' && s.sort in SORTS ? (s.sort as Search['sort']) : undefined,
     page: Number(s.page) > 0 ? Number(s.page) : undefined,
+    days:
+      CHART_DAYS.includes(Number(s.days) as ChartDays) && Number(s.days) !== DEFAULT_DAYS
+        ? (Number(s.days) as ChartDays)
+        : undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ deps }) =>
-    getIssues({
-      data: { project: deps.project, query: deps.query ?? DEFAULT_QUERY, sort: deps.sort, page: deps.page ?? 0 },
-    }),
+  loader: async ({ deps }) => {
+    const query = deps.query ?? DEFAULT_QUERY
+    const [list, chart] = await Promise.all([
+      getIssues({ data: { project: deps.project, query, sort: deps.sort, page: deps.page ?? 0 } }),
+      getIssueChart({ data: { project: deps.project, query, days: deps.days ?? DEFAULT_DAYS } }),
+    ])
+    return { ...list, chart }
+  },
   head: () => ({ meta: [{ title: 'Issues · crashyard' }] }),
   component: Issues,
 })
@@ -41,7 +52,7 @@ const STATUSES = [
 
 function Issues() {
   const search = Route.useSearch()
-  const { issues, more, now } = Route.useLoaderData()
+  const { issues, more, now, chart } = Route.useLoaderData()
   const projects = useProjects()
   const navigate = useNavigate({ from: Route.fullPath })
   const query = search.query ?? DEFAULT_QUERY
@@ -57,29 +68,53 @@ function Issues() {
   return (
     <Shell wide>
       <PageHeader title="Issues">{project?.name}</PageHeader>
-      <form
-        key={query}
-        className="mb-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          go({ query: String(new FormData(e.currentTarget).get('q')) })
-        }}
-      >
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            name="q"
-            defaultValue={query}
-            placeholder='is:unresolved release:1.0.1 device:iPad* "audio engine"'
-            aria-label="Search issues"
-            autoComplete="off"
-            spellCheck={false}
-            enterKeyHint="search"
-          />
-        </InputGroup>
-      </form>
+      <div className="mb-3">
+        <SearchBar
+          scope="issues"
+          query={query}
+          project={search.project}
+          placeholder='is:unresolved release:1.0.1 device:iPad* "audio engine"'
+          onSearch={(q) => go({ query: q })}
+        />
+      </div>
+      <section className="mb-3 rounded-xl border p-3 pb-1" aria-label="Events per day">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-sm">
+            <span className="font-medium tabular-nums">{count(total(chart.series))}</span>{' '}
+            <span className="text-muted-foreground">
+              events in {chart.days.length} days
+              {chart.previous.some(Boolean) && (
+                <span className="max-sm:hidden">, {count(chart.previous.reduce((a, b) => a + b, 0))} before</span>
+              )}
+            </span>
+          </p>
+          <Select
+            value={String(search.days ?? DEFAULT_DAYS)}
+            onValueChange={(v) =>
+              void navigate({
+                search: (s) => ({ ...s, days: Number(v) === DEFAULT_DAYS ? undefined : (Number(v) as ChartDays) }),
+              })
+            }
+          >
+            <SelectTrigger size="sm" className="w-32" aria-label="Period">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {CHART_DAYS.map((d) => (
+                <SelectItem key={d} value={String(d)}>
+                  {d} days
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <TimeChart
+          x={chart.days}
+          series={chart.series.map((s) => ({ key: s.level, label: s.level, values: s.counts }))}
+          previous={chart.previous}
+          className="h-30 md:h-50"
+        />
+      </section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex rounded-lg bg-muted p-0.5" role="tablist" aria-label="Status">
           {STATUSES.map(([value, label]) => (
@@ -143,19 +178,46 @@ function Issues() {
             <span className="w-12 text-right max-sm:hidden">Users</span>
           </li>
           {issues.map((i) => (
-            <li key={i.id} className="flex items-center gap-3 px-3 py-3 hover:bg-muted/40">
+            <li key={i.id} className="relative flex items-center gap-3 px-3 py-3 hover:bg-muted/40">
               <Checkbox
+                className="relative z-10"
                 aria-label={`Select ${i.title}`}
                 checked={selected.includes(i.id)}
                 onCheckedChange={(c) => setSelected((s) => (c === true ? [...s, i.id] : s.filter((x) => x !== i.id)))}
               />
-              <Link to="/issues/$issueId" params={{ issueId: String(i.id) }} className="min-w-0 flex-1">
-                <p className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                {/* The whole row opens the issue; the checkbox and the values' menus sit above the link */}
+                <Link
+                  to="/issues/$issueId"
+                  params={{ issueId: String(i.id) }}
+                  className="flex items-center gap-2 outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring/50 focus-visible:after:ring-inset"
+                >
                   <Level level={i.level} />
                   <span className="truncate text-sm font-medium">{i.title}</span>
-                </p>
+                </Link>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                  {!project && <span className="font-medium text-foreground/70">{i.project}</span>}
+                  {!project && (
+                    <ValueMenu
+                      field="project"
+                      value={i.project}
+                      onInclude={() => go({ query: addValue(query, 'project', i.project, false) })}
+                      onExclude={() => go({ query: addValue(query, 'project', i.project, true) })}
+                      className="font-medium text-foreground/70"
+                    >
+                      {i.project}
+                    </ValueMenu>
+                  )}
+                  {i.last_release && (
+                    <ValueMenu
+                      field="release"
+                      value={i.last_release}
+                      onInclude={() => go({ query: addValue(query, 'release', i.last_release!, false) })}
+                      onExclude={() => go({ query: addValue(query, 'release', i.last_release!, true) })}
+                      className="font-mono text-[0.7rem]"
+                    >
+                      {i.last_release}
+                    </ValueMenu>
+                  )}
                   {i.culprit && <span className="max-w-full truncate font-mono text-[0.7rem]">{i.culprit}</span>}
                   <span>
                     <Ago at={i.last_seen} now={now} /> · first <Ago at={i.first_seen} now={now} />
@@ -169,7 +231,7 @@ function Issues() {
                   {i.status === 'resolved' && <Badge variant="outline">Resolved</Badge>}
                   {i.status === 'ignored' && <Badge variant="outline">Ignored</Badge>}
                 </p>
-              </Link>
+              </div>
               <Sparkline values={i.series} className="max-md:hidden" />
               <span className="w-14 text-right text-sm tabular-nums">{count(i.count)}</span>
               <span className="w-12 text-right text-sm text-muted-foreground tabular-nums max-sm:hidden">
@@ -197,3 +259,6 @@ function Issues() {
     </Shell>
   )
 }
+
+const total = (series: { counts: number[] }[]) =>
+  series.reduce((sum, s) => sum + s.counts.reduce((a, b) => a + b, 0), 0)

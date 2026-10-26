@@ -5,7 +5,6 @@
     "src/router.tsx",
     "src/routes/**/*.{ts,tsx}",
     "src/components/ui/*.tsx",
-    "src/components/search-bar.tsx",
     "src/start.ts"
   ],
   "project": ["src/**/*.{ts,tsx}"],

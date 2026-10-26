@@ -10,10 +10,14 @@ server, the build, or `tsr generate`): never edit it.
   project filter as `?project=`, every project's when there's none;
   a project's pages are titled by the page with the project under it.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a day and a 14-day sparkline; new issues.
-- `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`); the status
-  tabs rewrite `is:` in the query. Bulk resolve, ignore, merge and delete.
+- `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`, `days`); the
+  search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
+  issues it matches for the last 14, 30 or 90 days (`?days=`, `getIssueChart`, loaded with the list), the period
+  before as a dashed line. A row's project and release are menus to show only or exclude that value. Bulk resolve,
+  ignore, merge and delete.
 - `issues/$issueId.tsx`: one issue: actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
-  newer), tags' top values (each a search), events, feedback, activity and notes.
+  newer), tags' top values with their share (+ and − open the project's unresolved issues with or without that
+  value), events, feedback, activity and notes.
 - `releases.tsx`: releases (crash-free sessions when the SDK sends them), a section per project for every project;
   `projects/$slug/releases/$release.tsx`: one release's diff against the one before.
 - `performance.tsx`: transactions by p95 with the change since the release before (`?days=1|30`), a section per

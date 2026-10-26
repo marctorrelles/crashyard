@@ -34,6 +34,12 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   tag's values search that index by key; the release columns search `issues_project_last_seen` by project; log keys
   and values search `log_attributes` by primary key (`log_id`, and `key`) for the sample, which reads `logs_time` (a
   project's, `logs_project_time`).
+- `charts.ts`: `buckets` (UTC bucket starts, hour or day), `fill` (sparse rows as a series per level, zeros for the
+  days without, most severe first), `scoped` (an issue filter narrowed to the page's project and to its `project:`
+  slugs: `listIssues` uses it too, so the chart and the list count the same issues) and `issueEventsByDay` (events per
+  UTC day and level of the issues a search matches, from `issue_days`). Plan: the issues by the filter (a scan, or a
+  project's by `issues_project_last_seen`), then each one's days by `issue_days`' primary key; with no filter, a scan
+  of `issue_days` for the days.
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 
