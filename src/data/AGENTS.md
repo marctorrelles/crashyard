@@ -86,6 +86,12 @@ helpers (`change`).
   are as they are now, the window doesn't narrow them (`lastSeen:-24h` in the query does): a number counts the matching
   ones against those of them first seen before the window began, a list the 10 with most events. `STARTER` is the
   "Crashes" dashboard. Plan: the list by `dashboards_updated`; a dashboard by its primary key.
+- `source.ts`: stacks linked to the code. `storeCommits` (a release's commits from set-commits, its head as the
+  release's `ref`, and `source_files`, every path the commits sent so far left: added or changed, not deleted since);
+  `previousWithCommits`; `releaseCommits` (each linked to the project's `repo_url`); `frameLinks`, each in-app frame of
+  an event matched to a file (`matchFile`: the file whose path ends with the most of the frame's, from its absolute
+  path, its file, or for Java and Kotlin its package's folders and file; none on a tie) at the release's commit, else
+  `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed.
 - `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
   now and says how each went.
 

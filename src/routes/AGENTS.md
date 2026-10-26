@@ -31,12 +31,14 @@ server, the build, or `tsr generate`): never edit it.
   newer), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events, feedback, activity and notes.
 - `releases.tsx`: releases (crash-free sessions when the SDK sends them), a section per project for every project;
-  `projects/$slug/releases/$release.tsx`: one release's diff against the one before.
+  `projects/$slug/releases/$release.tsx`: one release's commits since the one before (from set-commits, each opening on
+  the repository when the project has one), and its diff against the one before.
 - `performance.tsx`: transactions by p95 with a sparkline of it over the period and the change since the release
   before (`?days=1|30`), a section per project; `projects/$slug/performance/transaction.tsx` (`?name=`): p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and trace links.
-- `projects/$slug/settings.tsx`: the DSN and how to link an app, name, platform, quota, retention, new key, delete.
+- `projects/$slug/settings.tsx`: the DSN and how to link an app, uploads, the repository and how to send a release's
+  commits, name, platform, quota, retention, new key, delete.
 - `logs.tsx`: the logs explorer. The search lives in the URL (`project`, `query`, `range`, `from`, `to`, `groupBy`): the
   search bar (`SearchBar`), a time range, and over the list logs per bucket and level (`getLogChart`, loaded with the
   list; the period before as a dashed line). A drag across the chart sets `from` and `to` (ms, clamped to the chart's

@@ -2,6 +2,7 @@
 // @sentry/vite-plugin) call: chunked uploads, assembling debug files and artifact bundles, and releases. Answers
 // in Sentry's shapes, checked against sentry-cli 3.8 (test/uploads.e2e.test.ts). The organisation in the path is
 // ignored: a deployment is one organisation. Every call needs an auth token (Authorization: Bearer).
+import { previousWithCommits, storeCommits, type GitCommit } from '../data/source'
 import { tokenOf } from '../data/tokens'
 import { forgetMissing } from '../symbols/symbolicate'
 import type { Symbolic } from '../symbols/symcache'
@@ -173,7 +174,25 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
     }
   }
 
-  // Releases: kept per project, with their commit, so a release names where it came from
+  // No repositories are linked: sentry-cli's `releases set-commits` then reads the commits from the local git
+  m = path.match(/^\/api\/0\/organizations\/([^/]+)\/repos\/$/)
+  if (m) return json([])
+
+  // The release before with commits, so set-commits sends only the commits since its head (404: none, the first)
+  m = path.match(/^\/api\/0\/organizations\/([^/]+)\/releases\/([^/]+)\/previous-with-commits\/$/)
+  if (m) {
+    const previous = await previousWithCommits(env.DB, decodeURIComponent(m[2]))
+    return previous
+      ? json({
+          version: previous.version,
+          dateCreated: new Date(previous.created_at).toISOString(),
+          projects: [],
+          lastCommit: { id: previous.ref },
+        })
+      : detail('No release before with commits', 404)
+  }
+
+  // Releases: kept per project, with their commits, so a release names where it came from
   m = path.match(/^\/api\/0\/organizations\/([^/]+)\/releases\/(?:([^/]+)\/(deploys\/)?)?$/)
   if (m) {
     const version = m[2] ? decodeURIComponent(m[2]) : undefined
@@ -182,6 +201,7 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
       projects?: string[]
       ref?: string
       dateReleased?: string
+      commits?: GitCommit[]
     }
     const name = version ?? body.version
     if (!name) return detail('A release needs a version', 400)
@@ -205,6 +225,8 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
         .bind(id, name, body.ref ?? null, now, body.dateReleased ? Date.parse(body.dateReleased) : null)
         .run()
     }
+    // set-commits names no project: the commits go to every project with this release
+    if (body.commits?.length) await storeCommits(env.DB, name, body.commits)
     return json(release, request.method === 'POST' ? 201 : 200)
   }
 

@@ -15,7 +15,12 @@ signature; `/mcp` comes after the Access check.
 - `sentry.ts`: `/api/0/`, what sentry-cli and the build plugins call, with an auth token: chunk-upload (options,
   then gzipped chunks), `files/difs/assemble` (debug files, ProGuard), `artifactbundle/assemble` (source maps), and
   releases (kept with their commit). Assembling happens in the request, so the answer is `ok` at once. The
-  organisation in the path is ignored.
+  organisation in the path is ignored. Commits: `repos/` answers none, so `releases set-commits` (sentry-cli 3.8,
+  `--local` or not) reads the local git and PUTs the release with `commits` (id, message, author, time and each one's
+  files, `patch_set`, A/M/D), newest first, which go to every project with that release (`src/data/source.ts`);
+  before that it asks `previous-with-commits/` (the newest earlier release of those projects with commits, its head
+  as `lastCommit`; 404 when none, so the first sends `--initial-depth` commits, 20 by default) and sends only the
+  commits since.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
   web page can't call it with someone's Access cookie. See docs/mcp.md.

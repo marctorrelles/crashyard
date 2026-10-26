@@ -37,17 +37,17 @@ SDKs stop sending that kind until the next day.
 
 ## Endpoints
 
-| Endpoint                                                    | Who calls it                                             | Status                                                                                               |
-| ----------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `POST /api/<project>/envelope/`                             | every current SDK                                        | works                                                                                                |
-| `POST /api/<project>/store/`                                | old SDKs                                                 | works                                                                                                |
-| `GET /api/0/`                                               | sentry-cli, to check its token                           | works                                                                                                |
-| `GET`, `POST /api/0/organizations/<org>/chunk-upload/`      | sentry-cli's uploads                                     | works; the organisation is ignored                                                                   |
-| `POST /api/0/projects/<org>/<project>/files/difs/assemble/` | `debug-files upload`, `upload-proguard`                  | works: dSYMs, ELF and ProGuard mappings (tested); PDB expected; Breakpad and source bundles not read |
-| `POST /api/0/organizations/<org>/artifactbundle/assemble/`  | `sourcemaps upload`                                      | works, matched by debug id or URL                                                                    |
-| `/api/0/organizations/<org>/releases/…`                     | `releases new`, `finalize`, `set-commits`, `deploys new` | releases and their commit kept; deploys answered, not kept                                           |
-| Monitors' HTTP check-ins (`/api/<project>/cron/…`)          | curl, without an SDK                                     | not yet: use an SDK or `sentry-cli monitors run`                                                     |
-| Everything else under `/api/0/`                             | Sentry's web API                                         | 404                                                                                                  |
+| Endpoint                                                    | Who calls it                                             | Status                                                                                                                             |
+| ----------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/<project>/envelope/`                             | every current SDK                                        | works                                                                                                                              |
+| `POST /api/<project>/store/`                                | old SDKs                                                 | works                                                                                                                              |
+| `GET /api/0/`                                               | sentry-cli, to check its token                           | works                                                                                                                              |
+| `GET`, `POST /api/0/organizations/<org>/chunk-upload/`      | sentry-cli's uploads                                     | works; the organisation is ignored                                                                                                 |
+| `POST /api/0/projects/<org>/<project>/files/difs/assemble/` | `debug-files upload`, `upload-proguard`                  | works: dSYMs, ELF and ProGuard mappings (tested); PDB expected; Breakpad and source bundles not read                               |
+| `POST /api/0/organizations/<org>/artifactbundle/assemble/`  | `sourcemaps upload`                                      | works, matched by debug id or URL                                                                                                  |
+| `/api/0/organizations/<org>/releases/…`                     | `releases new`, `finalize`, `set-commits`, `deploys new` | releases kept; set-commits from the local git (no repositories are linked), its commits and files kept; deploys answered, not kept |
+| Monitors' HTTP check-ins (`/api/<project>/cron/…`)          | curl, without an SDK                                     | not yet: use an SDK or `sentry-cli monitors run`                                                                                   |
+| Everything else under `/api/0/`                             | Sentry's web API                                         | 404                                                                                                                                |
 
 ## sentry-cli and the build plugins
 

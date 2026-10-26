@@ -71,6 +71,49 @@ function Settings() {
           />
         </Card>
 
+        <Card
+          title="Link to the code"
+          description="Stack frames open their line in the repository, and a release lists its commits since the one before."
+        >
+          <form
+            className="grid gap-4"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              try {
+                await updateProject({ data: { ...project, repo_url: new FormData(e.currentTarget).get('repo') } })
+                toast.success('Saved')
+                await router.invalidate()
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Not saved')
+              }
+            }}
+          >
+            <div className="grid gap-2">
+              <Label htmlFor="repo">Repository</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="repo"
+                  name="repo"
+                  type="url"
+                  defaultValue={project.repo_url ?? ''}
+                  placeholder="https://github.com/owner/repo"
+                  maxLength={300}
+                />
+                <Button type="submit">Save</Button>
+              </div>
+            </div>
+            <div className="grid min-w-0 gap-2">
+              <p className="text-sm">
+                With each release, from its checkout, send its commits (the release named as the SDK names it; the first
+                time, the whole history, so every file can be found):
+              </p>
+              <Code
+                text={`sentry-cli releases new -p ${project.slug} "$RELEASE"\nsentry-cli releases set-commits "$RELEASE" --local --initial-depth 100000`}
+              />
+            </div>
+          </form>
+        </Card>
+
         <Card title="Project">
           <form
             className="grid gap-4 sm:grid-cols-2"

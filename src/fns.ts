@@ -12,6 +12,7 @@ import * as notifications from './data/notifications'
 import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
+import * as source from './data/source'
 import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
@@ -110,6 +111,7 @@ export const updateProject = createServerFn({ method: 'POST' })
       event_retention_days: int(o.event_retention_days, 1, 3650),
       daily_log_quota: int(o.daily_log_quota, 0, 10_000_000),
       log_retention_days: int(o.log_retention_days, 1, 3650),
+      repo_url: source.repoUrl(text(o.repo_url ?? '', 300)),
     }
   })
   .handler(({ data: { id, ...change } }) => projects.updateProject(env.DB, id, change))
@@ -184,7 +186,10 @@ export const getIssue = createServerFn()
   .handler(async ({ data }) => {
     const now = Date.now()
     const issue = await issues.getIssue(env.DB, data.id, data.event, now)
-    return issue ? { ...issue, now, viewer: viewer() } : null
+    if (!issue) return null
+    const project = (await projects.projectBySlug(env.DB, issue.issue.project))!
+    const links = issue.eventJson ? await source.frameLinks(env.DB, project, JSON.parse(issue.eventJson)) : {}
+    return { ...issue, links, now, viewer: viewer() }
   })
 
 export const changeIssues = createServerFn({ method: 'POST' })
@@ -261,8 +266,11 @@ export const getRelease = createServerFn()
     const project = await projects.projectBySlug(env.DB, data.slug)
     const diff = project && (await releases.releaseDiff(env.DB, project.id, data.release))
     if (!project || !diff) return null
-    const sessions = (await performance.sessionsByRelease(env.DB, project.id)).get(data.release)
-    return { project, ...diff, sessions, crashFree: performance.crashFree(sessions), now: Date.now() }
+    const [sessions, commits] = await Promise.all([
+      performance.sessionsByRelease(env.DB, project.id).then((s) => s.get(data.release)),
+      source.releaseCommits(env.DB, project, data.release),
+    ])
+    return { project, ...diff, sessions, crashFree: performance.crashFree(sessions), commits, now: Date.now() }
   })
 
 const DAYS = [1, 7, 30] as const

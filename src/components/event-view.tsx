@@ -1,13 +1,14 @@
 // One event, as Sentry shows it: the exception with its stack (where it happened first, other code folded),
 // breadcrumbs, tags, contexts and the raw JSON.
-import { ChevronRightIcon } from 'lucide-react'
+import { ChevronRightIcon, SquareArrowOutUpRightIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent } from '@/ingest/event'
 import { cn } from '@/lib/utils'
 
-export function EventView({ event }: { event: NormalizedEvent }) {
+/** `links`: a frame's line in the repository, by `exception.frame` (their indexes in the event, `frameLinks`) */
+export function EventView({ event, links = {} }: { event: NormalizedEvent; links?: Record<string, string> }) {
   // The thrown exception first (Sentry sends the chain oldest first)
-  const exceptions = [...event.exceptions].reverse()
+  const exceptions = event.exceptions.map((e, i) => ({ e, i })).reverse()
   return (
     <div className="grid gap-6">
       {event.missingDebugFiles?.length ? (
@@ -26,7 +27,7 @@ export function EventView({ event }: { event: NormalizedEvent }) {
         </div>
       ) : null}
       {exceptions.length > 0 ? (
-        exceptions.map((e, i) => <Exception key={i} exception={e} />)
+        exceptions.map(({ e, i }) => <Exception key={i} exception={e} link={(j) => links[`${i}.${j}`]} />)
       ) : (
         <Section title="Message">
           <pre className="text-sm whitespace-pre-wrap">{event.message || event.title}</pre>
@@ -71,13 +72,15 @@ function Section({ title, children, aside }: { title: string; children: React.Re
   )
 }
 
-function Exception({ exception: e }: { exception: ExceptionValue }) {
+type Linked = Frame & { link?: string }
+
+function Exception({ exception: e, link }: { exception: ExceptionValue; link: (frame: number) => string | undefined }) {
   const [all, setAll] = useState(false)
   // Most recent call first, as Sentry shows them
-  const frames = [...e.frames].reverse()
+  const frames: Linked[] = e.frames.map((f, j) => ({ ...f, link: link(j) })).reverse()
   const anyInApp = frames.some((f) => f.inApp)
   // Runs of other code fold into one line, unless asked for every frame
-  const groups: { inApp: boolean; frames: Frame[] }[] = []
+  const groups: { inApp: boolean; frames: Linked[] }[] = []
   for (const f of frames) {
     const inApp = f.inApp || !anyInApp || all
     const last = groups.at(-1)
@@ -133,7 +136,7 @@ function Exception({ exception: e }: { exception: ExceptionValue }) {
   )
 }
 
-function FoldedFrames({ frames }: { frames: Frame[] }) {
+function FoldedFrames({ frames }: { frames: Linked[] }) {
   const [open, setOpen] = useState(false)
   if (open) return frames.map((f, i) => <FrameRow key={i} frame={f} />)
   return (
@@ -151,9 +154,21 @@ function FoldedFrames({ frames }: { frames: Frame[] }) {
 
 const basename = (p?: string) => p?.split(/[\\/]/).at(-1)
 
-function FrameRow({ frame: f, open }: { frame: Frame; open?: boolean }) {
+function FrameRow({ frame: f, open }: { frame: Linked; open?: boolean }) {
   const where = f.filename ?? f.absPath ?? f.module
   const hasContext = !!f.context?.line
+  const code = f.link && (
+    <a
+      href={f.link}
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Open in the repository"
+      title="Open in the repository"
+      className="-my-1.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground max-sm:-my-2.5 max-sm:size-10"
+    >
+      <SquareArrowOutUpRightIcon className="size-3.5" />
+    </a>
+  )
   const title = (
     <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-left">
       <span className={cn('font-mono text-[0.8rem] break-all', f.inApp ? 'font-medium' : 'text-muted-foreground')}>
@@ -172,13 +187,22 @@ function FrameRow({ frame: f, open }: { frame: Frame; open?: boolean }) {
       )}
     </span>
   )
-  if (!hasContext) return <li className="px-3 py-2">{title}</li>
+  if (!hasContext)
+    return (
+      <li className="flex items-start justify-between gap-2 px-3 py-2">
+        {title}
+        {code}
+      </li>
+    )
   return (
     <li>
       <details open={open} className="group">
         <summary className="flex cursor-pointer items-start gap-1 px-3 py-2">
           <ChevronRightIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-          {title}
+          <span className="flex min-w-0 flex-1 items-start justify-between gap-2">
+            {title}
+            {code}
+          </span>
         </summary>
         <pre className="overflow-x-auto border-t bg-muted/30 py-2 font-mono text-xs leading-5">
           {f.context!.pre.map((l, i) => (

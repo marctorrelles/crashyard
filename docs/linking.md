@@ -81,6 +81,21 @@ export SENTRY_AUTH_TOKEN=<a token>     # made in the project's settings, under R
 
 Crashes that came in before their files did are read again when the files arrive (the last 30 days).
 
+### Linking to the code
+
+Give the project its repository in its settings (GitHub or GitLab, like `https://github.com/owner/repo`), and with
+each release send its commits from its checkout, the release named as the SDK names it:
+
+```sh
+sentry-cli releases new -p <project slug> "$RELEASE"
+sentry-cli releases set-commits "$RELEASE" --local --initial-depth 100000
+```
+
+The release then lists its commits since the one before, and a stack's frames open their line at the release's commit.
+crashyard learns the repository's files from the commits, so the first time send the whole history (the depth); after
+that only the commits since the release before go. Nothing reads the repository itself, so a private one needs no
+token: the links open for whoever can see it.
+
 Uploads need Workers Paid: turning a debug file into a lookup table takes more CPU than the free plan's 10 ms a
 request.
 

@@ -14,6 +14,7 @@ export type ProjectRow = {
   event_retention_days: number
   daily_log_quota: number
   log_retention_days: number
+  repo_url: string | null // where its code is, for stacks and commits to link to (`source.ts`)
   created_at: number
 }
 
@@ -178,13 +179,19 @@ export async function updateProject(
   id: number,
   change: Pick<
     ProjectRow,
-    'name' | 'platform' | 'daily_event_quota' | 'event_retention_days' | 'daily_log_quota' | 'log_retention_days'
+    | 'name'
+    | 'platform'
+    | 'daily_event_quota'
+    | 'event_retention_days'
+    | 'daily_log_quota'
+    | 'log_retention_days'
+    | 'repo_url'
   >,
 ) {
   await db
     .prepare(
       `UPDATE projects SET name = ?, platform = ?, daily_event_quota = ?, event_retention_days = ?, daily_log_quota = ?,
-       log_retention_days = ? WHERE id = ?`,
+       log_retention_days = ?, repo_url = ? WHERE id = ?`,
     )
     .bind(
       change.name,
@@ -193,6 +200,7 @@ export async function updateProject(
       change.event_retention_days,
       change.daily_log_quota,
       change.log_retention_days,
+      change.repo_url,
       id,
     )
     .run()

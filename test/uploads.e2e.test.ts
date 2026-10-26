@@ -1,9 +1,9 @@
 // Readable stacks, with the real sentry-cli uploading to `vite dev`: a dSYM (after a crash that needed it, so the
 // issue is re-symbolicated and regrouped), a minified bundle with its source map, and a ProGuard mapping.
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdtempSync, readFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createToken } from '../src/data/tokens'
 import { symbolic } from '../src/symbols/symcache'
@@ -19,7 +19,8 @@ const send = (event: Record<string, unknown>) =>
     method: 'POST',
     body: `${JSON.stringify({ event_id: event.event_id })}\n{"type":"event"}\n${JSON.stringify(event)}\n`,
   })
-const cli = (...args: string[]) =>
+// `gitDir`: the repository set-commits reads (git2 follows GIT_DIR)
+const cliIn = (gitDir: string | undefined, ...args: string[]) =>
   execFileSync('pnpm', ['exec', 'sentry-cli', ...args], {
     env: {
       ...process.env,
@@ -27,9 +28,11 @@ const cli = (...args: string[]) =>
       SENTRY_AUTH_TOKEN: token,
       SENTRY_ORG: 'crashyard',
       SENTRY_PROJECT: 'e2e',
+      ...(gitDir && { GIT_DIR: gitDir }),
     },
     stdio: 'pipe',
   }).toString()
+const cli = (...args: string[]) => cliIn(undefined, ...args)
 const issueOf = async (eventId: string) =>
   dev.db
     .prepare('SELECT i.* FROM issues i JOIN events e ON e.issue_id = i.id WHERE e.id = ?')
@@ -174,6 +177,51 @@ describe('readable stacks, uploaded with sentry-cli', () => {
       { module: 'com.example.pocketband.Player', function: 'voiceAt', lineno: 20 },
     ])
     expect((await issueOf(event.event_id))!.culprit).toBe('com.example.pocketband.Player in voiceAt')
+  })
+
+  it('keeps a release’s commits, and the files they leave, from set-commits --local', async () => {
+    const repo = mkdtempSync(join(tmpdir(), 'crashyard-git-'))
+    const git = (...args: string[]) =>
+      execFileSync('git', ['-c', 'user.name=Ada', '-c', 'user.email=ada@example.com', ...args], { cwd: repo })
+        .toString()
+        .trim()
+    const commit = (message: string, files: Record<string, string | null>) => {
+      for (const [path, text] of Object.entries(files))
+        if (text === null) git('rm', '-q', path)
+        else {
+          mkdirSync(join(repo, dirname(path)), { recursive: true })
+          writeFileSync(join(repo, path), text)
+          git('add', path)
+        }
+      git('commit', '-q', '-m', message)
+      return git('rev-parse', 'HEAD')
+    }
+    git('init', '-q')
+    commit('First', { 'apple/Studio.swift': 'a', 'old.txt': 'b' })
+    const head1 = commit('Second', { 'apple/Sync.swift': 'c' })
+    const inRepo = (...args: string[]) => cliIn(join(repo, '.git'), ...args)
+    inRepo('releases', 'new', '-p', 'e2e', 'app@1')
+    inRepo('releases', 'set-commits', 'app@1', '--local', '--initial-depth', '1000')
+    const head2 = commit('Third\n\nWith a body', { 'old.txt': null, 'web/app.ts': 'd' })
+    inRepo('releases', 'new', '-p', 'e2e', 'app@2')
+    inRepo('releases', 'set-commits', 'app@2', '--local', '--initial-depth', '1000')
+
+    const commits = (version: string) =>
+      dev.db
+        .prepare('SELECT sha, message, author FROM release_commits WHERE version = ? ORDER BY position')
+        .bind(version)
+        .all()
+        .then((r) => r.results)
+    expect(await commits('app@1')).toMatchObject([
+      { sha: head1, message: 'Second', author: 'Ada' },
+      { message: 'First' },
+    ])
+    // Only what's new since app@1's head
+    expect(await commits('app@2')).toEqual([{ sha: head2, message: 'Third\n\nWith a body', author: 'Ada' }])
+    const ref = await dev.db.prepare("SELECT ref FROM releases WHERE version = 'app@2'").first<{ ref: string }>()
+    expect(ref?.ref).toBe(head2)
+    const files = await dev.db.prepare('SELECT path FROM source_files ORDER BY path').all<{ path: string }>()
+    expect(files.results.map((f) => f.path)).toEqual(['apple/Studio.swift', 'apple/Sync.swift', 'web/app.ts'])
   })
 
   it('refuses uploads without a token', async () => {

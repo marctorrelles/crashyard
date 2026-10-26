@@ -111,7 +111,7 @@ function IssuePage() {
                   </EventLink>
                 </div>
               </div>
-              <EventView event={event} />
+              <EventView event={event} links={d.links} />
             </>
           ) : (
             <p className="text-sm text-muted-foreground">

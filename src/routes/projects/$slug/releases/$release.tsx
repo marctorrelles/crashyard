@@ -44,6 +44,7 @@ function Release() {
         </p>
       </div>
       <div className="grid gap-6 *:min-w-0">
+        {d.commits.length > 0 && <Commits commits={d.commits} now={d.now} />}
         <Group title="New in this release" issues={d.fresh} empty="Nothing new." />
         <Group title="Came back" issues={d.regressed} empty="Nothing came back." />
         {d.previous && (
@@ -57,6 +58,44 @@ function Release() {
         <Group title="Still happening" issues={d.ongoing} empty="Nothing else." />
       </div>
     </Shell>
+  )
+}
+
+function Commits({ commits, now }: { commits: Data['commits']; now: number }) {
+  return (
+    <section>
+      <h3 className="mb-2 text-sm font-medium">
+        Commits <span className="font-normal text-muted-foreground">{commits.length}</span>
+      </h3>
+      <ul className="divide-y rounded-xl border">
+        {commits.map((c) => {
+          const row = (
+            <>
+              <span className="min-w-0 flex-1 truncate text-sm">{c.message.split('\n')[0]}</span>
+              <span className="hidden truncate text-xs text-muted-foreground sm:inline">{c.author}</span>
+              {c.at && <Ago at={c.at} now={now} className="shrink-0 text-xs text-muted-foreground" />}
+              <code className="shrink-0 font-mono text-xs text-muted-foreground">{c.sha.slice(0, 7)}</code>
+            </>
+          )
+          return (
+            <li key={c.sha}>
+              {c.url ? (
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40"
+                >
+                  {row}
+                </a>
+              ) : (
+                <div className="flex items-center gap-3 px-4 py-2.5">{row}</div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 

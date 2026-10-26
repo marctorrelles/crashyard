@@ -57,6 +57,7 @@
   link (`z-10`), its tap area 40 px high on a phone.
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (my code first, other frames folded, context
-  lines), breadcrumbs, tags, contexts, raw JSON.
+  lines; a frame with a link, from `frameLinks` by its indexes in the event, has a button opening its line in the
+  repository, 40 px on a phone), breadcrumbs, tags, contexts, raw JSON.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
   same, keep them in step).
