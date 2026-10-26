@@ -80,21 +80,27 @@ export function WidgetCard({
   range: Range
   actions?: React.ReactNode
 }) {
+  // What it counts, unless the title already says it
+  const source = `${DATASET_NAMES[widget.dataset]}${widget.groupBy ? ` by ${widget.groupBy}` : ''}`
+  const about = source.toLowerCase() === widget.title.trim().toLowerCase() ? '' : source
   return (
-    <Card size="sm" className={cn('min-w-0', SPANS[widget.width])}>
+    // A number keeps its own height beside a taller widget instead of stretching to the row's
+    <Card size="sm" className={cn('min-w-0', widget.display === 'number' && 'md:self-start', SPANS[widget.width])}>
       <CardHeader>
         <CardTitle className="truncate">{widget.title}</CardTitle>
-        <CardDescription className="truncate text-xs">
-          {widget.invalid ? (
-            'Remove it, or edit it anew'
-          ) : (
-            <>
-              {DATASET_NAMES[widget.dataset]}
-              {widget.groupBy && <> by {widget.groupBy}</>}
-              {widget.query && <span className="font-mono"> · {widget.query}</span>}
-            </>
-          )}
-        </CardDescription>
+        {(widget.invalid || about || widget.query) && (
+          <CardDescription className="truncate text-xs">
+            {widget.invalid ? (
+              'Remove it, or edit it anew'
+            ) : (
+              <>
+                {about}
+                {about && widget.query && ' · '}
+                {widget.query && <span className="font-mono">{widget.query}</span>}
+              </>
+            )}
+          </CardDescription>
+        )}
         {actions && <CardAction className="flex">{actions}</CardAction>}
       </CardHeader>
       <CardContent className="min-w-0">

@@ -43,8 +43,8 @@
   colours for groups and projects. `BarList`: values with a bar for their share, count and percent (or `format`'s text),
   - (show only) and − (exclude) on hover, always shown on touch. `BigNumber`: a number, its label and its change (more
     reads red, less green, none as rounded muted), on the overview and dashboards.
-- `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset, group-by and query, then the number with its change,
-  the chart, the table of values with their change, the issues, or what went wrong, a placeholder saying it can't be
+- `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset and group-by unless the title says just that,
+  query, then the number with its change, at its own height beside a taller widget, the chart, the table of values with their change, the issues, or what went wrong, a placeholder saying it can't be
   read and to remove or redo it; a series or a value opens the logs or issues with it added), `WidgetActions` (edit
   mode: edit, up, down, remove; 40 px on a phone) and `WidgetDialog` (title, dataset, `SearchBar` of its scope (what's
   in it is saved on Add, searched or not, by its `onChange`; a placeholder redone is valid again), display

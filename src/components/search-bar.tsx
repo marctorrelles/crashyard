@@ -1,4 +1,4 @@
-// The search bar: every `key:value` of the query as a pill (key · operator · value), the rest as text, and a popover
+// The search bar: every `key:value` of the query as a pill (key · operator · value; `is:` without its key), the rest as text, and a popover
 // that proposes keys, values and operators for the caret (src/search/suggest.ts) with values the server has seen.
 // The query stays the one truth: pills are tokens of it, and every pill change hands the whole query to `onSearch`.
 import { useRef, useState } from 'react'
@@ -212,9 +212,12 @@ export function SearchBar({
             const shownValue = t.values ? t.values.join(', ') : t.value
             return (
               <ButtonGroup key={`${i} ${unparse([t])}`} className="max-w-full min-w-0 rounded-lg bg-muted">
-                <Button variant="ghost" size="xs" className={PILL} onClick={() => unpill(i, true)}>
-                  {t.key}
-                </Button>
+                {/* `is:unresolved` reads "is · unresolved": its key would say "is" twice */}
+                {t.key !== 'is' && (
+                  <Button variant="ghost" size="xs" className={PILL} onClick={() => unpill(i, true)}>
+                    {t.key}
+                  </Button>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
