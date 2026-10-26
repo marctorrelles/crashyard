@@ -49,7 +49,7 @@ export type NormalizedEvent = {
   release?: string
   environment?: string
   dist?: string
-  type: 'error' | 'message'
+  type: 'error' | 'message' | 'csp' // csp: a security report (security.ts)
   title: string
   culprit: string
   message: string
@@ -317,7 +317,12 @@ export async function normalizeEvent(
         200,
       )
     : cut(message.split('\n')[0] || transaction || '<unlabeled event>', 200)
-  const culprit = cut((main && culpritOf(main.frames)) ?? transaction ?? '', 200)
+  // A security report (src/ingest/security.ts): its directive is the culprit
+  const csp = Object.keys(obj(event.csp)).length > 0
+  const culprit = cut(
+    (csp ? str(event.culprit) : undefined) ?? (main && culpritOf(main.frames)) ?? transaction ?? '',
+    200,
+  )
 
   // Tags: the SDK's, then those Sentry derives from the event, which win
   const tags = tagsOf(event)
@@ -340,6 +345,8 @@ export async function normalizeEvent(
     runtime: str(runtime.name) && [str(runtime.name), str(runtime.version)].filter(Boolean).join(' '),
     handled: main?.handled === undefined ? undefined : main.handled ? 'yes' : 'no',
     mechanism: main?.mechanism,
+    // Where withMonitor's errors say they came from, when an SDK sets it (src/monitors/AGENTS.md)
+    'monitor.slug': str(obj(contexts.monitor).slug),
   }
   for (const [k, v] of Object.entries(derived)) if (v) tags[k] = cut(v, 200)
   delete tags['user.id'] // users are counted by hash, never stored
@@ -360,7 +367,7 @@ export async function normalizeEvent(
     release: str(event.release),
     environment: str(event.environment),
     dist: str(event.dist),
-    type: main && !main.synthetic ? 'error' : 'message',
+    type: csp ? 'csp' : main && !main.synthetic ? 'error' : 'message',
     title,
     culprit,
     message,

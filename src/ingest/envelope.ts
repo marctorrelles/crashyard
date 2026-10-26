@@ -56,3 +56,22 @@ export function parseEnvelope(body: Uint8Array): Envelope {
 }
 
 export const payloadJson = (item: EnvelopeItem) => json(item.payload, `${item.header.type ?? 'item'} payload`)
+
+/** An envelope written out, each item with its `length`: what an HTTP check-in or a security report is held as */
+export function toEnvelope(header: Envelope['header'], items: EnvelopeItem[]): Uint8Array {
+  const encode = (s: string) => new TextEncoder().encode(s)
+  const parts: Uint8Array[] = [encode(`${JSON.stringify(header)}\n`)]
+  for (const item of items)
+    parts.push(
+      encode(`${JSON.stringify({ ...item.header, length: item.payload.byteLength })}\n`),
+      item.payload,
+      encode('\n'),
+    )
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.byteLength, 0))
+  let at = 0
+  for (const p of parts) {
+    out.set(p, at)
+    at += p.byteLength
+  }
+  return out
+}

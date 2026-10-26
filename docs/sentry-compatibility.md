@@ -69,6 +69,11 @@ app start, time to initial and full display, and slow and frozen frames. Each is
 by Sentry's thresholds. Streamed spans carry no measurements, so a browser SDK with span streaming turned on sends no
 vitals yet.
 
+A check-in over HTTP without a `check_in_id` finishes the monitor's run in progress, as Sentry pairs them. A CSP report
+becomes an event of type `csp`, titled after Sentry's, such as "Blocked 'script' from 'cdn.example.com'", and grouped
+by the directive and the blocked host. Both take the same path as envelopes: the same key check, daily limits and
+retries.
+
 A session's `did`, the distinct ID the SDK sends, counts users per release and day for crash-free users and active
 users. Only a hash of it is stored. A session without one counts no user.
 
@@ -85,7 +90,8 @@ A project can have several client keys. A key that's turned off answers `403` wi
 | `POST /api/0/projects/<org>/<project>/files/difs/assemble/` | `debug-files upload`, `upload-proguard`                  | Works for dSYMs, ELF files and ProGuard mappings, all tested. PDB is expected to work. Breakpad files and source bundles aren't read                                                                                                                                                        |
 | `POST /api/0/organizations/<org>/artifactbundle/assemble/`  | `sourcemaps upload`                                      | Works, matched by debug ID or URL                                                                                                                                                                                                                                                           |
 | `/api/0/organizations/<org>/releases/…`                     | `releases new`, `finalize`, `set-commits`, `deploys new` | Releases are stored. `set-commits` reads the local git, as no repositories are linked, and its commits and the files each changed are stored. A message with `Fixes CRASHYARD-<id>` resolves that issue in the release. `deploys new` and `deploys list` store and list a release's deploys |
-| Monitor check-ins over HTTP, `/api/<project>/cron/…`        | curl, without an SDK                                     | Not supported yet. Use an SDK or `sentry-cli monitors run`                                                                                                                                                                                                                                  |
+| `GET`, `POST /api/<project>/cron/<slug>/<key>/`             | curl, without an SDK                                     | Works. `?status=`, `check_in_id`, `environment` and `duration`, or the check-in as JSON with its `monitor_config`, which creates the monitor. Answers `202`                                                                                                                                 |
+| `POST /api/<project>/security/`                             | Browsers' CSP `report-uri` and `report-to`               | Works for CSP violations, in both the `csp-report` and the Reporting API shapes. Other report types are dropped                                                                                                                                                                             |
 | Anything else under `/api/0/`                               | Sentry's web API                                         | Returns 404                                                                                                                                                                                                                                                                                 |
 
 ## sentry-cli and the build plugins

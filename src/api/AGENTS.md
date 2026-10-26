@@ -3,7 +3,20 @@
 What the worker answers itself, ahead of Start. Under `/api/`, outside Access, each checks its own key or
 signature; `/mcp` comes after the Access check.
 
-- `ingest.ts`: `/api/<project>/envelope/` and `/api/<project>/store/`, what the Sentry SDKs send to. In order: CORS
+- `ingest.ts`: `/api/<project>/envelope/` and `/api/<project>/store/`, what the Sentry SDKs send to, and the two that
+  come without an SDK, checked against Relay's `endpoints/monitor.rs` and `endpoints/security_report.rs` (master,
+  2026-10-27): `/api/<project>/security/` (POST only; `application/json`, `application/csp-report` or
+  `application/reports+json`, else 415; empty is 400; the key from `?sentry_key=`; `sentry_release` and
+  `sentry_environment` from the query, the `User-Agent` into the item header; answers 200 with no body) and
+  `/api/<project>/cron/<slug>/<key>/` (GET or POST, the key optional when another way carries it; JSON POSTs are a
+  check-in as the SDKs send it, `monitor_config` and all, else the query's `status`, `check_in_id`, `environment` and
+  `duration`; no status of in_progress, ok or error is 400; answers 202 with no body). `fromDoor` makes each one
+  envelope item, `raw_security` (Relay's name) or `check_in`, and `toEnvelope` the body held in R2, so from the key
+  check on both take the envelope's path: quotas (a security report is an error, Relay's `security` category; a
+  check-in has none), the held copy and retries. `src/server.ts`'s `INGEST` matches all four. A `raw_security` item
+  is `cspReports` (`src/ingest/security.ts`), each an event through `eventOf`, the same steps as an `event` item, its
+  id `stableEventId` of the held key and `index * 256 + j`; a check-in's fallback id is `stableEventId` of its index,
+  so a retry of one without an id writes the same row. In order: CORS
   (`*`, the browser SDK sends from any origin), body, envelope, key, project and key from `project_keys` (cached a
   minute per isolate, by project id and key; `projects.public_key` isn't read), a key that's off answers 403 with
   Relay's `event submission rejected with_reason: ProjectId` (from Relay's source, not seen live), the project's

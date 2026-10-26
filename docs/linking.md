@@ -150,7 +150,33 @@ Sentry.captureCheckIn({ checkInId, monitorSlug: 'nightly-export', status: 'ok' }
 The first check-in that includes a schedule creates the monitor. To wrap any command instead, set `SENTRY_DSN` and run
 `sentry-cli monitors run nightly-export -- ./export.sh`.
 
+A job without an SDK can check in over HTTP, as with Sentry. The address is the project's ID, the monitor's slug and
+the DSN's public key:
+
+```sh
+SENTRY_CRONS=https://crashyard.example.com/api/<project>/cron/nightly-export/<public key>/
+curl "${SENTRY_CRONS}?status=in_progress"
+# … the job …
+curl "${SENTRY_CRONS}?status=ok"
+```
+
+An `ok` or `error` without a `check_in_id` finishes the run in progress. To create the monitor from the job, POST the
+check-in as JSON with its `monitor_config`, for example
+`{"status": "ok", "monitor_config": {"schedule": {"type": "crontab", "value": "0 3 * * *"}}}`.
+
 To watch a URL, add an uptime check under Monitors.
+
+## Content Security Policy reports
+
+Browsers can report what a page's Content Security Policy blocked. Point the policy's `report-uri` or `report-to` at
+the project's security endpoint, with the DSN's public key:
+
+```
+Content-Security-Policy: default-src 'self'; report-uri https://crashyard.example.com/api/<project>/security/?sentry_key=<public key>
+```
+
+Each report becomes an event of type `csp`, titled by what was blocked and where from, such as "Blocked 'script' from
+'cdn.example.com'". Add `&sentry_environment=` and `&sentry_release=` to the address to tag them.
 
 ## Performance
 
@@ -159,9 +185,10 @@ JavaScript. Screen loads, requests and jobs then appear under Performance, with:
 
 - the count and the p50, p95 and p99 duration for each name,
 - the change in p95 since the previous release,
-- the ten slowest each day, with their spans.
+- the ten slowest each day, with their spans,
+- web vitals from the browser and mobile vitals from the Apple and Android SDKs, as their 75th percentile.
 
-Crash-free sessions appear under Releases once the SDK sends sessions. The Apple and Android SDKs send them by default.
+Crash-free sessions, adoption and crash-free users appear under Releases once the SDK sends sessions. The Apple and Android SDKs send them by default.
 In the browser and in Node.js, add their session integrations.
 
 crashyard keeps summaries rather than every span. Hourly figures and percentiles are kept for 90 days, and examples for 30.

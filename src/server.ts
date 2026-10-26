@@ -6,14 +6,23 @@ import type { Notice } from './notify/notice'
 
 const start = createStartHandler(defaultStreamHandler)
 
-// What apps and build tools call: plain handlers, each checking its own key or token, ahead of Start
-const INGEST = /^\/api\/(\d+)\/(envelope|store)\/?$/
+// What apps and build tools call: plain handlers, each checking its own key or token, ahead of Start. Ingest: an
+// envelope, an event, a security report, or a check-in over HTTP (`cron/<slug>/<key>`, the key optional)
+const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
     const ingest = url.pathname.match(INGEST)
-    if (ingest) return handleIngest(request, env, ctx, Number(ingest[1]), ingest[2] as 'envelope' | 'store')
+    if (ingest)
+      return handleIngest(
+        request,
+        env,
+        ctx,
+        Number(ingest[1]),
+        ingest[2] as 'envelope' | 'store' | 'security' | 'cron',
+        ingest[3].split('/').filter(Boolean),
+      )
     // Local dev only (compiled out of every build): SQL for the end-to-end tests, so only this process opens the
     // local database (a second one on the same file trips over its locks)
     if (import.meta.env.DEV && url.pathname === '/__dev/sql' && request.method === 'POST') {

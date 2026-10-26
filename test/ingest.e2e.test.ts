@@ -265,6 +265,81 @@ describe('ingest, through the real SDK', () => {
     await waitFor(() => pushes.find((p) => p.title === 'nightly missed its check-in'))
   })
 
+  it('takes check-ins over HTTP as Sentry’s crons endpoint does: GET or POST, a config making the monitor', async () => {
+    const url = `${origin}/api/1/cron/backup/${KEY}/`
+    // A POST with monitor_config, as Sentry's docs show it, makes the monitor
+    const config = { schedule: { type: 'crontab', value: '0 * * * *' }, checkin_margin: 5, max_runtime: 30 }
+    const made = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ monitor_config: config, status: 'ok', environment: 'staging' }),
+    })
+    expect([made.status, await made.text()]).toEqual([202, ''])
+    const monitor = await waitFor(() =>
+      db().prepare("SELECT * FROM monitors WHERE slug = 'backup'").first<{ id: number; status: string }>(),
+    )
+    expect(monitor.status).toBe('ok')
+    // Then curl's GETs: in progress, then ok without an id finishes that same run
+    expect((await fetch(`${url}?status=in_progress`)).status).toBe(202)
+    expect((await fetch(`${url}?status=ok&environment=staging`)).status).toBe(202)
+    const runs = await db()
+      .prepare(
+        'SELECT status, environment, finished IS NOT NULL AS done FROM check_ins WHERE monitor_id = ? ORDER BY started',
+      )
+      .bind(monitor.id)
+      .all()
+    expect(runs.results).toEqual([
+      { status: 'ok', environment: 'staging', done: 1 },
+      { status: 'ok', environment: 'staging', done: 1 },
+    ])
+    // A status is needed, and the key must be the project's
+    expect((await fetch(`${url}?status=maybe`)).status).toBe(400)
+    expect((await fetch(`${origin}/api/1/cron/backup/nope/?status=ok`)).status).toBe(403)
+  })
+
+  it('turns a CSP report, either shape, into an issue titled by what was blocked', async () => {
+    const post = (type: string, body: unknown) =>
+      fetch(`${origin}/api/1/security/?sentry_key=${KEY}&sentry_environment=production`, {
+        method: 'POST',
+        headers: { 'content-type': type, 'user-agent': 'Mozilla/5.0 Firefox/130.0' },
+        body: JSON.stringify(body),
+      })
+    const old = await post('application/csp-report', {
+      'csp-report': {
+        'document-uri': 'https://app.example.com/songs',
+        'violated-directive': 'script-src-elem',
+        'effective-directive': 'script-src-elem',
+        'blocked-uri': 'https://evil.example.net/x.js',
+        disposition: 'enforce',
+      },
+    })
+    expect([old.status, await old.text()]).toEqual([200, ''])
+    const next = await post('application/reports+json', [
+      {
+        type: 'csp-violation',
+        url: 'https://app.example.com/other',
+        body: {
+          effectiveDirective: 'script-src-elem',
+          blockedURL: 'https://evil.example.net/y.js',
+          disposition: 'enforce',
+        },
+      },
+    ])
+    expect(next.status).toBe(200)
+    const issue = await waitFor(() =>
+      db()
+        .prepare("SELECT title, culprit, type, count FROM issues WHERE type = 'csp' AND count = 2")
+        .first<Record<string, unknown>>(),
+    )
+    expect(issue).toEqual({
+      title: "Blocked 'script' from 'evil.example.net'",
+      culprit: 'script-src-elem',
+      type: 'csp',
+      count: 2,
+    })
+    expect((await post('text/plain', {})).status).toBe(415)
+  })
+
   it('checks a URL, and opens an incident after two failures in a row', async () => {
     const config = { url: `http://localhost:${STUB_PORT}/health`, intervalMinutes: 1, mustContain: 'catalog' }
     const base = {

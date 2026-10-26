@@ -1,8 +1,11 @@
 // The endpoints the Sentry SDKs send to: POST /api/<project>/envelope/ (everything) and /api/<project>/store/ (an
-// event alone, from older SDKs). See ../ingest/AGENTS.md for what's kept and what's answered.
+// event alone, from older SDKs); and what comes without an SDK: POST /api/<project>/security/ (browsers' CSP reports)
+// and GET or POST /api/<project>/cron/<slug>/<key>/ (check-ins over HTTP), each turned into an envelope at the door
+// so it takes the same path. See ../ingest/AGENTS.md for what's kept and what's answered.
 import { projectKey } from '../ingest/auth'
 import { BodyError, readBody } from '../ingest/body'
-import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson } from '../ingest/envelope'
+import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson, toEnvelope } from '../ingest/envelope'
+import { cspEvent, cspReports, isSecurityType } from '../ingest/security'
 import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { filterReason, originAllowed, parseFilters, transactionFilterReason } from '../ingest/filters'
 import { applyRules, rulesOf } from '../ingest/rules'
@@ -57,7 +60,63 @@ const KEPT = new Set([
   'span',
   'session',
   'sessions',
+  'raw_security',
 ])
+
+/** What the request came to: an SDK's envelope or event, or a security report or check-in over HTTP */
+export type Door = Endpoint | 'security' | 'cron'
+const CHECK_IN_STATUSES = new Set(['in_progress', 'ok', 'error'])
+const encoder = new TextEncoder()
+
+/**
+ * A security report or an HTTP check-in as one envelope item, with the key the request carries (a check-in's in its
+ * path); the answer instead when it can't be one, as Relay's: 415 for a report that isn't JSON, 400 for a check-in
+ * without a status
+ */
+function fromDoor(request: Request, url: URL, door: 'security' | 'cron', body: Uint8Array, path: string[]) {
+  if (door === 'security') {
+    if (!isSecurityType(request.headers.get('content-type')))
+      return answer({ detail: 'Send the report as application/csp-report or application/reports+json' }, 415)
+    try {
+      JSON.parse(new TextDecoder().decode(body))
+    } catch {
+      return answer({ detail: 'The report isn’t JSON' }, 400)
+    }
+    const header: EnvelopeItem['header'] = { type: 'raw_security' }
+    for (const [param, key] of [
+      ['sentry_release', 'sentry_release'],
+      ['sentry_environment', 'sentry_environment'],
+    ])
+      if (url.searchParams.get(param)) header[key] = url.searchParams.get(param)!.slice(0, 200)
+    const ua = request.headers.get('user-agent')
+    if (ua) header.user_agent = ua.slice(0, 500)
+    return { item: { header, payload: body }, key: projectKey(request, url) }
+  }
+  const [slug, key] = path
+  // JSON (POST) is a check-in as the SDKs send it, monitor_config and all; else the query string's fields
+  const isJson = (request.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')
+  let fields: Record<string, unknown>
+  if (request.method === 'POST' && isJson) {
+    try {
+      fields = payloadJson({ header: { type: 'check_in' }, payload: body })
+    } catch {
+      return answer({ detail: 'The check-in isn’t a JSON object' }, 400)
+    }
+  } else {
+    const q = url.searchParams
+    const duration = Number(q.get('duration'))
+    fields = {
+      status: q.get('status') ?? undefined,
+      check_in_id: q.get('check_in_id') ?? undefined,
+      environment: q.get('environment') ?? undefined,
+      duration: q.get('duration') !== null && Number.isFinite(duration) ? duration : undefined,
+    }
+  }
+  if (!CHECK_IN_STATUSES.has(String(fields.status)))
+    return answer({ detail: 'A check-in needs a status of in_progress, ok or error' }, 400)
+  const payload = encoder.encode(JSON.stringify({ ...fields, monitor_slug: decodeURIComponent(slug) }))
+  return { item: { header: { type: 'check_in' }, payload }, key: key ?? projectKey(request, url) }
+}
 
 // Projects and keys change rarely; a minute's cache spares a read per request. So a change to a project's grouping
 // rules or filters takes up to a minute to apply
@@ -93,16 +152,20 @@ export async function handleIngest(
   env: IngestEnv,
   ctx: ExecutionContext,
   projectId: number,
-  endpoint: Endpoint,
+  door: Door,
+  path: string[] = [],
 ) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
-  if (request.method !== 'POST') return answer({ detail: 'Method not allowed' }, 405)
+  const allowed = door === 'cron' ? ['GET', 'POST'] : ['POST']
+  if (!allowed.includes(request.method)) return answer({ detail: 'Method not allowed' }, 405)
+  if ((door === 'cron' ? path.length < 1 : path.length > 0) || path.length > 2)
+    return answer({ detail: 'Not found' }, 404)
   const url = new URL(request.url)
   const now = Date.now()
 
   let body: Uint8Array
   try {
-    body = await readBody(request)
+    body = request.method === 'GET' ? new Uint8Array() : await readBody(request)
   } catch (error) {
     if (error instanceof BodyError) return answer({ detail: error.message }, error.status)
     throw error
@@ -111,7 +174,16 @@ export async function handleIngest(
   let items: EnvelopeItem[]
   let envelopeId: string | undefined
   let key: string | null
-  if (endpoint === 'envelope') {
+  // What's held and retried is always an envelope or an event
+  const endpoint: Endpoint = door === 'store' ? 'store' : 'envelope'
+  if (door === 'security' || door === 'cron') {
+    if (door === 'security' && !body.byteLength) return answer({ detail: 'The report is empty' }, 400)
+    const made = fromDoor(request, url, door, body, path)
+    if (made instanceof Response) return made
+    items = [made.item]
+    key = made.key
+    body = toEnvelope({}, items)
+  } else if (door === 'envelope') {
     try {
       const envelope = parseEnvelope(body)
       items = envelope.items
@@ -250,6 +322,9 @@ export async function handleIngest(
   const { notices, eventId } = result
   if (notices.length) ctx.waitUntil(import('../notify/dispatch').then(({ dispatch }) => dispatch(env, notices)))
   const headers: Record<string, string> = limits ? { 'X-Sentry-Rate-Limits': limits } : {}
+  // Relay's answers: 202 and nothing else for a check-in over HTTP, 200 and nothing for a security report
+  if (door === 'cron' || door === 'security')
+    return new Response(null, { status: door === 'cron' ? 202 : 200, headers: { ...CORS, ...headers } })
   return endpoint === 'store'
     ? answer({ id: eventId }, 200, headers)
     : answer(eventId ? { id: eventId } : {}, 200, headers)
@@ -288,6 +363,30 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
   const failed: Todo = []
   let firstEventId: string | undefined
   const attachments: [number, EnvelopeItem][] = []
+  // One event: filters, symbols, grouping, then stored with its notices; dropped ones counted as filtered
+  const eventOf = async (payload: Record<string, unknown>, fallback: string | undefined) => {
+    const event = await normalizeEvent(payload, now, fallback)
+    // Inbound filters read the event as the SDK sent it, before symbols, as Relay's do
+    if (filterReason(event, filters)) {
+      filtered++
+      filteredEvents++
+      return
+    }
+    // Readable stacks before grouping, so the same crash groups by its functions across builds
+    await symbolicate(env, sharedSymbolic, project.id, event)
+    // The project's stack trace rules set in-app on the event itself; grouping sees the frames they leave
+    const grouping = applyRules(event, rulesOf(project.grouping_rules))
+    const { fingerprint, version } = await groupingOf(env.DB, project, grouping, now)
+    if (await isDiscarded(env.DB, project.id, fingerprint)) {
+      filtered++
+      filteredEvents++
+      return
+    }
+    const envelopeKey = c.endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
+    const stored = await storeEvent(env.DB, project, event, fingerprint, envelopeKey, version)
+    if (envelopeKey && stored?.stored) c.waitUntil(env.FILES.put(envelopeKey, c.body))
+    if (stored) notices.push(...(await noticesFor(env, c.origin, project, event, stored)))
+  }
   for (const [index, from] of todo) {
     const item = items[index]
     if (!item) continue
@@ -310,8 +409,25 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
       } else if (type === 'session' || type === 'sessions') {
         await storeSessions(env.DB, project.id, sessionCounts(type, payloadJson(item), now))
       } else if (type === 'check_in') {
-        const notice = await recordCheckIn({ ...env, PUBLIC_URL: c.origin }, project.id, payloadJson(item), now)
+        const fallback = c.held ? stableEventId(c.held, index) : undefined
+        const notice = await recordCheckIn(
+          { ...env, PUBLIC_URL: c.origin },
+          project.id,
+          payloadJson(item),
+          now,
+          fallback,
+        )
         if (notice) notices.push(notice)
+      } else if (type === 'raw_security') {
+        // Each CSP violation is an event, its id from the held key, the item and its place, the same on every try
+        const reports = cspReports(securityJson(item))
+        const extra = {
+          release: typeof item.header.sentry_release === 'string' ? item.header.sentry_release : undefined,
+          environment: typeof item.header.sentry_environment === 'string' ? item.header.sentry_environment : undefined,
+          userAgent: typeof item.header.user_agent === 'string' ? item.header.user_agent : undefined,
+        }
+        for (const [j, report] of reports.entries())
+          await eventOf(cspEvent(report, extra), c.held ? stableEventId(c.held, index * 256 + j) : undefined)
       } else if (type === 'log') {
         await storeLogs(env.DB, project.id, normalizeLogs(payloadJson(item), now), now, dayOf(now))
       } else if (type === 'event') {
@@ -319,27 +435,7 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
         // An event without an id gets one that's the same on every try, so a retry finds it stored
         const fallback = c.envelopeId ?? (c.held ? stableEventId(c.held, index) : undefined)
         firstEventId ??= eventIdOf(payload.event_id) ?? fallback
-        const event = await normalizeEvent(payload, now, fallback)
-        // Inbound filters read the event as the SDK sent it, before symbols, as Relay's do
-        if (filterReason(event, filters)) {
-          filtered++
-          filteredEvents++
-          continue
-        }
-        // Readable stacks before grouping, so the same crash groups by its functions across builds
-        await symbolicate(env, sharedSymbolic, project.id, event)
-        // The project's stack trace rules set in-app on the event itself; grouping sees the frames they leave
-        const grouping = applyRules(event, rulesOf(project.grouping_rules))
-        const { fingerprint, version } = await groupingOf(env.DB, project, grouping, now)
-        if (await isDiscarded(env.DB, project.id, fingerprint)) {
-          filtered++
-          filteredEvents++
-          continue
-        }
-        const envelopeKey = c.endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
-        const stored = await storeEvent(env.DB, project, event, fingerprint, envelopeKey, version)
-        if (envelopeKey && stored?.stored) c.waitUntil(env.FILES.put(envelopeKey, c.body))
-        if (stored) notices.push(...(await noticesFor(env, c.origin, project, event, stored)))
+        await eventOf(payload, fallback)
       } else {
         await storeFeedback(env.DB, project, type, payloadJson(item), c.envelopeId, now)
       }
@@ -361,6 +457,15 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
     }
   }
   return { notices, failed, eventId, filteredEvents }
+}
+
+/** A security item's payload: one report, or the Reporting API's list of them */
+function securityJson(item: EnvelopeItem): unknown {
+  try {
+    return JSON.parse(new TextDecoder().decode(item.payload))
+  } catch {
+    throw new EnvelopeError('the security report isn’t JSON')
+  }
 }
 
 const countFiltered = (db: D1Database, projectId: number, now: number, n: number) =>

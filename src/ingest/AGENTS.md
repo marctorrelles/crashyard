@@ -19,7 +19,7 @@ order.
   of 100 frames each, the innermost; crashed, then current, first; the thread an exception matches, by `thread_id` or
   `crashed`, keeps no frames, as its stack is the exception's; grouping reads only the exceptions; events stored
   before have none), `serverName` (`server_name`, for the localhost filter), tags (pairs or object, plus derived: level, release,
-  os, device, browser, runtime, handled, mechanism), `request` (method, URL, query string, headers as pairs, body as
+  os, device, browser, runtime, handled, mechanism, `monitor.slug` from `contexts.monitor.slug`), `request` (method, URL, query string, headers as pairs, body as
   text of 8 KB at most; header and query keys that name a secret are filtered as in `scrub`, query values in the URL
   too, the rest masked as tags; headers that carry the client's IP, `x-forwarded-for`, `cf-connecting-ip`,
   `forwarded` and the like (`IP_HEADERS`), are dropped and `request.env` with `REMOTE_ADDR` isn't kept, as crashyard
@@ -96,6 +96,17 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   comes with it from ingest's cached read. An ignore `until_users` ends on an event from a user the issue hadn't had
   (one read of `issue_users`, only then) that takes `user_count` to `ignore_until_users`; `until_escalating` never ends
   here.
+- `security.ts`: browsers' security reports (Relay's `security_report.rs` and `relay-event-normalization` CSP, read
+  2026-10-27). `cspReports`: `{ "csp-report": … }` (report-uri, kebab-case: `effective-directive`, else the first word
+  of `violated-directive`) or the Reporting API's list (report-to, camelCase `body`; only `csp-violation`, 100 at most,
+  its `user_agent` kept), none without a directive. `blockedOf`: a URL's host, a bare word as itself (`inline`,
+  `eval`, `data`, `self` for an empty one); `cspTitle` after Sentry's: "Blocked 'script' from 'host'", "Blocked unsafe
+  inline 'style'", "Blocked unsafe eval() in 'script'" (the directive's kind without `-src`, `-elem`, `-attr`).
+  `cspEvent`: a Sentry event of it (title as `logentry`, the directive as `culprit`, `fingerprint` `csp`, directive,
+  blocked host, tags `csp.directive`, `csp.blocked`, `csp.disposition`, the page as `request.url`, the browser as its
+  `User-Agent` so the inbound filters read it, the report as `csp`); `normalizeEvent` makes an event with a `csp`
+  part type `csp`, its culprit the one given. Relay's CSP filter of disallowed sources isn't applied: browser
+  extensions' own reports come through.
 - `budget.ts`: `trimEvent` (`eventJson` in `storeEvent`, just before the JSON is written; the envelope stays whole in
   R2) keeps the stored JSON under 900 KB: only an event over it is copied and cut, each cut only while still over,
   least missed first: the newest 100 breadcrumbs, 32 threads of 100 frames (crashed first), an exception's innermost

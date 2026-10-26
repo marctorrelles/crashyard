@@ -157,12 +157,24 @@ function configOf(raw: CheckIn['monitor_config']): CronConfig | undefined {
 
 const slugOk = (s: unknown): s is string => typeof s === 'string' && /^[\w.-]{1,100}$/.test(s)
 
-/** A check-in from an SDK. Makes the monitor from its config the first time, as Sentry does */
+/** A check-in id as stored: 32 hex; Relay's nil id (an HTTP check-in that named none) is none */
+const idOf = (v: unknown) => {
+  if (typeof v !== 'string' || !/^[0-9a-f-]{32,36}$/i.test(v)) return undefined
+  const id = v.replace(/-/g, '').toLowerCase()
+  return /^0+$/.test(id) ? undefined : id
+}
+
+/**
+ * A check-in from an SDK or over HTTP. Makes the monitor from its config the first time, as Sentry does. One without
+ * an id (HTTP's `?status=ok` after `?status=in_progress`) finishes the monitor's latest run in progress, as Sentry
+ * pairs them; else it's a check-in of its own with `fallbackId`, the same on every try of its envelope
+ */
 export async function recordCheckIn(
   env: Env,
   projectId: number,
   payload: CheckIn,
   now: number,
+  fallbackId?: string,
 ): Promise<Notice | undefined> {
   if (!slugOk(payload.monitor_slug)) return undefined
   const config = configOf(payload.monitor_config)
@@ -202,16 +214,24 @@ export async function recordCheckIn(
   }
   if (!monitor || monitor.status === 'paused') return undefined
   const cron = JSON.parse(monitor.config) as CronConfig
-  const id =
-    typeof payload.check_in_id === 'string' && /^[0-9a-f-]{32,36}$/.test(payload.check_in_id)
-      ? payload.check_in_id.replace(/-/g, '')
-      : crypto.randomUUID().replace(/-/g, '')
   const status = ['in_progress', 'ok', 'error'].includes(payload.status ?? '') ? payload.status! : 'ok'
+  const given = idOf(payload.check_in_id)
+  const open =
+    !given && status !== 'in_progress'
+      ? await env.DB.prepare(
+          "SELECT id FROM check_ins WHERE monitor_id = ? AND status = 'in_progress' ORDER BY started DESC LIMIT 1",
+        )
+          .bind(monitor.id)
+          .first<{ id: string }>()
+      : null
+  const id = given ?? open?.id ?? fallbackId ?? crypto.randomUUID().replace(/-/g, '')
   const duration = typeof payload.duration === 'number' ? Math.round(payload.duration * 1000) : null
   await env.DB.prepare(
     `INSERT INTO check_ins (id, monitor_id, status, started, finished, duration, release, environment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET status = excluded.status, finished = excluded.finished,
-       duration = COALESCE(excluded.duration, excluded.finished - check_ins.started)`,
+       duration = COALESCE(excluded.duration, excluded.finished - check_ins.started),
+       release = COALESCE(check_ins.release, excluded.release),
+       environment = COALESCE(check_ins.environment, excluded.environment)`,
   )
     .bind(
       id,
