@@ -1,5 +1,5 @@
 // A value shown on a page, as a menu: show only this, exclude this, copy it.
-import { ClipboardIcon, MinusCircleIcon, PlusCircleIcon } from 'lucide-react'
+import { IconCircleMinus, IconCirclePlus, IconClipboard } from '@tabler/icons-react'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -43,11 +43,11 @@ export function ValueMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onInclude}>
-          <PlusCircleIcon />
+          <IconCirclePlus />
           Show only this
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onExclude}>
-          <MinusCircleIcon />
+          <IconCircleMinus />
           Exclude this
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -58,7 +58,7 @@ export function ValueMenu({
             )
           }
         >
-          <ClipboardIcon />
+          <IconClipboard />
           Copy value
         </DropdownMenuItem>
       </DropdownMenuContent>

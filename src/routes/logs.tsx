@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from '@tanstack/react-router'
-import { ChevronRightIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, XIcon } from 'lucide-react'
+import { IconChevronRight, IconMinus, IconPlayerPause, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
 import { count } from '@/components/bits'
 import { BarList, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
@@ -144,7 +144,7 @@ function Logs() {
         </Select>
         {custom && (
           <Button variant="secondary" onClick={() => go({ from: undefined, to: undefined })}>
-            <XIcon data-icon="inline-start" />
+            <IconX data-icon="inline-start" />
             Reset
           </Button>
         )}
@@ -161,7 +161,7 @@ function Logs() {
           disabled={custom}
           title={custom ? 'Live follows the newest logs: reset the time first' : undefined}
         >
-          {live ? <PauseIcon data-icon="inline-start" /> : <PlayIcon data-icon="inline-start" />}
+          {live ? <IconPlayerPause data-icon="inline-start" /> : <IconPlayerPlay data-icon="inline-start" />}
           Live
         </Button>
       </div>
@@ -401,7 +401,7 @@ function Groups({
                         title="Show only this"
                         onClick={() => onPick(field, g.value!, false)}
                       >
-                        <PlusIcon />
+                        <IconPlus />
                       </Button>
                       <Button
                         variant="ghost"
@@ -411,7 +411,7 @@ function Groups({
                         title="Exclude this"
                         onClick={() => onPick(field, g.value!, true)}
                       >
-                        <MinusIcon />
+                        <IconMinus />
                       </Button>
                     </div>
                   )}
@@ -567,7 +567,7 @@ function LogLine({ log: l, showProject, onPick }: { log: Log; showProject: boole
     <li>
       <details className="group">
         <summary className="flex cursor-pointer items-start gap-2 px-3 py-1.5 hover:bg-muted/40">
-          <ChevronRightIcon className="mt-0.5 size-3 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+          <IconChevronRight className="mt-0.5 size-3 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
           <Clock at={l.timestamp} />
           <span
             className={cn(

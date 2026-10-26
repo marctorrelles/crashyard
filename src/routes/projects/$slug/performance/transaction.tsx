@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
-import { ChevronRightIcon } from 'lucide-react'
+import { IconChevronRight } from '@tabler/icons-react'
 import { Ago, count } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
 import { ms, Period, Waterfall } from '@/components/performance'
@@ -107,7 +107,7 @@ function Transaction() {
               <li key={e.id}>
                 <details className="group">
                   <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
-                    <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                    <IconChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
                     <span className="w-16 text-sm font-medium tabular-nums">{ms(e.duration)}</span>
                     <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{e.release}</span>
                     {e.status && e.status !== 'ok' && <Badge variant="destructive">{e.status}</Badge>}

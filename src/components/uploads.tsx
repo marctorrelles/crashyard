@@ -1,7 +1,7 @@
 // "Readable stacks" on a project's settings: auth tokens for sentry-cli and the build plugins, how each platform
 // uploads its debug files or source maps, and what's been uploaded.
 import { useRouter } from '@tanstack/react-router'
-import { KeyRoundIcon, Trash2Icon } from 'lucide-react'
+import { IconKey, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
@@ -128,7 +128,7 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
             aria-label="Token name"
           />
           <Button type="submit" variant="outline">
-            <KeyRoundIcon data-icon="inline-start" />
+            <IconKey data-icon="inline-start" />
             Make a token
           </Button>
         </form>
@@ -160,7 +160,7 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
                     await router.invalidate()
                   }}
                 >
-                  <Trash2Icon />
+                  <IconTrash />
                 </Button>
               </li>
             ))}

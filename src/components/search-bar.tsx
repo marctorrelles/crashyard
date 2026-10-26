@@ -3,7 +3,7 @@
 // The query stays the one truth: pills are tokens of it, and every pill change hands the whole query to `onSearch`.
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { SearchIcon, XIcon } from 'lucide-react'
+import { IconSearch, IconX } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandGroup, CommandItem, CommandList, CommandShortcut } from '@/components/ui/command'
 import {
@@ -205,7 +205,7 @@ export function SearchBar({
       <PopoverAnchor asChild>
         <InputGroup ref={bar} className="h-auto min-h-8 flex-wrap gap-1 py-0.5 pr-1 max-sm:min-h-11">
           <InputGroupAddon>
-            <SearchIcon />
+            <IconSearch />
           </InputGroupAddon>
           {pills.map((t, i) => {
             const info = keys.find((k) => k.key === t.key)
@@ -283,7 +283,7 @@ export function SearchBar({
                     )
                   }
                 >
-                  <XIcon />
+                  <IconX />
                 </Button>
               </span>
             )

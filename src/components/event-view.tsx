@@ -1,6 +1,6 @@
 // One event, as Sentry shows it: the exception with its stack (where it happened first, other code folded),
 // breadcrumbs, tags, contexts and the raw JSON.
-import { ChevronRightIcon, SquareArrowOutUpRightIcon } from 'lucide-react'
+import { IconChevronRight, IconExternalLink } from '@tabler/icons-react'
 import { useState } from 'react'
 import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent } from '@/ingest/event'
 import { cn } from '@/lib/utils'
@@ -49,7 +49,7 @@ export function EventView({ event, links = {} }: { event: NormalizedEvent; links
       {Object.keys(event.contexts).length > 0 && <Contexts contexts={event.contexts} />}
       <details className="group rounded-xl border">
         <summary className="flex cursor-pointer items-center gap-1 px-4 py-3 text-sm font-medium">
-          <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
+          <IconChevronRight className="size-4 transition-transform group-open:rotate-90" />
           Raw event
         </summary>
         <pre className="max-h-[32rem] overflow-auto border-t bg-muted/30 p-4 font-mono text-xs">
@@ -166,7 +166,7 @@ function FrameRow({ frame: f, open }: { frame: Linked; open?: boolean }) {
       title="Open in the repository"
       className="-my-1.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground max-sm:-my-2.5 max-sm:size-10"
     >
-      <SquareArrowOutUpRightIcon className="size-3.5" />
+      <IconExternalLink className="size-3.5" />
     </a>
   )
   const title = (
@@ -198,7 +198,7 @@ function FrameRow({ frame: f, open }: { frame: Linked; open?: boolean }) {
     <li>
       <details open={open} className="group">
         <summary className="flex cursor-pointer items-start gap-1 px-3 py-2">
-          <ChevronRightIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+          <IconChevronRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
           <span className="flex min-w-0 flex-1 items-start justify-between gap-2">
             {title}
             {code}

@@ -1,6 +1,6 @@
 // How an app links to a project, per platform: the SDK and its init with this project's DSN. docs/linking.md says the
 // same; keep them in step.
-import { CheckIcon, CopyIcon } from 'lucide-react'
+import { IconCheck, IconCopy } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Platform } from '@/data/projects'
@@ -107,7 +107,7 @@ export function Code({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500)
         }}
       >
-        {copied ? <CheckIcon /> : <CopyIcon />}
+        {copied ? <IconCheck /> : <IconCopy />}
       </Button>
     </div>
   )

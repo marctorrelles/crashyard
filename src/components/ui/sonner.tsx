@@ -1,5 +1,5 @@
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from 'lucide-react'
+import { IconAlertOctagon, IconAlertTriangle, IconCircleCheck, IconInfoCircle, IconLoader2 } from '@tabler/icons-react'
 
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
@@ -7,11 +7,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme="system"
       className="toaster group"
       icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+        success: <IconCircleCheck className="size-4" />,
+        info: <IconInfoCircle className="size-4" />,
+        warning: <IconAlertTriangle className="size-4" />,
+        error: <IconAlertOctagon className="size-4" />,
+        loading: <IconLoader2 className="size-4 animate-spin" />,
       }}
       style={
         {

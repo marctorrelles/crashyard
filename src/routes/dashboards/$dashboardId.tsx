@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, useNavigate, useRouter, Link } from '@tanstack/react-router'
-import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
@@ -146,11 +146,11 @@ function Board() {
             {draft ? (
               <>
                 <Button variant="outline" onClick={() => setDialog({})} disabled={widgets.length >= MAX_WIDGETS}>
-                  <PlusIcon data-icon="inline-start" />
+                  <IconPlus data-icon="inline-start" />
                   Add widget
                 </Button>
                 <Button variant="ghost" size="icon" aria-label="Delete dashboard" onClick={remove} disabled={busy}>
-                  <Trash2Icon />
+                  <IconTrash />
                 </Button>
                 <Button variant="outline" onClick={done} disabled={busy}>
                   Cancel
@@ -161,7 +161,7 @@ function Board() {
               </>
             ) : (
               <Button variant="outline" onClick={() => setDraft({ name: dashboard.name, widgets: dashboard.widgets })}>
-                <PencilIcon data-icon="inline-start" />
+                <IconPencil data-icon="inline-start" />
                 Edit
               </Button>
             )}
@@ -177,12 +177,12 @@ function Board() {
           <p className="mb-4">Each is a search over issues, their events or logs, as a number, a chart or a table.</p>
           {draft ? (
             <Button onClick={() => setDialog({})}>
-              <PlusIcon data-icon="inline-start" />
+              <IconPlus data-icon="inline-start" />
               Add widget
             </Button>
           ) : (
             <Button onClick={() => setDraft({ name: dashboard.name, widgets: [] })}>
-              <PencilIcon data-icon="inline-start" />
+              <IconPencil data-icon="inline-start" />
               Edit
             </Button>
           )}

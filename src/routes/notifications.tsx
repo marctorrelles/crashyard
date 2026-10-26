@@ -1,14 +1,16 @@
 import { ClientOnly, createFileRoute, useRouter } from '@tanstack/react-router'
 import {
-  MailIcon,
-  MessageCircleIcon,
-  PencilIcon,
-  PlusIcon,
-  SendIcon,
-  SearchIcon,
-  Trash2Icon,
-  WebhookIcon,
-} from 'lucide-react'
+  IconBrandDiscord,
+  IconBrandSlack,
+  IconBrandTelegram,
+  IconMail,
+  IconPencil,
+  IconPlus,
+  IconSearch,
+  IconBellRinging,
+  IconTrash,
+  IconWebhook,
+} from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader, Shell } from '@/components/shell'
@@ -46,7 +48,13 @@ export const Route = createFileRoute('/notifications')({
 })
 
 type Data = Awaited<ReturnType<typeof getNotifications>>
-const ICONS = { telegram: MessageCircleIcon, email: MailIcon, webhook: WebhookIcon }
+const ICONS = {
+  telegram: IconBrandTelegram,
+  slack: IconBrandSlack,
+  discord: IconBrandDiscord,
+  email: IconMail,
+  webhook: IconWebhook,
+}
 const list = <T,>(json: string | null): T[] => (json ? (JSON.parse(json) as T[]) : [])
 
 function Notifications() {
@@ -61,7 +69,7 @@ function Notifications() {
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-medium">Channels</h2>
           <Button size="sm" variant="outline" onClick={() => setChannel('new')}>
-            <PlusIcon data-icon="inline-start" />
+            <IconPlus data-icon="inline-start" />
             Add a channel
           </Button>
         </div>
@@ -72,7 +80,7 @@ function Notifications() {
         ) : (
           <ul className="divide-y rounded-xl border">
             {d.channels.map((c) => {
-              const Icon = ICONS[c.kind]
+              const Icon = ICONS[choiceOf(c)]
               return (
                 <li key={c.id} className="flex items-center gap-3 px-4 py-3">
                   <Icon className="size-4 shrink-0 text-muted-foreground" />
@@ -88,7 +96,7 @@ function Notifications() {
                   </div>
                   <TestButton label={`Send a test to ${c.name}`} send={() => testChannel({ data: { id: c.id } })} />
                   <Button size="icon-sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => setChannel(c)}>
-                    <PencilIcon />
+                    <IconPencil />
                   </Button>
                 </li>
               )
@@ -101,7 +109,7 @@ function Notifications() {
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-medium">Routes</h2>
           <Button size="sm" variant="outline" disabled={!d.channels.length} onClick={() => setRoute('new')}>
-            <PlusIcon data-icon="inline-start" />
+            <IconPlus data-icon="inline-start" />
             Add a route
           </Button>
         </div>
@@ -180,7 +188,7 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
       </div>
       <TestButton label="Send a test" send={() => testRoute({ data: { id: r.id } })} />
       <Button size="icon-sm" variant="ghost" aria-label="Edit route" onClick={onEdit}>
-        <PencilIcon />
+        <IconPencil />
       </Button>
     </li>
   )
@@ -212,7 +220,7 @@ function TestButton({
         if (!results.length) toast.error('No channel to send to')
       }}
     >
-      <SendIcon />
+      <IconBellRinging />
     </Button>
   )
 }
@@ -383,7 +391,7 @@ function ChannelDialog({
                   await done()
                 }}
               >
-                <Trash2Icon data-icon="inline-start" />
+                <IconTrash data-icon="inline-start" />
                 Delete
               </Button>
             ) : (
@@ -468,7 +476,7 @@ function TelegramFields({ config }: { config: Record<string, string> }) {
             />
           )}
           <Button type="button" variant="outline" disabled={!token.trim()} onClick={find}>
-            <SearchIcon data-icon="inline-start" />
+            <IconSearch data-icon="inline-start" />
             Find
           </Button>
         </div>
@@ -648,7 +656,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                   await done()
                 }}
               >
-                <Trash2Icon data-icon="inline-start" />
+                <IconTrash data-icon="inline-start" />
                 Delete
               </Button>
             ) : (

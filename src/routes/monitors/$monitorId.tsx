@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
-import { PauseIcon, PencilIcon, PlayIcon, Trash2Icon } from 'lucide-react'
+import { IconPencil, IconPlayerPause, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago, LocalTime } from '@/components/bits'
 import { Beats, MonitorStatus } from '@/components/beats'
@@ -53,11 +53,15 @@ function MonitorPage() {
                 await router.invalidate()
               }}
             >
-              {m.status === 'paused' ? <PlayIcon data-icon="inline-start" /> : <PauseIcon data-icon="inline-start" />}
+              {m.status === 'paused' ? (
+                <IconPlayerPlay data-icon="inline-start" />
+              ) : (
+                <IconPlayerPause data-icon="inline-start" />
+              )}
               {m.status === 'paused' ? 'Resume' : 'Pause'}
             </Button>
             <Button variant="outline" size="icon" aria-label="Edit" onClick={() => setEditing({ ...m, config })}>
-              <PencilIcon />
+              <IconPencil />
             </Button>
             <Button
               variant="ghost"
@@ -69,7 +73,7 @@ function MonitorPage() {
                 await navigate({ to: '/monitors' })
               }}
             >
-              <Trash2Icon />
+              <IconTrash />
             </Button>
           </>
         }

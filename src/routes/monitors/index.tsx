@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ClockIcon, GlobeIcon, PlusIcon } from 'lucide-react'
+import { IconClock, IconPlus, IconWorld } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago } from '@/components/bits'
 import { Beats, MonitorStatus } from '@/components/beats'
@@ -26,11 +26,11 @@ function Monitors() {
           projects.length > 0 && (
             <>
               <Button variant="outline" onClick={() => setEditing({ kind: 'uptime' })}>
-                <PlusIcon data-icon="inline-start" />
+                <IconPlus data-icon="inline-start" />
                 Uptime check
               </Button>
               <Button variant="outline" onClick={() => setEditing({ kind: 'cron' })}>
-                <PlusIcon data-icon="inline-start" />
+                <IconPlus data-icon="inline-start" />
                 Cron monitor
               </Button>
             </>
@@ -48,7 +48,7 @@ function Monitors() {
         <ul className="divide-y rounded-xl border">
           {monitors.map((m) => {
             const config = JSON.parse(m.config) as { url?: string; schedule?: Schedule; intervalMinutes?: number }
-            const Icon = m.kind === 'uptime' ? GlobeIcon : ClockIcon
+            const Icon = m.kind === 'uptime' ? IconWorld : IconClock
             return (
               <li key={m.id}>
                 <Link

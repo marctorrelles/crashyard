@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { LayoutDashboardIcon, PlusIcon } from 'lucide-react'
+import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
@@ -69,7 +69,7 @@ function Dashboards() {
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             <Button disabled={busy} onClick={() => create(STARTER, false)}>
-              <LayoutDashboardIcon data-icon="inline-start" />
+              <IconLayoutDashboard data-icon="inline-start" />
               Start with Crashes
             </Button>
             <NewDashboard variant="outline" busy={busy} onCreate={(name) => create({ name, widgets: [] }, true)} />
@@ -85,7 +85,7 @@ function Dashboards() {
                 search={{ project }}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50"
               >
-                <LayoutDashboardIcon className="size-4 shrink-0 text-muted-foreground" />
+                <IconLayoutDashboard className="size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{d.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
@@ -120,7 +120,7 @@ function NewDashboard({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant={variant}>
-          <PlusIcon data-icon="inline-start" />
+          <IconPlus data-icon="inline-start" />
           New dashboard
         </Button>
       </DialogTrigger>

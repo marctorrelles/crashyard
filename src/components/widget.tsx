@@ -1,7 +1,7 @@
 // A dashboard's widget: its card (title, what it searches, the number, chart, table or issues it shows) and the
 // dialog that makes or changes one, with a preview of what it will show.
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowDownIcon, ArrowUpIcon, PencilIcon, TriangleAlertIcon, XIcon } from 'lucide-react'
+import { IconAlertTriangle, IconArrowDown, IconArrowUp, IconPencil, IconX } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { count, Level } from '@/components/bits'
 import { BigNumber, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
@@ -132,7 +132,7 @@ export function WidgetActions({
   return (
     <>
       <Button variant="ghost" size="icon-sm" className={size} aria-label={`Edit ${title}`} onClick={onEdit}>
-        <PencilIcon />
+        <IconPencil />
       </Button>
       <Button
         variant="ghost"
@@ -142,7 +142,7 @@ export function WidgetActions({
         disabled={!onUp}
         onClick={onUp}
       >
-        <ArrowUpIcon />
+        <IconArrowUp />
       </Button>
       <Button
         variant="ghost"
@@ -152,10 +152,10 @@ export function WidgetActions({
         disabled={!onDown}
         onClick={onDown}
       >
-        <ArrowDownIcon />
+        <IconArrowDown />
       </Button>
       <Button variant="ghost" size="icon-sm" className={size} aria-label={`Remove ${title}`} onClick={onRemove}>
-        <XIcon />
+        <IconX />
       </Button>
     </>
   )
@@ -177,7 +177,7 @@ function WidgetView({
   if (data.kind === 'error')
     return (
       <p className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-        <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+        <IconAlertTriangle className="mt-0.5 size-3.5 shrink-0" />
         <span className="min-w-0 break-words">
           {w.invalid ? 'This widget can’t be read' : 'This search can’t be shown'}: {data.message}
         </span>

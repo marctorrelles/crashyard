@@ -1,7 +1,7 @@
 // Charts the lists share: counts over time (stacked series, the period before as a dashed line, drag to zoom), a
 // value's share of a total with include and exclude, and one number with its change. shadcn's chart over recharts.
 import { ClientOnly } from '@tanstack/react-router'
-import { MinusIcon, PlusIcon } from 'lucide-react'
+import { IconMinus, IconPlus } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Area, Bar, CartesianGrid, ComposedChart, Line, ReferenceArea, XAxis, YAxis } from 'recharts'
 import { count } from '@/components/bits'
@@ -340,7 +340,7 @@ export function BarList({
               title="Show only this"
               onClick={() => onInclude(it.value)}
             >
-              <PlusIcon />
+              <IconPlus />
             </Button>
           )}
           {onExclude && (
@@ -352,7 +352,7 @@ export function BarList({
               title="Exclude this"
               onClick={() => onExclude(it.value)}
             >
-              <MinusIcon />
+              <IconMinus />
             </Button>
           )}
         </li>

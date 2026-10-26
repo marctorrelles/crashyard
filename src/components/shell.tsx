@@ -3,20 +3,20 @@
 // width; `PageHeader` and `Empty` are what pages are made of.
 import { getRouteApi, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  ActivityIcon,
-  BellIcon,
-  BugIcon,
-  CheckIcon,
-  ChevronsUpDownIcon,
-  GaugeIcon,
-  HouseIcon,
-  LayoutDashboardIcon,
-  LayoutGridIcon,
-  LogOutIcon,
-  ScrollTextIcon,
-  SettingsIcon,
-  TagIcon,
-} from 'lucide-react'
+  IconActivity,
+  IconBell,
+  IconBug,
+  IconCheck,
+  IconGauge,
+  IconHome,
+  IconLayoutDashboard,
+  IconLayoutGrid,
+  IconLogout,
+  IconLogs,
+  IconSelector,
+  IconSettings,
+  IconTag,
+} from '@tabler/icons-react'
 import { Fragment, useEffect, useId, useState } from 'react'
 import {
   Breadcrumb,
@@ -178,21 +178,21 @@ function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <Item label="Overview" icon={HouseIcon} active={page.path === '/'}>
+            <Item label="Overview" icon={IconHome} active={page.path === '/'}>
               {(c) => (
                 <Link to="/" search={search} onClick={close}>
                   {c}
                 </Link>
               )}
             </Item>
-            <Item label="Dashboards" icon={LayoutDashboardIcon} active={at('/dashboards')}>
+            <Item label="Dashboards" icon={IconLayoutDashboard} active={at('/dashboards')}>
               {(c) => (
                 <Link to="/dashboards" search={search} onClick={close}>
                   {c}
                 </Link>
               )}
             </Item>
-            <Item label="Issues" icon={BugIcon} active={at('/issues')}>
+            <Item label="Issues" icon={IconBug} active={at('/issues')}>
               {(c) => (
                 <Link to="/issues" search={search} onClick={close}>
                   {c}
@@ -201,7 +201,7 @@ function AppSidebar() {
             </Item>
             <Item
               label="Releases"
-              icon={TagIcon}
+              icon={IconTag}
               active={at('/releases') || /^\/projects\/[^/]+\/releases/.test(page.path)}
             >
               {(c) => (
@@ -212,7 +212,7 @@ function AppSidebar() {
             </Item>
             <Item
               label="Performance"
-              icon={GaugeIcon}
+              icon={IconGauge}
               active={at('/performance') || /^\/projects\/[^/]+\/performance/.test(page.path)}
             >
               {(c) => (
@@ -221,21 +221,21 @@ function AppSidebar() {
                 </Link>
               )}
             </Item>
-            <Item label="Logs" icon={ScrollTextIcon} active={at('/logs')}>
+            <Item label="Logs" icon={IconLogs} active={at('/logs')}>
               {(c) => (
                 <Link to="/logs" search={search} onClick={close}>
                   {c}
                 </Link>
               )}
             </Item>
-            <Item label="Monitors" icon={ActivityIcon} active={at('/monitors')}>
+            <Item label="Monitors" icon={IconActivity} active={at('/monitors')}>
               {(c) => (
                 <Link to="/monitors" onClick={close}>
                   {c}
                 </Link>
               )}
             </Item>
-            <Item label="Notifications" icon={BellIcon} active={at('/notifications')}>
+            <Item label="Notifications" icon={IconBell} active={at('/notifications')}>
               {(c) => (
                 <Link to="/notifications" onClick={close}>
                   {c}
@@ -251,7 +251,7 @@ function AppSidebar() {
             <SidebarMenuButton asChild tooltip="Sign out" className="h-auto">
               {/* Cloudflare Access signs out of every app behind it on this domain */}
               <a href="/cdn-cgi/access/logout">
-                <LogOutIcon />
+                <IconLogout />
                 <span className="grid min-w-0 leading-tight">
                   <span>Sign out</span>
                   <span className="truncate text-xs text-muted-foreground">{viewer}</span>
@@ -341,21 +341,21 @@ function ProjectSwitcher({
                 <span className="font-semibold tracking-tight">crashyard</span>
                 <span className="truncate text-xs text-muted-foreground">{current?.name ?? 'All projects'}</span>
               </span>
-              <ChevronsUpDownIcon className="ml-auto text-muted-foreground" />
+              <IconSelector className="ml-auto text-muted-foreground" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-(--radix-dropdown-menu-trigger-width) min-w-56">
             <DropdownMenuItem onSelect={() => pick()}>
-              <LayoutGridIcon />
+              <IconLayoutGrid />
               All projects
-              {!current && <CheckIcon className="ml-auto" />}
+              {!current && <IconCheck className="ml-auto" />}
             </DropdownMenuItem>
             {projects.length > 0 && <DropdownMenuSeparator />}
             {projects.length > 0 && <DropdownMenuLabel>Projects</DropdownMenuLabel>}
             {projects.map((p) => (
               <DropdownMenuItem key={p.id} onSelect={() => pick(p.slug)}>
                 <span className="truncate">{p.name}</span>
-                {p.slug === current?.slug && <CheckIcon className="ml-auto" />}
+                {p.slug === current?.slug && <IconCheck className="ml-auto" />}
               </DropdownMenuItem>
             ))}
             {current && (
@@ -363,7 +363,7 @@ function ProjectSwitcher({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/projects/$slug/settings" params={{ slug: current.slug }} onClick={onPick}>
-                    <SettingsIcon />
+                    <IconSettings />
                     {current.name} settings
                   </Link>
                 </DropdownMenuItem>

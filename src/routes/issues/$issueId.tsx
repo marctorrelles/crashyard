@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
-import { ChevronLeftIcon, ChevronRightIcon, Trash2Icon } from 'lucide-react'
+import { IconChevronLeft, IconChevronRight, IconTrash } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Ago, count, Level, LocalTime } from '@/components/bits'
@@ -104,10 +104,10 @@ function IssuePage() {
                 </div>
                 <div className="flex gap-1">
                   <EventLink id={issue.id} event={d.older} label="Older event">
-                    <ChevronLeftIcon />
+                    <IconChevronLeft />
                   </EventLink>
                   <EventLink id={issue.id} event={d.newer} label="Newer event">
-                    <ChevronRightIcon />
+                    <IconChevronRight />
                   </EventLink>
                 </div>
               </div>
@@ -355,7 +355,7 @@ function Activity({ d }: { d: Data }) {
                       await router.invalidate()
                     }}
                   >
-                    <Trash2Icon className="size-3.5" />
+                    <IconTrash className="size-3.5" />
                   </button>
                 )}
               </p>

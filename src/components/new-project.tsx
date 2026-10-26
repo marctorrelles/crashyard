@@ -1,6 +1,6 @@
 // "New project": a name and a platform, then its settings page with the DSN and how to link the app.
 import { useNavigate } from '@tanstack/react-router'
-import { PlusIcon } from 'lucide-react'
+import { IconPlus } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -35,7 +35,7 @@ export function NewProject({ variant = 'default' }: { variant?: 'default' | 'out
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant={variant}>
-          <PlusIcon data-icon="inline-start" />
+          <IconPlus data-icon="inline-start" />
           New project
         </Button>
       </DialogTrigger>

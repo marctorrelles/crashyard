@@ -1,6 +1,6 @@
 // What can be done to issues, for one (its page) or many (the list): resolve, ignore, reopen, merge, delete.
 import { useRouter } from '@tanstack/react-router'
-import { CheckIcon, ChevronDownIcon, EyeOffIcon, MergeIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react'
+import { IconCheck, IconChevronDown, IconEyeOff, IconGitMerge, IconRotate, IconTrash } from '@tabler/icons-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -66,14 +66,14 @@ export function IssueActions({
     <div className="flex flex-wrap items-center gap-2">
       {status && status !== 'unresolved' ? (
         <Button size={size} variant="outline" onClick={() => run({ action: 'reopen' }, 'Reopened')}>
-          <RotateCcwIcon data-icon="inline-start" />
+          <IconRotate data-icon="inline-start" />
           {status === 'resolved' ? 'Unresolve' : 'Stop ignoring'}
         </Button>
       ) : (
         <>
           <div className="flex">
             <Button size={size} className="rounded-r-none" onClick={() => run({ action: 'resolve' }, 'Resolved')}>
-              <CheckIcon data-icon="inline-start" />
+              <IconCheck data-icon="inline-start" />
               Resolve
             </Button>
             <DropdownMenu>
@@ -83,7 +83,7 @@ export function IssueActions({
                   className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
                   aria-label="More ways to resolve"
                 >
-                  <ChevronDownIcon />
+                  <IconChevronDown />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -100,9 +100,9 @@ export function IssueActions({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size={size} variant="outline">
-                <EyeOffIcon data-icon="inline-start" />
+                <IconEyeOff data-icon="inline-start" />
                 Ignore
-                <ChevronDownIcon data-icon="inline-end" />
+                <IconChevronDown data-icon="inline-end" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -139,7 +139,7 @@ export function IssueActions({
       )}
       {canMerge && (
         <Button size={size} variant="outline" onClick={merge}>
-          <MergeIcon data-icon="inline-start" />
+          <IconGitMerge data-icon="inline-start" />
           Merge
         </Button>
       )}
@@ -149,7 +149,7 @@ export function IssueActions({
         aria-label={`Delete${many}`}
         onClick={() => run({ action: 'delete' }, 'Deleted')}
       >
-        <Trash2Icon />
+        <IconTrash />
       </Button>
     </div>
   )
