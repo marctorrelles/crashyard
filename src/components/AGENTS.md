@@ -77,7 +77,8 @@
   link (`z-10`), its tap area 40 px high on a phone.
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection. Ignore is a split
   button: its click ignores until it escalates; the menu has that first, then forever, N more times, N more users and
-  for a time. Delete is a menu: Delete, and Delete and discard future events (`discard`), each confirmed.
+  for a time. Resolve's menu: now, in next release, in current release (naming one issue's latest; hidden when it
+  has none), and on one issue Resolve in a release…, a dialog with a `Select` of `releases`. Delete is a menu: Delete, and Delete and discard future events (`discard`), each confirmed.
 - `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a
   menu to change it, above a list row's link, 40 px on a phone; `PRIORITY_LABELS`.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's

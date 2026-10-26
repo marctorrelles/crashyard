@@ -22,9 +22,10 @@ helpers (`change`).
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
   a tenth so a crash never reads 100%; one batch of four).
 - `issues.ts`: `listIssues` (a search from `src/search/`, sorted, 50 a page, with a 14-day series each), `getIssue`
-  (tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
+  (the project's releases with events, newest first, 50, for the release picker; tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
   image, `attachmentType`, feedback, activity), `changeIssues`
-  (resolve, now or in the next release; ignore, for good, for N events or until a date; reopen; delete, and with
+  (resolve, now, in the next release, in the current release (`current`: each issue's `last_release`, read first so
+  the activity names it) or in a chosen one (`release`), the last two as `fixed_in_release`; ignore, for good, for N events or until a date; reopen; delete, and with
   `discard` first every fingerprint of the issues, their own and those merged into them, into
   `discarded_fingerprints`, 40 issues a statement, so ingest drops their events as filtered; each written to the
   activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into

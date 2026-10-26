@@ -1,8 +1,17 @@
 // What can be done to issues, for one (its page) or many (the list): resolve, ignore, reopen, merge, delete.
 import { useRouter } from '@tanstack/react-router'
 import { IconCheck, IconChevronDown, IconEyeOff, IconGitMerge, IconRotate, IconTrash } from '@tabler/icons-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +20,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { changeIssues, mergeIssues } from '@/fns'
 
 type Change =
-  | { action: 'resolve'; inRelease?: boolean }
+  | { action: 'resolve'; inRelease?: boolean; current?: boolean; release?: string }
   | { action: 'ignore'; forEvents?: number; forUsers?: number; until?: number; untilEscalating?: boolean }
   | { action: 'reopen' }
   | { action: 'delete'; discard?: boolean }
@@ -27,14 +37,22 @@ export function IssueActions({
   canMerge,
   onDone,
   size = 'default',
+  lastRelease,
+  releases,
 }: {
   ids: number[]
   status?: 'unresolved' | 'resolved' | 'ignored'
   canMerge?: boolean
+  /** One issue's latest release, named in "Resolve in current release" */
+  lastRelease?: string | null
+  /** The project's releases, for "Resolve in a release…" on one issue */
+  releases?: string[]
   onDone?: (change: Change['action'] | 'merge') => void
   size?: 'default' | 'sm'
 }) {
   const router = useRouter()
+  const [picking, setPicking] = useState(false)
+  const [release, setRelease] = useState('')
   const many = ids.length > 1 ? ` ${ids.length} issues` : ''
   const run = async (change: Change, done: string) => {
     if (
@@ -99,6 +117,31 @@ export function IssueActions({
                   Resolve in next release
                   <span className="ml-auto pl-3 text-xs text-muted-foreground">reopens only in another</span>
                 </DropdownMenuItem>
+                {lastRelease !== null && (
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      run(
+                        { action: 'resolve', current: true },
+                        lastRelease ? `Resolved in ${lastRelease}` : 'Resolved in the current release',
+                      )
+                    }
+                  >
+                    Resolve in current release
+                    <span className="ml-auto max-w-40 truncate pl-3 text-xs text-muted-foreground">
+                      {lastRelease ?? 'each one’s latest'}
+                    </span>
+                  </DropdownMenuItem>
+                )}
+                {!!releases?.length && (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setRelease(releases[0])
+                      setPicking(true)
+                    }}
+                  >
+                    Resolve in a release…
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -170,6 +213,40 @@ export function IssueActions({
             </DropdownMenu>
           </div>
         </>
+      )}
+      {releases && (
+        <Dialog open={picking} onOpenChange={setPicking}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Resolve in a release</DialogTitle>
+              <DialogDescription>
+                The issue reopens if it happens in this release or a newer one. Older releases don’t reopen it.
+              </DialogDescription>
+            </DialogHeader>
+            <Select value={release} onValueChange={setRelease}>
+              <SelectTrigger className="w-full" aria-label="Release">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {releases.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DialogFooter>
+              <Button
+                onClick={async () => {
+                  setPicking(false)
+                  await run({ action: 'resolve', release }, `Resolved in ${release}`)
+                }}
+              >
+                Resolve in {release}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
       {canMerge && (
         <Button size={size} variant="outline" onClick={merge}>

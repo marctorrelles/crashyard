@@ -39,7 +39,7 @@ server, the build, or `tsr generate`): never edit it.
   `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. Bulk resolve,
   ignore, merge and delete.
 - `issues/$issueId.tsx`: one issue: its priority (a menu), status (Escalating, ignored until it escalates or N
-  users), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
+  users, resolved in a release), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
   newer), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events, feedback, activity and notes.
 - `releases.tsx`: releases (crash-free sessions when the SDK sends them), a section per project for every project;

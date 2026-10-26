@@ -75,6 +75,7 @@ type IssueRow = {
   status: string
   substatus: string | null
   resolved_in_release: string | null
+  fixed_in_release: string | null
   ignore_until_count: number | null
   ignore_until: number | null
   ignore_until_users: number | null
@@ -110,7 +111,13 @@ export function transitionOf(
   release: string | undefined,
   now: number,
   newUser = false,
+  olderThanFix = false,
 ): Stored['transition'] {
+  if (issue.status === 'resolved' && issue.fixed_in_release !== null) {
+    // Resolved in a release: its events and a newer release's reopen it, an older one's and one naming none don't
+    if (release && (release === issue.fixed_in_release || !olderThanFix)) return 'regressed'
+    return undefined
+  }
   if (issue.status === 'resolved') {
     // Resolved now: any new event is a regression. Resolved in the next release: an event from another release is; an
     // event that names no release can't say, so it isn't.
@@ -126,8 +133,25 @@ export function transitionOf(
   return undefined
 }
 
+/**
+ * Whether an event's release is older than the one its resolved issue was fixed in: by the release's created_at
+ * (sentry-cli's), else its first event; a release with neither is new. Read only for such an issue and another release
+ */
+async function olderThan(db: D1Database, projectId: number, issue: IssueRow, release: string | undefined, now: number) {
+  if (issue.status !== 'resolved' || !issue.fixed_in_release || !release || release === issue.fixed_in_release)
+    return false
+  const first = (version: number) =>
+    `COALESCE((SELECT created_at FROM releases WHERE project_id = ?1 AND version = ?${version}),
+       (SELECT MIN(received) FROM events WHERE project_id = ?1 AND release = ?${version}), ?4)`
+  const row = await db
+    .prepare(`SELECT ${first(2)} < ${first(3)} AS older`)
+    .bind(projectId, release, issue.fixed_in_release, now)
+    .first<{ older: number }>()
+  return !!row?.older
+}
+
 const ISSUE_COLUMNS =
-  'id, status, substatus, resolved_in_release, ignore_until_count, ignore_until, ignore_until_users, count, user_count, minute, minute_count, title, culprit, level'
+  'id, status, substatus, resolved_in_release, fixed_in_release, ignore_until_count, ignore_until, ignore_until_users, count, user_count, minute, minute_count, title, culprit, level'
 
 export async function storeEvent(
   db: D1Database,
@@ -186,7 +210,9 @@ export async function storeEvent(
           .bind(issue.id, event.userHash)
           .first())
       : false
-  const transition = isNew ? undefined : transitionOf(issue, event.release, now, newUser)
+  const transition = isNew
+    ? undefined
+    : transitionOf(issue, event.release, now, newUser, await olderThan(db, project.id, issue, event.release, now))
   const minute = Math.floor(now / 60_000)
   const minuteCount = issue.minute === minute ? issue.minute_count + 1 : 1
   const keep = minuteCount <= SPIKE_LIMIT
@@ -202,6 +228,8 @@ export async function storeEvent(
         `UPDATE issues SET count = count + 1, last_seen = MAX(last_seen, ?), last_release = COALESCE(?, last_release),
            first_release = COALESCE(first_release, ?), last_event_id = ?, minute = ?, minute_count = ?, status = ?, substatus = ?,
            resolved_in_release = CASE WHEN ? THEN NULL ELSE resolved_in_release END,
+           fixed_in_release = CASE WHEN ? THEN NULL ELSE fixed_in_release END,
+           resolved_in_commit = CASE WHEN ? THEN NULL ELSE resolved_in_commit END,
            ignore_until_count = CASE WHEN ? THEN NULL ELSE ignore_until_count END,
            ignore_until = CASE WHEN ? THEN NULL ELSE ignore_until END,
            ignore_until_users = CASE WHEN ? THEN NULL ELSE ignore_until_users END
@@ -216,6 +244,8 @@ export async function storeEvent(
         minuteCount,
         status,
         substatus,
+        transition ? 1 : 0,
+        transition ? 1 : 0,
         transition ? 1 : 0,
         transition ? 1 : 0,
         transition ? 1 : 0,

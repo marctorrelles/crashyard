@@ -315,7 +315,12 @@ export const changeIssues = createServerFn({ method: 'POST' })
     const action = oneOf(['resolve', 'ignore', 'reopen', 'delete', 'priority'] as const)(o.action)
     const change: issues.IssueChange =
       action === 'resolve'
-        ? { action, inRelease: o.inRelease === true }
+        ? {
+            action,
+            inRelease: o.inRelease === true,
+            current: o.current === true,
+            release: optional((v) => text(v, 200))(o.release),
+          }
         : action === 'ignore'
           ? {
               action,

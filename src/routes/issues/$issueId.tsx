@@ -67,7 +67,7 @@ function IssuePage() {
             {issue.culprit && <span className="font-mono text-xs break-all">{issue.culprit}</span>}
           </p>
         </div>
-        <IssueActions ids={[issue.id]} status={issue.status} />
+        <IssueActions ids={[issue.id]} status={issue.status} lastRelease={issue.last_release} releases={d.releases} />
       </div>
 
       <dl className="mb-6 grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm sm:grid-cols-4">
@@ -155,7 +155,11 @@ function StatusBadge({ issue, now }: { issue: Data['issue']; now: number }) {
   if (issue.status === 'resolved')
     return (
       <Badge variant="outline">
-        {issue.resolved_in_release ? `Resolved after ${issue.resolved_in_release}` : 'Resolved'}
+        {issue.fixed_in_release
+          ? `Resolved in ${issue.fixed_in_release}`
+          : issue.resolved_in_release
+            ? `Resolved after ${issue.resolved_in_release}`
+            : 'Resolved'}
       </Badge>
     )
   if (issue.status === 'ignored') {
@@ -285,7 +289,14 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
   created: (x) => `First seen${x.release ? ` in ${x.release}` : ''}`,
   regressed: (x) => `Regressed${x.release ? ` in ${x.release}` : ''}`,
   ignore_expired: () => 'Ignore period ended',
-  resolved: (x) => (x.inRelease ? 'Resolved in the next release' : 'Resolved'),
+  resolved: (x) =>
+    x.commit
+      ? `Resolved in ${String(x.release)} by commit ${String((x.commit as { sha: string }).sha).slice(0, 7)}: ${String((x.commit as { message: string }).message).split('\n')[0]}`
+      : x.release
+        ? `Resolved in ${String(x.release)}`
+        : x.inRelease
+          ? 'Resolved in the next release'
+          : 'Resolved',
   auto_resolved: (x) => `Resolved after ${x.days} day${x.days === 1 ? '' : 's'} without events`,
   ignored: (x) =>
     x.untilEscalating ? (

@@ -264,6 +264,7 @@ describe('reopening', () => {
     ({
       status: 'unresolved',
       resolved_in_release: null,
+      fixed_in_release: null,
       ignore_until_count: null,
       ignore_until: null,
       ignore_until_users: null,
@@ -276,6 +277,34 @@ describe('reopening', () => {
     expect(transitionOf(issue({ status: 'resolved', resolved_in_release: '1.0' }), '1.0', 0)).toBeUndefined()
     expect(transitionOf(issue({ status: 'resolved', resolved_in_release: '1.0' }), undefined, 0)).toBeUndefined()
     expect(transitionOf(issue({ status: 'resolved', resolved_in_release: '1.0' }), '1.1', 0)).toBe('regressed')
+  })
+  it('reopens one resolved in a release for it or a newer one, not an older one', () => {
+    const fixed = issue({ status: 'resolved', fixed_in_release: '2.0' })
+    expect(transitionOf(fixed, '2.0', 0)).toBe('regressed')
+    expect(transitionOf(fixed, '2.1', 0, false, false)).toBe('regressed')
+    expect(transitionOf(fixed, '1.9', 0, false, true)).toBeUndefined()
+    expect(transitionOf(fixed, undefined, 0)).toBeUndefined()
+  })
+  it('orders releases by when they were made, else their first event', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0);
+      INSERT INTO releases (project_id, version, created_at) VALUES (1, '2.0', 2000), (1, '1.9', 1000)`)
+    const project = {
+      id: 1,
+      slug: 'a',
+      name: 'a',
+      daily_event_quota: 1e6,
+      daily_log_quota: 1e6,
+      daily_transaction_quota: 1e6,
+    }
+    const e = { ...(await normalizeEvent({ message: 'm' }, 3000)), release: '1.0' }
+    const first = (await storeEvent(db, project, e, 'fp'))!
+    db.sqlite.exec(`UPDATE issues SET status = 'resolved', fixed_in_release = '2.0'`)
+    const at = async (release: string, id: string) =>
+      (await storeEvent(db, project, { ...e, id: id.repeat(32), release, received: 4000 }, 'fp'))?.transition
+    expect(await at('1.9', 'b')).toBeUndefined()
+    expect(await at('3.0', 'c')).toBe('regressed')
+    expect(first.isNew).toBe(true)
   })
   it('ends an ignore by count or by date', () => {
     expect(transitionOf(issue({ status: 'ignored', ignore_until_count: 6 }), undefined, 0)).toBe('ignore_expired')

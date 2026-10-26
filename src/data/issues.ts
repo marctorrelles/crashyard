@@ -37,6 +37,10 @@ export type IssueRow = {
   first_release: string | null
   last_release: string | null
   last_event_id: string | null
+  fixed_in_release: string | null
+  resolved_in_commit: string | null
+  assignee: string | null
+  external_url: string | null
 }
 
 const marks = (n: number) => Array(n).fill('?').join(',')
@@ -179,11 +183,21 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
       at: number
     }[],
     activity: activity.results as Activity[],
+    // The project's releases with events, newest first, for "Resolve in a release…"
+    releases: (
+      await db
+        .prepare(
+          `SELECT release FROM events WHERE project_id = ? AND release IS NOT NULL GROUP BY release
+           ORDER BY MAX(received) DESC LIMIT 50`,
+        )
+        .bind(issue.project_id)
+        .all<{ release: string }>()
+    ).results.map((r) => r.release),
   }
 }
 
 export type IssueChange =
-  | { action: 'resolve'; inRelease?: boolean }
+  | { action: 'resolve'; inRelease?: boolean; current?: boolean; release?: string }
   | { action: 'ignore'; forEvents?: number; forUsers?: number; until?: number; untilEscalating?: boolean }
   | { action: 'reopen' }
   | { action: 'delete'; discard?: boolean }
@@ -212,16 +226,30 @@ export async function changeIssues(db: D1Database, ids: number[], change: IssueC
     return
   }
   const statements: D1PreparedStatement[] = []
+  // "In the current release": each issue's latest release, named in its activity
+  const latest =
+    change.action === 'resolve' && change.current
+      ? new Map(
+          (
+            await db
+              .prepare(`SELECT id, last_release FROM issues WHERE id IN (${marks(ids.length)})`)
+              .bind(...ids)
+              .all<{ id: number; last_release: string | null }>()
+          ).results.map((r) => [r.id, r.last_release]),
+        )
+      : undefined
   for (const id of ids) {
     let set: string
     let values: unknown[]
     let data: Record<string, unknown> = {}
     if (change.action === 'resolve') {
       // "In the next release": the release it's resolved against is the latest it was seen in; only another one reopens it
+      // In a release, current or chosen: that release and newer ones reopen it (`fixed_in_release`, store.ts)
+      const fixed = (change.current ? latest?.get(id) : change.release) ?? null
       set =
-        "status = 'resolved', substatus = NULL, resolved_in_release = CASE WHEN ? THEN last_release END, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL"
-      values = [change.inRelease ? 1 : 0]
-      data = { inRelease: !!change.inRelease }
+        "status = 'resolved', substatus = NULL, resolved_in_release = CASE WHEN ? THEN last_release END, fixed_in_release = ?, resolved_in_commit = NULL, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL"
+      values = [change.inRelease && !fixed ? 1 : 0, fixed]
+      data = fixed ? { release: fixed } : { inRelease: !!change.inRelease }
     } else if (change.action === 'ignore') {
       // Until it escalates: only the hourly escalation check opens it again (src/data/escalation.ts)
       const kind = change.forEvents
@@ -234,7 +262,7 @@ export async function changeIssues(db: D1Database, ids: number[], change: IssueC
               ? 'until_escalating'
               : 'for_good'
       set =
-        "status = 'ignored', substatus = ?, ignore_until_count = CASE WHEN ? THEN count + ? END, ignore_until_users = CASE WHEN ? THEN user_count + ? END, ignore_until = ?, resolved_in_release = NULL"
+        "status = 'ignored', substatus = ?, ignore_until_count = CASE WHEN ? THEN count + ? END, ignore_until_users = CASE WHEN ? THEN user_count + ? END, ignore_until = ?, resolved_in_release = NULL, fixed_in_release = NULL, resolved_in_commit = NULL"
       values = [
         kind,
         change.forEvents ? 1 : 0,
@@ -255,7 +283,7 @@ export async function changeIssues(db: D1Database, ids: number[], change: IssueC
       data = { priority: change.priority }
     } else {
       set =
-        "status = 'unresolved', substatus = 'ongoing', resolved_in_release = NULL, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL"
+        "status = 'unresolved', substatus = 'ongoing', resolved_in_release = NULL, fixed_in_release = NULL, resolved_in_commit = NULL, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL"
       values = []
     }
     const kind = { resolve: 'resolved', ignore: 'ignored', reopen: 'reopened', priority: 'priority' }[change.action]

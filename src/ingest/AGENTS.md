@@ -82,7 +82,10 @@ localhost,transaction_name,error_messages,releases,csp}.rs` and `relay-server/sr
   request's part, allowed domains, is `originAllowed` at the request instead, so retries agree with the request.
 - `store.ts`: `storeEvent` writes an event: dedupes by event id, creates the issue (`ON CONFLICT DO NOTHING
 RETURNING`), then one batch for the counts, days, tags, users and activity. `transitionOf` decides a reopening: a
-  resolved issue regresses on any event, or, resolved in a release, only on another release's; an ignore ends by
+  resolved issue regresses on any event, or, resolved in the next release, only on another release's, or, resolved
+  in a release (`fixed_in_release`), on that release's or a newer one's but not an older one's nor one naming none
+  (`olderThan`: one read, only for such an issue and another release, comparing `releases.created_at`, else the
+  release's first event, else now for a release seen nowhere yet); an ignore ends by
   count or date. Spike protection: past 60 events a minute an issue only counts, it stores no more events. A tag keeps
   100 values per issue (`TAG_VALUES`); a new one past them counts under `other` (reading at most the value's row or the
   first 100), so a search for such a value doesn't find the issue. An issue
