@@ -99,6 +99,10 @@ helpers (`change`).
   an event matched to a file (`matchFile`: the file whose path ends with the most of the frame's, from its absolute
   path, its file, or for Java and Kotlin its package's folders and file; none on a tie) at the release's commit, else
   `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed.
+- `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
+  and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
+  clears to the default). `projectDefaults`: what `createProject` starts with, the columns' defaults under what
+  Settings, New-project defaults saved.
 - `notifications.ts`: channels and routes, and `testRoute` and `testChannel`, which send a made-up notice now through a
   route's channels or one channel and say how each went.
 
