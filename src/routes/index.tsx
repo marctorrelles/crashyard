@@ -29,9 +29,9 @@ function Home() {
   const failing = only(data.failing, (m) => m.project_slug)
   const { charts } = data
   const daily = charts.days.map((_, i) => charts.events.reduce((a, s) => a + s.counts[i], 0))
-  // The cards' "Events, 24h" (today and yesterday, UTC), against the two days before
-  const recent = daily.slice(-2).reduce((a, b) => a + b, 0)
-  const before = daily.slice(-4, -2).reduce((a, b) => a + b, 0)
+  // Yesterday, a whole UTC day (today's is still filling), against the day before
+  const yesterday = daily.at(-2) ?? 0
+  const dayBefore = daily.at(-3) ?? 0
   return (
     <Shell>
       <PageHeader title="Overview" actions={projects.length > 0 && <NewProject variant="outline" />} />
@@ -88,7 +88,7 @@ function Home() {
       {projects.length > 0 && (
         <section className="mt-8 grid gap-3" aria-label="The last 30 days">
           <div className="grid grid-cols-2 gap-3 rounded-xl border p-4 sm:grid-cols-4">
-            <BigNumber label="Events, 24h" value={recent} change={change(recent, before)} />
+            <BigNumber label="Events yesterday" value={yesterday} change={change(yesterday, dayBefore)} />
             <BigNumber label="Unresolved" value={projects.reduce((a, p) => a + p.unresolved, 0)} />
             <BigNumber label="New issues, 24h" value={charts.newRecent} />
             <BigNumber label="Monitors failing" value={failing.length} />

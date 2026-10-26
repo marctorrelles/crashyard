@@ -10,10 +10,10 @@ server, the build, or `tsr generate`): never edit it.
   performance, logs) take the sidebar's project filter as `?project=`, every project's when there's none; a project's
   pages are titled by the page with the project under it.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
-  day and a 14-day sparkline; then events in 24 hours (the cards' today and yesterday, against the two days before),
-  unresolved, new issues in 24 hours and monitors failing as numbers, events per day per project (stacked areas),
-  issues new and resolved per day (bars side by side) and crash-free per release (`getOverviewCharts`, 30 days,
-  loaded with the overview, narrowed by `?project=`); failing monitors, new issues.
+  day and a 14-day sparkline; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
+  24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
+  (bars side by side) and crash-free per release (`getOverviewCharts`, 30 days, loaded with the overview, narrowed by
+  `?project=`); failing monitors, new issues.
 - `dashboards/index.tsx`: the dashboards (name, widgets, when saved and by whom), New dashboard (a name, then it opens
   in edit mode, `?edit=true`), and with none, Start with Crashes (`STARTER`). `dashboards/$dashboardId.tsx`: one
   dashboard over a range (`?range=`, the logs page's), narrowed by `?project=` (`getDashboard`, every widget's data

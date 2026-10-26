@@ -31,14 +31,17 @@
 - `charts.tsx`: shadcn's `ChartContainer` over recharts. `TimeChart`: counts per bucket (`x` is bucket starts in ms or
   UTC days `YYYY-MM-DD`), series stacked as bars or areas (lines aren't; `stacked={false}` puts bars side by side), a
   series' own `kind` and `axis: 'right'` (a second axis, `formatRight`; the transaction page's count under its p95),
-  null values skipped in a line (joined across), `legend`, `onSeries` (a click on a series' bar, area or line),
-  `previous` (the period before) as a dashed line, a tooltip per bucket, and with `onZoom` a drag across it gives the
-  buckets' exact span (the logs page zooms with it). Days are written as the UTC day they are; hours in the browser's
-  time; it draws inside `<ClientOnly>`, a `Skeleton` of its size before. Colours: a series' own, else `LEVEL_COLORS` by
-  key (fatal red 700, error red 500, warning and logs' warn amber, info sky, debug muted, logs' trace fainter), else the
-  theme's `--chart-n`; `PALETTE`, 8 colours for groups and projects. `BarList`: values with a bar for their share, count
-  and percent (or `format`'s text), + (show only) and − (exclude) on hover, always shown on touch. `BigNumber`: a
-  number, its label and its change (more reads red), on the overview and dashboards.
+  null values skipped in a line (joined across), `legend`, `onSeries` (a click on a series' bar, area or line, with a
+  fine pointer only, `useFinePointer` in `src/hooks/`: on touch a tap shows the tooltip, and the table or legend drill
+  in), `previous` (the period before) as a dashed line in the text's colour, faded, a tooltip per bucket, and with
+  `onZoom` a drag across it gives the buckets' exact span (the logs page zooms with it). Days are written as the UTC day
+  they are; hours in the browser's time, and over two days or more of hours a tick a day with its date (over less, a
+  tick that starts a day says its date); it draws inside `<ClientOnly>`, a `Skeleton` of its size before. Colours: a
+  series' own, else `LEVEL_COLORS` by key, the same as `Level`'s dots (fatal red 600, error orange 500, warning and
+  logs' warn amber 400, info sky 500, debug zinc 400, logs' trace fainter), else the theme's `--chart-n`; `PALETTE`, 8
+  colours for groups and projects. `BarList`: values with a bar for their share, count and percent (or `format`'s text),
+  - (show only) and − (exclude) on hover, always shown on touch. `BigNumber`: a number, its label and its change (more
+    reads red, less green, none as rounded muted), on the overview and dashboards.
 - `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset, group-by and query, then the number with its
   change, the chart, the table of values with their change, the issues, or what went wrong; a series or a value
   opens the logs or issues with it added), `WidgetActions` (edit mode: edit, up, down, remove; 40 px on a phone) and

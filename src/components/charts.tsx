@@ -15,6 +15,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useFinePointer } from '@/hooks/use-fine-pointer'
 import { cn } from '@/lib/utils'
 
 /**
@@ -30,16 +31,18 @@ export type Series = {
   axis?: 'right'
 }
 
-/** A level's colour in the charts (issues' levels and logs'), most severe the darkest red, the least the faintest */
+/** A level's colour in the charts (issues' levels and logs'), the same as `Level`'s dot; logs' trace fainter than debug */
 export const LEVEL_COLORS: Record<string, string> = {
-  fatal: 'var(--color-red-700)',
-  error: 'var(--color-red-500)',
-  warning: 'var(--color-amber-500)',
-  warn: 'var(--color-amber-500)',
+  fatal: 'var(--color-red-600)',
+  error: 'var(--color-orange-500)',
+  warning: 'var(--color-amber-400)',
+  warn: 'var(--color-amber-400)',
   info: 'var(--color-sky-500)',
-  debug: 'var(--muted-foreground)',
-  trace: 'color-mix(in oklab, var(--muted-foreground) 50%, transparent)',
+  debug: 'var(--color-zinc-400)',
+  trace: 'color-mix(in oklab, var(--color-zinc-400) 50%, transparent)',
 }
+// The period before: the text's colour, faded, so it stands apart from the greys of debug and trace
+const PREVIOUS_COLOR = 'color-mix(in oklab, var(--foreground) 45%, transparent)'
 
 /** Colours for series that aren't levels (a group's values, projects), apart in light and dark */
 export const PALETTE = [
@@ -63,6 +66,13 @@ function tick(x: number | string, step: number) {
     return at.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })
   return at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
+const dateOf = (x: number) => new Date(x).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+// The buckets that start a day in the browser's time (shorter buckets than a day), for ticks that say the date
+function dayStarts(x: number[] | string[], step: number): number[] {
+  if (step >= DAY || typeof x[0] !== 'number') return []
+  const days = (x as number[]).map((at) => new Date(at).toDateString())
+  return days.flatMap((d, i) => (i > 0 && d !== days[i - 1] ? [i] : []))
+}
 function title(x: number | string, step: number) {
   const at = new Date(startOf(x))
   if (typeof x === 'string' || step >= DAY)
@@ -83,7 +93,8 @@ type Props = {
   // Bars and areas are stacked unless this is false (side by side)
   stacked?: boolean
   legend?: boolean
-  // A click on a series' bar, area or line (a dashboard's widget opens the list of that value)
+  // A click on a series' bar, area or line (a dashboard's widget opens the list of that value); with a mouse only, so
+  // a tap on a phone shows the tooltip
   onSeries?: (key: string) => void
 }
 
@@ -118,13 +129,18 @@ function Chart({
 }: Props & { size: string; style?: React.CSSProperties }) {
   // The buckets a drag has covered so far, by index
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null)
+  const fine = useFinePointer()
   const step = x.length > 1 ? startOf(x[1]) - startOf(x[0]) : DAY
+  // Over two days or more of hours, a tick a day, with its date; over less, a tick that starts a day says its date
+  const starts = dayStarts(x, step)
+  const daily = starts.length > 0 && x.length * step >= 2 * DAY
+  const startsAt = new Set(starts)
   const config: ChartConfig = Object.fromEntries([
     ...series.map((s, i) => [
       s.key,
       { label: s.label, color: s.color ?? LEVEL_COLORS[s.key] ?? `var(--chart-${(i % 5) + 1})` },
     ]),
-    ['previous', { label: 'Period before', color: 'var(--muted-foreground)' }],
+    ['previous', { label: 'Period before', color: PREVIOUS_COLOR }],
   ])
   const rows = x.map((_, i) => ({
     i,
@@ -167,7 +183,10 @@ function Chart({
           axisLine={false}
           tickMargin={6}
           minTickGap={28}
-          tickFormatter={(i: number) => (x[i] === undefined ? '' : tick(x[i], step))}
+          ticks={daily ? starts : undefined}
+          tickFormatter={(i: number) =>
+            x[i] === undefined ? '' : startsAt.has(i) ? dateOf(x[i] as number) : tick(x[i], step)
+          }
         />
         <YAxis
           yAxisId="left"
@@ -206,7 +225,7 @@ function Chart({
           const axis = s.axis ?? 'left'
           // Lines aren't stacked; bars and areas are, each kind on each axis apart
           const stack = stacked && as !== 'line' ? `${as}-${axis}` : undefined
-          const click = onSeries && { onClick: () => onSeries(s.key), className: 'cursor-pointer' }
+          const click = onSeries && fine && { onClick: () => onSeries(s.key), className: 'cursor-pointer' }
           return as === 'bar' ? (
             <Bar
               key={s.key}
@@ -359,19 +378,24 @@ export function BigNumber({
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="flex items-baseline gap-2">
         <span className="text-2xl font-semibold tabular-nums">{value === null ? '—' : format(value)}</span>
-        {change !== undefined && change !== null && (
-          <span
-            className={cn(
-              'text-xs tabular-nums',
-              change > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400',
-              change === 0 && 'text-muted-foreground',
-            )}
-          >
-            {change > 0 ? '+' : change < 0 ? '−' : '±'}
-            {Math.round(Math.abs(change) * 100)}%
-          </span>
-        )}
+        {change !== undefined && change !== null && <Change percent={Math.round(change * 100)} />}
       </p>
     </div>
+  )
+}
+
+// A change as it reads, one set of classes a state: more red, less green, none (as rounded) muted
+function Change({ percent }: { percent: number }) {
+  const [sign, color] =
+    percent > 0
+      ? ['+', 'text-red-600 dark:text-red-400']
+      : percent < 0
+        ? ['−', 'text-emerald-600 dark:text-emerald-400']
+        : ['±', 'text-muted-foreground']
+  return (
+    <span className={cn('text-xs tabular-nums', color)}>
+      {sign}
+      {Math.abs(percent)}%
+    </span>
   )
 }
