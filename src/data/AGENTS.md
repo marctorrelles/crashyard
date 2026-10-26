@@ -13,8 +13,14 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
 - `releases.ts`: releases from events (kept within retention), and the release diff: new in it, came back in it,
   still happening, and gone since the release before.
-- `logs.ts`: the explorer's page (newest first, a time range, cursors for older and for the live tail's newer),
-  facets over the newest 1000 that match, `pruneLogs` (the daily cron).
+- `logs.ts`: the explorer's page (newest first, cursors for older and for the live tail's newer) over a `Window`:
+  a preset range up to now (the list reads on past now, for the live tail) or an exact span `from` to `to` (`to` left
+  out, 90 days at most, `MAX_SPAN`); facets over the newest 1000 that match; `logsByBucket`, logs per bucket and level
+  over the window (the bucket from `intervalFor`, `timestamp - timestamp % size`: `%` reads integers, whatever D1
+  binds) and the span just before it, of the same length, each log shifted by the span onto the bucket it's behind,
+  so `previous` lines up with the buckets, partial first bucket included; `pruneLogs` (the daily cron). Plan: the
+  window by `logs_time` (a project's, `logs_project_time`), then a temp B-tree for the groups; it reads every log in
+  the window, so a filter or a project keeps it small.
 - `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents, making,
   changing, pausing (a resumed one starts again from pending) and deleting; failing monitors for home.
 - `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
@@ -34,8 +40,9 @@ directly. `src/fns.ts` wraps them as server functions; pages never import these 
   tag's values search that index by key; the release columns search `issues_project_last_seen` by project; log keys
   and values search `log_attributes` by primary key (`log_id`, and `key`) for the sample, which reads `logs_time` (a
   project's, `logs_project_time`).
-- `charts.ts`: `buckets` (UTC bucket starts, hour or day), `fill` (sparse rows as a series per level, zeros for the
-  days without, most severe first), `scoped` (an issue filter narrowed to the page's project and to its `project:`
+- `charts.ts`: `intervalFor` (a minute up to an hour, 5 minutes up to 6 hours, an hour up to a week, else a day),
+  `buckets` (UTC bucket starts for `1m`, `5m`, `1h`, `1d`), `fill` (sparse rows, a day or a bucket's start with a level
+  and count, as a series per level, zeros where none, most severe first, logs' `warn` and `trace` among them), `scoped` (an issue filter narrowed to the page's project and to its `project:`
   slugs: `listIssues` uses it too, so the chart and the list count the same issues) and `issueEventsByDay` (events per
   UTC day and level of the issues a search matches, from `issue_days`). Plan: the issues by the filter (a scan, or a
   project's by `issues_project_last_seen`), then each one's days by `issue_days`' primary key; with no filter, a scan

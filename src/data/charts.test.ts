@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buckets, fill, scoped } from './charts'
+import { buckets, fill, intervalFor, scoped } from './charts'
 
 describe('charts', () => {
   it('starts hourly buckets at the hour that holds `from`, up to `to`', () => {
-    expect(buckets(Date.UTC(2026, 0, 1, 10, 30), Date.UTC(2026, 0, 1, 13), 'hour')).toEqual([
+    expect(buckets(Date.UTC(2026, 0, 1, 10, 30), Date.UTC(2026, 0, 1, 13), '1h')).toEqual([
       Date.UTC(2026, 0, 1, 10),
       Date.UTC(2026, 0, 1, 11),
       Date.UTC(2026, 0, 1, 12),
@@ -12,11 +12,46 @@ describe('charts', () => {
   })
 
   it('starts daily buckets at midnight UTC', () => {
-    const even = buckets(Date.UTC(2026, 0, 1), Date.UTC(2026, 0, 3), 'day')
+    const even = buckets(Date.UTC(2026, 0, 1), Date.UTC(2026, 0, 3), '1d')
     expect(even).toEqual([Date.UTC(2026, 0, 1), Date.UTC(2026, 0, 2), Date.UTC(2026, 0, 3)])
-    const odd = buckets(Date.UTC(2026, 0, 1, 18), Date.UTC(2026, 0, 4, 6), 'day')
+    const odd = buckets(Date.UTC(2026, 0, 1, 18), Date.UTC(2026, 0, 4, 6), '1d')
     expect(odd).toEqual([Date.UTC(2026, 0, 1), Date.UTC(2026, 0, 2), Date.UTC(2026, 0, 3), Date.UTC(2026, 0, 4)])
-    expect(buckets(Date.UTC(2026, 0, 2), Date.UTC(2026, 0, 1), 'day')).toEqual([])
+    expect(buckets(Date.UTC(2026, 0, 2), Date.UTC(2026, 0, 1), '1d')).toEqual([])
+  })
+
+  it('picks the bucket for a span: a minute to an hour, 5 minutes to 6 hours, an hour to a week, else a day', () => {
+    expect(intervalFor(36e5)).toBe('1m')
+    expect(intervalFor(36e5 + 1)).toBe('5m')
+    expect(intervalFor(6 * 36e5)).toBe('5m')
+    expect(intervalFor(6 * 36e5 + 1)).toBe('1h')
+    expect(intervalFor(7 * 864e5)).toBe('1h')
+    expect(intervalFor(7 * 864e5 + 1)).toBe('1d')
+    expect(intervalFor(90 * 864e5)).toBe('1d')
+  })
+
+  it('starts minute and 5-minute buckets on their UTC boundary', () => {
+    const at = Date.UTC(2026, 0, 1, 10, 7, 30)
+    expect(buckets(at, at + 3 * 6e4, '1m')).toEqual([0, 1, 2, 3].map((i) => Date.UTC(2026, 0, 1, 10, 7 + i)))
+    expect(buckets(at, Date.UTC(2026, 0, 1, 10, 20), '5m')).toEqual(
+      [5, 10, 15, 20].map((m) => Date.UTC(2026, 0, 1, 10, m)),
+    )
+  })
+
+  it('fills buckets given as ms the same way', () => {
+    expect(
+      fill(
+        [
+          { at: 120, level: 'warn', count: 2 },
+          { at: 60, level: 'trace', count: 1 },
+          { at: 60, level: 'error', count: 3 },
+        ],
+        [0, 60, 120],
+      ),
+    ).toEqual([
+      { level: 'error', counts: [0, 3, 0] },
+      { level: 'warn', counts: [0, 0, 2] },
+      { level: 'trace', counts: [0, 1, 0] },
+    ])
   })
 
   it('fills sparse rows with zeros, a series per level, most severe first', () => {
@@ -24,12 +59,12 @@ describe('charts', () => {
     expect(
       fill(
         [
-          { day: '2026-01-03', level: 'info', count: 4 },
-          { day: '2026-01-01', level: 'error', count: 2 },
-          { day: '2026-01-03', level: 'error', count: 1 },
-          { day: '2026-01-02', level: 'fatal', count: 5 },
-          { day: '2026-01-02', level: 'custom', count: 3 },
-          { day: '2025-12-31', level: 'debug', count: 9 },
+          { at: '2026-01-03', level: 'info', count: 4 },
+          { at: '2026-01-01', level: 'error', count: 2 },
+          { at: '2026-01-03', level: 'error', count: 1 },
+          { at: '2026-01-02', level: 'fatal', count: 5 },
+          { at: '2026-01-02', level: 'custom', count: 3 },
+          { at: '2025-12-31', level: 'debug', count: 9 },
         ],
         days,
       ),

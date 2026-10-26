@@ -25,15 +25,16 @@
   highlighted, Esc closes, Backspace on an empty input turns the last pill back into text. Picking a value makes a
   pill and searches; changing or removing a pill searches. Keys come once on focus and values 150 ms after typing
   stops, from `getSuggestions`, cached by scope, project, range, key and prefix for the page's life (a late reply only
-  fills its own entry; while one is on its way, a shorter prefix's narrows). On the issues page.
+  fills its own entry; while one is on its way, a shorter prefix's narrows). On the issues and logs pages.
 - `charts.tsx`: shadcn's `ChartContainer` over recharts. `TimeChart`: counts per bucket (`x` is bucket starts in ms or
   UTC days `YYYY-MM-DD`), series stacked as bars or areas (lines aren't stacked), `previous` (the period before) as a
-  dashed line, a tooltip per bucket, and with `onZoom` a drag across it gives the buckets' exact span. Days are written
-  as the UTC day they are; hours in the browser's time; it draws inside `<ClientOnly>`, a `Skeleton` of its size
-  before. Colours: a series' own, else `LEVEL_COLORS` by key (fatal red 700, error red 500, warning amber, info sky,
-  debug muted), else the theme's `--chart-n`. `BarList`: values with a bar for their share, count and percent, + (show
-  only) and − (exclude) on hover, always shown on touch. `BigNumber`: a number, its label and its change (more reads
-  red); not on a page yet (tagged `@public` for knip until the overview takes it).
+  dashed line, a tooltip per bucket, and with `onZoom` a drag across it gives the buckets' exact span (the logs page
+  zooms with it). Days are written as the UTC day they are; hours in the browser's time; it draws inside
+  `<ClientOnly>`, a `Skeleton` of its size before. Colours: a series' own, else `LEVEL_COLORS` by key (fatal red 700,
+  error red 500, warning and logs' warn amber, info sky, debug muted, logs' trace fainter), else the theme's
+  `--chart-n`. `BarList`: values with a bar for their share, count and percent, + (show only) and − (exclude) on
+  hover, always shown on touch. `BigNumber`: a number, its label and its change (more reads red); not on a page yet
+  (tagged `@public` for knip until the overview takes it).
 - `value-menu.tsx`: `ValueMenu`, a value on a page as a `DropdownMenu`: show only this, exclude this, copy. Pages pass
   `addValue` for the first two; its trigger sits above a row's link (`z-10`), its tap area 40 px high on a phone.
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.

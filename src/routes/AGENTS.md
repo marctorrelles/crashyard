@@ -24,8 +24,15 @@ server, the build, or `tsr generate`): never edit it.
   project; `projects/$slug/performance/transaction.tsx` (`?name=`): p95 per hour, by release, the slowest with their
   span waterfall and trace links.
 - `projects/$slug/settings.tsx`: the DSN and how to link an app, name, platform, quota, retention, new key, delete.
-- `logs.tsx`: the logs explorer: search, time range, facets (folded on a phone), click a line for every attribute
-  and its trace's logs and issues, Live (polls every 2 s for newer), Older. Times in the browser's time once hydrated.
+- `logs.tsx`: the logs explorer. The search lives in the URL (`project`, `query`, `range`, `from`, `to`): the search
+  bar (`SearchBar`), a time range, and over the list logs per bucket and level (`getLogChart`, loaded with the list;
+  the period before as a dashed line). A drag across the chart sets `from` and `to` (ms, clamped to the chart's
+  span), which stand in for the range while they're set (it reads "Custom" with the span; Reset clears them, back to
+  the range; a bad pair is dropped and the range counts). Facets (folded on a phone) are bars of their share with +
+  and − (`addValue`: a second value of a key makes `key:[a,b]`); click a line for every field and attribute, each a
+  menu to show only, exclude or copy it, and its trace's logs and issues. Live (polls every 2 s for newer; off with an
+  exact span), Older. The chart doesn't poll: it's loaded again on each search. Times in the browser's time once
+  hydrated.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
   monitor, and one monitor: its results or check-ins, how to check in, incidents, pause, edit, delete.
 - `notifications.tsx`: channels (ntfy, email, webhook, quiet hours in the browser's time) and routes, with a test send.

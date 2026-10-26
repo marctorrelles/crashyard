@@ -1,11 +1,16 @@
 // Charts: counts per bucket of time, filled with zeros, for the charts on the lists.
 import type { Filter } from '../search/query'
 
-export type Interval = 'hour' | 'day'
+export type Interval = '1m' | '5m' | '1h' | '1d'
 // The periods the issues chart shows, in days
 export const CHART_DAYS = [14, 30, 90] as const
 export type ChartDays = (typeof CHART_DAYS)[number]
-const SIZE: Record<Interval, number> = { hour: 36e5, day: 864e5 }
+export const SIZE: Record<Interval, number> = { '1m': 6e4, '5m': 3e5, '1h': 36e5, '1d': 864e5 }
+
+/** The bucket for a span of time: a minute up to an hour, 5 minutes up to 6 hours, an hour up to a week, else a day */
+export function intervalFor(span: number): Interval {
+  return span <= SIZE['1h'] ? '1m' : span <= 6 * SIZE['1h'] ? '5m' : span <= 7 * SIZE['1d'] ? '1h' : '1d'
+}
 
 /** The start of every UTC bucket from the one that holds `from` to the one that holds `to` */
 export function buckets(from: number, to: number, interval: Interval): number[] {
@@ -15,22 +20,25 @@ export function buckets(from: number, to: number, interval: Interval): number[] 
   return out
 }
 
-// Most severe first; any other level after them, as it came
-export const LEVELS = ['fatal', 'error', 'warning', 'info', 'debug']
+// Most severe first (issues' levels and logs' `warn` and `trace`); any other level after them, as it came
+export const LEVELS = ['fatal', 'error', 'warning', 'warn', 'info', 'debug', 'trace']
 const rank = (level: string) => {
   const i = LEVELS.indexOf(level)
   return i === -1 ? LEVELS.length : i
 }
 
-/** Sparse rows (a day and level with its count) as a series per level that has any, a count for every day */
-export function fill(rows: { day: string; level: string; count: number }[], days: string[]) {
-  const at = new Map(days.map((d, i) => [d, i]))
+/**
+ * Sparse rows (a bucket, a day or a bucket's start in ms, and a level with its count) as a series per level that has
+ * any, a count for every one of `xs`; rows outside `xs` are left out
+ */
+export function fill<X extends string | number>(rows: { at: X; level: string; count: number }[], xs: X[]) {
+  const index = new Map(xs.map((x, i) => [x, i]))
   const series = new Map<string, number[]>()
   for (const r of rows) {
-    const i = at.get(r.day)
+    const i = index.get(r.at)
     if (i === undefined) continue
     let counts = series.get(r.level)
-    if (!counts) series.set(r.level, (counts = days.map(() => 0)))
+    if (!counts) series.set(r.level, (counts = xs.map(() => 0)))
     counts[i] += r.count
   }
   return [...series].map(([level, counts]) => ({ level, counts })).sort((a, b) => rank(a.level) - rank(b.level))
@@ -60,11 +68,11 @@ export async function issueEventsByDay(db: D1Database, filter: Filter, projectId
   return (
     await db
       .prepare(
-        `SELECT d.day, i.level, SUM(d.count) AS count FROM issue_days d JOIN issues i ON i.id = d.issue_id
+        `SELECT d.day AS at, i.level, SUM(d.count) AS count FROM issue_days d JOIN issues i ON i.id = d.issue_id
          WHERE d.day >= ? AND d.day <= ?${f.where.map((w) => ` AND ${w}`).join('')}
          GROUP BY d.day, i.level`,
       )
       .bind(days[0], days[days.length - 1], ...f.params)
-      .all<{ day: string; level: string; count: number }>()
+      .all<{ at: string; level: string; count: number }>()
   ).results
 }

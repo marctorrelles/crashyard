@@ -341,13 +341,23 @@ const cursor = (v: unknown) => {
   const o = object(v)
   return { timestamp: int(o.timestamp), id: int(o.id) }
 }
+// A logs page's window: `from` and `to` (ms, from < to, 90 days at most) when either is given, else the range
+const logWindow = (o: Input): logs.Window => {
+  if (o.from === undefined && o.to === undefined)
+    return { range: oneOf(Object.keys(logs.RANGES) as logs.Range[])(o.range ?? '24h') }
+  const from = int(o.from)
+  const to = int(o.to)
+  if (from >= to || to - from > logs.MAX_SPAN) throw new Error('expected from before to, 90 days apart at most')
+  return { from, to }
+}
+
 export const getLogs = createServerFn()
   .validator((d: unknown) => {
     const o = object(d)
     return {
       query: text(o.query ?? '', 1000),
       project: optional((v) => text(v, 60))(o.project),
-      range: oneOf(Object.keys(logs.RANGES) as logs.Range[])(o.range ?? '24h'),
+      window: logWindow(o),
       before: optional(cursor)(o.before),
       after: optional(cursor)(o.after),
     }
@@ -361,6 +371,21 @@ export const getLogs = createServerFn()
       now,
     )
     return { ...result, now }
+  })
+
+// The logs chart: per bucket and level over the window, and the span before it
+export const getLogChart = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      query: text(o.query ?? '', 1000),
+      project: optional((v) => text(v, 60))(o.project),
+      window: logWindow(o),
+    }
+  })
+  .handler(async ({ data }) => {
+    const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
+    return logs.logsByBucket(env.DB, { ...data, projectId: project?.id ?? (data.project ? -1 : undefined) }, Date.now())
   })
 
 // The search bar's suggestions: without a key, every key (the built-ins, then the tags or attributes stored, by how

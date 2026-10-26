@@ -12,13 +12,15 @@ import { cn } from '@/lib/utils'
 
 export type Series = { key: string; label: string; values: number[]; color?: string }
 
-/** A level's colour in the charts, most severe the darkest red */
+/** A level's colour in the charts (issues' levels and logs'), most severe the darkest red, the least the faintest */
 export const LEVEL_COLORS: Record<string, string> = {
   fatal: 'var(--color-red-700)',
   error: 'var(--color-red-500)',
   warning: 'var(--color-amber-500)',
+  warn: 'var(--color-amber-500)',
   info: 'var(--color-sky-500)',
   debug: 'var(--muted-foreground)',
+  trace: 'color-mix(in oklab, var(--muted-foreground) 50%, transparent)',
 }
 
 const DAY = 864e5
