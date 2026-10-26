@@ -77,7 +77,7 @@
   link (`z-10`), its tap area 40 px high on a phone.
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection. Ignore is a split
   button: its click ignores until it escalates; the menu has that first, then forever, N more times, N more users and
-  for a time.
+  for a time. Delete is a menu: Delete, and Delete and discard future events (`discard`), each confirmed.
 - `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a
   menu to change it, above a list row's link, 40 px on a phone; `PRIORITY_LABELS`.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's
@@ -93,7 +93,7 @@
   gif, webp, `attachmentType`) as a 48 px thumbnail opening full size in a `Dialog`, and `view-hierarchy.json`
   (sentry-cocoa's and sentry-android's name for it) as an indented tree of type, identifier and frame, fetched when
   opened, 2000 views at most. Files come from `/attachments/<id>`.
-- `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's `PROJECT` with Grouping, `PERSONAL`), `SettingsNav` (the list,
+- `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's `PROJECT` with Grouping and Filters, `PERSONAL`), `SettingsNav` (the list,
   the project's group for the page's project, else the one picked last, else the first, headed by a `Select` of every
   project that opens the same page of the one picked, or its General from a page that isn't a project's; on a phone a
   Project `Select` over the page's `Select`, both always there so switching doesn't move the page; no projects, no

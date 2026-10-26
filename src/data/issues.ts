@@ -186,17 +186,29 @@ export type IssueChange =
   | { action: 'resolve'; inRelease?: boolean }
   | { action: 'ignore'; forEvents?: number; forUsers?: number; until?: number; untilEscalating?: boolean }
   | { action: 'reopen' }
-  | { action: 'delete' }
+  | { action: 'delete'; discard?: boolean }
   | { action: 'priority'; priority: Priority }
 
 /** Resolves, ignores, reopens or deletes issues; every change is written to each one's activity, with who did it */
 export async function changeIssues(db: D1Database, ids: number[], change: IssueChange, by: string, now: number) {
   if (!ids.length) return
   if (change.action === 'delete') {
-    await db
-      .prepare(`DELETE FROM issues WHERE id IN (${marks(ids.length)})`)
-      .bind(...ids)
-      .run()
+    const m = marks(ids.length)
+    // Discarding keeps every fingerprint of the issues, merged ones too, so ingest drops their events from now on;
+    // 40 issues a statement, as D1 binds 100 values at most
+    const discard = change.discard
+      ? Array.from({ length: Math.ceil(ids.length / 40) }, (_, i) => {
+          const part = ids.slice(i * 40, i * 40 + 40)
+          return db
+            .prepare(
+              `INSERT OR IGNORE INTO discarded_fingerprints (project_id, fingerprint, at)
+               SELECT project_id, fingerprint, ?1 FROM issues WHERE id IN (${marks(part.length)})
+               UNION SELECT project_id, fingerprint, ?1 FROM issue_fingerprints WHERE issue_id IN (${marks(part.length)})`,
+            )
+            .bind(now, ...part, ...part)
+        })
+      : []
+    await db.batch([...discard, db.prepare(`DELETE FROM issues WHERE id IN (${m})`).bind(...ids)])
     return
   }
   const statements: D1PreparedStatement[] = []

@@ -21,6 +21,7 @@ import * as tokens from './data/tokens'
 import * as updates from './data/updates'
 import * as widgets from './data/widgets'
 import { PRIORITIES, type Priority } from './ingest/priority'
+import { FILTER_LISTS, FILTER_SWITCHES, type Filters } from './ingest/filters'
 import { parseGroupingRules } from './ingest/rules'
 import { telegramChats, telegramToken } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
@@ -132,9 +133,10 @@ export const getProjectSettings = createServerFn()
     const project = await projects.projectBySlug(env.DB, data.slug)
     if (!project) return null
     const now = Date.now()
-    const [uploads, keys] = await Promise.all([
+    const [uploads, keys, filtered] = await Promise.all([
       tokens.uploadsOf(env.DB, project.id),
       projects.keysOf(env.DB, project.id, now),
+      projects.filteredSince(env.DB, project.id, 30, now),
     ])
     // The DSN to show: the first key that's on
     const key = keys.find((k) => k.enabled) ?? keys[0]
@@ -145,6 +147,7 @@ export const getProjectSettings = createServerFn()
       publicKey: key?.public_key ?? '',
       origin: origin(),
       uploads,
+      filtered,
       now,
     }
   })
@@ -184,6 +187,23 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
     const parsed = parseGroupingRules(rules)
     if ('error' in parsed) throw new Error(`Line ${parsed.line}: ${parsed.error}`)
     return rules.trim() ? rules : null
+  },
+  // The switches that are on and the lists, each a glob or a domain a line
+  filters: (v) => {
+    const o = object(v)
+    const out: Filters = {}
+    for (const key of FILTER_SWITCHES) if (o[key] === true) out[key] = true
+    for (const key of FILTER_LISTS) {
+      const list = optional((x) => text(x, 20_000))(o[key])
+      const items = (list ?? '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+      if (items.length > 100) throw new Error('Keep each list to 100 lines at most.')
+      if (items.some((l) => l.length > 200)) throw new Error('Keep each line to 200 characters at most.')
+      if (items.length) out[key] = items
+    }
+    return Object.keys(out).length ? JSON.stringify(out) : null
   },
 }
 export const updateProject = createServerFn({ method: 'POST' })
@@ -306,7 +326,9 @@ export const changeIssues = createServerFn({ method: 'POST' })
             }
           : action === 'priority'
             ? { action, priority: oneOf<Priority>(PRIORITIES)(o.priority) }
-            : { action }
+            : action === 'delete'
+              ? { action, discard: o.discard === true }
+              : { action }
     return { ids: ints(o.ids), change }
   })
   .handler(({ data }) => issues.changeIssues(env.DB, data.ids, data.change, viewer(), Date.now()))

@@ -16,15 +16,18 @@ helpers (`change`).
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;
   `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
-  hour, 1000 a batch), `dsnOf` (a project id and a key), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
+  hour, 1000 a batch), `dsnOf` (a project id and a key), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
+  Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
   a tenth so a crash never reads 100%; one batch of four).
 - `issues.ts`: `listIssues` (a search from `src/search/`, sorted, 50 a page, with a 14-day series each), `getIssue`
   (tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
   image, `attachmentType`, feedback, activity), `changeIssues`
-  (resolve, now or in the next release; ignore, for good, for N events or until a date; reopen; delete; each written
-  to the activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into
+  (resolve, now or in the next release; ignore, for good, for N events or until a date; reopen; delete, and with
+  `discard` first every fingerprint of the issues, their own and those merged into them, into
+  `discarded_fingerprints`, 40 issues a statement, so ingest drops their events as filtered; each written to the
+  activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
   `autoResolve` (the hourly cron, at :20): unresolved issues of a project with `auto_resolve_days`, last seen before
   that many days, resolved 100 a batch with an `auto_resolved` activity entry (`{ days }`), within 20 seconds; the

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { handleIngest } from '../api/ingest'
+import { changeIssues } from '../data/issues'
 import { updateKey } from '../data/projects'
 import { projectKey } from './auth'
 import { readBody } from './body'
@@ -371,5 +372,52 @@ describe('client keys', () => {
       /^\d+:error;default;security;attachment;feedback:key:key_quota$/,
     )
     expect((await send('first')).status).toBe(200)
+  })
+})
+
+describe('filtered events', () => {
+  const NOW = Date.UTC(2026, 9, 26, 12)
+  it('count as filtered, not towards the quota or the key, for a filter, a discarded issue or a domain', async () => {
+    const env = { DB: sqliteD1(), FILES: memoryR2() }
+    const filters = JSON.stringify({ releases: ['bad*'], domains: ['app.example.com'] })
+    env.DB.sqlite.exec(
+      `INSERT INTO projects (id, slug, name, public_key, created_at, filters) VALUES (90, 'f', 'f', 'fk', 0, '${filters}')`,
+    )
+    const send = async (event: Record<string, unknown>, headers: Record<string, string> = {}) => {
+      const waits: Promise<unknown>[] = []
+      const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) } as unknown as ExecutionContext
+      const response = await handleIngest(
+        new Request('https://x/api/90/store/?sentry_key=fk', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ event_id: crypto.randomUUID().replace(/-/g, ''), timestamp: NOW / 1000, ...event }),
+        }),
+        env,
+        ctx,
+        90,
+        'store',
+      )
+      await Promise.all(waits)
+      return response
+    }
+    const day = () => env.DB.sqlite.prepare('SELECT events, filtered FROM project_days WHERE project_id = 90').get()
+    const keyDay = () => env.DB.sqlite.prepare('SELECT SUM(events) AS n FROM key_days').get()
+    expect((await send({ message: 'kept' })).status).toBe(200)
+    expect((await send({ message: 'old build', release: 'bad-1' })).status).toBe(200)
+    expect(day()).toEqual({ events: 1, filtered: 1 })
+    expect(keyDay()).toEqual({ n: 1 })
+    // Delete and discard: the issue's next events are dropped too
+    const { id } = env.DB.sqlite.prepare('SELECT id FROM issues').get() as { id: number }
+    await changeIssues(env.DB, [id], { action: 'delete', discard: true }, 'me', NOW)
+    expect((await send({ message: 'kept' })).status).toBe(200)
+    expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM issues').get()).toEqual({ n: 0 })
+    expect(day()).toEqual({ events: 1, filtered: 2 })
+    // An origin not allowed is refused whole, as Relay's Cors
+    const refused = await send({ message: 'x' }, { origin: 'https://evil.com' })
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toEqual({ detail: 'event submission rejected with_reason: Cors' })
+    expect((await send({ message: 'other' }, { origin: 'https://app.example.com' })).status).toBe(200)
+    expect(day()).toEqual({ events: 2, filtered: 3 })
+    expect(keyDay()).toEqual({ n: 2 })
   })
 })

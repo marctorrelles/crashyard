@@ -35,6 +35,7 @@ const PROJECT: Page[] = [
   { label: 'General', path: 'general' },
   { label: 'Issues', path: 'issues' },
   { label: 'Grouping', path: 'grouping' },
+  { label: 'Filters', path: 'filters' },
   { label: 'Client keys', path: 'keys' },
   { label: 'Limits and retention', path: 'limits' },
   { label: 'Source code', path: 'source' },

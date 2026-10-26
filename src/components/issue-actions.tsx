@@ -17,7 +17,7 @@ type Change =
   | { action: 'resolve'; inRelease?: boolean }
   | { action: 'ignore'; forEvents?: number; forUsers?: number; until?: number; untilEscalating?: boolean }
   | { action: 'reopen' }
-  | { action: 'delete' }
+  | { action: 'delete'; discard?: boolean }
 
 const HOUR = 3_600_000
 
@@ -39,7 +39,11 @@ export function IssueActions({
   const run = async (change: Change, done: string) => {
     if (
       change.action === 'delete' &&
-      !confirm(`Delete${many || ' this issue'} and all its events? This can’t be undone.`)
+      !confirm(
+        change.discard
+          ? `Delete${many || ' this issue'} and all its events, and drop every future event like them? This can’t be undone.`
+          : `Delete${many || ' this issue'} and all its events? This can’t be undone.`,
+      )
     )
       return
     try {
@@ -173,14 +177,24 @@ export function IssueActions({
           Merge
         </Button>
       )}
-      <Button
-        size={size === 'sm' ? 'icon-sm' : 'icon'}
-        variant="ghost"
-        aria-label={`Delete${many}`}
-        onClick={() => run({ action: 'delete' }, 'Deleted')}
-      >
-        <IconTrash />
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size={size === 'sm' ? 'icon-sm' : 'icon'} variant="ghost" aria-label={`Delete${many}`}>
+            <IconTrash />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem variant="destructive" onSelect={() => run({ action: 'delete' }, 'Deleted')}>
+            Delete
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => run({ action: 'delete', discard: true }, 'Deleted and discarded future events')}
+          >
+            Delete and discard future events
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

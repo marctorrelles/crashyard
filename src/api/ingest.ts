@@ -4,6 +4,7 @@ import { projectKey } from '../ingest/auth'
 import { BodyError, readBody } from '../ingest/body'
 import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson } from '../ingest/envelope'
 import { eventIdOf, normalizeEvent } from '../ingest/event'
+import { filterReason, originAllowed, parseFilters, transactionFilterReason } from '../ingest/filters'
 import { applyRules, rulesOf } from '../ingest/rules'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
@@ -130,6 +131,17 @@ export async function handleIngest(
   // Relay's answer to a key that's turned off
   if (!found.key.enabled) return answer({ detail: 'event submission rejected with_reason: ProjectId' }, 403)
   const { project } = found
+  // Allowed domains, as Relay checks them: the request's Origin, else its Referer; refused whole, as Relay's Cors
+  if (
+    !originAllowed(
+      request.headers.get('origin') ?? request.headers.get('referer'),
+      parseFilters(project.filters).domains,
+    )
+  ) {
+    const filtered = items.filter((i) => ['event', 'transaction'].includes(i.header.type ?? 'event')).length
+    if (filtered) ctx.waitUntil(countFiltered(env.DB, project.id, now, filtered))
+    return answer({ detail: 'event submission rejected with_reason: Cors' }, 403)
+  }
 
   // The project's daily quotas, events and logs apart, and its key's daily event limit: past one, the SDK is told
   // when to try that kind again, as Sentry tells it (X-Sentry-Rate-Limits, by category and scope); an envelope with
@@ -193,16 +205,6 @@ export async function handleIngest(
     const type = item.header.type ?? 'event'
     return KEPT.has(type) && !over(type) ? [String(i)] : []
   })
-  // The key's events today, counted as they're let in, so a retry doesn't count them again
-  const events = todo.filter((i) => (items[Number(i)].header.type ?? 'event') === 'event').length
-  if (events)
-    ctx.waitUntil(
-      env.DB.prepare(
-        'INSERT INTO key_days (key_id, day, events) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET events = events + excluded.events',
-      )
-        .bind(found.key.id, dayOf(now), events)
-        .run(),
-    )
   const held = todo.length
     ? await hold(env.FILES, pendingKey(project.id, now), body, endpoint, todo.length < kept.length ? todo : undefined)
     : undefined
@@ -228,6 +230,18 @@ export async function handleIngest(
     if (held) ctx.waitUntil(env.FILES.delete(held))
     return answer({ detail: error.message }, 400)
   }
+  // The key's events today, counted once at the request (a retry doesn't count them again), less those a filter
+  // dropped: filtered events count towards neither the key's limit nor the project's
+  const events =
+    todo.filter((i) => (items[Number(i)].header.type ?? 'event') === 'event').length - result.filteredEvents
+  if (events > 0)
+    ctx.waitUntil(
+      env.DB.prepare(
+        'INSERT INTO key_days (key_id, day, events) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET events = events + excluded.events',
+      )
+        .bind(found.key.id, dayOf(now), events)
+        .run(),
+    )
   // Relay's way: accepted before it's processed, so a failure still answers 200, and the cron tries it again
   if (held)
     ctx.waitUntil(
@@ -261,6 +275,15 @@ type Pass = {
 async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, number>) {
   const { env, project, received: now } = c
   await loadExtraFields(env.DB)
+  const filters = parseFilters(project.filters)
+  // Dropped by an inbound filter or a discarded fingerprint: counted in project_days.filtered, not stored
+  let filtered = 0
+  let filteredEvents = 0
+  const keepTransaction = (summary: { name: string; release?: string | null }) => {
+    if (!transactionFilterReason(summary.name, summary.release ?? undefined, filters)) return true
+    filtered++
+    return false
+  }
   const notices: Notice[] = []
   const failed: Todo = []
   let firstEventId: string | undefined
@@ -279,11 +302,11 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
         const spans = fromSpans(payloadJson(item))
         for (; done < spans.length; done++) {
           const summary = summarize(spans[done], now)
-          if (summary) await storeTransaction(env.DB, project.id, summary, now)
+          if (summary && keepTransaction(summary)) await storeTransaction(env.DB, project.id, summary, now)
         }
       } else if (type === 'transaction') {
         const summary = summarize(payloadJson(item), now)
-        if (summary) await storeTransaction(env.DB, project.id, summary, now)
+        if (summary && keepTransaction(summary)) await storeTransaction(env.DB, project.id, summary, now)
       } else if (type === 'session' || type === 'sessions') {
         await storeSessions(env.DB, project.id, sessionCounts(type, payloadJson(item), now))
       } else if (type === 'check_in') {
@@ -297,11 +320,22 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
         const fallback = c.envelopeId ?? (c.held ? stableEventId(c.held, index) : undefined)
         firstEventId ??= eventIdOf(payload.event_id) ?? fallback
         const event = await normalizeEvent(payload, now, fallback)
+        // Inbound filters read the event as the SDK sent it, before symbols, as Relay's do
+        if (filterReason(event, filters)) {
+          filtered++
+          filteredEvents++
+          continue
+        }
         // Readable stacks before grouping, so the same crash groups by its functions across builds
         await symbolicate(env, sharedSymbolic, project.id, event)
         // The project's stack trace rules set in-app on the event itself; grouping sees the frames they leave
         const grouping = applyRules(event, rulesOf(project.grouping_rules))
         const { fingerprint, version } = await groupingOf(env.DB, project, grouping, now)
+        if (await isDiscarded(env.DB, project.id, fingerprint)) {
+          filtered++
+          filteredEvents++
+          continue
+        }
         const envelopeKey = c.endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
         const stored = await storeEvent(env.DB, project, event, fingerprint, envelopeKey, version)
         if (envelopeKey && stored?.stored) c.waitUntil(env.FILES.put(envelopeKey, c.body))
@@ -316,6 +350,7 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
     }
   }
 
+  if (filtered) await countFiltered(env.DB, project.id, now, filtered)
   const eventId = c.envelopeId ?? firstEventId ?? firstEventIdOf(items, c.held)
   for (const [index, item] of attachments) {
     try {
@@ -325,8 +360,23 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
       failed.push(String(index))
     }
   }
-  return { notices, failed, eventId }
+  return { notices, failed, eventId, filteredEvents }
 }
+
+const countFiltered = (db: D1Database, projectId: number, now: number, n: number) =>
+  db
+    .prepare(
+      'INSERT INTO project_days (project_id, day, filtered) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET filtered = filtered + excluded.filtered',
+    )
+    .bind(projectId, dayOf(now), n)
+    .run()
+
+/** "Delete and discard future events" stored the issue's fingerprints: one read by the primary key per event */
+const isDiscarded = async (db: D1Database, projectId: number, fingerprint: string) =>
+  !!(await db
+    .prepare('SELECT 1 FROM discarded_fingerprints WHERE project_id = ? AND fingerprint = ?')
+    .bind(projectId, fingerprint)
+    .first())
 
 /** A retry has only the items that failed: an attachment still needs the id of the envelope's event */
 function firstEventIdOf(items: EnvelopeItem[], held?: string) {

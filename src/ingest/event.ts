@@ -66,6 +66,7 @@ export type NormalizedEvent = {
   sdk?: { name?: string; version?: string }
   debugImages: DebugImage[]
   request?: RequestInfo
+  serverName?: string // the host the SDK ran on, as it sent it: the localhost filter reads it
   extra?: Record<string, unknown> // the SDK's extra data, scrubbed, 16 KB of JSON at most
   /** What was cut to keep the event within its limits: `extra`, `request body`, or what `trimEvent` names */
   _trimmed?: string[]
@@ -386,6 +387,7 @@ export async function normalizeEvent(
       .filter((s): s is string => !!s),
     transaction,
     request,
+    serverName: str(event.server_name),
     extra,
     _trimmed: trimmed.length ? trimmed : undefined,
     traceId: str(obj(contexts.trace).trace_id),

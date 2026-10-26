@@ -18,7 +18,7 @@ order.
   frames (from the crashed thread when the exception has none), `threads` (every one of `threads.values`, 32 at most
   of 100 frames each, the innermost; crashed, then current, first; the thread an exception matches, by `thread_id` or
   `crashed`, keeps no frames, as its stack is the exception's; grouping reads only the exceptions; events stored
-  before have none), tags (pairs or object, plus derived: level, release,
+  before have none), `serverName` (`server_name`, for the localhost filter), tags (pairs or object, plus derived: level, release,
   os, device, browser, runtime, handled, mechanism), `request` (method, URL, query string, headers as pairs, body as
   text of 8 KB at most; header and query keys that name a secret are filtered as in `scrub`, query values in the URL
   too, the rest masked as tags; headers that carry the client's IP, `x-forwarded-for`, `cf-connecting-ip`,
@@ -58,6 +58,28 @@ order.
   over the SDK's. `rulesOf` parses a project's text once per isolate (100 kept); text that no longer parses applies as
   none, and `updateProject` refuses it with the line, so it can't be saved. The rules come with the project from
   ingest's cached read: a change applies within a minute, to new events only.
+- `filters.ts`: inbound filters (Settings, Filters, `projects.filters` JSON, `parseFilters` keeps only known switches
+  and string lists). `filterReason(event, filters)` answers a Relay stat key or null: `browser-extensions` (the first
+  exception's value against `EXTENSION_EXC_VALUES`, or the abs_path of its frame nearest the crash, skipping
+  `<anonymous>` and `[native code]`, stopping at one without, against `EXTENSION_EXC_SOURCES`), `localhost` (the
+  request URL's host is localhost or 127.0.0.1 or under them, a `file:` URL, a `Host` or `X-Forwarded-Host` header of
+  either; and, beyond Relay, `server_name` of either or `::1`: `NormalizedEvent.serverName`; Relay's user IP check is
+  left out as no IP is kept), `web-crawlers` (the event's `User-Agent` header, as Relay's `Event::user_agent`,
+  against `WEB_CRAWLERS` and not `ALLOWED_WEB_CRAWLERS`), `legacy-browsers` (the same header; `browserOf`, a small
+  parser naming families as uap-core does for these, so Mobile Safari, Chrome Mobile and Chrome on iOS aren't
+  Safari or Chrome, as in Relay; below the cut-offs Sentry offers per browser today: IE all, Opera Mini 35, Opera
+  100, Android 4, Safari 16, Edge, Chrome and Firefox 111; one switch for all), `react-hydration-errors` and
+  `chunk-load-error` (Sentry's generic filters, the globs of `_hydration_error_filter` and `_chunk_load_error_filter`,
+  over each exception's type and value), `error-message` (globs over the message and each exception as
+  `Type: value`, as `error_messages.rs`) and `release-version`. `transactionFilterReason(name, release, filters)`:
+  Sentry's `HEALTH_CHECK_GLOBS` and the release globs. Globs are Relay's patterns (`globToRegExp` with braces,
+  case-insensitive). `originAllowed(origin, domains)`: `*`, a host, `*.host` (it and every subdomain), or
+  `scheme://host:port`, as `matches_any_origin`; no origin, or no domains, is allowed. Read from Relay at
+  `getsentry/relay` master 08526e6 (2026-10-23): `relay-filter/src/{browser_extensions,web_crawlers,legacy_browsers,
+localhost,transaction_name,error_messages,releases,csp}.rs` and `relay-server/src/services/projects/project/info.rs`;
+  from Sentry at `getsentry/sentry` master 7c3d287 (2026-10-26): `src/sentry/ingest/inbound_filters.py` and
+  `HEALTH_CHECK_GLOBS` in `src/sentry/constants.py`. The plan named `filterReason(event, request, filters)`: the
+  request's part, allowed domains, is `originAllowed` at the request instead, so retries agree with the request.
 - `store.ts`: `storeEvent` writes an event: dedupes by event id, creates the issue (`ON CONFLICT DO NOTHING
 RETURNING`), then one batch for the counts, days, tags, users and activity. `transitionOf` decides a reopening: a
   resolved issue regresses on any event, or, resolved in a release, only on another release's; an ignore ends by

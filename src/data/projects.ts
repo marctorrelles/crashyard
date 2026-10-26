@@ -157,6 +157,15 @@ export async function overviewCharts(db: D1Database, projectIds: number[] | unde
 export const projectBySlug = (db: D1Database, slug: string) =>
   db.prepare('SELECT * FROM projects WHERE slug = ?').bind(slug).first<ProjectRow>()
 
+/** Events and transactions a project's filters dropped in the last `days` UTC days, today's included */
+export const filteredSince = async (db: D1Database, projectId: number, days: number, now: number) =>
+  (
+    await db
+      .prepare('SELECT COALESCE(SUM(filtered), 0) AS n FROM project_days WHERE project_id = ? AND day >= ?')
+      .bind(projectId, day(now - (days - 1) * 86_400_000))
+      .first<{ n: number }>()
+  )?.n ?? 0
+
 export const allProjects = async (db: D1Database) =>
   (
     await db
@@ -212,6 +221,7 @@ export const PROJECT_FIELDS = [
   'auto_resolve_days',
   'priorities',
   'grouping_rules',
+  'filters',
 ] as const
 export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>
 

@@ -67,7 +67,10 @@ server, the build, or `tsr generate`): never edit it.
   `issues` (Resolve issues not seen for N days, `auto_resolve_days`, off by default; Priority of new issues, a
   priority per level, `priorities`), `grouping` (the rules in a monospace text area with the syntax and links to
   Sentry's docs; Check rules parses them in the page, `parseGroupingRules`, and says the line that's wrong; Save is
-  refused the same way by `updateProject`), `keys` (Create key; per key its
+  refused the same way by `updateProject`), `filters` (a switch per inbound filter with what it catches, text areas
+  of error message globs, release globs and allowed domains, one a line, and what was filtered in 30 days,
+  `getProjectSettings`' `filtered`; saved as `filters` through `updateProject`, which keeps the switches that are on
+  and the lists' lines, 100 of 200 characters at most), `keys` (Create key; per key its
   DSN, name, daily event limit, empty for none, events today, and an on switch that asks before turning a key off),
   `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
   send commits), `connect` (the DSN and `Linking`), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug

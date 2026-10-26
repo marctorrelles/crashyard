@@ -53,6 +53,12 @@ Rate limits answer the way Sentry's do. When nothing in an envelope can be kept,
 `error;default;security;attachment;feedback`, `log_item` or `transaction;span`, so SDKs stop sending that kind until the
 next day. A client key past its own daily event limit gets the same answer for errors, scoped to the key.
 
+A project's inbound filters drop events as Sentry's do, before they're stored and without counting towards the daily
+limits: browser extensions, localhost, legacy browsers, web crawlers, health-check transactions, React hydration
+errors, `ChunkLoadError`, and error messages and releases by pattern. They use the lists in Sentry's Relay. With
+allowed domains set, a request whose `Origin` or `Referer` isn't one of them is refused with a `403`, as Relay does.
+Deleting an issue with "Delete and discard future events" drops its later events the same way.
+
 A project can have several client keys. A key that's turned off answers `403` with Relay's body for a disabled key.
 
 ## Endpoints
