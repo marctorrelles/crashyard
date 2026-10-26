@@ -77,7 +77,8 @@ export async function storeEvent(
       .bind(project.id, fingerprint)
       .first<IssueRow>()
   let issue = await find() // merged issues' fingerprints point at the issue they went into
-  let isNew = false
+  // An issue made by a try whose batch then failed has no events yet: the retry's event is still its first
+  let isNew = issue?.count === 0
   if (!issue) {
     issue = await db
       .prepare(

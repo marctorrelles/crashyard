@@ -33,6 +33,9 @@ Set the SDK's DSN to the one a crashyard project gives you. Nothing else changes
 | `session`, `sessions`                                                  | Counted per release and day for crash-free rates                                       |
 | `profile`, `replay`, `replay_recording`, `client_report` and any other | Accepted with a 200 and dropped                                                        |
 
+An envelope is accepted before it's processed, as Sentry's Relay does. If storing an item fails, the answer is still a
+`200` with the event ID, and crashyard tries the item again within a few minutes, up to five times.
+
 Rate limits answer the way Sentry's do. When nothing in an envelope can be kept, the answer is a `429` with
 `Retry-After`. `X-Sentry-Rate-Limits` names each category that is over its limit, as
 `error;default;security;attachment;feedback`, `log_item` or `transaction;span`, so SDKs stop sending that kind until the

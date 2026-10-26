@@ -22,7 +22,17 @@ order.
 - `store.ts`: `storeEvent` writes an event: dedupes by event id, creates the issue (`ON CONFLICT DO NOTHING
 RETURNING`), then one batch for the counts, days, tags, users and activity. `transitionOf` decides a reopening: a
   resolved issue regresses on any event, or, resolved in a release, only on another release's; an ignore ends by
-  count or date. Spike protection: past 60 events a minute an issue only counts, it stores no more events.
+  count or date. Spike protection: past 60 events a minute an issue only counts, it stores no more events. An issue
+  found with a count of 0 was made by a try whose batch then failed: the event is still its first (`isNew`, a "New
+  issue" alert and the `created` activity); two first events racing may both say so.
+- `retry.ts`: durable ingest (docs/decisions/0004). `hold` puts the body at `pending/<project>/<received ms>-<16 hex>`
+  with `customMetadata` `{ endpoint, attempts, items? }` (`items` only when some were left out, by quota or as done);
+  `settle` after a pass: nothing failed deletes it, else it's rewritten with what failed and the attempts so far (the
+  request is the first), and the fifth moves it to `failed/<project>/<…>` and adds 1 to `project_days.failed`.
+  `retryPending` (every minute): up to 50 keys of `pending/` older than two minutes, within 20 seconds, each through
+  `retryEnvelope` (`src/api/ingest.ts`; injectable for `retry.test.ts`, which uses `test/fakes.ts`); a pass that
+  throws counts as everything failing. A worker stopped mid-envelope leaves its first metadata, so every item is tried
+  again: events dedupe by id, logs and transactions already counted count again.
 
 - `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).

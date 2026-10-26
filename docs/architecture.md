@@ -16,25 +16,27 @@ flowchart LR
     upload["Sentry's upload API<br/>src/api/sentry.ts"]
     dashboard["Dashboard<br/>TanStack Start, src/routes/"]
     mcp["MCP server<br/>src/api/mcp.ts"]
-    cron["Cron, every minute<br/>monitors, held alerts,<br/>slower releases, weekly summary,<br/>retention"]
+    cron["Cron, every minute<br/>monitors, held alerts, retries,<br/>slower releases, weekly summary,<br/>retention"]
     symbolic["symbolic in WebAssembly<br/>src/symbols/"]
   end
 
   ingest --> symbolic
   upload --> symbolic
   ingest --> d1[("D1<br/>issues, events, logs,<br/>monitors, performance")]
-  ingest --> r2[("R2<br/>raw envelopes, attachments,<br/>debug files, source maps")]
+  ingest --> r2[("R2<br/>raw and pending envelopes,<br/>attachments, debug files, source maps")]
   upload --> r2
   upload --> d1
   dashboard --> d1
   mcp --> d1
   cron --> d1
+  cron --> r2
   ingest -- alerts --> notify["Telegram, Slack, Discord,<br/>email, webhooks"]
   cron -- alerts --> notify
 ```
 
 - **Ingest**, in `src/api/ingest.ts` and `src/ingest/`. Each envelope is checked against its project's key and daily
-  limits, then each item in it is handled. An event is scrubbed, symbolicated, fingerprinted and stored in its issue.
+  limits, kept in R2 while it's processed, then each item in it is handled. An item that fails is tried again by the
+  scheduled task. An event is scrubbed, symbolicated, fingerprinted and stored in its issue.
   Logs, check-ins, transactions and sessions go to their own tables. Anything worth an alert, such as a new issue, a
   regression or a threshold, becomes an alert that is sent after the response, through `ctx.waitUntil`.
 - **Readable stack traces**, in `src/symbols/` and `symcache/`. Sentry's own `symbolic` library, written in Rust, is
@@ -44,7 +46,7 @@ flowchart LR
   server functions that query D1. The worker verifies the Access token on every request, so a dashboard route that
   Access misses stays closed.
 - **The scheduled task**, `scheduled` in `src/server.ts`. Every minute it runs uptime checks and looks for missed
-  check-ins, in `src/monitors/`, and sends alerts held through quiet hours. Every hour it looks for slower releases. On
+  check-ins, in `src/monitors/`, sends alerts held through quiet hours, and tries again the envelopes that failed. Every hour it looks for slower releases. On
   Mondays at 07:00 UTC it sends the weekly summary, and at 03:00 UTC every day it deletes data past its retention.
 - **Search**, in `src/search/`. Sentry's query syntax is turned into parameterized SQL, with FTS5 for free text.
 

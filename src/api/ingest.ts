@@ -8,6 +8,16 @@ import { fingerprintOf } from '../ingest/grouping'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
 import { fromSpans, sessionCounts, storeSessions, storeTransaction, summarize } from '../performance/ingest'
+import {
+  type Endpoint,
+  type Held,
+  hold,
+  parseTodo,
+  pendingKey,
+  settle,
+  stableEventId,
+  type Todo,
+} from '../ingest/retry'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
 import { sharedSymbolic } from '../symbols/module'
 import { symbolicate } from '../symbols/symbolicate'
@@ -18,6 +28,7 @@ export type IngestEnv = {
   FILES: R2Bucket
   EMAIL?: SendEmail
   EMAIL_FROM?: string
+  PUBLIC_URL?: string
 }
 
 const CORS = {
@@ -68,7 +79,7 @@ export async function handleIngest(
   env: IngestEnv,
   ctx: ExecutionContext,
   projectId: number,
-  endpoint: 'envelope' | 'store',
+  endpoint: Endpoint,
 ) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
   if (request.method !== 'POST') return answer({ detail: 'Method not allowed' }, 405)
@@ -148,16 +159,87 @@ export async function handleIngest(
     return answer({ detail: 'Daily quota reached' }, 429, { 'Retry-After': retry, 'X-Sentry-Rate-Limits': limits })
   }
 
-  const notices: Notice[] = []
-  let firstEventId: string | undefined
-  const attachments: EnvelopeItem[] = []
-  for (const item of kept) {
+  // Held in R2 while it's processed, so what fails is tried again by the cron (src/ingest/retry.ts); the items to do
+  // are listed only when the quota left some out
+  const todo = items.flatMap((item, i) => {
     const type = item.header.type ?? 'event'
-    if (over(type)) continue
+    return KEPT.has(type) && !over(type) ? [String(i)] : []
+  })
+  const held = todo.length
+    ? await hold(env.FILES, pendingKey(project.id, now), body, endpoint, todo.length < kept.length ? todo : undefined)
+    : undefined
+  let result: Awaited<ReturnType<typeof processItems>>
+  try {
+    result = await processItems(
+      {
+        env,
+        origin: url.origin,
+        project,
+        endpoint,
+        received: now,
+        envelopeId,
+        held,
+        body,
+        waitUntil: (p) => ctx.waitUntil(p),
+      },
+      items,
+      parseTodo(todo),
+    )
+  } catch (error) {
+    if (!(error instanceof EnvelopeError)) throw error
+    if (held) ctx.waitUntil(env.FILES.delete(held))
+    return answer({ detail: error.message }, 400)
+  }
+  // Relay's way: accepted before it's processed, so a failure still answers 200, and the cron tries it again
+  if (held)
+    ctx.waitUntil(
+      settle(env, { key: held, projectId: project.id, received: now, endpoint }, body, 1, result.failed, now),
+    )
+  const { notices, eventId } = result
+  if (notices.length) ctx.waitUntil(import('../notify/dispatch').then(({ dispatch }) => dispatch(env, notices)))
+  const headers: Record<string, string> = limits ? { 'X-Sentry-Rate-Limits': limits } : {}
+  return endpoint === 'store'
+    ? answer({ id: eventId }, 200, headers)
+    : answer(eventId ? { id: eventId } : {}, 200, headers)
+}
+
+type Pass = {
+  env: IngestEnv
+  origin: string
+  project: Project
+  endpoint: Endpoint
+  received: number
+  envelopeId?: string
+  held?: string
+  body: Uint8Array
+  waitUntil: (promise: Promise<unknown>) => void
+}
+
+/**
+ * The items in `todo` (index, and where to start in a span item), each in its own try: what fails is listed for a
+ * retry and the rest goes on. An envelope that isn't one throws EnvelopeError. Both the request and the cron's retry
+ * come through here, so a retry stores what the request would have.
+ */
+async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, number>) {
+  const { env, project, received: now } = c
+  const notices: Notice[] = []
+  const failed: Todo = []
+  let firstEventId: string | undefined
+  const attachments: [number, EnvelopeItem][] = []
+  for (const [index, from] of todo) {
+    const item = items[index]
+    if (!item) continue
+    const type = item.header.type ?? 'event'
+    if (type === 'attachment') {
+      attachments.push([index, item])
+      continue
+    }
+    let done = from
     try {
       if (type === 'span') {
-        for (const raw of fromSpans(payloadJson(item))) {
-          const summary = summarize(raw, now)
+        const spans = fromSpans(payloadJson(item))
+        for (; done < spans.length; done++) {
+          const summary = summarize(spans[done], now)
           if (summary) await storeTransaction(env.DB, project.id, summary, now)
         }
       } else if (type === 'transaction') {
@@ -166,37 +248,105 @@ export async function handleIngest(
       } else if (type === 'session' || type === 'sessions') {
         await storeSessions(env.DB, project.id, sessionCounts(type, payloadJson(item), now))
       } else if (type === 'check_in') {
-        const notice = await recordCheckIn({ ...env, PUBLIC_URL: url.origin }, project.id, payloadJson(item), now)
+        const notice = await recordCheckIn({ ...env, PUBLIC_URL: c.origin }, project.id, payloadJson(item), now)
         if (notice) notices.push(notice)
       } else if (type === 'log') {
         await storeLogs(env.DB, project.id, normalizeLogs(payloadJson(item), now), now, dayOf(now))
       } else if (type === 'event') {
-        const event = await normalizeEvent(payloadJson(item), now, envelopeId)
-        firstEventId ??= event.id
+        const payload = payloadJson(item)
+        // An event without an id gets one that's the same on every try, so a retry finds it stored
+        const fallback = c.envelopeId ?? (c.held ? stableEventId(c.held, index) : undefined)
+        firstEventId ??= eventIdOf(payload.event_id) ?? fallback
+        const event = await normalizeEvent(payload, now, fallback)
         // Readable stacks before grouping, so the same crash groups by its functions across builds
         await symbolicate(env, sharedSymbolic, project.id, event)
-        const envelopeKey = endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
+        const envelopeKey = c.endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
         const stored = await storeEvent(env.DB, project, event, await fingerprintOf(event), envelopeKey)
-        if (envelopeKey && stored?.stored) ctx.waitUntil(env.FILES.put(envelopeKey, body))
-        if (stored) notices.push(...(await noticesFor(env, url.origin, project, event, stored)))
-      } else if (type === 'attachment') {
-        attachments.push(item)
+        if (envelopeKey && stored?.stored) c.waitUntil(env.FILES.put(envelopeKey, c.body))
+        if (stored) notices.push(...(await noticesFor(env, c.origin, project, event, stored)))
       } else {
-        await storeFeedback(env.DB, project, type, payloadJson(item), envelopeId, now)
+        await storeFeedback(env.DB, project, type, payloadJson(item), c.envelopeId, now)
       }
     } catch (error) {
-      if (error instanceof EnvelopeError) return answer({ detail: error.message }, 400)
-      throw error
+      if (error instanceof EnvelopeError) throw error
+      console.error(`ingest: item ${index} (${type}) of project ${project.id} failed`, error)
+      failed.push(done > 0 ? `${index}:${done}` : String(index))
     }
   }
 
-  const eventId = envelopeId ?? firstEventId
-  if (eventId) for (const item of attachments) await storeAttachment(env, project, eventId, item)
-  if (notices.length) ctx.waitUntil(import('../notify/dispatch').then(({ dispatch }) => dispatch(env, notices)))
-  const headers: Record<string, string> = limits ? { 'X-Sentry-Rate-Limits': limits } : {}
-  return endpoint === 'store'
-    ? answer({ id: eventId }, 200, headers)
-    : answer(eventId ? { id: eventId } : {}, 200, headers)
+  const eventId = c.envelopeId ?? firstEventId ?? firstEventIdOf(items, c.held)
+  for (const [index, item] of attachments) {
+    try {
+      if (eventId) await storeAttachment(env, project, eventId, item, now)
+    } catch (error) {
+      console.error(`ingest: attachment ${index} of project ${project.id} failed`, error)
+      failed.push(String(index))
+    }
+  }
+  return { notices, failed, eventId }
+}
+
+/** A retry has only the items that failed: an attachment still needs the id of the envelope's event */
+function firstEventIdOf(items: EnvelopeItem[], held?: string) {
+  const index = items.findIndex((i) => (i.header.type ?? 'event') === 'event')
+  if (index < 0) return undefined
+  try {
+    return eventIdOf(payloadJson(items[index]).event_id) ?? (held ? stableEventId(held, index) : undefined)
+  } catch {
+    return undefined
+  }
+}
+
+/** The cron's retry of a held envelope: the project as it is now, the envelope as it came, only what's left to do */
+export async function retryEnvelope(
+  env: IngestEnv & { PUBLIC_URL?: string },
+  held: Held,
+  body: Uint8Array,
+  todo: Todo | undefined,
+): Promise<Todo> {
+  const project = await env.DB.prepare(
+    'SELECT id, slug, name, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota FROM projects WHERE id = ?',
+  )
+    .bind(held.projectId)
+    .first<Project>()
+  if (!project) return [] // deleted since: nothing left to keep it for
+  let items: EnvelopeItem[]
+  let envelopeId: string | undefined
+  try {
+    if (held.endpoint === 'envelope') {
+      const envelope = parseEnvelope(body)
+      items = envelope.items
+      envelopeId = eventIdOf(envelope.header.event_id)
+    } else items = [{ header: { type: 'event' }, payload: body }]
+  } catch {
+    return [] // it parsed when it came; if it no longer does, no try will
+  }
+  const all = items.flatMap((item, i) => (KEPT.has(item.header.type ?? 'event') ? [String(i)] : []))
+  const waits: Promise<unknown>[] = []
+  let result: Awaited<ReturnType<typeof processItems>>
+  try {
+    result = await processItems(
+      {
+        env,
+        origin: env.PUBLIC_URL ?? '',
+        project,
+        endpoint: held.endpoint,
+        received: held.received,
+        envelopeId,
+        held: held.key,
+        body,
+        waitUntil: (p) => void waits.push(p),
+      },
+      items,
+      parseTodo(todo ?? all),
+    )
+  } catch (error) {
+    if (error instanceof EnvelopeError) return []
+    throw error
+  }
+  await Promise.allSettled(waits)
+  if (result.notices.length) await (await import('../notify/dispatch')).dispatch(env, result.notices)
+  return result.failed
 }
 
 type Stored = NonNullable<Awaited<ReturnType<typeof storeEvent>>>
@@ -274,7 +424,7 @@ async function storeFeedback(
     .run()
 }
 
-async function storeAttachment(env: IngestEnv, project: Project, eventId: string, item: EnvelopeItem) {
+async function storeAttachment(env: IngestEnv, project: Project, eventId: string, item: EnvelopeItem, now: number) {
   if (item.payload.byteLength > MAX_ATTACHMENT) return
   const filename = String(item.header.filename ?? 'attachment')
     .replace(/[^\w.-]+/g, '_')
@@ -284,8 +434,8 @@ async function storeAttachment(env: IngestEnv, project: Project, eventId: string
     httpMetadata: { contentType: String(item.header.content_type ?? 'application/octet-stream') },
   })
   await env.DB.prepare(
-    'INSERT INTO attachments (event_id, project_id, filename, content_type, size, r2_key) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO attachments (event_id, project_id, filename, content_type, size, r2_key, received) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
-    .bind(eventId, project.id, filename, String(item.header.content_type ?? ''), item.payload.byteLength, key)
+    .bind(eventId, project.id, filename, String(item.header.content_type ?? ''), item.payload.byteLength, key, now)
     .run()
 }

@@ -18,3 +18,6 @@ in `pnpm run deploy`).
   level in it and one `project_days` row.
 - `log_hours` is logs per project, hour and level, written at ingest (`storeLogs`) and pruned with the logs; 0009
   filled it from the logs there were. The logs chart reads it rather than every log (`src/data/AGENTS.md`).
+- 0012: `project_days.failed` (envelopes that failed every retry) and `filtered` (inbound filters, phase 5);
+  `attachments.received`, from its event's time for the rows there were (0 when the event is gone, so they're pruned),
+  indexed for pruning. A worker from before 0012 writes attachments with `received` 0: pruned at the next hour.

@@ -369,4 +369,39 @@ describe('ingest, through the real SDK', () => {
     expect(notice.issue.title).toBe('GET /slow is slower in e2e@3.1.0')
     expect(await checkSlowerReleases(db(), origin, now)).toEqual([])
   })
+
+  it('answers 200 when storing fails, and stores the event once when the cron tries it again', async () => {
+    await db().batch([
+      db()
+        .prepare("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (2, 'flaky', 'flaky', ?, 0)")
+        .bind('e2e0flaky0key00000000000000000ab'),
+      // D1 refusing the event's write, as an outage would
+      db().prepare(
+        "CREATE TRIGGER e2e_fail BEFORE INSERT ON events WHEN NEW.project_id = 2 BEGIN SELECT RAISE(ABORT, 'forced'); END",
+      ),
+    ])
+    const event = { ...crash('flaky@1'), exception: { values: [{ type: 'FlakyError', value: 'stored later' }] } }
+    const response = await fetch(`${origin}/api/2/envelope/`, {
+      method: 'POST',
+      headers: { 'x-sentry-auth': 'Sentry sentry_version=7, sentry_key=e2e0flaky0key00000000000000000ab' },
+      body: envelope(event),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ id: event.event_id })
+    const stored = () => db().prepare('SELECT COUNT(*) AS n FROM events WHERE id = ?').bind(event.event_id).first()
+    expect(await stored()).toEqual({ n: 0 })
+    await db().prepare('DROP TRIGGER e2e_fail').run()
+    // Too young for the cron at first, then tried again, then nothing left to try
+    await fetch(`${origin}/__dev/cron?now=${Date.now()}`, { method: 'POST' })
+    expect(await stored()).toEqual({ n: 0 })
+    for (const minutes of [3, 4])
+      await fetch(`${origin}/__dev/cron?now=${Date.now() + minutes * 60_000}`, { method: 'POST' })
+    expect(await stored()).toEqual({ n: 1 })
+    expect(
+      await db()
+        .prepare("SELECT count, substatus FROM issues WHERE project_id = 2 AND title LIKE 'FlakyError%'")
+        .first(),
+    ).toEqual({ count: 1, substatus: 'new' })
+    expect(await waitFor(() => pushes.find((p) => p.title === 'FlakyError: stored later'))).toBeTruthy()
+  })
 })

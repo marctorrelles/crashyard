@@ -2,6 +2,7 @@ import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/
 import { env as workerEnv } from 'cloudflare:workers'
 import { handleIngest } from './api/ingest'
 import { viewerOf } from './auth/access'
+import type { Notice } from './notify/notice'
 
 const start = createStartHandler(defaultStreamHandler)
 
@@ -57,32 +58,52 @@ export default {
   },
 }
 
-// The cron: monitors (missed check-ins, uptime checks), held notifications, and once a day, retention
+// The cron: monitors (missed check-ins, uptime checks), held notifications, envelopes to try again, and once a day,
+// retention. Each job is on its own: one that throws doesn't stop the others
 async function everyMinute(env: Env, now: number) {
-  const [{ dispatch, flushHeld }, { runMonitors, pruneMonitors }] = await Promise.all([
-    import('./notify/dispatch'),
-    import('./monitors/monitors'),
-  ])
-  const notices = await runMonitors(env, now)
-  // Hourly, at :05: transactions that got slower in a release
-  if (new Date(now).getUTCMinutes() === 5) {
-    const { checkSlowerReleases } = await import('./data/performance')
-    notices.push(...(await checkSlowerReleases(env.DB, env.PUBLIC_URL ?? '', now)))
-  }
-  // Mondays at 07:00 UTC: each project's week
   const at = new Date(now)
-  if (at.getUTCDay() === 1 && at.getUTCHours() === 7 && at.getUTCMinutes() === 0) {
-    const { weeklySummaries } = await import('./data/projects')
-    notices.push(...(await weeklySummaries(env.DB, env.PUBLIC_URL ?? '', now)))
-  }
-  await dispatch(env, notices, now)
-  await flushHeld(env, now)
+  const notices: Notice[] = []
+  await job('monitors', async () => {
+    const { runMonitors } = await import('./monitors/monitors')
+    notices.push(...(await runMonitors(env, now)))
+  })
+  // Hourly, at :05: transactions that got slower in a release
+  if (at.getUTCMinutes() === 5)
+    await job('slower releases', async () => {
+      const { checkSlowerReleases } = await import('./data/performance')
+      notices.push(...(await checkSlowerReleases(env.DB, env.PUBLIC_URL ?? '', now)))
+    })
+  // Mondays at 07:00 UTC: each project's week
+  if (at.getUTCDay() === 1 && at.getUTCHours() === 7 && at.getUTCMinutes() === 0)
+    await job('weekly summaries', async () => {
+      const { weeklySummaries } = await import('./data/projects')
+      notices.push(...(await weeklySummaries(env.DB, env.PUBLIC_URL ?? '', now)))
+    })
+  const { dispatch, flushHeld } = await import('./notify/dispatch')
+  await job('notifications', () => dispatch(env, notices, now))
+  await job('held notifications', () => flushHeld(env, now))
+  // Envelopes that failed in their request, tried again
+  await job('retries', async () => (await import('./ingest/retry')).retryPending(env, now))
   // Once a day, at 03:00 UTC: events, logs, check-ins and uptime results past their retention
-  if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0) {
-    const [{ pruneEvents }, { pruneLogs }] = await Promise.all([import('./data/projects'), import('./data/logs')])
-    await pruneEvents(env.DB, now)
-    await pruneLogs(env.DB, now)
-    await pruneMonitors(env.DB, now)
-    await (await import('./data/performance')).prunePerformance(env.DB, now)
+  if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0)
+    await job('retention', async () => {
+      const [{ pruneEvents }, { pruneLogs }, { pruneMonitors }, { prunePerformance }] = await Promise.all([
+        import('./data/projects'),
+        import('./data/logs'),
+        import('./monitors/monitors'),
+        import('./data/performance'),
+      ])
+      await pruneEvents(env.DB, now)
+      await pruneLogs(env.DB, now)
+      await pruneMonitors(env.DB, now)
+      await prunePerformance(env.DB, now)
+    })
+}
+
+async function job(name: string, run: () => Promise<unknown>) {
+  try {
+    await run()
+  } catch (error) {
+    console.error(`cron: ${name} failed`, error)
   }
 }
