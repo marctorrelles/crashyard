@@ -81,10 +81,14 @@ export function memoryR2(): R2Bucket & { objects: Map<string, Stored> } {
     },
     list: async (options?: R2ListOptions) => {
       const keys = [...objects.keys()].filter((k) => k.startsWith(options?.prefix ?? '')).sort()
-      const page = keys.slice(0, options?.limit ?? 1000)
+      // The cursor is the offset of the next page, as text
+      const from = Number(options?.cursor ?? 0)
+      const page = keys.slice(from, from + (options?.limit ?? 1000))
+      const truncated = from + page.length < keys.length
       return {
         objects: page.map((key) => ({ key, customMetadata: objects.get(key)!.customMetadata })),
-        truncated: page.length < keys.length,
+        truncated,
+        cursor: truncated ? String(from + page.length) : undefined,
         delimitedPrefixes: [],
       }
     },

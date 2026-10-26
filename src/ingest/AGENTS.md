@@ -44,7 +44,8 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   with `customMetadata` `{ endpoint, attempts, items? }` (`items` only when some were left out, by quota or as done);
   `settle` after a pass: nothing failed deletes it, else it's rewritten with what failed and the attempts so far (the
   request is the first), and the fifth moves it to `failed/<project>/<…>` and adds 1 to `project_days.failed`.
-  `retryPending` (every minute): up to 50 keys of `pending/` older than two minutes, within 20 seconds, each through
+  `retryPending` (every minute): pages through `pending/` (1000 keys a page, by `cursor`) so envelopes still in flight
+  never hide older ones listed after them, and retries up to 50 older than two minutes, within 20 seconds, each through
   `retryEnvelope` (`src/api/ingest.ts`; injectable for `retry.test.ts`, which uses `test/fakes.ts`); a pass that
   throws counts as everything failing. A worker stopped mid-envelope leaves its first metadata, so every item is tried
   again: events dedupe by id, logs and transactions already counted count again.

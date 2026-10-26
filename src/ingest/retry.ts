@@ -12,6 +12,7 @@ type RetryEnv = { DB: D1Database; FILES: R2Bucket }
 
 export const MAX_ATTEMPTS = 5
 const BATCH = 50
+const LIST_PAGE = 1000
 const MIN_AGE = 2 * 60_000
 const BUDGET = 20_000
 
@@ -96,29 +97,35 @@ export async function retryPending(
   pass: Pass = async (held, body, todo) => (await import('../api/ingest')).retryEnvelope(env, held, body, todo),
 ): Promise<{ retried: number; failed: number }> {
   const until = Date.now() + BUDGET
-  const listed = await env.FILES.list({ prefix: 'pending/', limit: BATCH, include: ['customMetadata'] })
   let retried = 0
   let failed = 0
-  for (const { key } of listed.objects) {
-    if (Date.now() > until) break
-    const parsed = parseKey(key)
-    if (!parsed || parsed.received > now - MIN_AGE) continue
-    const object = await env.FILES.get(key)
-    if (!object) continue
-    const m = object.customMetadata ?? {}
-    const held: Held = { ...parsed, endpoint: m.endpoint === 'store' ? 'store' : 'envelope' }
-    const todo = m.items ? m.items.split(',') : undefined
-    const body = new Uint8Array(await object.arrayBuffer())
-    let left: Todo | 'all'
-    try {
-      left = await pass(held, body, todo)
-    } catch (error) {
-      console.error('retrying an envelope failed', key, error)
-      left = todo ?? 'all'
+  // Paged on, so envelopes still in flight (younger than two minutes) never hide older ones listed after them; at most
+  // 50 retried a minute
+  let cursor: string | undefined
+  do {
+    const listed = await env.FILES.list({ prefix: 'pending/', limit: LIST_PAGE, cursor })
+    cursor = listed.truncated ? listed.cursor : undefined
+    for (const { key } of listed.objects) {
+      if (Date.now() > until || retried >= BATCH) return { retried, failed }
+      const parsed = parseKey(key)
+      if (!parsed || parsed.received > now - MIN_AGE) continue
+      const object = await env.FILES.get(key)
+      if (!object) continue
+      const m = object.customMetadata ?? {}
+      const held: Held = { ...parsed, endpoint: m.endpoint === 'store' ? 'store' : 'envelope' }
+      const todo = m.items ? m.items.split(',') : undefined
+      const body = new Uint8Array(await object.arrayBuffer())
+      let left: Todo | 'all'
+      try {
+        left = await pass(held, body, todo)
+      } catch (error) {
+        console.error('retrying an envelope failed', key, error)
+        left = todo ?? 'all'
+      }
+      retried++
+      const attempts = (Number(m.attempts) || 0) + 1
+      if ((await settle(env, held, body, attempts, left, now)) === 'failed') failed++
     }
-    retried++
-    const attempts = (Number(m.attempts) || 0) + 1
-    if ((await settle(env, held, body, attempts, left, now)) === 'failed') failed++
-  }
+  } while (cursor && Date.now() <= until)
   return { retried, failed }
 }

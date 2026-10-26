@@ -87,6 +87,24 @@ describe('durable ingest', () => {
     ])
   })
 
+  it('reaches old envelopes past a page of young ones, and retries 50 a minute at most', async () => {
+    const env = { DB: sqliteD1(), FILES: memoryR2() }
+    // A busy project 1, all in flight, listed first; project 2's old failures after them
+    for (let i = 0; i < 1050; i++) await hold(env.FILES, pendingKey(1, NOW - 30_000), body, 'envelope')
+    const old = Array.from({ length: 60 }, () => pendingKey(2, NOW - 10 * 60_000))
+    for (const key of old) await hold(env.FILES, key, body, 'envelope')
+    const seen: number[] = []
+    expect(
+      await retryPending(env, NOW, async (h) => {
+        seen.push(h.projectId)
+        return []
+      }),
+    ).toEqual({ retried: 50, failed: 0 })
+    expect(new Set(seen)).toEqual(new Set([2]))
+    expect(old.filter((k) => env.FILES.objects.has(k))).toHaveLength(10)
+    expect(await retryPending(env, NOW, async () => [])).toEqual({ retried: 10, failed: 0 })
+  })
+
   it('gives an event without an id the same id on every try', async () => {
     const key = pendingKey(1, NOW)
     expect(stableEventId(key, 2)).toMatch(/^[0-9a-f]{32}$/)
