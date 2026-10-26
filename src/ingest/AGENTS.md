@@ -29,7 +29,35 @@ order.
 - `grouping.ts`: the fingerprint. Exception type + the top 5 in-app frames; a native frame without symbols is its
   image's basename + offset; an anonymous function (`?`, `<anonymous>`) is its context line, or file and line; a
   synthetic exception or a message groups by its masked text (numbers, hex, UUIDs, quoted text). A custom
-  `fingerprint` wins, `{{ default }}` expands to the default.
+  `fingerprint` wins, `{{ default }}` expands to the default. `GROUPING_VERSION` (1) and `HASHERS` (version →
+  hash): version 1 is that hash, unchanged; `rules.test.ts` checks it against `grouping-v1.json`, every fixture's
+  fingerprint taken before versions existed, so no open issue split. A change that moves fingerprints adds version 2
+  to `HASHERS` and bumps `GROUPING_VERSION`: `groupingOf` (store.ts) then, on a project's first event at it, records
+  `grouping_previous` and `grouping_until` 30 days ahead (`GROUPING_OVERLAP`; the `UPDATE … WHERE grouping_version =`
+  the old one, so racing isolates write it once, and the cached project row is updated in place), and until then
+  computes the old hash too: when it differs and no issue has the new one, the issue holding the old (directly or
+  through `issue_fingerprints`) gets the new in `issue_fingerprints` (`INSERT OR IGNORE`, one statement per event
+  during the overlap). Past it, the old hash isn't computed. Events record `fingerprint` (before any merge) and
+  `grouping_version`.
+- `rules.ts`: a project's grouping rules (Settings, Grouping, `projects.grouping_rules`), Sentry's syntax, from its docs
+  "Fingerprint Rules" and "Stack Trace Rules" (docs.sentry.io, read 2026-10-26). `parseGroupingRules` answers
+  `{ fingerprint, stack }` or `{ error, line }` (the first bad line and a sentence). Supported: matchers `error.type`
+  (`type`), `error.value` (`value`), `message` (also every exception's value), `level`, `tags.<name>`, and on a frame
+  `stack.function` (`function`), `stack.module` (`module`), `stack.abs_path` (`path`, abs_path or filename),
+  `stack.package` (`package`), `app` (yes, no), `family` (javascript, native, other, all; from the event's platform:
+  `familyOf`); `!` negates; quoted values. Globs (`globToRegExp`): `*`, `?`, `[…]`, `[!…]`, `\`; paths `*` within a
+  folder and `**` across, a leading `**/` matching a relative path; case-insensitive for error.value, message, level
+  and paths, as the docs say. Fingerprint values split by commas or spaces, variables `{{ default }}`, `{{ error.type }}`,
+  `{{ error.value }}`, `{{ message }}`, `{{ level }}`, `{{ transaction }}`, `{{ stack.function }}`, `{{ stack.module }}`,
+  `{{ stack.abs_path }}`, `{{ stack.filename }}`, `{{ stack.package }}` (of the app's frame nearest the crash) and
+  `{{ tags.<name> }}` (`''` when missing). Stack actions `+app` `-app` `+group` `-group`, each with `^` (the frames
+  above, nearer the crash) or `v` (below). Not supported, refused with the line: `logger`, `category`, sibling
+  frames `[ … ] |`, `max-frames=`, `title=`. `applyRules` (processItems, after symbolication): stack rules in order
+  over each exception's frames, setting `inApp` on the event itself (stored so, as Sentry shows it) and dropping
+  `-group` frames from a copy grouping sees; then the first fingerprint rule that matches sets the copy's fingerprint,
+  over the SDK's. `rulesOf` parses a project's text once per isolate (100 kept); text that no longer parses applies as
+  none, and `updateProject` refuses it with the line, so it can't be saved. The rules come with the project from
+  ingest's cached read: a change applies within a minute, to new events only.
 - `store.ts`: `storeEvent` writes an event: dedupes by event id, creates the issue (`ON CONFLICT DO NOTHING
 RETURNING`), then one batch for the counts, days, tags, users and activity. `transitionOf` decides a reopening: a
   resolved issue regresses on any event, or, resolved in a release, only on another release's; an ignore ends by

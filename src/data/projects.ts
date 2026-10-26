@@ -20,6 +20,9 @@ export type ProjectRow = {
   repo_url: string | null // where its code is, for stacks and commits to link to (`source.ts`)
   auto_resolve_days: number | null // resolve issues not seen for this many days; null is off
   priorities: string | null // JSON, a new issue's priority by level; null for PRIORITY_BY_LEVEL
+  grouping_rules: string | null // fingerprint and stack trace rules (src/ingest/rules.ts)
+  grouping_version: number
+  filters: string | null // JSON, inbound filters (src/ingest/filters.ts)
   created_at: number
 }
 
@@ -208,6 +211,7 @@ export const PROJECT_FIELDS = [
   'repo_url',
   'auto_resolve_days',
   'priorities',
+  'grouping_rules',
 ] as const
 export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>
 

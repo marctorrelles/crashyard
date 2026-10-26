@@ -21,6 +21,7 @@ import * as tokens from './data/tokens'
 import * as updates from './data/updates'
 import * as widgets from './data/widgets'
 import { PRIORITIES, type Priority } from './ingest/priority'
+import { parseGroupingRules } from './ingest/rules'
 import { telegramChats, telegramToken } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
 import { LEVELS } from './notify/notice'
@@ -176,6 +177,13 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
     if (v === null) return null
     const o = object(v)
     return JSON.stringify(Object.fromEntries(LEVELS.map((l) => [l, oneOf(PRIORITIES)(o[l])])))
+  },
+  // Rules that don't parse are refused with the line and why, so ingest only ever reads good ones
+  grouping_rules: (v) => {
+    const rules = text(v ?? '', 20_000)
+    const parsed = parseGroupingRules(rules)
+    if ('error' in parsed) throw new Error(`Line ${parsed.line}: ${parsed.error}`)
+    return rules.trim() ? rules : null
   },
 }
 export const updateProject = createServerFn({ method: 'POST' })

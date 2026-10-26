@@ -37,3 +37,10 @@ in `pnpm run deploy`).
   were) and `saved_searches` (a person's named search per page, pinned, shared; `saved_searches_page`). Widgets stay
   as stored: v1 rows are upgraded on read and written as v2 on their next save. A worker from before 0015 reads a v2
   widget as a placeholder, so rolling back shows saved v2 dashboards as widgets to redo, the data untouched.
+- 0016: `commit_files` (each set-commits commit's paths and A, M or D, for suspect commits), `projects.grouping_rules`,
+  `grouping_version` (1), `grouping_previous` and `grouping_until` (src/ingest/AGENTS.md), `projects.filters` (JSON,
+  null for none), `events.grouping_version` and `events.fingerprint` (the hash before any merge, null before 0016;
+  `events_issue_fingerprint` for unmerge), `discarded_fingerprints`, `issues.assignee`, `external_url`,
+  `resolved_in_commit` and `fixed_in_release` (resolved in that release: it and newer releases reopen it),
+  `issues_assignee` (partial), `bookmarks` and `issue_views` (by email). Every column is nullable or has a default, so
+  a worker from before 0016 runs as it did: it writes events without a fingerprint and ignores the rest.

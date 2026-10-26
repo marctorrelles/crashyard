@@ -93,7 +93,7 @@
   gif, webp, `attachmentType`) as a 48 px thumbnail opening full size in a `Dialog`, and `view-hierarchy.json`
   (sentry-cocoa's and sentry-android's name for it) as an indented tree of type, identifier and frame, fetched when
   opened, 2000 views at most. Files come from `/attachments/<id>`.
-- `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's, `PERSONAL`), `SettingsNav` (the list,
+- `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's `PROJECT` with Grouping, `PERSONAL`), `SettingsNav` (the list,
   the project's group for the page's project, else the one picked last, else the first; a `Select` of every page on a
   phone), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also New-project defaults), `useSave` (runs

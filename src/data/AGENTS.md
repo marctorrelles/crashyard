@@ -11,7 +11,7 @@ helpers (`change`).
   session in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new key,
   in `project_keys` too by 0013's trigger, the limits and retention of `projectDefaults`), changing, its client keys
   (`keysOf` with today's events from `key_days`, `createKey`, `updateKey`: label, on or off, daily limit),
-  `updateProject` (only the fields given, of `PROJECT_FIELDS`; a slug another project has throws), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
+  `updateProject` (only the fields given, of `PROJECT_FIELDS`, `grouping_rules` among them, checked in `fns.ts`; a slug another project has throws), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;

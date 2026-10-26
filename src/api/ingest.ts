@@ -4,7 +4,7 @@ import { projectKey } from '../ingest/auth'
 import { BodyError, readBody } from '../ingest/body'
 import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson } from '../ingest/envelope'
 import { eventIdOf, normalizeEvent } from '../ingest/event'
-import { fingerprintOf } from '../ingest/grouping'
+import { applyRules, rulesOf } from '../ingest/rules'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
 import { fromSpans, sessionCounts, storeSessions, storeTransaction, summarize } from '../performance/ingest'
@@ -19,7 +19,7 @@ import {
   type Todo,
 } from '../ingest/retry'
 import { loadExtraFields } from '../ingest/scrub'
-import { dayOf, type Project, storeEvent } from '../ingest/store'
+import { dayOf, groupingOf, type Project, storeEvent } from '../ingest/store'
 import { sharedSymbolic } from '../symbols/module'
 import { symbolicate } from '../symbols/symbolicate'
 import type { Notice, Route } from '../notify/notice'
@@ -58,7 +58,10 @@ const KEPT = new Set([
   'sessions',
 ])
 
-// Projects and keys change rarely; a minute's cache spares a read per request
+// Projects and keys change rarely; a minute's cache spares a read per request. So a change to a project's grouping
+// rules or filters takes up to a minute to apply
+const PROJECT_COLUMNS =
+  'id, slug, name, daily_event_quota, daily_log_quota, daily_transaction_quota, priorities, grouping_rules, grouping_version, grouping_previous, grouping_until, filters'
 type Keyed = { project: Project; key: { id: number; enabled: boolean; daily_limit: number | null } }
 const projects = new Map<string, { found: Keyed | null; at: number }>()
 async function projectFor(db: D1Database, id: number, key: string): Promise<Keyed | null> {
@@ -67,22 +70,15 @@ async function projectFor(db: D1Database, id: number, key: string): Promise<Keye
   if (hit && Date.now() - hit.at < 60_000) return hit.found
   const row = await db
     .prepare(
-      `SELECT p.id, p.slug, p.name, p.daily_event_quota, p.daily_log_quota, p.daily_transaction_quota, p.priorities,
-         k.id AS key_id, k.enabled, k.daily_limit
+      `SELECT ${PROJECT_COLUMNS.split(', ')
+        .map((c) => `p.${c}`)
+        .join(', ')}, k.id AS key_id, k.enabled, k.daily_limit
        FROM project_keys k JOIN projects p ON p.id = k.project_id WHERE k.project_id = ? AND k.public_key = ?`,
     )
     .bind(id, key)
     .first<Project & { key_id: number; enabled: number; daily_limit: number | null }>()
   const found = row && {
-    project: {
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-      daily_event_quota: row.daily_event_quota,
-      daily_log_quota: row.daily_log_quota,
-      daily_transaction_quota: row.daily_transaction_quota,
-      priorities: row.priorities,
-    },
+    project: Object.fromEntries(PROJECT_COLUMNS.split(', ').map((c) => [c, row[c as keyof Project]])) as Project,
     key: { id: row.key_id, enabled: !!row.enabled, daily_limit: row.daily_limit },
   }
   projects.set(cacheKey, { found, at: Date.now() })
@@ -303,8 +299,11 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
         const event = await normalizeEvent(payload, now, fallback)
         // Readable stacks before grouping, so the same crash groups by its functions across builds
         await symbolicate(env, sharedSymbolic, project.id, event)
+        // The project's stack trace rules set in-app on the event itself; grouping sees the frames they leave
+        const grouping = applyRules(event, rulesOf(project.grouping_rules))
+        const { fingerprint, version } = await groupingOf(env.DB, project, grouping, now)
         const envelopeKey = c.endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${event.id}` : undefined
-        const stored = await storeEvent(env.DB, project, event, await fingerprintOf(event), envelopeKey)
+        const stored = await storeEvent(env.DB, project, event, fingerprint, envelopeKey, version)
         if (envelopeKey && stored?.stored) c.waitUntil(env.FILES.put(envelopeKey, c.body))
         if (stored) notices.push(...(await noticesFor(env, c.origin, project, event, stored)))
       } else {
@@ -347,9 +346,7 @@ export async function retryEnvelope(
   body: Uint8Array,
   todo: Todo | undefined,
 ): Promise<Todo> {
-  const project = await env.DB.prepare(
-    'SELECT id, slug, name, daily_event_quota, daily_log_quota, daily_transaction_quota, priorities FROM projects WHERE id = ?',
-  )
+  const project = await env.DB.prepare(`SELECT ${PROJECT_COLUMNS} FROM projects WHERE id = ?`)
     .bind(held.projectId)
     .first<Project>()
   if (!project) return [] // deleted since: nothing left to keep it for

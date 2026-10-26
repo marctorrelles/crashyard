@@ -1,6 +1,7 @@
 // Writing an event: its issue (made, counted, reopened), the event itself, its tags and the counts, in one D1 batch.
 import { eventJson } from './budget'
 import type { NormalizedEvent } from './event'
+import { GROUPING_VERSION, type Hasher, HASHERS } from './grouping'
 import { priorityFor } from './priority'
 
 export type Project = {
@@ -11,6 +12,62 @@ export type Project = {
   daily_log_quota: number
   daily_transaction_quota: number
   priorities?: string | null // JSON, a new issue's priority by level; null for PRIORITY_BY_LEVEL
+  grouping_rules?: string | null // src/ingest/rules.ts
+  grouping_version?: number
+  grouping_previous?: number | null
+  grouping_until?: number | null
+  filters?: string | null // JSON, src/ingest/filters.ts
+}
+
+/** How long a project computes the grouping before a new version as well, so open issues keep their events */
+export const GROUPING_OVERLAP = 30 * 86_400_000
+
+/**
+ * The fingerprint of an event, as grouping sees it, at the current grouping version. The first event of a project
+ * at a new version records the one before and until when; until then the old hash is computed too, and an issue
+ * that holds it gets the new one in `issue_fingerprints`, so its events keep coming to it
+ */
+export async function groupingOf(
+  db: D1Database,
+  project: Project,
+  grouping: NormalizedEvent,
+  now: number,
+  hashers: Record<number, Hasher> = HASHERS,
+  current = GROUPING_VERSION,
+): Promise<{ fingerprint: string; version: number }> {
+  const was = project.grouping_version ?? 1
+  if (was !== current) {
+    await db
+      .prepare(
+        `UPDATE projects SET grouping_previous = grouping_version, grouping_version = ?, grouping_until = ?
+         WHERE id = ? AND grouping_version = ?`,
+      )
+      .bind(current, now + GROUPING_OVERLAP, project.id, was)
+      .run()
+    // The cached row too, so the next events of this isolate don't write it again
+    Object.assign(project, {
+      grouping_version: current,
+      grouping_previous: was,
+      grouping_until: now + GROUPING_OVERLAP,
+    })
+  }
+  const fingerprint = await hashers[current](grouping)
+  const previous = project.grouping_previous
+  if (previous && previous !== current && hashers[previous] && now < (project.grouping_until ?? 0)) {
+    const old = await hashers[previous](grouping)
+    if (old !== fingerprint)
+      await db
+        .prepare(
+          `INSERT OR IGNORE INTO issue_fingerprints (project_id, fingerprint, issue_id)
+           SELECT ?1, ?2, id FROM issues WHERE id = COALESCE(
+             (SELECT issue_id FROM issue_fingerprints WHERE project_id = ?1 AND fingerprint = ?3),
+             (SELECT id FROM issues WHERE project_id = ?1 AND fingerprint = ?3))
+           AND NOT EXISTS (SELECT 1 FROM issues WHERE project_id = ?1 AND fingerprint = ?2)`,
+        )
+        .bind(project.id, fingerprint, old)
+        .run()
+  }
+  return { fingerprint, version: current }
 }
 
 type IssueRow = {
@@ -78,6 +135,7 @@ export async function storeEvent(
   event: NormalizedEvent,
   fingerprint: string,
   envelopeKey?: string,
+  groupingVersion = GROUPING_VERSION,
 ): Promise<Stored | null> {
   if (await db.prepare('SELECT 1 FROM events WHERE id = ?').bind(event.id).first()) return null // sent twice
 
@@ -186,8 +244,8 @@ export async function storeEvent(
     statements.push(
       db
         .prepare(
-          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key, trace_id, user_hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key, trace_id, user_hash, fingerprint, grouping_version)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           event.id,
@@ -204,6 +262,8 @@ export async function storeEvent(
           envelopeKey ?? null,
           event.traceId ?? null,
           event.userHash ?? null,
+          fingerprint,
+          groupingVersion,
         ),
     )
     for (const [key, value] of tags) {

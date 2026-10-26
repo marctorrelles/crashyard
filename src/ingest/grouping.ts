@@ -68,3 +68,12 @@ export async function fingerprintOf(event: NormalizedEvent): Promise<string> {
     .join('')
     .slice(0, 32)
 }
+
+/**
+ * The grouping events are hashed with. Version 1 is the hash above, unchanged since before versions were counted. A
+ * change that moves fingerprints adds the next version here and bumps this: each project then computes both for 30
+ * days and maps the new hash to the issue of the old (`groupingOf` in store.ts), so no open issue splits
+ */
+export const GROUPING_VERSION = 1
+export type Hasher = (event: NormalizedEvent) => Promise<string>
+export const HASHERS: Record<number, Hasher> = { 1: fingerprintOf }
