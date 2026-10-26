@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { IconConfetti, IconSearch, IconTrendingUp } from '@tabler/icons-react'
+import { IconConfetti, IconSearch, IconStarFilled, IconTrendingUp, IconUser } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago, count, Level, Sparkline } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
@@ -15,6 +15,7 @@ import { ValueMenu } from '@/components/value-menu'
 import { CHART_DAYS, type ChartDays } from '@/data/charts'
 import { getIssueChart, getIssues, getSavedSearches } from '@/fns'
 import { addValue, NEW_FOR, tokenize, withToken } from '@/search/query'
+import { cn } from '@/lib/utils'
 
 const SORTS = {
   lastSeen: 'Last seen',
@@ -220,7 +221,13 @@ function Issues() {
                   className="flex items-center gap-2 outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring/50 focus-visible:after:ring-inset"
                 >
                   <Level level={i.level} />
-                  <span className="truncate text-sm font-medium">{i.title}</span>
+                  <span className={cn('truncate text-sm', i.unread ? 'font-semibold' : 'font-medium')}>{i.title}</span>
+                  {!!i.unread && (
+                    <span className="size-2 shrink-0 rounded-full bg-sky-500" role="img" aria-label="Unread" />
+                  )}
+                  {!!i.bookmarked && (
+                    <IconStarFilled className="size-3.5 shrink-0 text-amber-500" aria-label="Bookmarked" />
+                  )}
                 </Link>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   <PriorityBadge id={i.id} priority={i.priority} />
@@ -245,6 +252,12 @@ function Issues() {
                     >
                       {i.last_release}
                     </ValueMenu>
+                  )}
+                  {i.assignee && (
+                    <span className="flex max-w-48 items-center gap-1 truncate">
+                      <IconUser className="size-3 shrink-0" />
+                      <span className="truncate">{i.assignee}</span>
+                    </span>
                   )}
                   {i.culprit && <span className="max-w-full truncate font-mono text-[0.7rem]">{i.culprit}</span>}
                   <span>

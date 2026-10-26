@@ -21,7 +21,8 @@ helpers (`change`).
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
   a tenth so a crash never reads 100%; one batch of four).
-- `issues.ts`: `listIssues` (a search from `src/search/`, sorted, 50 a page, with a 14-day series each), `getIssue`
+- `issues.ts`: `listIssues` (a search from `src/search/`, with the viewer for `assigned:me`, `is:bookmarked` and
+  `is:unread`, sorted, 50 a page, with a 14-day series each and the viewer's `bookmarked` and `unread`), `getIssue`
   (the project's releases with events, newest first, 50, for the release picker; tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
   image, `attachmentType`, feedback, activity), `changeIssues`
   (resolve, now, in the next release, in the current release (`current`: each issue's `last_release`, read first so
@@ -36,7 +37,11 @@ helpers (`change`).
   (`until_escalating`, the default in the UI: only escalation opens it) and `forUsers` (`ignore_until_users`, the user
   count that ends it, as `ignore_until_count`); `priority` sets `issues.priority` with a `priority` activity entry;
   `SORTS.priority` is high first, then the most recently seen. A merge adds the merged issues' `event_hours` into the
-  first. `getIssue`'s `merged` counts its `issue_fingerprints`. `mergedFingerprints` lists them with their kept events
+  first. `assignees` (the viewer, then every email in `issue_activity.by` or assigned already, 100 at most), `assignIssue`
+  (an email or null, with an `assigned` entry `{ assignee }`), `bookmarkIssue` and `isBookmarked` (`bookmarks`, by
+  email), `markViewed` (`issue_views`, an upsert, from `getIssue`'s server function for a person, not an agent),
+  `linkIssue` (`external_url`, http or https as `fns.ts` checks, with a `linked` entry `{ url }`). `getIssue`'s
+  `merged` counts its `issue_fingerprints`. `mergedFingerprints` lists them with their kept events
   (by `events.fingerprint`, `events_issue_fingerprint`), the newest's first line as a title; `unmergeIssue` moves one
   out: a new issue with that fingerprint (title, culprit and level from its newest event, the source's priority,
   `ongoing`), its events and their feedback, then days, `event_hours`, tags and users rebuilt from the moved events

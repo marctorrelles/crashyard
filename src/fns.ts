@@ -256,7 +256,7 @@ export const getIssues = createServerFn()
     const project = data.project ? await projects.projectBySlug(env.DB, data.project) : undefined
     const list = await issues.listIssues(
       env.DB,
-      { ...data, projectId: project?.id ?? (data.project ? -1 : undefined) },
+      { ...data, projectId: project?.id ?? (data.project ? -1 : undefined), viewer: viewer() },
       Date.now(),
     )
     return { ...list, now: Date.now() }
@@ -282,7 +282,7 @@ export const getIssueChart = createServerFn()
     const before = projects.lastDays(data.days, now - data.days * 864e5)
     const rows = await charts.issueEventsByDay(
       env.DB,
-      issueFilter(data.query, now),
+      issueFilter(data.query, now, viewer()),
       project?.id ?? (data.project ? -1 : undefined),
       [...before, ...days],
     )
@@ -307,12 +307,28 @@ export const getIssue = createServerFn()
     if (!issue) return null
     const project = (await projects.projectBySlug(env.DB, issue.issue.project))!
     const event = issue.eventJson ? JSON.parse(issue.eventJson) : null
-    const [links, suspects, similar] = await Promise.all([
+    const who = viewer()
+    const [links, suspects, similar, bookmarked, assignees] = await Promise.all([
       event ? source.frameLinks(env.DB, project, event) : {},
       suspectsData.suspectCommits(env.DB, issue.issue, event, project.repo_url),
       suspectsData.similarIssues(env.DB, issue.issue, event),
+      issues.isBookmarked(env.DB, who, data.id),
+      issues.assignees(env.DB, who),
+      // Opened by a person: read until its next event. An agent's read doesn't count
+      who.startsWith('service:') || who === 'unknown' ? undefined : issues.markViewed(env.DB, who, data.id, now),
     ])
-    return { ...issue, links, suspects, similar, now, viewer: viewer() }
+    return {
+      ...issue,
+      links,
+      suspects,
+      similar,
+      bookmarked,
+      assignees,
+      repoUrl: project.repo_url,
+      origin: origin(),
+      now,
+      viewer: who,
+    }
   })
 
 export const changeIssues = createServerFn({ method: 'POST' })
@@ -347,6 +363,32 @@ export const changeIssues = createServerFn({ method: 'POST' })
 export const mergeIssues = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ ids: ints(object(d).ids) }))
   .handler(({ data }) => issues.mergeIssues(env.DB, data.ids, viewer(), Date.now()))
+
+export const assignIssue = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    const assignee = optional((v) => text(v, 200).trim())(o.assignee) ?? null
+    if (assignee !== null && !/^[^\s@]+@[^\s@]+$/.test(assignee)) throw new Error('Assign to an email address.')
+    return { id: int(o.id), assignee }
+  })
+  .handler(({ data }) => issues.assignIssue(env.DB, data.id, data.assignee, viewer(), Date.now()))
+
+export const bookmarkIssue = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), on: o.on === true }
+  })
+  .handler(({ data }) => issues.bookmarkIssue(env.DB, viewer(), data.id, data.on).then(() => undefined))
+
+export const linkIssue = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    const url = optional((v) => text(v, 500).trim())(o.url) ?? null
+    if (url !== null && !(URL.canParse(url) && /^https?:$/.test(new URL(url).protocol)))
+      throw new Error('That isn’t a web address. Paste the issue’s link, starting with https://.')
+    return { id: int(o.id), url }
+  })
+  .handler(({ data }) => issues.linkIssue(env.DB, data.id, data.url, viewer(), Date.now()))
 
 export const getMergedFingerprints = createServerFn()
   .validator((d: unknown) => ({ id: int(object(d).id) }))

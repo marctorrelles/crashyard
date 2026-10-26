@@ -2,7 +2,7 @@
 import type { NormalizedEvent } from '../ingest/event'
 import { HASHERS } from '../ingest/grouping'
 import type { Priority } from '../ingest/priority'
-import { issueFilter } from '../search/query'
+import { issueFilter, UNREAD } from '../search/query'
 import { scoped } from './charts'
 import { lastDays } from './projects'
 
@@ -65,21 +65,23 @@ async function seriesOf(db: D1Database, ids: number[], days: string[]) {
 
 export async function listIssues(
   db: D1Database,
-  opts: { query: string; projectId?: number; sort: Sort; page: number },
+  opts: { query: string; projectId?: number; sort: Sort; page: number; viewer?: string },
   now: number,
 ) {
   // The chart over the list narrows the same way (`issueEventsByDay`), so the two agree
-  const f = scoped(issueFilter(opts.query, now), opts.projectId)
+  const f = scoped(issueFilter(opts.query, now, opts.viewer), opts.projectId)
   const where = f.where.length ? `WHERE ${f.where.join(' AND ')}` : ''
   // One more than a page, to know there's another
   const rows = (
     await db
       .prepare(
-        `SELECT i.*, p.slug AS project FROM issues i JOIN projects p ON p.id = i.project_id ${where}
+        `SELECT i.*, p.slug AS project,
+           EXISTS (SELECT 1 FROM bookmarks b WHERE b.email = ? AND b.issue_id = i.id) AS bookmarked, ${UNREAD} AS unread
+         FROM issues i JOIN projects p ON p.id = i.project_id ${where}
          ORDER BY ${SORTS[opts.sort]} DESC, i.id DESC LIMIT ? OFFSET ?`,
       )
-      .bind(...f.params, PAGE + 1, opts.page * PAGE)
-      .all<IssueRow & { project: string }>()
+      .bind(opts.viewer ?? '', opts.viewer ?? '', ...f.params, PAGE + 1, opts.page * PAGE)
+      .all<IssueRow & { project: string; bookmarked: number; unread: number }>()
   ).results
   const issues = rows.slice(0, PAGE)
   const series = await seriesOf(
@@ -603,4 +605,58 @@ export async function unmergeIssue(db: D1Database, id: number, fingerprint: stri
       .bind(into, JSON.stringify({ issue: { id, fingerprint } }), by, now),
   ])
   return into
+}
+
+/** Who an issue can be assigned to: the viewer, then everyone who has done something to an issue, by email */
+export async function assignees(db: D1Database, viewer: string) {
+  const rows = (
+    await db
+      .prepare(
+        `SELECT DISTINCT by FROM issue_activity WHERE by LIKE '%@%' UNION SELECT DISTINCT assignee FROM issues
+         WHERE assignee IS NOT NULL LIMIT 100`,
+      )
+      .all<{ by: string }>()
+  ).results.map((r) => r.by)
+  return [...new Set([viewer, ...rows.sort()])].filter((e) => e.includes('@'))
+}
+
+/** Assigns an issue to an email, or no one, with an `assigned` activity entry */
+export async function assignIssue(db: D1Database, id: number, assignee: string | null, by: string, now: number) {
+  await db.batch([
+    db.prepare('UPDATE issues SET assignee = ? WHERE id = ?').bind(assignee, id),
+    db
+      .prepare("INSERT INTO issue_activity (issue_id, kind, data, by, at) VALUES (?, 'assigned', ?, ?, ?)")
+      .bind(id, JSON.stringify({ assignee }), by, now),
+  ])
+}
+
+export const bookmarkIssue = (db: D1Database, email: string, id: number, on: boolean) =>
+  (on
+    ? db.prepare('INSERT OR IGNORE INTO bookmarks (email, issue_id) VALUES (?, ?)')
+    : db.prepare('DELETE FROM bookmarks WHERE email = ? AND issue_id = ?')
+  )
+    .bind(email, id)
+    .run()
+
+/** Opening an issue: it reads as read for that viewer until its next event */
+export const markViewed = (db: D1Database, email: string, id: number, now: number) =>
+  db
+    .prepare(
+      'INSERT INTO issue_views (email, issue_id, at) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET at = excluded.at',
+    )
+    .bind(email, id, now)
+    .run()
+
+/** The viewer's bookmark of one issue */
+export const isBookmarked = async (db: D1Database, email: string, id: number) =>
+  !!(await db.prepare('SELECT 1 FROM bookmarks WHERE email = ? AND issue_id = ?').bind(email, id).first())
+
+/** Links an issue to one in a tracker, or unlinks it, with a `linked` activity entry */
+export async function linkIssue(db: D1Database, id: number, url: string | null, by: string, now: number) {
+  await db.batch([
+    db.prepare('UPDATE issues SET external_url = ? WHERE id = ?').bind(url, id),
+    db
+      .prepare("INSERT INTO issue_activity (issue_id, kind, data, by, at) VALUES (?, 'linked', ?, ?, ?)")
+      .bind(id, JSON.stringify({ url }), by, now),
+  ])
 }

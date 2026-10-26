@@ -185,7 +185,19 @@ export const ISSUE_KEYS: KeyInfo[] = [
     key: 'is',
     description: 'Status',
     kind: 'enum',
-    values: ['unresolved', 'resolved', 'ignored', 'new', 'regressed', 'escalating', 'ongoing'],
+    values: [
+      'unresolved',
+      'resolved',
+      'ignored',
+      'new',
+      'regressed',
+      'escalating',
+      'ongoing',
+      'assigned',
+      'unassigned',
+      'bookmarked',
+      'unread',
+    ],
   },
   { key: 'level', description: 'Level', kind: 'enum', values: ['fatal', 'error', 'warning', 'info', 'debug'] },
   { key: 'priority', description: 'Priority', kind: 'enum', values: ['high', 'medium', 'low'] },
@@ -200,6 +212,7 @@ export const ISSUE_KEYS: KeyInfo[] = [
   { key: 'lastSeen', description: 'Time of the last event, such as -24h', kind: 'time', values: WITHIN },
   { key: 'firstSeen', description: 'Time of the first event, such as -24h', kind: 'time', values: WITHIN },
   { key: 'trace', description: 'Has an event in this trace', kind: 'text' },
+  { key: 'assigned', description: 'Assigned to, such as me or an email', kind: 'text' },
 ]
 
 export const LOG_KEYS: KeyInfo[] = [
@@ -262,8 +275,14 @@ const anyOf = (parts: [string, unknown[]][]): [string, unknown[]] =>
 const ftsWords = (words: string[]) => words.map((w) => `"${w}"*`).join(' ')
 const wordsOf = (value: string) => value.match(/[\p{L}\p{N}_]+/gu) ?? []
 
-function status(value: string, now: number): [string, unknown[]] | undefined {
+function status(value: string, now: number, viewer?: string): [string, unknown[]] | undefined {
   if (STATUSES.has(value)) return ['i.status = ?', [value]]
+  if (value === 'assigned') return ['i.assignee IS NOT NULL', []]
+  if (value === 'unassigned') return ['i.assignee IS NULL', []]
+  // The viewer's own: with no viewer (a widget, an alert) nothing is bookmarked and everything is unread
+  if (value === 'bookmarked')
+    return viewer ? ['EXISTS (SELECT 1 FROM bookmarks b WHERE b.email = ? AND b.issue_id = i.id)', [viewer]] : ['0', []]
+  if (value === 'unread') return viewer ? [UNREAD, [viewer]] : ['1', []]
   if (value === 'new') return ["i.status = 'unresolved' AND i.substatus = 'new' AND i.first_seen >= ?", [now - NEW_FOR]]
   if (value === 'ongoing')
     return [
@@ -282,8 +301,12 @@ function timeOp(t: Token) {
 
 export type Filter = { where: string[]; params: unknown[]; projectSlugs: string[] }
 
+/** Unread for a viewer: events since they last opened it, or never opened; one `?`, the viewer's email */
+export const UNREAD =
+  'NOT EXISTS (SELECT 1 FROM issue_views v WHERE v.email = ? AND v.issue_id = i.id AND v.at >= i.last_seen)'
+
 /** SQL conditions over `issues i` for a query. Unknown keys are tags (issue_tag_values): "had an event with it" */
-export function issueFilter(query: string, now: number): Filter {
+export function issueFilter(query: string, now: number, viewer?: string): Filter {
   const where: string[] = []
   const params: unknown[] = []
   const projectSlugs: string[] = []
@@ -304,7 +327,7 @@ export function issueFilter(query: string, now: number): Filter {
     const key = t.key
     const values = valuesOf(t)
     if (key === 'is') {
-      const parts = values.map((v) => status(v, now)).filter((p) => p !== undefined)
+      const parts = values.map((v) => status(v, now, viewer)).filter((p) => p !== undefined)
       if (parts.length) {
         const [sql, values] = anyOf(parts)
         add(sql, t.negate, ...values)
@@ -332,6 +355,13 @@ export function issueFilter(query: string, now: number): Filter {
     if (TIMES[key]) {
       const at = t.values ? undefined : timeOf(t.value, now)
       if (at !== undefined) add(`${TIMES[key]} ${timeOp(t)} ?`, t.negate, at)
+      continue
+    }
+    if (key === 'assigned') {
+      // `me` is the viewer; with none it matches no one
+      const emails = values.map((v) => (v === 'me' ? (viewer ?? '\u0000') : v))
+      const [sql, matched] = matchAny('i.assignee', emails)
+      add(sql, t.negate, ...matched)
       continue
     }
     if (key === 'trace') {

@@ -7,6 +7,7 @@ import { Time } from '@/components/time'
 import { BarList, LEVEL_COLORS, TimeChart } from '@/components/charts'
 import { EventView } from '@/components/event-view'
 import { IssueActions, UnmergeButton } from '@/components/issue-actions'
+import { AssignMenu, BookmarkButton, TrackerMenu } from '@/components/issue-triage'
 import { PRIORITY_LABELS, PriorityBadge } from '@/components/priority'
 import { Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
@@ -71,6 +72,12 @@ function IssuePage() {
           {d.merged > 0 && <UnmergeButton id={issue.id} now={now} />}
           <IssueActions ids={[issue.id]} status={issue.status} lastRelease={issue.last_release} releases={d.releases} />
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <BookmarkButton id={issue.id} on={d.bookmarked} />
+        <AssignMenu issue={issue} people={d.assignees} viewer={d.viewer} />
+        <TrackerMenu issue={issue} event={event} repo={d.repoUrl} url={`${d.origin}/issues/${issue.id}`} />
       </div>
 
       <dl className="mb-6 grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm sm:grid-cols-4">
@@ -320,7 +327,11 @@ function Similar({ d }: { d: Data }) {
       <ul className="divide-y rounded-xl border text-sm">
         {d.similar.map((i) => (
           <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-            <Link to="/issues/$issueId" params={{ issueId: String(i.id) }} className="min-w-0 flex-1 hover:underline">
+            <Link
+              to="/issues/$issueId"
+              params={{ issueId: String(i.id) }}
+              className="min-w-0 flex-1 basis-full hover:underline sm:basis-0"
+            >
               <span className="block truncate">{i.title}</span>
               <span className="block truncate text-xs text-muted-foreground">
                 {count(i.count)} events · <Ago at={i.last_seen} now={d.now} />
@@ -405,6 +416,8 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
   merged: (x) => `Merged with ${(x.issues as { title: string }[]).map((i) => `“${i.title}”`).join(', ')}`,
   review_crash: () => 'Crashed in App Review or TestFlight',
   escalating: (x) => `Escalating with ${x.count} events in an hour${x.wasIgnored ? ', so it’s no longer ignored' : ''}`,
+  assigned: (x) => (x.assignee ? `Assigned to ${String(x.assignee)}` : 'Unassigned'),
+  linked: (x) => (x.url ? `Linked ${String(x.url)}` : 'Unlinked its tracker issue'),
   priority: (x) =>
     `Priority set to ${PRIORITY_LABELS[x.priority as keyof typeof PRIORITY_LABELS]?.toLowerCase() ?? x.priority}`,
 }

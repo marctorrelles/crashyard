@@ -82,6 +82,11 @@
 - `issue-actions.tsx`'s `UnmergeButton`: a dialog that loads the merged fingerprints when it opens
   (`getMergedFingerprints`), a `RadioGroup` of them with their events and when last seen, and Unmerge, which opens
   the new issue.
+- `issue-triage.tsx`: an issue's header triage. `BookmarkButton` (a star, filled amber when on), `AssignMenu`
+  (Assign to: the viewer, marked "you", then `assignees`; Unassign), `TrackerMenu` (Track: Create GitHub issue, only
+  for a github.com `repo_url`, `<repo>/issues/new` with title and body; Create Linear issue,
+  `https://linear.app/new` with title and description; Link issue…, a dialog for the address; Unlink issue; a linked one is a button before it, named by its
+  host) and `trackerText` (the title, then the culprit, the crashyard link and the top 5 frames, newest first).
 - `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a
   menu to change it, above a list row's link, 40 px on a phone; `PRIORITY_LABELS`.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's

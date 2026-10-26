@@ -21,7 +21,11 @@ proposes as you type (`suggest.ts`, pure, tested in `suggest.test.ts`).
 - Lists in SQL: `col IN (?,…)` (for a tag, `v.value IN`), or an `OR` of matches when one has a `*`; `is:[…]` is an `OR`
   of the statuses, `project:[…]` adds every slug, `has:[…]` any of the keys, `message:[…]` any of the phrases (FTS5
   `OR`); numbers and times ignore a list. Every value is a `?` bind.
-- Keys: `is:` (`unresolved`, `resolved`, `ignored`, `new`, `regressed`, `escalating`, `ongoing`), `level`,
+- Keys: `is:` (`unresolved`, `resolved`, `ignored`, `new`, `regressed`, `escalating`, `ongoing`, `assigned`,
+  `unassigned`, and the viewer's own `bookmarked` and `unread`: `issueFilter`'s third argument, the viewer's email;
+  without one, as in widgets and alerts, nothing is bookmarked and everything is unread; `UNREAD`, an issue with no
+  `issue_views` row of the viewer's at or after its `last_seen`), `assigned:me` (the viewer, nobody without one) or
+  `assigned:<email>` (globs as other columns), `level`,
   `priority` (`high`, `medium`, `low`), `type`, `platform`,
   `firstRelease`, `lastRelease`, `project`, `has:`, `times`/`events`, `users`, `lastSeen`/`firstSeen` (`-24h` within,
   `+24h` longer ago, or a date). Any other key is a tag: "had an event with it", from `issue_tag_values`. `*` matches

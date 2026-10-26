@@ -3,7 +3,17 @@ import { sqliteD1 } from '../../test/fakes'
 import { normalizeEvent } from '../ingest/event'
 import { HASHERS } from '../ingest/grouping'
 import { storeEvent } from '../ingest/store'
-import { attachmentType, mergedFingerprints, mergeIssues, unmergeIssue } from './issues'
+import {
+  assignees,
+  assignIssue,
+  attachmentType,
+  bookmarkIssue,
+  listIssues,
+  markViewed,
+  mergedFingerprints,
+  mergeIssues,
+  unmergeIssue,
+} from './issues'
 
 describe('attachments', () => {
   it('shows png, jpeg, gif and webp as images, and nothing else', () => {
@@ -79,5 +89,35 @@ describe('unmerge', () => {
     // New events of that fingerprint go to the new issue now
     expect(await mergedFingerprints(db, a)).toEqual([])
     expect(await send(legacy, 5, { message: 'Crash B' })).toBe(made)
+  })
+})
+
+describe('assignment, bookmarks and unread', () => {
+  it('search by assignee, bookmark and what has events since it was opened', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0);
+      INSERT INTO issues (id, project_id, fingerprint, title, first_seen, last_seen) VALUES
+        (1, 1, 'a', 'One', 0, 100), (2, 1, 'b', 'Two', 0, 100), (3, 1, 'c', 'Three', 0, 100)`)
+    await assignIssue(db, 1, 'me@x.com', 'me@x.com', 1)
+    await assignIssue(db, 2, 'ada@x.com', 'me@x.com', 1)
+    await bookmarkIssue(db, 'me@x.com', 3, true)
+    await markViewed(db, 'me@x.com', 1, 200)
+    await markViewed(db, 'me@x.com', 2, 50) // before its last event: still unread
+    const ids = async (query: string, viewer = 'me@x.com') =>
+      (await listIssues(db, { query, sort: 'lastSeen', page: 0, viewer }, 1000)).issues.map((i) => i.id).sort()
+    expect(await ids('assigned:me')).toEqual([1])
+    expect(await ids('assigned:ada@x.com')).toEqual([2])
+    expect(await ids('is:assigned')).toEqual([1, 2])
+    expect(await ids('is:unassigned')).toEqual([3])
+    expect(await ids('is:bookmarked')).toEqual([3])
+    expect(await ids('is:unread')).toEqual([2, 3])
+    expect(await ids('is:unread', 'ada@x.com')).toEqual([1, 2, 3])
+    const rows = (await listIssues(db, { query: '', sort: 'lastSeen', page: 0, viewer: 'me@x.com' }, 1000)).issues
+    expect(rows.find((i) => i.id === 3)).toMatchObject({ bookmarked: 1, unread: 1 })
+    expect(rows.find((i) => i.id === 1)).toMatchObject({ bookmarked: 0, unread: 0, assignee: 'me@x.com' })
+    expect(await assignees(db, 'me@x.com')).toEqual(['me@x.com', 'ada@x.com'])
+    expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM issue_activity WHERE kind = 'assigned'").get()).toEqual({
+      n: 2,
+    })
   })
 })

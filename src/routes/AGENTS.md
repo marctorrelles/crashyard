@@ -36,9 +36,12 @@ server, the build, or `tsr generate`): never edit it.
   issues it matches for the last 14, 30 or 90 days (`?days=`, `getIssueChart`, loaded with the list), the period
   before as a dashed line. Status tabs: Unresolved, Escalating (`is:escalating`), Resolved, Ignored, All, scrolling
   on a phone; sort by priority too; each row has its priority's menu. Saved searches beside the bar (`getSavedSearches`, loaded first): with no
-  `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. Bulk resolve,
+  `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. An unread row's title is bolder with a
+  sky dot after it, a bookmarked one has a star, and its assignee shows beside the culprit. Bulk resolve,
   ignore, merge and delete.
-- `issues/$issueId.tsx`: one issue: Unmerge beside the actions when fingerprints were merged into it, its priority (a menu), status (Escalating, ignored until it escalates or N
+- `issues/$issueId.tsx`: one issue (opening it marks it read for the viewer): Unmerge beside the actions when
+  fingerprints were merged into it, under the title a star (bookmark), Assign to and Track (`issue-triage.tsx`), its
+  priority (a menu), status (Escalating, ignored until it escalates or N
   users, resolved in a release), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
   newer), Suspect commits under the stack (sha linked through `commitUrl`, message, author, when, the files), Similar
   issues, each with Merge into this issue (a confirmation, then `mergeIssues` with this one first), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
