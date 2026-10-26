@@ -53,6 +53,11 @@ Rate limits answer the way Sentry's do. When nothing in an envelope can be kept,
 `error;default;security;attachment;feedback`, `log_item` or `transaction;span`, so SDKs stop sending that kind until the
 next day. A client key past its own daily event limit gets the same answer for errors, scoped to the key.
 
+A project's grouping rules use Sentry's syntax for fingerprint rules and stack trace rules. The matchers are
+`error.type`, `error.value`, `message`, `level`, `tags.<name>` and the `stack.*` ones with `app` and `family`, and the
+actions are `+app`, `-app`, `+group` and `-group`. Logger and category matchers, sibling frames, `max-frames` and
+custom titles aren't supported yet, and the settings page says so on the line that uses them.
+
 A project's inbound filters drop events as Sentry's do, before they're stored and without counting towards the daily
 limits: browser extensions, localhost, legacy browsers, web crawlers, health-check transactions, React hydration
 errors, `ChunkLoadError`, and error messages and releases by pattern. They use the lists in Sentry's Relay. With
