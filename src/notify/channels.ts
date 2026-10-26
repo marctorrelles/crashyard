@@ -76,7 +76,11 @@ export async function send(channel: Channel, notice: Notice, mailer?: Mailer, fr
   const config = JSON.parse(channel.config)
   if (channel.kind === 'ntfy') {
     const response = await fetch(ntfyRequest(config as NtfyConfig, notice))
-    if (!response.ok) throw new Error(`ntfy answered ${response.status}`)
+    if (!response.ok) {
+      // ntfy says why as JSON: {"code":42901,"error":"limit reached: too many requests",…}
+      const why = ((await response.json().catch(() => null)) as { error?: string } | null)?.error
+      throw new Error(`ntfy answered ${response.status}${why ? `: ${why}` : ''}`)
+    }
   } else if (channel.kind === 'webhook') {
     const { url, format } = config as WebhookConfig
     const response = await fetch(url, {
