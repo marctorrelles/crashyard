@@ -403,7 +403,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
   const [kinds, setKinds] = useState<string[]>(
     route
       ? list(route.kinds)
-      : ['new', 'regression', 'threshold', 'review_crash', 'monitor_down', 'monitor_up', 'slower_release'],
+      : ['new', 'regression', 'threshold', 'review_crash', 'monitor_down', 'monitor_up', 'slower_release', 'weekly'],
   )
   const [levels, setLevels] = useState<string[]>(route ? list(route.levels) : [])
   const [channels, setChannels] = useState<number[]>(
