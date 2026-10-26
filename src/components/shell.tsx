@@ -9,6 +9,7 @@ import {
   CheckIcon,
   ChevronsUpDownIcon,
   GaugeIcon,
+  HouseIcon,
   LayoutDashboardIcon,
   LayoutGridIcon,
   LogOutIcon,
@@ -138,7 +139,7 @@ function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <Item label="Overview" icon={LayoutGridIcon} active={page.path === '/'}>
+            <Item label="Overview" icon={HouseIcon} active={page.path === '/'}>
               {(c) => (
                 <Link to="/" search={search} onClick={close}>
                   {c}
