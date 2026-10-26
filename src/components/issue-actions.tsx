@@ -39,7 +39,7 @@ export function IssueActions({
   const run = async (change: Change, done: string) => {
     if (
       change.action === 'delete' &&
-      !confirm(`Delete${many || ' this issue'} and every event in it? This can't be undone.`)
+      !confirm(`Delete${many || ' this issue'} and all its events? This can’t be undone.`)
     )
       return
     try {
@@ -48,18 +48,19 @@ export function IssueActions({
       onDone?.(change.action)
       await router.invalidate()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'That didn’t work')
+      toast.error(error instanceof Error ? error.message : 'Something went wrong. Try again.')
     }
   }
   const merge = async () => {
-    if (!confirm(`Merge ${ids.length} issues into the first? Their events move to it, and so do future ones.`)) return
+    if (!confirm(`Merge ${ids.length} issues into the first one? Their events, and any future ones, move to it.`))
+      return
     try {
       await mergeIssues({ data: { ids } })
       toast.success('Merged')
       onDone?.('merge')
       await router.invalidate()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'They could not be merged')
+      toast.error(error instanceof Error ? error.message : 'The issues couldn’t be merged')
     }
   }
   return (
@@ -67,7 +68,7 @@ export function IssueActions({
       {status && status !== 'unresolved' ? (
         <Button size={size} variant="outline" onClick={() => run({ action: 'reopen' }, 'Reopened')}>
           <IconRotate data-icon="inline-start" />
-          {status === 'resolved' ? 'Unresolve' : 'Stop ignoring'}
+          {status === 'resolved' ? 'Reopen' : 'Stop ignoring'}
         </Button>
       ) : (
         <>
@@ -91,7 +92,7 @@ export function IssueActions({
                 <DropdownMenuItem
                   onSelect={() => run({ action: 'resolve', inRelease: true }, 'Resolved in the next release')}
                 >
-                  In the next release
+                  Resolve in next release
                   <span className="ml-auto pl-3 text-xs text-muted-foreground">reopens only in another</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -106,7 +107,7 @@ export function IssueActions({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={() => run({ action: 'ignore' }, 'Ignored')}>For good</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => run({ action: 'ignore' }, 'Ignored')}>Forever</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-muted-foreground">Until it happens</DropdownMenuLabel>
               {[10, 100, 1000].map((n) => (

@@ -33,23 +33,23 @@ type Props = {
 const STEPS: Record<Platform, (p: { origin: string; slug: string }) => { text: string; code: string }[]> = {
   apple: () => [
     {
-      text: 'After archiving (or as a Run Script build phase, with debug information format "DWARF with dSYM File"):',
+      text: 'After archiving, upload the dSYMs. A Run Script build phase works too, with the debug information format set to DWARF with dSYM File.',
       code: 'sentry-cli debug-files upload --include-sources "$DWARF_DSYM_FOLDER_PATH"',
     },
   ],
   android: ({ origin, slug }) => [
     {
-      text: 'Add the Sentry Gradle plugin, which uploads the ProGuard mapping and NDK symbols on every release build:',
+      text: 'Add the Sentry Gradle plugin. It uploads the ProGuard mapping and NDK symbols on every release build.',
       code: 'plugins { id("io.sentry.android.gradle") version "5.+" }',
     },
     {
-      text: 'And point it here, in sentry.properties at the project’s root (the token in SENTRY_AUTH_TOKEN, not in the file):',
+      text: 'Point it at crashyard in sentry.properties at the project root. Keep the token in SENTRY_AUTH_TOKEN, not in the file.',
       code: `defaults.url=${origin}/\ndefaults.org=crashyard\ndefaults.project=${slug}`,
     },
   ],
   javascript: ({ origin, slug }) => [
     {
-      text: 'Build with source maps, and let the Vite plugin upload them (it gives each file a debug id):',
+      text: 'Build with source maps and let the Vite plugin upload them. It gives each file a debug ID.',
       code: 'pnpm add -D @sentry/vite-plugin',
     },
     {
@@ -64,13 +64,13 @@ export default defineConfig({
   ],
   node: () => [
     {
-      text: 'Give the built files debug ids, then upload them with their source maps:',
+      text: 'Give the built files debug IDs, then upload them with their source maps.',
       code: 'sentry-cli sourcemaps inject dist\nsentry-cli sourcemaps upload dist',
     },
   ],
   other: () => [
     {
-      text: 'Any of sentry-cli’s uploads work:',
+      text: 'Any sentry-cli upload command works.',
       code: 'sentry-cli debug-files upload path/to/symbols\nsentry-cli sourcemaps upload dist',
     },
   ],
@@ -87,7 +87,7 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
     <div className="grid gap-5">
       <ol className="grid gap-4">
         <li className="grid min-w-0 gap-2">
-          <p className="text-sm">sentry-cli and the build plugins read where to upload from these:</p>
+          <p className="text-sm">sentry-cli and the build plugins read these to know where to upload.</p>
           <Code text={env} />
         </li>
         {STEPS[platform]({ origin, slug }).map((s, i) => (
@@ -100,10 +100,12 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
 
       <div className="grid gap-2">
         <h3 className="text-sm font-medium">Auth tokens</h3>
-        <p className="text-xs text-muted-foreground">For uploads and releases only, in every project. Shown once.</p>
+        <p className="text-xs text-muted-foreground">
+          Tokens can upload files and create releases in every project, and nothing else.
+        </p>
         {made && (
           <div className="grid gap-1 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
-            <p className="text-sm">Copy it now; it won’t be shown again.</p>
+            <p className="text-sm">Copy the token now. It won’t be shown again.</p>
             <Code text={made} />
           </div>
         )}
@@ -116,7 +118,7 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
               setName('')
               await router.invalidate()
             } catch {
-              toast.error('The token wasn’t made')
+              toast.error('The token couldn’t be created')
             }
           }}
         >
@@ -124,12 +126,12 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
             className="max-w-xs"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Name, such as Xcode or CI"
+            placeholder="Name it, for example Xcode or CI"
             aria-label="Token name"
           />
           <Button type="submit" variant="outline">
             <IconKey data-icon="inline-start" />
-            Make a token
+            Create token
           </Button>
         </form>
         {tokens.length > 0 && (
@@ -139,7 +141,7 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{t.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t.created_by} · made <Ago at={t.created_at} now={now} />
+                    {t.created_by} · created <Ago at={t.created_at} now={now} />
                     {t.last_used_at ? (
                       <>
                         {' '}
@@ -155,7 +157,7 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
                   size="icon-sm"
                   aria-label={`Revoke ${t.name}`}
                   onClick={async () => {
-                    if (!confirm(`Revoke ${t.name}? Uploads with it stop working.`)) return
+                    if (!confirm(`Revoke ${t.name}? Uploads using it will stop working.`)) return
                     await revokeToken({ data: { id: t.id } })
                     await router.invalidate()
                   }}
@@ -170,7 +172,7 @@ export function Uploads({ slug, platform, origin, tokens, uploads, now }: Props)
 
       {(uploads.debugFiles.length > 0 || uploads.bundles.length > 0) && (
         <div className="grid gap-2">
-          <h3 className="text-sm font-medium">Uploaded</h3>
+          <h3 className="text-sm font-medium">Uploaded files</h3>
           <ul className="divide-y rounded-xl border text-xs">
             {uploads.debugFiles.map((f) => (
               <li

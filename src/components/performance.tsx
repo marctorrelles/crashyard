@@ -13,7 +13,7 @@ export const ms = (v: number | null) =>
         ? `${(v / 1000).toFixed(1)} s`
         : `${(v / 60_000).toFixed(1)} min`
 
-const PERIODS = { 1: 'Last day', 7: 'Last week', 30: 'Last 30 days' } as Record<number, string>
+const PERIODS = { 1: 'Last 24 hours', 7: 'Last 7 days', 30: 'Last 30 days' } as Record<number, string>
 
 export function Period({ days, onChange }: { days: number; onChange: (days: number) => void }) {
   return (

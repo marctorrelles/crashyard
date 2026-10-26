@@ -52,7 +52,7 @@ const PERIODS: Record<Range, string> = { '1h': 'hour', '24h': 'day', '7d': 'week
 export const SPANS = { 1: 'md:col-span-1', 2: 'md:col-span-2', 3: 'md:col-span-3' } as const
 
 // A value as it reads: none (a log without a release) and the rest beyond the top 8 can't be filtered by
-const label = (value: string | null) => (value === null ? 'Other' : value === '' ? '(none)' : value)
+const label = (value: string | null) => (value === null ? 'Other' : value === '' ? 'None' : value)
 const filterable = (value: string | null): value is string => value !== null && value !== ''
 
 /** Show only (or exclude) one of a widget's values: its list, the logs or the issues, with the value added */
@@ -91,7 +91,7 @@ export function WidgetCard({
         {(widget.invalid || about || widget.query) && (
           <CardDescription className="truncate text-xs">
             {widget.invalid ? (
-              'Remove it, or edit it anew'
+              'Edit or remove this widget'
             ) : (
               <>
                 {about}
@@ -179,7 +179,7 @@ function WidgetView({
       <p className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
         <IconAlertTriangle className="mt-0.5 size-3.5 shrink-0" />
         <span className="min-w-0 break-words">
-          {w.invalid ? 'This widget can’t be read' : 'This search can’t be shown'}: {data.message}
+          {w.invalid ? 'This widget can’t be read.' : 'This search can’t be shown.'} {data.message}
         </span>
       </p>
     )
@@ -189,9 +189,9 @@ function WidgetView({
         value={data.value}
         label={
           w.dataset === 'issues'
-            ? `Now, change since a ${PERIODS[range]} ago`
+            ? `Right now, against a ${PERIODS[range]} ago`
             : w.dataset === 'events'
-              ? 'Whole UTC days, against as many before'
+              ? 'Full UTC days, against the same number of days before'
               : `Against the ${PERIODS[range]} before`
         }
         change={change(data.value, data.previous)}
@@ -225,7 +225,8 @@ function WidgetView({
     )
   }
   if (data.kind === 'table') {
-    if (!data.rows.length) return <p className="py-6 text-center text-sm text-muted-foreground">Nothing matches.</p>
+    if (!data.rows.length)
+      return <p className="py-6 text-center text-sm text-muted-foreground">Nothing matches this search.</p>
     const total = data.rows.reduce((a, r) => a + r.count, 0)
     const field = w.groupBy ?? 'level'
     return (
@@ -361,7 +362,10 @@ export function WidgetDialog({
         (d) => live && setPreview({ key, data: d }),
         (error: unknown) =>
           live &&
-          setPreview({ key, data: { kind: 'error', message: error instanceof Error ? error.message : 'no preview' } }),
+          setPreview({
+            key,
+            data: { kind: 'error', message: error instanceof Error ? error.message : 'The preview couldn’t load.' },
+          }),
       )
     }, DEBOUNCE)
     return () => {
@@ -384,8 +388,8 @@ export function WidgetDialog({
           }}
         >
           <DialogHeader>
-            <DialogTitle>{widget ? 'Edit widget' : 'Add a widget'}</DialogTitle>
-            <DialogDescription>A search, and how to show what it finds.</DialogDescription>
+            <DialogTitle>{widget ? 'Edit widget' : 'Add widget'}</DialogTitle>
+            <DialogDescription>Choose what to search and how to show the results.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">

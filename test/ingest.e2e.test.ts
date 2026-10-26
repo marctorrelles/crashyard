@@ -86,7 +86,7 @@ describe('ingest, through the real SDK', () => {
     const [issue] = await waitFor(async () => ((await issues()).length ? issues() : undefined))
     expect(issue).toMatchObject({ title: 'Error: the first crash', count: 1, status: 'unresolved', substatus: 'new' })
     const push = await waitFor(() => pushes.find((p) => p.title === 'Error: the first crash'))
-    expect(push.body).toContain('new')
+    expect(push.body).toContain('New issue')
   })
 
   it('adds the same error to the same issue, and keeps a message apart', async () => {
@@ -113,7 +113,7 @@ describe('ingest, through the real SDK', () => {
   it('pushes when an issue reaches a route’s threshold', async () => {
     for (let i = 0; i < 10; i++) expect((await send(crash('app@1'))).status).toBe(200)
     const push = await waitFor(() =>
-      pushes.find((p) => p.title === 'TypeError: x is undefined' && p.body.includes('now 10')),
+      pushes.find((p) => p.title === 'TypeError: x is undefined' && p.body.includes('Reached 10 events')),
     )
     expect(push).toBeTruthy()
   })
@@ -133,7 +133,7 @@ describe('ingest, through the real SDK', () => {
       status: 'unresolved',
       substatus: 'regressed',
     })
-    await waitFor(() => pushes.find((p) => p.body.includes('back in app@2')))
+    await waitFor(() => pushes.find((p) => p.body.includes('Regressed in app@2')))
   })
 
   it('keeps an event sent twice once, refuses a wrong key, and answers 429 past the quota', async () => {
@@ -245,7 +245,7 @@ describe('ingest, through the real SDK', () => {
     expect(await waitFor(() => pushes.find((p) => p.title === 'nightly failed'))).toBeTruthy()
     Sentry.captureCheckIn({ monitorSlug: 'nightly', status: 'ok' }, monitorConfig)
     await Sentry.flush(5000)
-    await waitFor(() => pushes.find((p) => p.title === 'nightly is back'))
+    await waitFor(() => pushes.find((p) => p.title === 'nightly recovered'))
     // Nothing by the next 03:00 and its five minutes: missed
     const due = (await db()
       .prepare('SELECT next_due FROM monitors WHERE id = ?')
@@ -283,7 +283,7 @@ describe('ingest, through the real SDK', () => {
     expect(pushes.find((p) => p.title === 'Sync server is down')).toBeUndefined()
     await fetch(`${origin}/__dev/cron?now=${now + 61_000}`, { method: 'POST' })
     const push = await waitFor(() => pushes.find((p) => p.title === 'Sync server is down'))
-    expect(push.body).toContain('answered 503')
+    expect(push.body).toContain('returned HTTP 503')
     expect(
       await db()
         .prepare('SELECT COUNT(*) AS n FROM incidents WHERE monitor_id = ? AND closed_at IS NULL')
@@ -311,8 +311,10 @@ describe('ingest, through the real SDK', () => {
     expect(pushes.find((p) => p.title.includes('last week'))).toBeUndefined()
     await fetch(`${origin}/__dev/cron?now=${monday}`, { method: 'POST' })
     const push = await waitFor(() => pushes.find((p) => p.title.includes('last week')))
-    expect(push.title).toBe('30 events last week, 50% more')
-    expect(push.body).toBe(`e2e · 0 new issues · most: ${issue.title} (30) · 98.5% crash-free in e2e@9`)
+    expect(push.title).toBe('30 events last week, up 50% on the week before')
+    expect(push.body).toBe(
+      `e2e · 0 new issues · Top issue: ${issue.title}, 30 events · 98.5% crash-free sessions in e2e@9`,
+    )
   })
 
   it('summarises transactions: percentiles by name, the slowest kept with their spans', async () => {

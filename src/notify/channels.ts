@@ -140,10 +140,10 @@ export async function send(channel: Channel, notice: Notice, mailer?: Mailer, fr
     })
     if (!response.ok) {
       const why = (await response.text().catch(() => '')).slice(0, 200)
-      throw new Error(`the webhook answered ${response.status}${why ? `: ${why}` : ''}`)
+      throw new Error(`The webhook returned HTTP ${response.status}${why ? `: ${why}` : ''}`)
     }
   } else if (channel.kind === 'email') {
-    if (!mailer || !from) throw new Error('email isn’t set up: the EMAIL binding and EMAIL_FROM')
+    if (!mailer || !from) throw new Error('Email isn’t set up on this crashyard. Set EMAIL_FROM and deploy again.')
     const subject = `[crashyard] ${notice.issue.title}`.slice(0, 200)
     await mailer.send(
       from,

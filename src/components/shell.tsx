@@ -34,6 +34,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Empty as EmptyState,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
@@ -417,11 +425,30 @@ export function PageHeader({
   )
 }
 
-export function Empty({ title, children }: { title: string; children?: React.ReactNode }) {
+/** Nothing to show yet: an icon, what's missing, a line on how it fills, and what to do about it */
+export function Empty({
+  icon: Icon,
+  title,
+  children,
+  action,
+  compact,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  children?: React.ReactNode
+  action?: React.ReactNode
+  compact?: boolean // inside a section, not a whole page
+}) {
   return (
-    <div className="rounded-xl border border-dashed px-6 py-12 text-center">
-      <p className="font-medium">{title}</p>
-      {children && <div className="mt-1 text-sm text-muted-foreground">{children}</div>}
-    </div>
+    <EmptyState className={cn('border border-dashed', compact ? 'p-6 md:p-6' : 'py-12')}>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Icon />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        {children && <EmptyDescription>{children}</EmptyDescription>}
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </EmptyState>
   )
 }

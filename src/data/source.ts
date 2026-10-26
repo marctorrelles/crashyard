@@ -177,6 +177,6 @@ export function repoUrl(text: string): string | null {
   if (!t) return null
   const url = URL.canParse(t) ? new URL(t) : null
   if (url?.protocol !== 'https:' || url.pathname.split('/').filter(Boolean).length < 2)
-    throw new Error('the repository is its https address, like https://github.com/owner/repo')
+    throw new Error('Enter the repository’s https address, for example https://github.com/owner/repo.')
   return `${url.origin}${url.pathname}`
 }

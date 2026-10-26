@@ -111,18 +111,18 @@ export function MonitorForm({
               if (editing.id) await router.invalidate()
               else await navigate({ to: '/monitors/$monitorId', params: { monitorId: String(id) } })
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : 'Not saved')
+              toast.error(error instanceof Error ? error.message : 'The monitor couldn’t be saved')
             }
           }}
         >
           <DialogHeader>
             <DialogTitle>
-              {editing.id ? 'Edit' : 'Add'} {uptime ? 'an uptime check' : 'a cron monitor'}
+              {editing.id ? 'Edit' : 'Add'} {uptime ? 'uptime check' : 'cron monitor'}
             </DialogTitle>
             <DialogDescription>
               {uptime
-                ? 'crashyard asks the URL every few minutes, and tells your routes when it stops answering as it should.'
-                : 'A scheduled job checks in when it runs (Sentry.captureCheckIn, or sentry-cli monitors run). A run that’s missed, fails or takes too long opens an incident.'}
+                ? 'crashyard requests the URL on a schedule and notifies you when it stops answering as expected.'
+                : 'A scheduled job checks in each time it runs, through Sentry.captureCheckIn or sentry-cli monitors run. A missed, failed or overlong run opens an incident.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -180,19 +180,19 @@ export function MonitorForm({
                     type="number"
                     inputMode="numeric"
                     defaultValue={c.expectedStatus as number | undefined}
-                    placeholder="any 2xx"
+                    placeholder="Any 2xx"
                   />
                 </div>
                 <Field
                   id="mustContain"
-                  label="The page must say"
+                  label="Response must contain"
                   defaultValue={c.mustContain as string | undefined}
-                  placeholder="(optional)"
+                  placeholder="Optional"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <Field
                     id="intervalMinutes"
-                    label="Every (minutes)"
+                    label="Interval in minutes"
                     type="number"
                     min={1}
                     max={60}
@@ -200,7 +200,7 @@ export function MonitorForm({
                   />
                   <Field
                     id="timeoutSeconds"
-                    label="Timeout (seconds)"
+                    label="Timeout in seconds"
                     type="number"
                     min={1}
                     max={30}
@@ -215,7 +215,7 @@ export function MonitorForm({
                   label="Slug"
                   defaultValue={editing.slug}
                   disabled={!!editing.id}
-                  hint="What the job checks in with (monitorSlug). Empty: made from the name."
+                  hint="The monitorSlug the job checks in with. Leave it empty to derive it from the name."
                 />
                 <div className="grid gap-2">
                   <Label htmlFor="m-schedule">Schedule</Label>
@@ -225,7 +225,7 @@ export function MonitorForm({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="crontab">Crontab</SelectItem>
-                      <SelectItem value="interval">Every so often</SelectItem>
+                      <SelectItem value="interval">Interval</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -274,14 +274,14 @@ export function MonitorForm({
                 <div className="grid grid-cols-2 gap-3">
                   <Field
                     id="checkinMargin"
-                    label="Late after (minutes)"
+                    label="Grace period in minutes"
                     type="number"
                     min={1}
                     defaultValue={(c.checkinMargin as number) ?? 1}
                   />
                   <Field
                     id="maxRuntime"
-                    label="Runs at most (minutes)"
+                    label="Maximum runtime in minutes"
                     type="number"
                     min={1}
                     defaultValue={(c.maxRuntime as number) ?? 30}
@@ -293,14 +293,14 @@ export function MonitorForm({
               <Field id="environment" label="Environment" defaultValue={editing.environment ?? 'production'} />
               <Field
                 id="failure_threshold"
-                label="Fails in a row"
+                label="Failures before an incident"
                 type="number"
                 min={1}
                 defaultValue={editing.failure_threshold ?? (uptime ? 2 : 1)}
               />
               <Field
                 id="recovery_threshold"
-                label="Back after"
+                label="Successes to recover"
                 type="number"
                 min={1}
                 defaultValue={editing.recovery_threshold ?? 1}

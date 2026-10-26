@@ -45,3 +45,8 @@ export function MonitorStatus({ status }: { status: string }) {
     <span className={cn('rounded-md px-1.5 py-0.5 text-xs font-medium', style[status])}>{label[status] ?? status}</span>
   )
 }
+
+/** Why an incident opened, as a sentence: a cron run's outcome, or what the uptime check got */
+export const incidentReason = (reason: string) =>
+  ({ error: 'The run failed', missed: 'Missed its check-in', timeout: 'Ran longer than allowed' })[reason] ??
+  reason[0].toUpperCase() + reason.slice(1)

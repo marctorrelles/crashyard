@@ -13,7 +13,7 @@ import {
 } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { PageHeader, Shell } from '@/components/shell'
+import { Empty, PageHeader, Shell } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -63,7 +63,9 @@ function Notifications() {
   const [route, setRoute] = useState<NotifyRoute | 'new' | null>(null)
   return (
     <Shell crumbs={['Notifications']}>
-      <PageHeader title="Notifications">Channels are where a notification goes; routes say which go where.</PageHeader>
+      <PageHeader title="Notifications">
+        Channels are where alerts are delivered. Routes decide which alerts go to which channels.
+      </PageHeader>
 
       <section className="mb-8">
         <div className="mb-2 flex items-center justify-between">
@@ -74,9 +76,9 @@ function Notifications() {
           </Button>
         </div>
         {d.channels.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            None yet. A Telegram bot is the quickest: make one with @BotFather, write to it, add it here.
-          </p>
+          <Empty compact icon={IconBellRinging} title="No channels yet">
+            Nobody hears about a crash until you add one. A Telegram bot takes about a minute to set up.
+          </Empty>
         ) : (
           <ul className="divide-y rounded-xl border">
             {d.channels.map((c) => {
@@ -115,7 +117,7 @@ function Notifications() {
         </div>
         {d.routes.length === 0 ? (
           <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            {d.channels.length ? 'No routes: nothing is sent yet.' : 'Add a channel first.'}
+            {d.channels.length ? 'No routes yet, so no alerts are sent.' : 'Add a channel first, then a route to it.'}
           </p>
         ) : (
           <ul className="divide-y rounded-xl border">
@@ -161,12 +163,21 @@ const minutesOf = (value: string) => {
   return h * 60 + m
 }
 
+/** A list in prose: a, b and c */
+const and = (items: string[]) =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
+
 function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit: () => void }) {
   const project =
     r.project_id === null
       ? 'Every project'
       : (d.projects.find((p) => p.id === r.project_id)?.name ?? 'A deleted project')
-  const kinds = list<string>(r.kinds).map((k) => KINDS.find((x) => x.kind === k)?.label ?? k)
+  const thresholds = list<number>(r.thresholds)
+  const kinds = list<string>(r.kinds).map((k) =>
+    k === 'threshold' && thresholds.length
+      ? `${thresholds.length > 1 ? 'Thresholds' : 'Threshold'} of ${and(thresholds.map(String))} events`
+      : (KINDS.find((x) => x.kind === k)?.label ?? k),
+  )
   const channels = list<number>(r.channel_ids)
     .map((id) => d.channels.find((c) => c.id === id)?.name)
     .filter(Boolean)
@@ -180,9 +191,8 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
         </p>
         <p className="text-xs text-muted-foreground">
           {kinds.join(', ')}
-          {list<string>(r.kinds).includes('threshold') && ` at ${list<number>(r.thresholds).join(', ')}`}
           {' · '}
-          {envs.length ? envs.join(', ') : 'every environment'}
+          {envs.length ? and(envs) : 'all environments'}
           {levels.length > 0 && ` · ${levels.join(', ')}`}
         </p>
       </div>
@@ -217,7 +227,7 @@ function TestButton({
           if (x.ok) toast.success(`Sent to ${x.channel}`)
           else toast.error(`${x.channel}: ${x.error}`)
         }
-        if (!results.length) toast.error('No channel to send to')
+        if (!results.length) toast.error('There’s no channel to send to')
       }}
     >
       <IconBellRinging />
@@ -262,9 +272,9 @@ function ChannelDialog({
             const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>
             const token = kind === 'telegram' ? telegramToken(f.token) : null
             if (kind === 'telegram' && !token)
-              return toast.error('That isn’t a bot token: it looks like 123456789:AA…, in @BotFather’s message')
+              return toast.error('That isn’t a bot token. Copy the token from @BotFather, it looks like 123456789:AA…')
             if (kind === 'telegram' && !f.chat.trim())
-              return toast.error('Find the chat first: write to the bot, then Find')
+              return toast.error('Choose a chat first. Send your bot a message, then select Find.')
             const settings =
               kind === 'telegram'
                 ? { token, chat: f.chat.trim(), name: f.chatName || undefined }
@@ -284,13 +294,15 @@ function ChannelDialog({
               })
               await done()
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : 'Not saved')
+              toast.error(error instanceof Error ? error.message : 'Couldn’t save. Try again.')
             }
           }}
         >
           <DialogHeader>
             <DialogTitle>{channel ? 'Edit channel' : 'Add a channel'}</DialogTitle>
-            <DialogDescription>Shared by every project; routes pick which go here.</DialogDescription>
+            <DialogDescription>
+              Channels are shared by every project. Routes choose what reaches them.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2">
@@ -323,7 +335,7 @@ function ChannelDialog({
                 required
                 pattern="https://hooks\.slack\.com/.+"
                 placeholder="https://hooks.slack.com/services/…"
-                hint="In Slack: api.slack.com/apps → Create New App (from scratch) → Incoming Webhooks → on → Add New Webhook, pick the channel, copy its URL."
+                hint="In Slack, go to api.slack.com/apps and create an app from scratch. Turn on Incoming Webhooks, add a webhook for the channel and copy its URL."
               />
             )}
             {choice === 'discord' && (
@@ -335,7 +347,7 @@ function ChannelDialog({
                 required
                 pattern="https://(discord|discordapp)\.com/api/webhooks/.+"
                 placeholder="https://discord.com/api/webhooks/…"
-                hint="In Discord: the channel’s settings (the cog) → Integrations → Webhooks → New Webhook → Copy Webhook URL."
+                hint="In Discord, open the channel’s settings, then Integrations, Webhooks and New Webhook. Copy the webhook URL."
               />
             )}
             {choice === 'email' && !blocked && (
@@ -345,7 +357,7 @@ function ChannelDialog({
                 type="email"
                 defaultValue={config.to}
                 required
-                hint="It must be a verified destination in this domain’s Cloudflare Email Routing."
+                hint="The address must be a verified destination in Cloudflare Email Routing."
               />
             )}
             {choice === 'webhook' && (
@@ -355,13 +367,13 @@ function ChannelDialog({
                 type="url"
                 defaultValue={config.url}
                 required
-                hint="Each notice is POSTed to it as JSON: kind, project, issue, event and url."
+                hint="Each alert is sent as a JSON POST with its kind, project, issue, event and URL."
               />
             )}
             <div className={cn('grid gap-2', blocked && 'hidden')}>
               <Label className="flex items-center gap-2 font-normal">
                 <Checkbox checked={quiet} onCheckedChange={(c) => setQuiet(c === true)} />
-                Quiet hours: hold notifications, send them as one after
+                Quiet hours. Alerts are held, then sent together when they end.
               </Label>
               {quiet && (
                 <div className="flex items-center gap-2">
@@ -390,7 +402,7 @@ function ChannelDialog({
                 type="button"
                 variant="destructive"
                 onClick={async () => {
-                  if (!confirm(`Delete ${channel.name}? Routes stop sending to it.`)) return
+                  if (!confirm(`Delete ${channel.name}? Routes will stop sending to it.`)) return
                   await deleteChannel({ data: { id: channel.id } })
                   await done()
                 }}
@@ -417,8 +429,8 @@ function EmailSetup() {
     <div className="grid gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
       <p className="font-medium">Email isn’t set up on this crashyard, so it can’t send any yet.</p>
       <ol className="ml-4 list-decimal text-muted-foreground">
-        <li>In Cloudflare: your domain → Email → Email Routing, turn it on.</li>
-        <li>Destination addresses: add the address to notify, and confirm the email Cloudflare sends it.</li>
+        <li>In Cloudflare, open your domain’s Email Routing and turn it on.</li>
+        <li>Add the address to notify as a destination, and confirm the email Cloudflare sends to it.</li>
         <li>
           Set <code className="font-mono text-xs">EMAIL_FROM</code> (an address on the domain, it needn’t exist) in the
           worker’s variables, and deploy again.
@@ -437,11 +449,11 @@ function TelegramFields({ config }: { config: Record<string, string> }) {
   const find = async () => {
     try {
       const chats = await findTelegramChats({ data: { token } })
-      if (!chats.length) return toast.error('No messages yet: write to your bot in Telegram, then find again.')
+      if (!chats.length) return toast.error('The bot has no messages yet. Send it one in Telegram, then try again.')
       setFound(chats)
       setChat(chats[0])
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Telegram didn’t answer')
+      toast.error(error instanceof Error ? error.message : 'Telegram didn’t respond. Try again in a moment.')
     }
   }
   return (
@@ -453,7 +465,7 @@ function TelegramFields({ config }: { config: Record<string, string> }) {
         onChange={(e) => setToken(e.target.value)}
         required
         placeholder="123456789:AA…"
-        hint="In Telegram, @BotFather’s /newbot makes a bot and answers with its token: paste it, or its whole message. Then write anything to your bot."
+        hint="In Telegram, send /newbot to @BotFather. Paste the token it replies with, or the whole reply. Then send your new bot any message."
       />
       <div className="grid gap-2">
         <Label htmlFor="f-chat">Chat</Label>
@@ -492,7 +504,7 @@ function TelegramFields({ config }: { config: Record<string, string> }) {
         <p className="text-xs text-muted-foreground">
           {chat.name
             ? `Writes to ${chat.name}.`
-            : 'Find fills it in from the bot’s latest message; a chat id works too.'}
+            : 'Find picks the chat from the bot’s latest message. You can also type a chat ID.'}
         </p>
       </div>
     </>
@@ -516,11 +528,13 @@ function Field({
 
 function Checks<T extends string | number>({
   legend,
+  hint,
   options,
   value,
   onChange,
 }: {
   legend: string
+  hint?: string
   options: { value: T; label: string }[]
   value: T[]
   onChange: (v: T[]) => void
@@ -539,6 +553,7 @@ function Checks<T extends string | number>({
           </Label>
         ))}
       </div>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </fieldset>
   )
 }
@@ -575,7 +590,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
               .split(',')
               .map((s) => Number(s.trim()))
               .filter((n) => Number.isInteger(n) && n > 0)
-            if (!kinds.length || !channels.length) return toast.error('Pick at least one kind and one channel')
+            if (!kinds.length || !channels.length) return toast.error('Choose at least one alert and one channel')
             try {
               await saveRoute({
                 data: {
@@ -590,14 +605,14 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
               })
               await done()
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : 'Not saved')
+              toast.error(error instanceof Error ? error.message : 'Couldn’t save. Try again.')
             }
           }}
         >
           <DialogHeader>
             <DialogTitle>{route ? 'Edit route' : 'Add a route'}</DialogTitle>
             <DialogDescription>
-              Which notifications go to which channels. A channel hears of each once.
+              Choose which alerts go to which channels. A channel gets each alert once, whatever the route.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-5">
@@ -618,7 +633,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
               </Select>
             </div>
             <Checks
-              legend="When"
+              legend="Alerts"
               options={KINDS.map((k) => ({ value: k.kind, label: k.label }))}
               value={kinds}
               onChange={setKinds}
@@ -628,7 +643,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                 id="thresholds"
                 label="Thresholds"
                 defaultValue={route ? list<number>(route.thresholds).join(', ') : '10, 100, 1000'}
-                hint="Events in one issue, comma-separated."
+                hint="Alert when an issue reaches these event counts. Separate them with commas."
               />
             )}
             {!kinds.includes('threshold') && (
@@ -642,11 +657,12 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
               id="environments"
               label="Environments"
               defaultValue={route ? list<string>(route.environments).join(', ') : 'production'}
-              hint="Comma-separated; empty for every one."
+              hint="Separate them with commas. Leave empty for all environments."
             />
             <Checks
-              legend="Levels (none checked: every level)"
-              options={LEVELS.map((l) => ({ value: l, label: l }))}
+              legend="Levels"
+              hint="Leave all unchecked to include every level."
+              options={LEVELS.map((l) => ({ value: l, label: l[0].toUpperCase() + l.slice(1) }))}
               value={levels}
               onChange={setLevels}
             />
@@ -663,7 +679,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                 type="button"
                 variant="destructive"
                 onClick={async () => {
-                  if (!confirm('Delete this route?')) return
+                  if (!confirm('Delete this route? Its alerts will no longer be sent.')) return
                   await deleteRoute({ data: { id: route.id } })
                   await done()
                 }}

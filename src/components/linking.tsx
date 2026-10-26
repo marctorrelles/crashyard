@@ -7,9 +7,12 @@ import type { Platform } from '@/data/projects'
 
 const GUIDES: Record<Platform, { steps: string; code: (dsn: string) => string }[]> = {
   apple: [
-    { steps: 'Add sentry-cocoa with Swift Package Manager: https://github.com/getsentry/sentry-cocoa', code: () => '' },
     {
-      steps: 'Start it first thing, in your App’s init:',
+      steps: 'Add sentry-cocoa with Swift Package Manager from https://github.com/getsentry/sentry-cocoa.',
+      code: () => '',
+    },
+    {
+      steps: 'Start it first, in your app’s initializer:',
       code: (dsn) => `import Sentry
 
 SentrySDK.start { options in
@@ -27,7 +30,7 @@ SentrySDK.start { options in
       code: () => 'implementation("io.sentry:sentry-android:8.+")',
     },
     {
-      steps: 'And the DSN to AndroidManifest.xml, inside <application>:',
+      steps: 'Then add the DSN to AndroidManifest.xml, inside <application>:',
       code: (dsn) => `<meta-data android:name="io.sentry.dsn" android:value="${dsn}" />
 <meta-data android:name="io.sentry.send-default-pii" android:value="false" />`,
     },
@@ -84,7 +87,7 @@ export function Linking({
         </li>
       ))}
       <li className="grid min-w-0 gap-2">
-        <p className="text-sm">Then check it arrives: this sends a test message, which shows up under Issues.</p>
+        <p className="text-sm">To check the connection, send a test message. It appears under Issues.</p>
         <Code text={test} />
       </li>
     </ol>

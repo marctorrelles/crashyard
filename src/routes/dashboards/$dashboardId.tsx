@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, useNavigate, useRouter, Link } from '@tanstack/react-router'
-import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconChartBar, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
@@ -13,7 +13,12 @@ import type { Range } from '@/data/logs'
 import { deleteDashboard, getDashboard, saveDashboard } from '@/fns'
 
 // The same ranges as the logs page
-const RANGES: Record<Range, string> = { '1h': 'Last hour', '24h': 'Last day', '7d': 'Last week', '30d': 'Last 30 days' }
+const RANGES: Record<Range, string> = {
+  '1h': 'Last hour',
+  '24h': 'Last 24 hours',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+}
 type Search = { project?: string; range?: Range; edit?: boolean }
 
 export const Route = createFileRoute('/dashboards/$dashboardId')({
@@ -75,19 +80,19 @@ function Board() {
       await router.invalidate()
       done()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'The dashboard could not be saved')
+      toast.error(error instanceof Error ? error.message : 'The dashboard couldn’t be saved')
     } finally {
       setBusy(false)
     }
   }
   const remove = async () => {
-    if (!confirm(`Delete ${dashboard.name}? Its widgets go with it.`)) return
+    if (!confirm(`Delete ${dashboard.name} and all its widgets? This can’t be undone.`)) return
     setBusy(true)
     try {
       await deleteDashboard({ data: { id: dashboard.id } })
       await navigate({ to: '/dashboards', search: { project: search.project } })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'The dashboard could not be deleted')
+      toast.error(error instanceof Error ? error.message : 'The dashboard couldn’t be deleted')
       setBusy(false)
     }
   }
@@ -132,7 +137,11 @@ function Board() {
                 void navigate({ search: (s) => ({ ...s, range: v === '24h' ? undefined : (v as Range) }) })
               }
             >
-              <SelectTrigger className="w-40" aria-label="Time range" title={draft ? 'Save first' : undefined}>
+              <SelectTrigger
+                className="w-40"
+                aria-label="Time range"
+                title={draft ? 'Save or cancel your changes to change the range' : undefined}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
@@ -173,19 +182,24 @@ function Board() {
       </PageHeader>
 
       {widgets.length === 0 ? (
-        <Empty title="No widgets yet">
-          <p className="mb-4">Each is a search over issues, their events or logs, as a number, a chart or a table.</p>
-          {draft ? (
-            <Button onClick={() => setDialog({})}>
-              <IconPlus data-icon="inline-start" />
-              Add widget
-            </Button>
-          ) : (
-            <Button onClick={() => setDraft({ name: dashboard.name, widgets: [] })}>
-              <IconPencil data-icon="inline-start" />
-              Edit
-            </Button>
-          )}
+        <Empty
+          icon={IconChartBar}
+          title="An empty canvas"
+          action={
+            draft ? (
+              <Button onClick={() => setDialog({})}>
+                <IconPlus data-icon="inline-start" />
+                Add widget
+              </Button>
+            ) : (
+              <Button onClick={() => setDraft({ name: dashboard.name, widgets: [] })}>
+                <IconPencil data-icon="inline-start" />
+                Edit dashboard
+              </Button>
+            )
+          }
+        >
+          A widget searches issues, events or logs and shows the result as a number, a chart or a table.
         </Empty>
       ) : (
         <div className="grid gap-3 md:grid-cols-3">

@@ -34,14 +34,14 @@ describe('monitors', () => {
     expect(await check({ url: 'https://x', intervalMinutes: 1 }, answer(200))).toMatchObject({ ok: true, status: 200 })
     expect(await check({ url: 'https://x', intervalMinutes: 1 }, answer(503))).toMatchObject({
       ok: false,
-      error: 'answered 503',
+      error: 'returned HTTP 503',
     })
     expect(await check({ url: 'https://x', intervalMinutes: 1, expectedStatus: 401 }, answer(401))).toMatchObject({
       ok: true,
     })
     expect(await check({ url: 'https://x', intervalMinutes: 1, mustContain: 'catalog' }, answer(200))).toMatchObject({
       ok: false,
-      error: 'the page doesn’t say “catalog”',
+      error: 'the response didn’t contain “catalog”',
     })
     const never = ((_: string, init: RequestInit) =>
       new Promise((_, reject) =>

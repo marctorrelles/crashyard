@@ -27,7 +27,9 @@ export const Route = createFileRoute('/issues/$issueId')({
   head: ({ loaderData }) => ({ meta: [{ title: `${loaderData?.issue.title ?? 'Issue'} · crashyard` }] }),
   notFoundComponent: () => (
     <Shell crumbs={[<Link to="/issues">Issues</Link>, 'Not found']}>
-      <p className="text-muted-foreground">This issue doesn’t exist, or it was deleted or merged into another.</p>
+      <p className="text-muted-foreground">
+        This issue doesn’t exist. It may have been deleted, or merged into another issue.
+      </p>
     </Shell>
   ),
   component: IssuePage,
@@ -98,7 +100,7 @@ function IssuePage() {
                       search={{ query: `trace:${event.traceId}`, range: '30d' }}
                       className="ml-2 text-xs underline"
                     >
-                      Logs of this trace
+                      Logs in this trace
                     </Link>
                   )}
                 </div>
@@ -115,18 +117,18 @@ function IssuePage() {
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Its events are past the project’s retention; the counts stay.
+              This issue’s events are older than the project keeps. Its counts and history remain.
             </p>
           )}
           {d.feedback.length > 0 && (
             <section className="mt-8">
-              <h2 className="mb-2 text-sm font-medium">What people said</h2>
+              <h2 className="mb-2 text-sm font-medium">User feedback</h2>
               <ul className="grid gap-2">
                 {d.feedback.map((f) => (
                   <li key={f.id} className="rounded-xl border p-3 text-sm">
                     <p className="whitespace-pre-wrap">{f.message}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {f.name ?? 'Someone'} · <Ago at={f.at} now={now} />
+                      {f.name ?? 'Anonymous'} · <Ago at={f.at} now={now} />
                     </p>
                   </li>
                 ))}
@@ -275,8 +277,8 @@ function Events({ d, current }: { d: Data; current?: string }) {
 
 const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNode> = {
   created: (x) => `First seen${x.release ? ` in ${x.release}` : ''}`,
-  regressed: (x) => `Came back${x.release ? ` in ${x.release}` : ''}`,
-  ignore_expired: () => 'Ignore ended',
+  regressed: (x) => `Regressed${x.release ? ` in ${x.release}` : ''}`,
+  ignore_expired: () => 'Ignore period ended',
   resolved: (x) => (x.inRelease ? 'Resolved in the next release' : 'Resolved'),
   ignored: (x) =>
     x.forEvents ? (
@@ -289,7 +291,7 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
       'Ignored'
     ),
   reopened: () => 'Reopened',
-  merged: (x) => `Merged in ${(x.issues as { title: string }[]).map((i) => `“${i.title}”`).join(', ')}`,
+  merged: (x) => `Merged with ${(x.issues as { title: string }[]).map((i) => `“${i.title}”`).join(', ')}`,
   review_crash: () => 'Crashed in App Review or TestFlight',
 }
 

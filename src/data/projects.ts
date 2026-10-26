@@ -282,14 +282,14 @@ export async function weeklySummaries(db: D1Database, origin: string, now: numbe
           change === null
             ? ''
             : change === 0
-              ? ', as many as the week before'
-              : `, ${Math.abs(change)}% ${change > 0 ? 'more' : 'fewer'}`
+              ? ', the same as the week before'
+              : `, ${change > 0 ? 'up' : 'down'} ${Math.abs(change)}% on the week before`
         }`,
         culprit: [
           `${n} new issue${n === 1 ? '' : 's'}`,
-          t && `most: ${t.title.slice(0, 80)} (${t.n})`,
+          t && `Top issue: ${t.title.slice(0, 80)}, ${t.n} event${t.n === 1 ? '' : 's'}`,
           s?.started &&
-            `${(Math.floor((1 - s.crashed / s.started) * 1000) / 10).toFixed(1)}% crash-free in ${s.release}`,
+            `${(Math.floor((1 - s.crashed / s.started) * 1000) / 10).toFixed(1)}% crash-free sessions in ${s.release}`,
         ]
           .filter(Boolean)
           .join(' · '),

@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { IconApps } from '@tabler/icons-react'
+import { incidentReason } from '@/components/beats'
 import { Ago, count, Level, percent, Sparkline } from '@/components/bits'
 import { BarList, BigNumber, PALETTE, TimeChart } from '@/components/charts'
 import { NewProject, PLATFORM_NAMES } from '@/components/new-project'
@@ -38,23 +40,23 @@ function Home() {
       <PageHeader title="Overview" actions={projects.length > 0 && <NewProject variant="outline" />} />
       {update && (
         <p className="mb-4 rounded-xl border bg-muted/40 px-4 py-2.5 text-sm">
-          crashyard {update.version} is out (this is {update.current}):{' '}
+          crashyard {update.version} is available. You’re on {update.current}.{' '}
           <a href={update.url} className="font-medium underline underline-offset-2">
-            what&apos;s new
+            See what’s new
           </a>{' '}
-          ·{' '}
+          or{' '}
           <a
             href="https://github.com/marctorrelles/crashyard/blob/main/docs/upgrading.md"
             className="font-medium underline underline-offset-2"
           >
-            upgrading
+            how to upgrade
           </a>
+          .
         </p>
       )}
       {projects.length === 0 ? (
-        <Empty title="No projects yet">
-          <p className="mb-4">Make one for each app, then point its Sentry SDK at the DSN it gets.</p>
-          <NewProject />
+        <Empty icon={IconApps} title="No projects yet" action={<NewProject />}>
+          Create a project for each app, then give its Sentry SDK the DSN. Crashes start arriving on the next launch.
         </Empty>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,7 +78,7 @@ function Home() {
                     <dd className="text-lg font-semibold tabular-nums">{count(p.unresolved)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">Events, 24h</dt>
+                    <dt className="text-xs text-muted-foreground">Events in 24h</dt>
                     <dd className="text-lg font-semibold tabular-nums">{count(p.today)}</dd>
                   </div>
                 </dl>
@@ -91,8 +93,8 @@ function Home() {
           <div className="grid grid-cols-2 gap-3 rounded-xl border p-4 sm:grid-cols-4">
             <BigNumber label="Events yesterday" value={yesterday} change={change(yesterday, dayBefore)} />
             <BigNumber label="Unresolved" value={projects.reduce((a, p) => a + p.unresolved, 0)} />
-            <BigNumber label="New issues, 24h" value={charts.newRecent} />
-            <BigNumber label="Monitors failing" value={failing.length} />
+            <BigNumber label="New issues in 24h" value={charts.newRecent} />
+            <BigNumber label="Failing monitors" value={failing.length} />
           </div>
           <div className="grid gap-3 lg:grid-cols-2">
             <div className="rounded-xl border p-3 pb-1">
@@ -111,7 +113,7 @@ function Home() {
               />
             </div>
             <div className="rounded-xl border p-3 pb-1">
-              <h2 className="mb-2 text-sm font-medium">Issues new and resolved per day</h2>
+              <h2 className="mb-2 text-sm font-medium">New and resolved issues</h2>
               <TimeChart
                 x={charts.days}
                 stacked={false}
@@ -126,7 +128,7 @@ function Home() {
           </div>
           {charts.crashFree.length > 0 && (
             <div className="rounded-xl border p-4">
-              <h2 className="mb-2 text-sm font-medium">Crash-free sessions, the newest two releases</h2>
+              <h2 className="mb-2 text-sm font-medium">Crash-free sessions in the latest releases</h2>
               <BarList
                 items={charts.crashFree.map((c) => ({
                   value: project ? c.release : `${c.project} ${c.release}`,
@@ -141,7 +143,7 @@ function Home() {
       )}
       {failing.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-2 text-sm font-medium text-muted-foreground">Monitors failing</h2>
+          <h2 className="mb-2 text-sm font-medium text-muted-foreground">Failing monitors</h2>
           <ul className="divide-y rounded-xl border border-red-500/30">
             {failing.map((m) => (
               <li key={m.id}>
@@ -154,7 +156,7 @@ function Home() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{m.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {m.project} · {m.reason}
+                      {m.project} · {m.reason && incidentReason(m.reason)}
                     </p>
                   </div>
                   {m.since && <Ago at={m.since} now={now} className="text-xs text-muted-foreground" />}
@@ -166,7 +168,7 @@ function Home() {
       )}
       {newIssues.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-2 text-sm font-medium text-muted-foreground">New in the last day</h2>
+          <h2 className="mb-2 text-sm font-medium text-muted-foreground">New in the last 24 hours</h2>
           <ul className="divide-y rounded-xl border">
             {newIssues.map((i) => (
               <li key={i.id}>
@@ -179,7 +181,7 @@ function Home() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{i.title}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {i.project} · {i.culprit || 'no culprit'}
+                      {i.project} · {i.culprit || 'Unknown location'}
                     </p>
                   </div>
                   <div className="shrink-0 text-right text-xs text-muted-foreground">

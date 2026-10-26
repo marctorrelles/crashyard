@@ -32,30 +32,30 @@ function Release() {
       <div className="mb-6">
         <h2 className="font-mono text-lg font-semibold break-all">{d.release.release}</h2>
         <p className="text-sm text-muted-foreground">
-          {count(d.release.events)} events in {count(d.release.issues)} issues · first{' '}
+          {count(d.release.events)} events in {count(d.release.issues)} issues · first seen{' '}
           <Ago at={d.release.first} now={d.now} />
-          {d.previous && <> · against {d.previous}</>}
+          {d.previous && <> · compared with {d.previous}</>}
           {d.sessions && d.crashFree !== null && (
             <>
               {' '}
-              · {percent(d.crashFree)} crash-free sessions ({count(d.sessions.started)})
+              · {percent(d.crashFree)} crash-free across {count(d.sessions.started)} sessions
             </>
           )}
         </p>
       </div>
       <div className="grid gap-6 *:min-w-0">
         {d.commits.length > 0 && <Commits commits={d.commits} now={d.now} />}
-        <Group title="New in this release" issues={d.fresh} empty="Nothing new." />
-        <Group title="Came back" issues={d.regressed} empty="Nothing came back." />
+        <Group title="New in this release" issues={d.fresh} empty="No new issues. A clean release so far." />
+        <Group title="Regressed" issues={d.regressed} empty="Nothing resolved has come back." />
         {d.previous && (
           <Group
             title={`Gone since ${d.previous}`}
             issues={d.gone}
-            empty={`Everything seen in ${d.previous} still happens.`}
-            note="Seen in the release before, not in this one, so far"
+            empty={`Every issue from ${d.previous} still happens in this release.`}
+            note={`Issues seen in ${d.previous} that haven’t appeared in this release yet`}
           />
         )}
-        <Group title="Still happening" issues={d.ongoing} empty="Nothing else." />
+        <Group title="Still happening" issues={d.ongoing} empty="No other issues in this release." />
       </div>
     </Shell>
   )

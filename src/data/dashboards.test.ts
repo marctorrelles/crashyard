@@ -61,7 +61,7 @@ describe('readWidgets', () => {
     const read = readWidgets(JSON.stringify([widget, { ...widget, display: 'pie', title: 'Pie' }, other]))
     expect(read[0]).toEqual(widget)
     expect(read[2]).toEqual(other)
-    expect(read[1]).toMatchObject({ id: '00000000', title: 'Pie', invalid: expect.stringContaining('shown as') })
+    expect(read[1]).toMatchObject({ id: '00000000', title: 'Pie', invalid: expect.stringContaining('shows as') })
     // Its data is the reason, without a read
     expect(await widgetData({} as D1Database, read[1], undefined, { range: '24h' }, 0)).toEqual({
       kind: 'error',
@@ -71,9 +71,9 @@ describe('readWidgets', () => {
 
   it('opens text that is not JSON, or not a list, as one placeholder; a repeated id gets a free one', () => {
     expect(readWidgets('{oops')).toEqual([
-      expect.objectContaining({ title: 'A widget', invalid: 'the widgets aren’t JSON' }),
+      expect.objectContaining({ title: 'A widget', invalid: 'The widgets aren’t JSON.' }),
     ])
-    expect(readWidgets('{}')).toEqual([expect.objectContaining({ invalid: 'the widgets aren’t a list' })])
+    expect(readWidgets('{}')).toEqual([expect.objectContaining({ invalid: 'The widgets aren’t a list.' })])
     const twice = readWidgets(JSON.stringify([widget, widget]))
     expect(twice.map((w) => w.id)).toEqual([widget.id, '00000000'])
     expect(twice[1].invalid).toBeDefined()
@@ -81,7 +81,7 @@ describe('readWidgets', () => {
 
   it('saves no placeholder: it has to be removed or redone first', () => {
     const [placeholder] = readWidgets('{oops')
-    expect(() => parseWidgets([placeholder])).toThrow(/removed or redone/)
+    expect(() => parseWidgets([placeholder])).toThrow(/Remove or redo/)
   })
 })
 

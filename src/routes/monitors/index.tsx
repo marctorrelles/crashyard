@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { IconClock, IconPlus, IconWorld } from '@tabler/icons-react'
+import { IconClock, IconHeartbeat, IconPlus, IconWorld } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago } from '@/components/bits'
 import { Beats, MonitorStatus } from '@/components/beats'
@@ -27,22 +27,22 @@ function Monitors() {
             <>
               <Button variant="outline" onClick={() => setEditing({ kind: 'uptime' })}>
                 <IconPlus data-icon="inline-start" />
-                Uptime check
+                Add uptime check
               </Button>
               <Button variant="outline" onClick={() => setEditing({ kind: 'cron' })}>
                 <IconPlus data-icon="inline-start" />
-                Cron monitor
+                Add cron monitor
               </Button>
             </>
           )
         }
       >
-        Jobs that check in, and URLs crashyard checks.
+        Know when a site goes down or a scheduled job stops running.
       </PageHeader>
       {monitors.length === 0 ? (
-        <Empty title="No monitors yet">
-          Add an uptime check for a URL, or a cron monitor; jobs that check in with a monitor config appear by
-          themselves.
+        <Empty icon={IconHeartbeat} title="No monitors yet">
+          Add an uptime check to watch a URL, or a cron monitor for a scheduled job. Jobs that check in through the SDK
+          appear here on their own.
         </Empty>
       ) : (
         <ul className="divide-y rounded-xl border">

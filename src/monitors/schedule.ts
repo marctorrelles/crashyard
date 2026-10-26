@@ -27,11 +27,11 @@ function field(text: string, min: number, max: number): Set<number> | null {
   const values = new Set<number>()
   for (const part of text.split(',')) {
     const m = part.match(/^(\*|\d+)(?:-(\d+))?(?:\/(\d+))?$/)
-    if (!m) throw new Error(`can't read "${text}"`)
+    if (!m) throw new Error(`“${text}” isn’t a valid crontab value.`)
     const step = m[3] ? Number(m[3]) : 1
     const from = m[1] === '*' ? min : Number(m[1])
     const to = m[1] === '*' ? max : m[2] ? Number(m[2]) : m[3] ? max : from
-    if (from < min || to > max || from > to || step < 1) throw new Error(`"${text}" is out of range`)
+    if (from < min || to > max || from > to || step < 1) throw new Error(`“${text}” is out of range.`)
     for (let v = from; v <= to; v += step) values.add(v)
   }
   return values
@@ -49,7 +49,8 @@ export type Crontab = {
 
 export function parseCrontab(text: string): Crontab {
   const parts = (ALIASES[text.trim()] ?? text).trim().split(/\s+/)
-  if (parts.length !== 5) throw new Error('a crontab has five fields: minute hour day month weekday')
+  if (parts.length !== 5)
+    throw new Error('A crontab needs five fields: minute, hour, day of month, month and day of week.')
   const weekdays = field(parts[4], 0, 7)!
   if (weekdays.has(7)) weekdays.add(0)
   return {
@@ -110,7 +111,7 @@ export function nextCrontab(cron: Crontab, after: number, timeZone = 'UTC'): num
     else if (!cron.minutes.has(p.minute)) t += MINUTE
     else return t
   }
-  throw new Error('this crontab never runs')
+  throw new Error('This crontab never runs.')
 }
 
 /** When the next run is due after one at (or the check-in at) `after` */

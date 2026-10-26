@@ -61,5 +61,9 @@ Where things are:
   gets its own AGENTS.md, with a CLAUDE.md of `@AGENTS.md` beside it, and a line under "Where things are" here.
 - **Tests are fast:** pure functions with fixtures; the few that run the worker keep under 30 seconds together.
 - **Dependencies are few** and MIT-compatible; say why in the commit that adds one.
+- **Writing:** what the app says reads like a careful product team wrote it: plain sentences in sentence case, no
+  parentheses or semicolons, buttons that say what they do ("Create token", not "Make a token"), errors that say
+  what happened and what to do. An empty state names what's missing, adds one line of light humour or reassurance at
+  most, and says how it fills. Meta rows of values may join them with " · ".
 - **UI:** shadcn/ui components, light and dark following the system, usable on a phone. Look at every UI change in
   light and dark, on a phone and a desktop.

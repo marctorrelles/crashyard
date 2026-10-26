@@ -13,7 +13,7 @@ export function EventView({ event, links = {} }: { event: NormalizedEvent; links
     <div className="grid gap-6">
       {event.missingDebugFiles?.length ? (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-          <p className="font-medium">Some frames are addresses: their debug files weren’t uploaded.</p>
+          <p className="font-medium">Some frames show only memory addresses because their debug files are missing.</p>
           <ul className="mt-1 grid gap-0.5 text-xs">
             {event.missingDebugFiles.map((m) => (
               <li key={m.debugId} className="font-mono break-all">
@@ -22,7 +22,7 @@ export function EventView({ event, links = {} }: { event: NormalizedEvent; links
             ))}
           </ul>
           <p className="mt-1 text-xs text-muted-foreground">
-            Upload them (the project’s settings say how), and this event is read again.
+            Upload the files below from the project’s settings. This event is then processed again automatically.
           </p>
         </div>
       ) : null}
@@ -98,7 +98,7 @@ function Exception({ exception: e, link }: { exception: ExceptionValue; link: (f
             className="text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setAll(!all)}
           >
-            {all ? 'Only my code' : 'Every frame'}
+            {all ? 'App frames only' : 'Show all frames'}
           </button>
         )
       }
@@ -120,7 +120,7 @@ function Exception({ exception: e, link }: { exception: ExceptionValue; link: (f
         </div>
       )}
       {frames.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No stack trace came with it.</p>
+        <p className="text-sm text-muted-foreground">This event came without a stack trace.</p>
       ) : (
         <ol className="divide-y overflow-hidden rounded-xl border">
           {groups.map((g, i) =>
@@ -146,7 +146,7 @@ function FoldedFrames({ frames }: { frames: Linked[] }) {
         className="w-full bg-muted/30 px-3 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
         onClick={() => setOpen(true)}
       >
-        {frames.length} frame{frames.length === 1 ? '' : 's'} of other code
+        {frames.length} system or library frame{frames.length === 1 ? '' : 's'}
       </button>
     </li>
   )
@@ -183,7 +183,7 @@ function FrameRow({ frame: f, open }: { frame: Linked; open?: boolean }) {
       )}
       {f.package && <span className="text-xs text-muted-foreground">in {basename(f.package)}</span>}
       {!f.function && f.instructionAddr && (
-        <span className="text-xs text-amber-600 dark:text-amber-400">not symbolicated</span>
+        <span className="text-xs text-amber-600 dark:text-amber-400">Not symbolicated</span>
       )}
     </span>
   )
@@ -245,7 +245,7 @@ function Breadcrumbs({ crumbs }: { crumbs: Breadcrumb[] }) {
             className="text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setAll(!all)}
           >
-            {all ? 'Fewer' : `All ${crumbs.length}`}
+            {all ? 'Show fewer' : `Show all ${crumbs.length}`}
           </button>
         )
       }

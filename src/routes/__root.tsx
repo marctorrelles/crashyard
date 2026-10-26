@@ -31,20 +31,26 @@ export const Route = createRootRoute({
   ),
   errorComponent: ({ error }) => (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-xl font-semibold">Something broke</h1>
+      <h1 className="text-xl font-semibold">Something went wrong</h1>
       <p className="mt-1 text-muted-foreground">{error instanceof Error ? error.message : String(error)}</p>
+      <p className="mt-3 text-sm">
+        Reload the page to try again, or{' '}
+        <a href="/" className="font-medium underline underline-offset-2">
+          go back to the overview
+        </a>
+        .
+      </p>
       {import.meta.env.DEV && error instanceof Error && <pre className="mt-4 overflow-auto text-xs">{error.stack}</pre>}
     </main>
   ),
   notFoundComponent: () => (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-xl font-semibold">Not here</h1>
+      <h1 className="text-xl font-semibold">Page not found</h1>
       <p className="mt-1 text-muted-foreground">
-        Nothing lives at this address.{' '}
-        <a href="/" className="underline">
-          Go home
+        This page doesn’t exist, or it moved without leaving a forwarding address.{' '}
+        <a href="/" className="font-medium text-foreground underline underline-offset-2">
+          Back to the overview
         </a>
-        .
       </p>
     </main>
   ),

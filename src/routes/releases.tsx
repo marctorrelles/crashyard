@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { IconTag } from '@tabler/icons-react'
 import { Ago, count, percent } from '@/components/bits'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { getReleases } from '@/fns'
@@ -28,7 +29,9 @@ function Releases() {
     <Shell crumbs={name ? [<Link to="/releases">Releases</Link>, name] : ['Releases']}>
       <PageHeader title="Releases">{name}</PageHeader>
       {shown.length === 0 && (
-        <Empty title="No releases yet">Events that name a release (the SDKs' `release` option) show up here.</Empty>
+        <Empty icon={IconTag} title="No releases yet">
+          Releases appear once events name one. Most SDKs set the release for you. Otherwise, set the release option.
+        </Empty>
       )}
       <div className="grid gap-8">
         {shown.map(({ project: p, releases }) => (
@@ -45,7 +48,7 @@ function Releases() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-mono text-sm font-medium">{r.release}</p>
                       <p className="text-xs text-muted-foreground">
-                        first <Ago at={r.first} now={now} /> · last <Ago at={r.last} now={now} />
+                        First seen <Ago at={r.first} now={now} /> · last seen <Ago at={r.last} now={now} />
                       </p>
                     </div>
                     <div className="text-right text-sm tabular-nums">

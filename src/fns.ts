@@ -88,7 +88,7 @@ export const createProject = createServerFn({ method: 'POST' })
     return { name: text(o.name, 80).trim(), platform: oneOf(projects.PLATFORMS)(o.platform) }
   })
   .handler(({ data }) => {
-    if (!data.name) throw new Error('a project needs a name')
+    if (!data.name) throw new Error('Give the project a name.')
     return projects.createProject(env.DB, data.name, data.platform, Date.now())
   })
 
@@ -333,7 +333,7 @@ export const saveChannel = createServerFn({ method: 'POST' })
 export const findTelegramChats = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const token = telegramToken(text(object(d).token, 500))
-    if (!token) throw new Error('That isn’t a bot token: it looks like 123456789:AA…, in @BotFather’s message')
+    if (!token) throw new Error('That isn’t a bot token. Copy the token from @BotFather, it looks like 123456789:AA…')
     return { token }
   })
   .handler(({ data }) => telegramChats(data.token))
@@ -530,7 +530,7 @@ export const saveDashboard = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
     const name = text(o.name, 80).trim()
-    if (!name) throw new Error('a dashboard needs a name')
+    if (!name) throw new Error('Give the dashboard a name.')
     return { id: optional((v) => int(v))(o.id), name, widgets: dashboards.parseWidgets(o.widgets) }
   })
   .handler(({ data }) => dashboards.saveDashboard(env.DB, data, viewer(), Date.now()))
@@ -562,7 +562,7 @@ export const getMonitor = createServerFn()
 
 const httpUrl = (v: unknown) => {
   const u = new URL(text(v, 2000))
-  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('an http(s) URL')
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('The URL must start with http:// or https://.')
   return u.toString()
 }
 export const saveMonitor = createServerFn({ method: 'POST' })

@@ -229,7 +229,7 @@ export async function mergeIssues(db: D1Database, ids: number[], by: string, now
   const target = all.find((i) => i.id === into)
   const from = all.filter((i) => i.id !== into)
   if (!target || from.some((i) => i.project_id !== target.project_id))
-    throw new Error('only issues of one project merge')
+    throw new Error('Only issues from the same project can be merged.')
   const m = marks(from.length)
   const fromIds = from.map((i) => i.id)
   await db.batch([

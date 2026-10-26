@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
+import { IconGauge } from '@tabler/icons-react'
 import { count, Sparkline } from '@/components/bits'
 import { ms, Period } from '@/components/performance'
 import { Empty, PageHeader, Shell } from '@/components/shell'
@@ -42,9 +43,9 @@ function Performance() {
         {name}
       </PageHeader>
       {shown.length === 0 && (
-        <Empty title="No transactions yet">
-          Set the SDK&apos;s <code>tracesSampleRate</code> (0.1 is plenty) and each sampled screen load, request or job
-          shows up here by name, slowest first.
+        <Empty icon={IconGauge} title="No transactions yet">
+          Turn on tracing in the SDK with <code>tracesSampleRate</code>. A rate of 0.1 is plenty. Screen loads, requests
+          and jobs then appear here, slowest first.
         </Empty>
       )}
       <div className="grid gap-8">
@@ -53,8 +54,8 @@ function Performance() {
             {!project && <h2 className="mb-2 text-sm font-medium text-muted-foreground">{d.project.name}</h2>}
             {d.latest && d.previous && (
               <p className="mb-3 text-sm text-muted-foreground">
-                Change: p95 in <span className="font-mono">{d.latest}</span> against{' '}
-                <span className="font-mono">{d.previous}</span>
+                Change in p95 from <span className="font-mono">{d.previous}</span> to{' '}
+                <span className="font-mono">{d.latest}</span>
               </p>
             )}
             <Transactions slug={d.project.slug} transactions={d.transactions} days={days} />

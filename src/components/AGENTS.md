@@ -12,7 +12,8 @@
   pages whatever's picked, Overview, Dashboards, Issues, Releases, Performance, Logs, Monitors, Notifications, and at
   the foot who's signed in with Sign out, Access's `/cdn-cgi/access/logout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
-  `wide` for lists), `PageHeader`, `Empty`, `useProjects`. The lists (overview, dashboards, issues, releases, performance, logs)
+  `wide` for lists), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
+  section), `useProjects`. The lists (overview, dashboards, issues, releases, performance, logs)
   take the filter as `?project=` (on a dashboard, picking a project keeps it and its range); the project shown comes
   from that, `/projects/$slug` or an issue's own; pages of no project keep the one last picked (cookie
   `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The filter's menu also has the

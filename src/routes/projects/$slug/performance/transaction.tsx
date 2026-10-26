@@ -53,11 +53,12 @@ function Transaction() {
       </PageHeader>
       <h2 className="mb-1 font-mono text-base font-semibold break-all">{search.name}</h2>
       <p className="mb-5 text-sm text-muted-foreground">
-        {count(total)} in this period{errors > 0 && <> · {count(errors)} failed</>}
+        {count(total)} transactions in this period{errors > 0 && <> · {count(errors)} failed</>}
       </p>
       <section className="mb-6 rounded-xl border p-3 pb-1" aria-label="p95 and count per hour">
         <p className="mb-2 text-sm text-muted-foreground">
-          p95 per hour (the line, left) and how many (the bars, right)
+          The line is the p95 duration per hour, on the left axis. The bars are the number of transactions, on the
+          right.
         </p>
         <TimeChart
           x={d.series.map((s) => s.hour)}
@@ -72,7 +73,7 @@ function Transaction() {
             },
             {
               key: 'p95',
-              label: 'p95, ms',
+              label: 'p95 in ms',
               values: d.series.map((s) => s.p95),
               kind: 'line',
               color: 'var(--foreground)',
@@ -100,7 +101,7 @@ function Transaction() {
       <section>
         <h3 className="mb-2 text-sm font-medium">Slowest</h3>
         {d.examples.length === 0 ? (
-          <p className="text-sm text-muted-foreground">None kept in this period: examples are kept 30 days.</p>
+          <p className="text-sm text-muted-foreground">No examples in this period. Examples are kept for 30 days.</p>
         ) : (
           <ul className="divide-y rounded-xl border">
             {d.examples.map((e) => (
@@ -122,14 +123,14 @@ function Transaction() {
                           search={{ query: `trace:${e.trace_id}`, range: '30d' }}
                           className="underline-offset-2 hover:underline"
                         >
-                          Logs of this trace
+                          Logs in this trace
                         </Link>
                         <Link
                           to="/issues"
                           search={{ query: `trace:${e.trace_id}` }}
                           className="underline-offset-2 hover:underline"
                         >
-                          Issues of this trace
+                          Issues in this trace
                         </Link>
                       </p>
                     )}

@@ -70,7 +70,7 @@ with Sentry's own tools: sentry-cli, the Xcode build phase, the Gradle plugin, `
 export SENTRY_URL=https://crashyard.example.com/
 export SENTRY_ORG=crashyard            # any name: a deployment is one organisation
 export SENTRY_PROJECT=<project slug>
-export SENTRY_AUTH_TOKEN=<a token>     # made in the project's settings, under Readable stacks
+export SENTRY_AUTH_TOKEN=<a token>     # created in the project's settings, under Symbols and source maps
 ```
 
 - Apple: `sentry-cli debug-files upload --include-sources path/to/dSYMs` after archiving.

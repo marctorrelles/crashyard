@@ -1,5 +1,14 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from '@tanstack/react-router'
-import { IconChevronRight, IconMinus, IconPlayerPause, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
+import {
+  IconChevronRight,
+  IconLogs,
+  IconMinus,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconPlus,
+  IconSearch,
+  IconX,
+} from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
 import { count } from '@/components/bits'
 import { BarList, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
@@ -23,7 +32,7 @@ import { getLogChart, getLogGroups, getLogs, getSuggestions } from '@/fns'
 import { cn } from '@/lib/utils'
 import { addValue, isSearchableKey, logAttributeKey } from '@/search/query'
 
-const RANGES = { '1h': 'Last hour', '24h': 'Last day', '7d': 'Last week', '30d': 'Last 30 days' } as const
+const RANGES = { '1h': 'Last hour', '24h': 'Last 24 hours', '7d': 'Last 7 days', '30d': 'Last 30 days' } as const
 type Range = keyof typeof RANGES
 // `from` and `to` (ms, a drag on the chart) stand in for `range` while they're set; `range` stays for Reset
 type Search = { project?: string; query?: string; range?: Range; from?: number; to?: number; groupBy?: string }
@@ -159,7 +168,7 @@ function Logs() {
           onClick={() => setLive(!live)}
           aria-pressed={live}
           disabled={custom}
-          title={custom ? 'Live follows the newest logs: reset the time first' : undefined}
+          title={custom ? 'Reset the time range to follow new logs live' : undefined}
         >
           {live ? <IconPlayerPause data-icon="inline-start" /> : <IconPlayerPlay data-icon="inline-start" />}
           Live
@@ -179,7 +188,7 @@ function Logs() {
                 {'range' in params ? PERIODS[params.range] : spanText(chart.to - chart.from)} before
               </span>
             )}
-            <span className="pointer-coarse:hidden"> · drag across to zoom in</span>
+            <span className="pointer-coarse:hidden"> · drag across the chart to zoom in</span>
           </span>
         </p>
         <TimeChart
@@ -225,7 +234,7 @@ function Logs() {
 }
 
 // What a group's value reads as: a missing release or environment is none, the rest beyond the top is other
-const groupLabel = (value: string | null) => (value === null ? 'Other' : value === '' ? '(none)' : value)
+const groupLabel = (value: string | null) => (value === null ? 'Other' : value === '' ? 'None' : value)
 
 /** The chart's view: logs by level (with the span before as a dashed line), or by the group-by's groups */
 function chartOf(
@@ -293,7 +302,7 @@ function GroupBy({
       </SelectTrigger>
       <SelectContent align="end">
         <SelectGroup>
-          <SelectItem value="none">nothing</SelectItem>
+          <SelectItem value="none">Nothing</SelectItem>
           {columns.map((c) => (
             <SelectItem key={c} value={c}>
               {c}
@@ -486,11 +495,15 @@ function LogStream({
   return (
     <>
       {logs.length === 0 ? (
-        <Empty title="No logs">
-          {params.query || 'from' in params
-            ? 'Nothing matches in this time range.'
-            : 'Logs sent with Sentry.logger show up here.'}
-        </Empty>
+        params.query || 'from' in params ? (
+          <Empty icon={IconSearch} title="No logs match">
+            Nothing in this time range fits the search. Try fewer terms or a wider range.
+          </Empty>
+        ) : (
+          <Empty icon={IconLogs} title="No logs yet">
+            Quiet in here. Send logs with <code>Sentry.logger</code> and they appear as they arrive.
+          </Empty>
+        )
       ) : (
         <ol className="divide-y overflow-hidden rounded-xl border font-mono text-xs">
           {logs.map((l) => (
@@ -611,10 +624,10 @@ function LogLine({ log: l, showProject, onPick }: { log: Log; showProject: boole
           {l.trace_id && (
             <p className="flex flex-wrap gap-3 font-sans">
               <Link to="/logs" search={{ query: `trace:${l.trace_id}`, range: '30d' }} className="underline">
-                Logs of this trace
+                Logs in this trace
               </Link>
               <Link to="/issues" search={{ query: `trace:${l.trace_id}` }} className="underline">
-                Its issues
+                Issues in this trace
               </Link>
             </p>
           )}

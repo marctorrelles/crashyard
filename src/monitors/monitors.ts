@@ -64,7 +64,11 @@ export function dueAfter(config: CronConfig, at: number) {
   return nextRun(config.schedule, at, config.timezone) + (config.checkinMargin ?? 1) * MINUTE
 }
 
-const REASONS: Record<string, string> = { error: 'failed', missed: 'missed its check-in', timeout: 'ran too long' }
+const REASONS: Record<string, string> = {
+  error: 'failed',
+  missed: 'missed its check-in',
+  timeout: 'ran longer than allowed',
+}
 
 /** Writes a result's effect on the monitor; returns the notice to send, if an incident opened or closed */
 async function apply(
@@ -110,8 +114,8 @@ async function apply(
       title:
         next.change === 'down'
           ? `${monitor.name} ${REASONS[reason] ? REASONS[reason] : 'is down'}`
-          : `${monitor.name} is back`,
-      culprit: reason,
+          : `${monitor.name} recovered`,
+      culprit: REASONS[reason] ? REASONS[reason][0].toUpperCase() + REASONS[reason].slice(1) : reason,
       level: next.change === 'down' ? 'error' : 'info',
       count: next.failures,
     },
@@ -242,10 +246,10 @@ export async function check(config: UptimeConfig, fetcher: typeof fetch = fetch)
     })
     const ms = Date.now() - started
     const statusOk = config.expectedStatus ? response.status === config.expectedStatus : response.ok
-    let error = statusOk ? undefined : `answered ${response.status}`
+    let error = statusOk ? undefined : `returned HTTP ${response.status}`
     if (statusOk && config.mustContain) {
       const body = (await response.text()).slice(0, 1024 * 1024)
-      if (!body.includes(config.mustContain)) error = `the page doesn’t say “${config.mustContain}”`
+      if (!body.includes(config.mustContain)) error = `the response didn’t contain “${config.mustContain}”`
     } else {
       await response.body?.cancel()
     }
@@ -256,7 +260,7 @@ export async function check(config: UptimeConfig, fetcher: typeof fetch = fetch)
       ok: false,
       status: null,
       ms: Date.now() - started,
-      error: timedOut ? 'timed out' : `didn’t answer (${e instanceof Error ? e.message : e})`,
+      error: timedOut ? 'timed out' : `didn’t respond: ${e instanceof Error ? e.message : e}`,
     }
   }
 }

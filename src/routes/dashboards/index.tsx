@@ -46,7 +46,7 @@ function Dashboards() {
         search: { project, edit: edit || undefined },
       })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'The dashboard could not be made')
+      toast.error(error instanceof Error ? error.message : 'The dashboard couldn’t be created')
     } finally {
       setBusy(false)
     }
@@ -59,21 +59,24 @@ function Dashboards() {
           dashboards.length > 0 && <NewDashboard busy={busy} onCreate={(name) => create({ name, widgets: [] }, true)} />
         }
       >
-        Widgets over issues, their events and logs, shared by everyone signed in.
+        Charts and numbers built from issues, events and logs. Everyone on the team sees the same dashboards.
       </PageHeader>
       {dashboards.length === 0 ? (
-        <Empty title="No dashboards yet">
-          <p className="mb-4">
-            Start with Crashes: events in the range, events by level, the top unresolved issues and log errors by
-            release. Change it as you like.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button disabled={busy} onClick={() => create(STARTER, false)}>
-              <IconLayoutDashboard data-icon="inline-start" />
-              Start with Crashes
-            </Button>
-            <NewDashboard variant="outline" busy={busy} onCreate={(name) => create({ name, widgets: [] }, true)} />
-          </div>
+        <Empty
+          icon={IconLayoutDashboard}
+          title="No dashboards yet"
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button disabled={busy} onClick={() => create(STARTER, false)}>
+                <IconLayoutDashboard data-icon="inline-start" />
+                Use the Crashes template
+              </Button>
+              <NewDashboard variant="outline" busy={busy} onCreate={(name) => create({ name, widgets: [] }, true)} />
+            </div>
+          }
+        >
+          The Crashes template shows events over time, events by level, the top unresolved issues and log errors by
+          release. You can change all of it.
         </Empty>
       ) : (
         <ul className="divide-y rounded-xl border">
@@ -90,7 +93,7 @@ function Dashboards() {
                   <p className="truncate text-sm font-medium">{d.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {d.widgets === null
-                      ? 'Widgets that can’t be read'
+                      ? 'Some widgets can’t be read'
                       : `${d.widgets} ${d.widgets === 1 ? 'widget' : 'widgets'}`}{' '}
                     · {d.updated_by}
                   </p>
@@ -134,7 +137,7 @@ function NewDashboard({
         >
           <DialogHeader>
             <DialogTitle>New dashboard</DialogTitle>
-            <DialogDescription>Give it a name, then add its widgets.</DialogDescription>
+            <DialogDescription>Name it, then add widgets.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             <Label htmlFor="dashboard-name">Name</Label>

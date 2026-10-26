@@ -200,7 +200,7 @@ export async function checkSlowerReleases(db: D1Database, origin: string, now: n
         issue: {
           id: 0,
           title: `${name} is slower in ${latest}`,
-          culprit: `p95 ${p} ms, was ${before} ms in ${previous}`,
+          culprit: `p95 is ${p} ms, up from ${before} ms in ${previous}`,
           level: 'warning',
           count: n(now95),
         },

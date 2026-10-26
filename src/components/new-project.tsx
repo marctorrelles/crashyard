@@ -19,10 +19,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { createProject } from '@/fns'
 
 export const PLATFORM_NAMES = {
-  apple: 'Apple (Swift)',
-  android: 'Android (Kotlin)',
-  javascript: 'Browser (JavaScript)',
-  node: 'Node',
+  apple: 'Apple',
+  android: 'Android',
+  javascript: 'Browser',
+  node: 'Node.js',
   other: 'Other',
 } as const
 
@@ -51,7 +51,7 @@ export function NewProject({ variant = 'default' }: { variant?: 'default' | 'out
               setOpen(false)
               await navigate({ to: '/projects/$slug/settings', params: { slug: project.slug } })
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : 'The project could not be made')
+              toast.error(error instanceof Error ? error.message : 'The project couldn’t be created')
             } finally {
               setBusy(false)
             }
@@ -59,7 +59,7 @@ export function NewProject({ variant = 'default' }: { variant?: 'default' | 'out
         >
           <DialogHeader>
             <DialogTitle>New project</DialogTitle>
-            <DialogDescription>One per app. Its page shows the DSN to put in the app.</DialogDescription>
+            <DialogDescription>Create one project per app. You get a DSN to add to the app next.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             <Label htmlFor="project-name">Name</Label>

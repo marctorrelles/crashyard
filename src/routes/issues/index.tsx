@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { IconConfetti, IconSearch } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago, count, Level, Sparkline } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
@@ -85,7 +86,9 @@ function Issues() {
             <span className="text-muted-foreground">
               events in {chart.days.length} days
               {chart.previous.some(Boolean) && (
-                <span className="max-sm:hidden">, {count(chart.previous.reduce((a, b) => a + b, 0))} before</span>
+                <span className="max-sm:hidden">
+                  , {count(chart.previous.reduce((a, b) => a + b, 0))} in the period before
+                </span>
               )}
             </span>
           </p>
@@ -160,11 +163,16 @@ function Issues() {
         </div>
       )}
       {issues.length === 0 ? (
-        <Empty title={query === DEFAULT_QUERY ? 'Nothing unresolved' : 'No issues match'}>
-          {query === DEFAULT_QUERY
-            ? 'Crashes and errors your apps send show up here.'
-            : 'Try fewer words, or another status.'}
-        </Empty>
+        query === DEFAULT_QUERY ? (
+          <Empty icon={IconConfetti} title="Nothing unresolved">
+            Not a single open issue. Enjoy it while it lasts: new crashes and errors land here the moment an app sends
+            them.
+          </Empty>
+        ) : (
+          <Empty icon={IconSearch} title="No issues match">
+            Try fewer terms, a longer period or another status.
+          </Empty>
+        )
       ) : (
         <ul className="divide-y rounded-xl border">
           <li className="flex items-center gap-3 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
@@ -221,7 +229,7 @@ function Issues() {
                   )}
                   {i.culprit && <span className="max-w-full truncate font-mono text-[0.7rem]">{i.culprit}</span>}
                   <span>
-                    <Ago at={i.last_seen} now={now} /> · first <Ago at={i.first_seen} now={now} />
+                    <Ago at={i.last_seen} now={now} /> · first seen <Ago at={i.first_seen} now={now} />
                   </span>
                   {i.status === 'unresolved' && i.substatus === 'new' && i.first_seen > now - NEW_FOR && (
                     <Badge variant="secondary">New</Badge>

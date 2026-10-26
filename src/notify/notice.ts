@@ -16,10 +16,10 @@ export const KINDS: { kind: NoticeKind; label: string }[] = [
   { kind: 'new', label: 'New issue' },
   { kind: 'threshold', label: 'Threshold reached' },
   { kind: 'regression', label: 'Regression' },
-  { kind: 'ignore_expired', label: 'Ignore expired' },
+  { kind: 'ignore_expired', label: 'Ignore period ended' },
   { kind: 'review_crash', label: 'App Review or TestFlight crash' },
-  { kind: 'monitor_down', label: 'Monitor failing' },
-  { kind: 'monitor_up', label: 'Monitor back' },
+  { kind: 'monitor_down', label: 'Monitor down' },
+  { kind: 'monitor_up', label: 'Monitor recovered' },
   { kind: 'slower_release', label: 'Slower release' },
   { kind: 'weekly', label: 'Weekly summary' },
 ]
@@ -86,20 +86,20 @@ export const channelIds = (route: Route) =>
 export function noticeLine(notice: Notice): string {
   const what =
     notice.kind === 'new'
-      ? 'new'
+      ? 'New issue'
       : notice.kind === 'threshold'
-        ? `now ${notice.threshold}`
+        ? `Reached ${notice.threshold} events`
         : notice.kind === 'regression'
-          ? `back${notice.event.release ? ` in ${notice.event.release}` : ''}`
+          ? `Regressed${notice.event.release ? ` in ${notice.event.release}` : ''}`
           : notice.kind === 'ignore_expired'
-            ? 'ignore ended'
+            ? 'Ignore period ended'
             : notice.kind === 'monitor_down'
               ? notice.issue.culprit
               : notice.kind === 'monitor_up'
-                ? 'back'
+                ? 'Recovered'
                 : notice.kind === 'slower_release' || notice.kind === 'weekly'
                   ? notice.issue.culprit
-                  : 'App Review crash'
+                  : 'Crashed in App Review'
   return [notice.project.name, notice.event.release, notice.event.device ?? notice.event.os, what]
     .filter(Boolean)
     .join(' · ')

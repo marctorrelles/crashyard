@@ -50,7 +50,7 @@ describe('channels', () => {
     expect(request.url).toBe('https://api.telegram.org/bot1:abc/sendMessage')
     expect(await request.json()).toMatchObject({
       chat_id: '42',
-      text: '<b>a &lt; b &amp; c</b>\npocketband · 1.0 (10) · iPad13,1 · new',
+      text: '<b>a &lt; b &amp; c</b>\npocketband · 1.0 (10) · iPad13,1 · New issue',
       parse_mode: 'HTML',
       disable_notification: false,
       reply_markup: { inline_keyboard: [[{ text: 'Open in crashyard', url: notice().url }]] },

@@ -49,7 +49,10 @@ function Settings() {
     >
       <PageHeader title="Settings">{project.name}</PageHeader>
       <div className="grid gap-5">
-        <Card title="Link an app" description="Its Sentry SDK sends here once it has this DSN.">
+        <Card
+          title="Connect an app"
+          description="Give the app’s Sentry SDK this DSN and its events start arriving here."
+        >
           <div className="mb-5 grid min-w-0 gap-2">
             <Label>DSN</Label>
             <Code text={dsn} />
@@ -58,8 +61,8 @@ function Settings() {
         </Card>
 
         <Card
-          title="Readable stacks"
-          description="Upload debug files and source maps, and crashes show functions, files and lines."
+          title="Symbols and source maps"
+          description="Upload debug files and source maps so crashes show function names, files and line numbers."
         >
           <Uploads
             slug={project.slug}
@@ -72,8 +75,8 @@ function Settings() {
         </Card>
 
         <Card
-          title="Link to the code"
-          description="Stack frames open their line in the repository, and a release lists its commits since the one before."
+          title="Source code"
+          description="Open stack frames at their line in the repository, and see each release’s commits."
         >
           <form
             className="grid gap-4"
@@ -84,7 +87,7 @@ function Settings() {
                 toast.success('Saved')
                 await router.invalidate()
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : 'Not saved')
+                toast.error(error instanceof Error ? error.message : 'Couldn’t save the repository')
               }
             }}
           >
@@ -104,8 +107,8 @@ function Settings() {
             </div>
             <div className="grid min-w-0 gap-2">
               <p className="text-sm">
-                With each release, from its checkout, send its commits (the release named as the SDK names it; the first
-                time, the whole history, so every file can be found):
+                Send each release’s commits from its checkout, using the release name the SDK reports. The first time,
+                the full history is sent so crashyard can find every file.
               </p>
               <Code
                 text={`sentry-cli releases new -p ${project.slug} "$RELEASE"\nsentry-cli releases set-commits "$RELEASE" --local --initial-depth 100000`}
@@ -114,7 +117,7 @@ function Settings() {
           </form>
         </Card>
 
-        <Card title="Project">
+        <Card title="General">
           <form
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={async (e) => {
@@ -135,7 +138,7 @@ function Settings() {
                 toast.success('Saved')
                 await router.invalidate()
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : 'Not saved')
+                toast.error(error instanceof Error ? error.message : 'Couldn’t save the settings')
               }
             }}
           >
@@ -159,7 +162,7 @@ function Settings() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="quota">Events a day</Label>
+              <Label htmlFor="quota">Daily event limit</Label>
               <Input
                 id="quota"
                 name="quota"
@@ -168,10 +171,12 @@ function Settings() {
                 inputMode="numeric"
                 defaultValue={project.daily_event_quota}
               />
-              <p className="text-xs text-muted-foreground">Past it, SDKs are told to wait until tomorrow (UTC).</p>
+              <p className="text-xs text-muted-foreground">
+                Past this, SDKs are asked to hold events until midnight UTC.
+              </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="retention">Keep events for (days)</Label>
+              <Label htmlFor="retention">Event retention in days</Label>
               <Input
                 id="retention"
                 name="retention"
@@ -180,10 +185,12 @@ function Settings() {
                 inputMode="numeric"
                 defaultValue={project.event_retention_days}
               />
-              <p className="text-xs text-muted-foreground">Issues and their counts stay after their events go.</p>
+              <p className="text-xs text-muted-foreground">
+                Issues and their counts are kept after their events are deleted.
+              </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="logQuota">Logs a day</Label>
+              <Label htmlFor="logQuota">Daily log limit</Label>
               <Input
                 id="logQuota"
                 name="logQuota"
@@ -194,7 +201,7 @@ function Settings() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="logRetention">Keep logs for (days)</Label>
+              <Label htmlFor="logRetention">Log retention in days</Label>
               <Input
                 id="logRetention"
                 name="logRetention"
@@ -210,21 +217,27 @@ function Settings() {
           </form>
         </Card>
 
-        <Card title="Key" description="A new key stops apps with the old DSN from being heard, within a minute.">
+        <Card
+          title="Client key"
+          description="A new key replaces the DSN. Apps still using the old one stop reporting within a minute."
+        >
           <Button
             variant="outline"
             onClick={async () => {
-              if (!confirm('Make a new key? Every app has to be updated with the new DSN.')) return
+              if (!confirm('Create a new key? Every app will need the new DSN.')) return
               await rotateKey({ data: { id: project.id } })
-              toast.success('New key made')
+              toast.success('New key created')
               await router.invalidate()
             }}
           >
-            Make a new key
+            Create new key
           </Button>
         </Card>
 
-        <Card title="Delete the project" description="Its issues and events go too. This can’t be undone.">
+        <Card
+          title="Delete project"
+          description="Deletes the project with all its issues and events. This can’t be undone."
+        >
           <div className="flex flex-wrap gap-2">
             <Input
               className="max-w-xs"

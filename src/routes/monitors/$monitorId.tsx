@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tansta
 import { IconPencil, IconPlayerPause, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago, LocalTime } from '@/components/bits'
-import { Beats, MonitorStatus } from '@/components/beats'
+import { Beats, incidentReason, MonitorStatus } from '@/components/beats'
 import { Code } from '@/components/linking'
 import { type Editing, MonitorForm } from '@/components/monitor-form'
 import { PageHeader, Shell } from '@/components/shell'
@@ -68,7 +68,7 @@ function MonitorPage() {
               size="icon"
               aria-label="Delete"
               onClick={async () => {
-                if (!confirm(`Delete ${m.name} and its history?`)) return
+                if (!confirm(`Delete ${m.name} and its whole history? This can’t be undone.`)) return
                 await deleteMonitor({ data: { id: m.id } })
                 await navigate({ to: '/monitors' })
               }}
@@ -141,19 +141,19 @@ function MonitorPage() {
                   Late if nothing arrives by <LocalTime at={m.next_due} />.
                 </>
               ) : (
-                'Paused: nothing is late.'
+                'Paused. Nothing counts as late until you resume it.'
               )}
             </p>
           </div>
           {d.checkins.length === 0 && (
             <div className="grid gap-2">
-              <p className="text-sm">Waiting for the first check-in. From the job, with a Sentry SDK:</p>
+              <p className="text-sm">Waiting for the first check-in. Send one from the job with a Sentry SDK:</p>
               <Code
                 text={`const id = Sentry.captureCheckIn({ monitorSlug: '${m.slug}', status: 'in_progress' })
 // … the job …
 Sentry.captureCheckIn({ checkInId: id, monitorSlug: '${m.slug}', status: 'ok' })`}
               />
-              <p className="text-sm">Or around any command, with sentry-cli and the project’s DSN:</p>
+              <p className="text-sm">Or wrap any command with sentry-cli and the project’s DSN:</p>
               <Code text={`SENTRY_DSN=<the project's DSN> sentry-cli monitors run ${m.slug} -- ./backup.sh`} />
             </div>
           )}
@@ -185,13 +185,13 @@ Sentry.captureCheckIn({ checkInId: id, monitorSlug: '${m.slug}', status: 'ok' })
       <section>
         <h2 className="mb-2 text-sm font-medium">Incidents</h2>
         {d.incidents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">None.</p>
+          <p className="text-sm text-muted-foreground">No incidents. Smooth running so far.</p>
         ) : (
           <ul className="divide-y rounded-xl border text-sm">
             {d.incidents.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-x-3 px-3 py-2">
                 <span className={cn('size-2 rounded-full', i.closed_at ? 'bg-muted-foreground/40' : 'bg-red-500')} />
-                <span className="flex-1">{i.reason}</span>
+                <span className="flex-1">{incidentReason(i.reason)}</span>
                 <span className="text-xs text-muted-foreground">
                   <Ago at={i.opened_at} now={now} />
                   {i.closed_at ? ` · lasted ${duration(i.closed_at - i.opened_at)}` : ' · still open'}

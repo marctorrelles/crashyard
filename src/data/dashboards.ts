@@ -44,36 +44,37 @@ export type WidgetData =
   | { kind: 'error'; message: string }
 
 const fail = (why: string): never => {
-  throw new Error(`a widget ${why}`)
+  throw new Error(why)
 }
 const string = (v: unknown, name: string, max: number) =>
-  typeof v === 'string' && v.length <= max ? v : fail(`needs a ${name} of ${max} characters at most`)
+  typeof v === 'string' && v.length <= max ? v : fail(`A widget’s ${name} can be ${max} characters at most.`)
 
 /** Widgets from the browser, checked field by field (20 at most, ids unique); keys that aren't a widget's are dropped */
 export function parseWidgets(json: unknown): Widget[] {
-  if (!Array.isArray(json)) return fail('list must be a list')
-  if (json.length > MAX_WIDGETS) return fail(`list holds ${MAX_WIDGETS} at most`)
+  if (!Array.isArray(json)) return fail('Widgets must be a list.')
+  if (json.length > MAX_WIDGETS) return fail(`A dashboard holds ${MAX_WIDGETS} widgets at most.`)
   const ids = new Set<string>()
   return json.map((w: unknown): Widget => {
-    if (!w || typeof w !== 'object' || Array.isArray(w)) return fail('must be an object')
+    if (!w || typeof w !== 'object' || Array.isArray(w)) return fail('A widget must be an object.')
     const o = w as Record<string, unknown>
-    if (o.invalid !== undefined) fail('that couldn’t be read must be removed or redone first')
-    const id = typeof o.id === 'string' && /^[0-9a-f]{8}$/.test(o.id) ? o.id : fail('id is 8 hex digits')
-    if (ids.has(id)) fail('id is used twice')
+    if (o.invalid !== undefined) fail('Remove or redo the widgets that can’t be read first.')
+    const id = typeof o.id === 'string' && /^[0-9a-f]{8}$/.test(o.id) ? o.id : fail('A widget’s id is 8 hex digits.')
+    if (ids.has(id)) fail('Two widgets share an id.')
     ids.add(id)
-    const title = string(o.title, 'title', 80).trim() || fail('needs a title')
-    const dataset = DATASETS.includes(o.dataset as Dataset) ? (o.dataset as Dataset) : fail('needs a dataset')
+    const title = string(o.title, 'title', 80).trim() || fail('A widget needs a title.')
+    const dataset = DATASETS.includes(o.dataset as Dataset) ? (o.dataset as Dataset) : fail('A widget needs a dataset.')
     const display = DISPLAYS[dataset].includes(o.display as Display)
       ? (o.display as Display)
-      : fail(`of ${dataset} is shown as ${DISPLAYS[dataset].join(', ')}`)
+      : fail(`A widget of ${dataset} shows as ${DISPLAYS[dataset].join(', ')}.`)
     const query = string(o.query ?? '', 'query', 1000)
-    const width = o.width === 1 || o.width === 2 || o.width === 3 ? o.width : fail('is 1, 2 or 3 thirds wide')
+    const width = o.width === 1 || o.width === 2 || o.width === 3 ? o.width : fail('A widget is 1, 2 or 3 thirds wide.')
     const widget: Widget = { id, title, dataset, query, display, width }
     if (o.groupBy !== undefined && o.groupBy !== null && o.groupBy !== '') {
       const groupBy = string(o.groupBy, 'group-by', 60)
-      if (dataset === 'issues') fail('of issues has no group-by')
-      if (dataset === 'events' && !Object.hasOwn(EVENT_GROUPS, groupBy)) fail('of events groups by level or project')
-      if (!/^[\w.-]+$/.test(groupBy)) fail('groups by a field name')
+      if (dataset === 'issues') fail('A widget of issues can’t be grouped.')
+      if (dataset === 'events' && !Object.hasOwn(EVENT_GROUPS, groupBy))
+        fail('A widget of events groups by level or project.')
+      if (!/^[\w.-]+$/.test(groupBy)) fail('A widget groups by a field name.')
       widget.groupBy = groupBy
     }
     return widget
@@ -115,9 +116,9 @@ export function readWidgets(text: string): Widget[] {
   try {
     json = JSON.parse(text)
   } catch {
-    json = [{ invalid: 'the widgets aren’t JSON' }]
+    json = [{ invalid: 'The widgets aren’t JSON.' }]
   }
-  const list = Array.isArray(json) ? json.slice(0, MAX_WIDGETS) : [{ invalid: 'the widgets aren’t a list' }]
+  const list = Array.isArray(json) ? json.slice(0, MAX_WIDGETS) : [{ invalid: 'The widgets aren’t a list.' }]
   const read = list.map((raw: unknown): Widget | string => {
     try {
       return parseWidgets([raw])[0]
@@ -185,7 +186,7 @@ export async function saveDashboard(
           .prepare('UPDATE dashboards SET name = ?, widgets = ?, updated = ?, updated_by = ? WHERE id = ? RETURNING id')
           .bind(d.name, widgets, now, by, d.id)
           .first<{ id: number }>()
-  if (!row) throw new Error('that dashboard is gone')
+  if (!row) throw new Error('This dashboard no longer exists.')
   return row.id
 }
 
