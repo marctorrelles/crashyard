@@ -44,3 +44,10 @@ in `pnpm run deploy`).
   `resolved_in_commit` and `fixed_in_release` (resolved in that release: it and newer releases reopen it),
   `issues_assignee` (partial), `bookmarks` and `issue_views` (by email). Every column is nullable or has a default, so
   a worker from before 0016 runs as it did: it writes events without a fingerprint and ignores the rest.
+- 0017: all of phase 6 in one file. `session_users_daily` (a session's `did` per release, environment and UTC day, as
+  `didHash`, salted with the project; `crashed` is the max of the day's sessions; one upsert per session update with a
+  `did`, so retries count no one twice), `deploys`, `vital_buckets` (as `transaction_buckets`, by vital too: ms, CLS
+  times 1000, frame rates in hundredths of a percent), `monitor_environments`, `check_ins.trace_id`
+  (`check_ins_trace`), `monitors.muted_at`, `projects.release_crash_free_min` and `release_new_issues_max`. Nothing is
+  backfilled: sessions before it have no users, transactions no vitals. Every column is nullable, so a worker from
+  before 0017 runs as it did.

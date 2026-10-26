@@ -23,6 +23,8 @@ export type ProjectRow = {
   grouping_rules: string | null // fingerprint and stack trace rules (src/ingest/rules.ts)
   grouping_version: number
   filters: string | null // JSON, inbound filters (src/ingest/filters.ts)
+  release_crash_free_min: number | null // release health: crash-free sessions at least this fraction; null is none
+  release_new_issues_max: number | null // release health: at most this many new issues; null is none
   created_at: number
 }
 
@@ -49,7 +51,7 @@ export const slugOf = (name: string) =>
 
 export async function overview(db: D1Database, now: number) {
   const days = lastDays(14, now)
-  const [projects, unresolved, counts, fresh] = await db.batch<Record<string, unknown>>([
+  const [projects, unresolved, counts, fresh, recent] = await db.batch<Record<string, unknown>>([
     db.prepare('SELECT id, slug, name, platform FROM projects ORDER BY name'),
     db.prepare("SELECT project_id, COUNT(*) AS n FROM issues WHERE status = 'unresolved' GROUP BY project_id"),
     db.prepare('SELECT project_id, day, events FROM project_days WHERE day >= ?').bind(days[0]),
@@ -59,15 +61,42 @@ export async function overview(db: D1Database, now: number) {
          JOIN projects p ON p.id = i.project_id WHERE i.first_seen >= ? ORDER BY i.first_seen DESC LIMIT 10`,
       )
       .bind(now - 864e5),
+    // Sessions of the last 24 hours (today and yesterday, UTC) per release, with when each release was first seen
+    db
+      .prepare(
+        `SELECT s.project_id, s.release, SUM(s.started) AS n,
+           (SELECT MIN(f.day) FROM sessions_daily f WHERE f.project_id = s.project_id AND f.release = s.release) AS first
+         FROM sessions_daily s WHERE s.day >= ? GROUP BY s.project_id, s.release`,
+      )
+      .bind(days.at(-2)),
   ])
   const open = new Map(unresolved.results.map((r) => [r.project_id as number, r.n as number]))
+  const sessions = Map.groupBy(
+    recent.results as { project_id: number; release: string; n: number; first: string }[],
+    (r) => r.project_id,
+  )
+  // The newest release with sessions in the last 24 hours, and its share of them
+  const newest = (id: number) => {
+    const rows = sessions.get(id) ?? []
+    const total = rows.reduce((a, r) => a + r.n, 0)
+    const named = rows.filter((r) => r.release)
+    if (!total || !named.length) return null
+    const r = named.reduce((a, b) => (b.first > a.first || (b.first === a.first && b.release > a.release) ? b : a))
+    return { release: r.release, adoption: r.n / total }
+  }
   return {
     projects: (projects.results as Pick<ProjectRow, 'id' | 'slug' | 'name' | 'platform'>[]).map((p) => {
       const byDay = new Map(
         counts.results.filter((c) => c.project_id === p.id).map((c) => [c.day as string, c.events as number]),
       )
       const series = days.map((d) => byDay.get(d) ?? 0)
-      return { ...p, unresolved: open.get(p.id) ?? 0, series, today: series.at(-1)! + series.at(-2)! }
+      return {
+        ...p,
+        unresolved: open.get(p.id) ?? 0,
+        series,
+        today: series.at(-1)! + series.at(-2)!,
+        newest: newest(p.id),
+      }
     }),
     newIssues: fresh.results as {
       id: number
@@ -221,6 +250,8 @@ export const PROJECT_FIELDS = [
   'auto_resolve_days',
   'priorities',
   'grouping_rules',
+  'release_crash_free_min',
+  'release_new_issues_max',
   'filters',
 ] as const
 export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>

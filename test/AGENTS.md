@@ -14,7 +14,8 @@ Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
 - `uploads.e2e.test.ts`: sentry-cli 3.8 uploading a dSYM (after the crash that needed it: re-symbolicated and
   regrouped), source maps (`sourcemaps inject` then `upload`), a ProGuard mapping, and `releases set-commits --local`
   from a git repository made in the test (`GIT_DIR`: the second release gets only the commits since the first, and
-  each commit's files and their A or D land in `commit_files`), and a
+  each commit's files and their A or D land in `commit_files`), `deploys new` and `deploys list` (`-t` as start and
+  finish), and a
   token of one project refused for another's upload; port 3997.
 - `fixtures/native`: `crash.c` and its dSYM (`clang -g -O0 -arch arm64 -c`, link, `dsymutil`): `render_voice` at
   0x460 (crash.c:5), `main` at 0x47c. `fixtures/web`: `app.ts` and its esbuild bundle and map.

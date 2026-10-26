@@ -144,7 +144,10 @@ export async function storeTransaction(db: D1Database, projectId: number, t: Sum
   await db.batch(statements)
 }
 
-type SessionCounts = { started: number; errored: number; abnormal: number; crashed: number }
+type SessionCounts = { started: number; errored: number; abnormal: number; crashed: number; did?: string }
+
+// The session's distinct id as the SDK sends it (`did`, often the user id): only ever stored as a salted hash
+const didOf = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : undefined)
 
 /** A `session` item (one session's update) or a `sessions` item (aggregates), as counts per release and day */
 export function sessionCounts(type: 'session' | 'sessions', raw: Json, received: number) {
@@ -162,6 +165,7 @@ export function sessionCounts(type: 'session' | 'sessions', raw: Json, received:
       crashed: status === 'crashed' ? 1 : 0,
       abnormal: status === 'abnormal' ? 1 : 0,
       errored: ended && status === 'exited' && Number(raw.errors) > 0 ? 1 : 0,
+      did: didOf(raw.did),
     })
   } else {
     for (const a of (Array.isArray(raw.aggregates) ? raw.aggregates : []).map(obj)) {
@@ -173,16 +177,28 @@ export function sessionCounts(type: 'session' | 'sessions', raw: Json, received:
         errored: n('errored'),
         abnormal: n('abnormal'),
         crashed: n('crashed'),
+        did: didOf(a.did),
       })
     }
   }
-  return out.filter((c) => c.started || c.errored || c.abnormal || c.crashed)
+  // A session update that changes no count still says its user was there
+  return out.filter((c) => c.started || c.errored || c.abnormal || c.crashed || c.did)
+}
+
+/** A session's `did` as stored: SHA-256 of it salted with the project, so the same id in two projects differs */
+export async function didHash(projectId: number, did: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`session:${projectId}:${did}`))
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32)
 }
 
 export async function storeSessions(db: D1Database, projectId: number, counts: ReturnType<typeof sessionCounts>) {
   if (!counts.length) return
-  await db.batch(
-    counts.map((c) =>
+  const statements = counts
+    .filter((c) => c.started || c.errored || c.abnormal || c.crashed)
+    .map((c) =>
       db
         .prepare(
           `INSERT INTO sessions_daily (project_id, release, environment, day, started, errored, abnormal, crashed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -190,6 +206,17 @@ export async function storeSessions(db: D1Database, projectId: number, counts: R
              abnormal = abnormal + excluded.abnormal, crashed = crashed + excluded.crashed`,
         )
         .bind(projectId, c.release, c.environment, c.day, c.started, c.errored, c.abnormal, c.crashed),
-    ),
-  )
+    )
+  // One row per user, release, environment and day: an upsert, so a retried envelope counts no one twice
+  for (const c of counts)
+    if (c.did)
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO session_users_daily (project_id, release, environment, day, did_hash, crashed) VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT DO UPDATE SET crashed = MAX(crashed, excluded.crashed)`,
+          )
+          .bind(projectId, c.release, c.environment, c.day, await didHash(projectId, c.did), c.crashed ? 1 : 0),
+      )
+  if (statements.length) await db.batch(statements)
 }

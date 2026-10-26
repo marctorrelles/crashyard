@@ -182,6 +182,15 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
     const o = object(v)
     return JSON.stringify(Object.fromEntries(LEVELS.map((l) => [l, oneOf(PRIORITIES)(o[l])])))
   },
+  // Release health thresholds: crash-free sessions as a fraction, new issues as a count; null for none
+  release_crash_free_min: (v) => {
+    if (v === null || v === '') return null
+    const n = typeof v === 'string' ? Number(v) : v
+    if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1)
+      throw new Error('Crash-free sessions is a percentage from 0 to 100.')
+    return n
+  },
+  release_new_issues_max: (v) => (v === null || v === '' ? null : int(v, 0, 100_000)),
   // Rules that don't parse are refused with the line and why, so ingest only ever reads good ones
   grouping_rules: (v) => {
     const rules = text(v ?? '', 20_000)
@@ -433,19 +442,32 @@ export const getReleases = createServerFn()
   .handler(async ({ data }) => {
     const list = await projectsFor(data.slug)
     if (!list) return null
+    const now = Date.now()
     const sections = await Promise.all(
       list.map(async (project) => {
-        const [rows, sessions] = await Promise.all([
+        const [rows, health] = await Promise.all([
           releases.listReleases(env.DB, project.id),
-          performance.sessionsByRelease(env.DB, project.id),
+          releases.releaseHealth(env.DB, project.id, now),
         ])
         return {
           project,
-          releases: rows.map((r) => ({ ...r, crashFree: performance.crashFree(sessions.get(r.release)) })),
+          releases: rows.map((r, i) => {
+            const h = health.get(r.release)
+            const newer = rows.slice(0, i).map((n) => health.get(n.release)?.adoption ?? null)
+            return {
+              ...r,
+              sessions: h?.sessions ?? 0,
+              users: h?.users ?? 0,
+              adoption: h?.adoption ?? null,
+              stage: releases.adoptionStage(h?.adoption ?? null, newer),
+              crashFree: h?.crashFree ?? null,
+              crashFreeUsers: h?.crashFreeUsers ?? null,
+            }
+          }),
         }
       }),
     )
-    return { sections, now: Date.now() }
+    return { sections, now }
   })
 
 export const getRelease = createServerFn()
@@ -457,11 +479,24 @@ export const getRelease = createServerFn()
     const project = await projects.projectBySlug(env.DB, data.slug)
     const diff = project && (await releases.releaseDiff(env.DB, project.id, data.release))
     if (!project || !diff) return null
-    const [sessions, commits] = await Promise.all([
-      performance.sessionsByRelease(env.DB, project.id).then((s) => s.get(data.release)),
+    const now = Date.now()
+    const [all, commits, adoption, deploys] = await Promise.all([
+      releases.releaseHealth(env.DB, project.id, now),
       source.releaseCommits(env.DB, project, data.release),
+      releases.adoptionByDay(env.DB, project.id, data.release, now),
+      releases.deploysOf(env.DB, project.id, data.release),
     ])
-    return { project, ...diff, sessions, crashFree: performance.crashFree(sessions), commits, now: Date.now() }
+    const health = all.get(data.release) ?? null
+    return {
+      project,
+      ...diff,
+      health,
+      healthy: releases.healthOf(project, { crashFree: health?.crashFree ?? null, newIssues: diff.fresh.length }),
+      adoption,
+      deploys,
+      commits,
+      now,
+    }
   })
 
 const DAYS = [1, 7, 30] as const

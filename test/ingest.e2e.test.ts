@@ -5,7 +5,8 @@ import * as Sentry from '@sentry/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { mergeIssues } from '../src/data/issues'
 import { saveMonitor } from '../src/data/monitors'
-import { checkSlowerReleases, sessionsByRelease, transaction, transactions } from '../src/data/performance'
+import { checkSlowerReleases, transaction, transactions } from '../src/data/performance'
+import { releaseHealth } from '../src/data/releases'
 import { bucketOf } from '../src/performance/histogram'
 import { KEY, startDev, waitFor } from './dev'
 
@@ -338,7 +339,7 @@ describe('ingest, through the real SDK', () => {
     const attrs = { release: 'e2e@2.0.0', environment: 'production' }
     const started = new Date().toISOString()
     const items = [
-      [{ type: 'session' }, { sid: id(), init: true, started, status: 'crashed', errors: 1, attrs }],
+      [{ type: 'session' }, { sid: id(), did: 'ada', init: true, started, status: 'crashed', errors: 1, attrs }],
       [{ type: 'sessions' }, { aggregates: [{ started, exited: 3 }], attrs }],
     ]
     const body = [JSON.stringify({ dsn }), ...items.flat().map((x) => JSON.stringify(x))].join('\n')
@@ -348,7 +349,12 @@ describe('ingest, through the real SDK', () => {
       body,
     })
     expect(response.status).toBe(200)
-    expect((await sessionsByRelease(db(), 1)).get('e2e@2.0.0')).toMatchObject({ started: 4, crashed: 1 })
+    expect((await releaseHealth(db(), 1, Date.now())).get('e2e@2.0.0')).toMatchObject({
+      sessions: 4,
+      crashed: 1,
+      users: 1,
+      crashFreeUsers: 0,
+    })
   })
 
   it('tells once when a release makes a transaction slower', async () => {

@@ -105,6 +105,11 @@ function Home() {
                 </dl>
                 <Sparkline values={p.series} className="h-8 w-28" />
               </div>
+              {p.newest && (
+                <p className="mt-3 truncate text-xs text-muted-foreground">
+                  <span className="font-mono">{p.newest.release}</span> on {percent(p.newest.adoption)} of sessions
+                </p>
+              )}
             </Link>
           ))}
         </div>

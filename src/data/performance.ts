@@ -1,5 +1,5 @@
 // Performance for the dashboard: transactions by p95 over a period, how much slower they got since the release
-// before, one transaction's hours and examples; crash-free sessions per release; and the slower-release check.
+// before, one transaction's hours and examples; and the slower-release check.
 import { percentile } from '../performance/histogram'
 import type { Span } from '../performance/ingest'
 import type { Notice } from '../notify/notice'
@@ -133,23 +133,6 @@ export async function transaction(db: D1Database, projectId: number, name: strin
     ).map((e) => ({ ...e, spans: JSON.parse(e.spans) as Span[] })),
   }
 }
-
-/** Sessions per release, for crash-free rates */
-export async function sessionsByRelease(db: D1Database, projectId: number) {
-  const rows = (
-    await db
-      .prepare(
-        `SELECT release, SUM(started) AS started, SUM(crashed) AS crashed, SUM(abnormal) AS abnormal, SUM(errored) AS errored
-         FROM sessions_daily WHERE project_id = ? GROUP BY release`,
-      )
-      .bind(projectId)
-      .all<{ release: string; started: number; crashed: number; abnormal: number; errored: number }>()
-  ).results
-  return new Map(rows.map((r) => [r.release, r]))
-}
-
-export const crashFree = (s?: { started: number; crashed: number }) =>
-  s && s.started ? 1 - s.crashed / s.started : null
 
 const ENOUGH = 50 // transactions in each release before comparing them
 const SLOWER = 1.5 // p95 half again as long

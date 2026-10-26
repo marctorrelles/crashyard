@@ -3,6 +3,7 @@
 // in Sentry's shapes, checked against sentry-cli 3.8 (test/uploads.e2e.test.ts). The organisation in the path is
 // ignored: a deployment is one organisation. Every call needs an auth token (Authorization: Bearer), and a token of one
 // project is refused for any other.
+import { deploysOf, storeDeploy } from '../data/releases'
 import { previousWithCommits, storeCommits, type GitCommit } from '../data/source'
 import { tokenOf } from '../data/tokens'
 import { forgetMissing } from '../symbols/symbolicate'
@@ -210,6 +211,11 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
       ref?: string
       dateReleased?: string
       commits?: GitCommit[]
+      environment?: string
+      name?: string
+      url?: string
+      dateStarted?: string
+      dateFinished?: string
     }
     const name = version ?? body.version
     if (!name) return detail('A release needs a version', 400)
@@ -221,7 +227,7 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
       dateReleased: body.dateReleased ?? null,
       projects: slugs.map((slug) => ({ slug, name: slug })),
     }
-    if (m[3]) return json({ id: '1', environment: 'production', dateFinished: new Date(now).toISOString() }, 201)
+    if (m[3]) return deploys(request, env.DB, name, body, token.project_id, allowed, now)
     if (request.method === 'GET') return json(release)
     const ids = await Promise.all(slugs.map((slug) => projectId(env.DB, slug)))
     if (!ids.every((id) => !id || allowed(id))) return forbidden()
@@ -240,4 +246,78 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
   }
 
   return detail('Not found', 404)
+}
+
+const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString())
+const time = (v: unknown) => (typeof v === 'string' && Number.isFinite(Date.parse(v)) ? Date.parse(v) : undefined)
+const short = (v: unknown, max: number) => (typeof v === 'string' && v ? v.slice(0, max) : undefined)
+
+/**
+ * `deploys new` (POST: environment, name, url, dateStarted, dateFinished, projects) and `deploys list` (GET), in
+ * Sentry's Deploy shape. A deploy belongs to the projects it names, else to every project with the release, and a
+ * project's token reaches only its own
+ */
+async function deploys(
+  request: Request,
+  db: D1Database,
+  release: string,
+  body: {
+    environment?: string
+    name?: string
+    url?: string
+    dateStarted?: string
+    dateFinished?: string
+    projects?: string[]
+  },
+  only: number | null,
+  allowed: (id: number) => boolean,
+  now: number,
+) {
+  const shape = (d: {
+    id: number
+    environment: string
+    name: string | null
+    url: string | null
+    started: number | null
+    finished: number
+  }) => ({
+    id: String(d.id),
+    environment: d.environment,
+    name: d.name,
+    url: d.url,
+    dateStarted: iso(d.started),
+    dateFinished: iso(d.finished),
+  })
+  const named = Array.isArray(body.projects) ? body.projects.filter((p) => typeof p === 'string') : []
+  const ids = named.length
+    ? await Promise.all(named.map((slug) => projectId(db, slug)))
+    : (
+        await db
+          .prepare(
+            `SELECT project_id AS id FROM releases WHERE version = ?1 UNION SELECT DISTINCT project_id FROM events WHERE release = ?1
+             UNION SELECT DISTINCT project_id FROM sessions_daily WHERE release = ?1`,
+          )
+          .bind(release)
+          .all<{ id: number }>()
+      ).results.map((r) => r.id)
+  if (named.length && !ids.every((id) => !id || allowed(id))) return forbidden()
+  const projects = ids.filter((id): id is number => !!id && (only === null || id === only))
+  if (request.method === 'GET') {
+    const list = (await Promise.all(projects.map((id) => deploysOf(db, id, release)))).flat()
+    return json(list.sort((a, b) => b.finished - a.finished).map(shape))
+  }
+  const environment = short(body.environment, 64)
+  if (!environment) return detail('A deploy needs an environment', 400)
+  const deploy = {
+    environment,
+    name: short(body.name, 200),
+    url: short(body.url, 500),
+    started: time(body.dateStarted),
+    finished: time(body.dateFinished) ?? now,
+  }
+  await storeDeploy(db, projects, release, deploy)
+  return json(
+    shape({ id: 0, ...deploy, name: deploy.name ?? null, url: deploy.url ?? null, started: deploy.started ?? null }),
+    201,
+  )
 }

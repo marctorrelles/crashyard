@@ -233,6 +233,34 @@ describe('readable stacks, uploaded with sentry-cli', () => {
     ])
   })
 
+  it('stores a deploy from deploys new, for the release’s project, and lists it', async () => {
+    cli('releases', 'new', '-p', 'e2e', 'app@3')
+    const out = cli(
+      'deploys',
+      'new',
+      '-r',
+      'app@3',
+      '-e',
+      'staging',
+      '-n',
+      'Friday',
+      '-u',
+      'https://ci.example.com/1',
+      '-t',
+      '90',
+    )
+    expect(out).toContain('Friday')
+    const rows = await dev.db
+      .prepare("SELECT project_id, environment, name, url, started, finished FROM deploys WHERE release = 'app@3'")
+      .all<Record<string, number | string>>()
+    expect(rows.results).toMatchObject([
+      { project_id: 1, environment: 'staging', name: 'Friday', url: 'https://ci.example.com/1' },
+    ])
+    const [row] = rows.results as { started: number; finished: number }[]
+    expect(row.finished - row.started).toBe(90_000)
+    expect(cli('deploys', 'list', '-r', 'app@3')).toContain('staging')
+  })
+
   it('refuses uploads without a token', async () => {
     const r = await fetch(`${dev.origin}/api/0/organizations/x/chunk-upload/`)
     expect(r.status).toBe(401)

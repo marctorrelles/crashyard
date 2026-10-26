@@ -19,6 +19,7 @@ function Issues() {
     <>
       <AutoResolve />
       <Priorities />
+      <ReleaseHealth />
     </>
   )
 }
@@ -106,6 +107,71 @@ function Priorities() {
           ))}
         </div>
         <Hint>Issues made before a change keep their priority.</Hint>
+        <div>
+          <SaveButton saving={saving} />
+        </div>
+      </form>
+    </SettingsCard>
+  )
+}
+
+function ReleaseHealth() {
+  const { project } = parent.useLoaderData()
+  const { save, saving } = useSave()
+  const [crashFree, setCrashFree] = useState(
+    project.release_crash_free_min === null ? '' : String(Math.round(project.release_crash_free_min * 10000) / 100),
+  )
+  const [newIssues, setNewIssues] = useState(
+    project.release_new_issues_max === null ? '' : String(project.release_new_issues_max),
+  )
+  return (
+    <SettingsCard
+      title="Release health"
+      description="A release reads Healthy or Unhealthy on its page by these thresholds. Leave both empty to show neither."
+    >
+      <form
+        className="grid gap-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void save(() =>
+            updateProject({
+              data: {
+                id: project.id,
+                release_crash_free_min: crashFree.trim() === '' ? null : Number(crashFree) / 100,
+                release_new_issues_max: newIssues.trim() === '' ? null : newIssues,
+              },
+            }),
+          )
+        }}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor="crash-free-min">Lowest crash-free sessions in percent</Label>
+            <Input
+              id="crash-free-min"
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              inputMode="decimal"
+              placeholder="99.5"
+              value={crashFree}
+              onChange={(e) => setCrashFree(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="new-issues-max">Most new issues</Label>
+            <Input
+              id="new-issues-max"
+              type="number"
+              min={0}
+              inputMode="numeric"
+              placeholder="3"
+              value={newIssues}
+              onChange={(e) => setNewIssues(e.target.value)}
+            />
+          </div>
+        </div>
         <div>
           <SaveButton saving={saving} />
         </div>

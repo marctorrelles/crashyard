@@ -1,6 +1,9 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { Ago, count, Level, percent } from '@/components/bits'
+import { TimeChart } from '@/components/charts'
+import { HealthBadge } from '@/components/release'
 import { PageHeader, Shell } from '@/components/shell'
+import { Time } from '@/components/time'
 import { Badge } from '@/components/ui/badge'
 import { getRelease } from '@/fns'
 
@@ -30,20 +33,19 @@ function Release() {
     >
       <PageHeader title="Releases">{d.project.name}</PageHeader>
       <div className="mb-6">
-        <h2 className="font-mono text-lg font-semibold break-all">{d.release.release}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-mono text-lg font-semibold break-all">{d.release.release}</h2>
+          {d.healthy && <HealthBadge {...d.healthy} />}
+        </div>
         <p className="text-sm text-muted-foreground">
           {count(d.release.events)} events in {count(d.release.issues)} issues · first seen{' '}
           <Ago at={d.release.first} now={d.now} />
           {d.previous && <> · compared with {d.previous}</>}
-          {d.sessions && d.crashFree !== null && (
-            <>
-              {' '}
-              · {percent(d.crashFree)} crash-free across {count(d.sessions.started)} sessions
-            </>
-          )}
         </p>
       </div>
+      {d.health && <Health health={d.health} adoption={d.adoption} />}
       <div className="grid gap-6 *:min-w-0">
+        {d.deploys.length > 0 && <Deploys deploys={d.deploys} />}
         {d.commits.length > 0 && <Commits commits={d.commits} now={d.now} />}
         <Group title="New in this release" issues={d.fresh} empty="No new issues. A clean release so far." />
         <Group title="Regressed" issues={d.regressed} empty="Nothing resolved has come back." />
@@ -58,6 +60,72 @@ function Release() {
         <Group title="Still happening" issues={d.ongoing} empty="No other issues in this release." />
       </div>
     </Shell>
+  )
+}
+
+function Health({ health: h, adoption }: { health: NonNullable<Data['health']>; adoption: Data['adoption'] }) {
+  const stats = [
+    ['Crash-free sessions', h.crashFree === null ? '–' : percent(h.crashFree)],
+    ['Crash-free users', h.crashFreeUsers === null ? '–' : percent(h.crashFreeUsers)],
+    ['Sessions in 24 hours', count(h.sessions24h)],
+    ['Active users in 24 hours', count(h.users24h)],
+    ['Adoption', h.adoption === null ? '–' : percent(h.adoption)],
+  ]
+  return (
+    <section className="mb-6 grid gap-3" aria-label="Release health">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {stats.map(([label, value]) => (
+          <div key={label} className="rounded-xl border p-3">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="text-lg font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="rounded-xl border p-3 pb-1">
+        <p className="mb-2 text-sm text-muted-foreground">Share of each day’s sessions, the last 30 days</p>
+        <TimeChart
+          x={adoption.map((a) => a.day)}
+          series={[
+            {
+              key: 'adoption',
+              label: 'Adoption',
+              values: adoption.map((a) => (a.adoption === null ? null : Math.round(a.adoption * 1000) / 10)),
+              kind: 'line',
+              color: 'var(--chart-1)',
+            },
+          ]}
+          format={(v) => `${v}%`}
+          className="h-32 md:h-40"
+        />
+      </div>
+    </section>
+  )
+}
+
+function Deploys({ deploys }: { deploys: Data['deploys'] }) {
+  return (
+    <section>
+      <h3 className="mb-2 text-sm font-medium">
+        Deploys <span className="font-normal text-muted-foreground">{deploys.length}</span>
+      </h3>
+      <ul className="divide-y rounded-xl border text-sm">
+        {deploys.map((dep) => (
+          <li key={dep.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
+            <Badge variant="outline">{dep.environment}</Badge>
+            <span className="min-w-0 flex-1 truncate">
+              {dep.url ? (
+                <a href={dep.url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                  {dep.name ?? dep.url}
+                </a>
+              ) : (
+                (dep.name ?? '')
+              )}
+            </span>
+            <Time at={dep.finished} className="text-xs text-muted-foreground" />
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

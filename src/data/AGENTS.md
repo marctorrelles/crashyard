@@ -8,10 +8,11 @@ helpers (`change`).
   project or the page's: events per day from `project_days`, the 8 projects with the most and the rest as one; issues
   first seen per day, and how many in the last 24 hours; issues resolved per day, distinct, from `issue_activity`'s
   `resolved`, by `issue_activity_kind_at`; crash-free sessions of each project's two newest releases by their first
-  session in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new key,
+  session in 90 days, from `sessions_daily`; one batch of four); `overview`'s `newest`, each project's newest release
+  with sessions in the last 24 hours (today and yesterday, by its first session day) and its share of them, creating a project (slug from the name, a new key,
   in `project_keys` too by 0013's trigger, the limits and retention of `projectDefaults`), changing, its client keys
   (`keysOf` with today's events from `key_days`, `createKey`, `updateKey`: label, on or off, daily limit),
-  `updateProject` (only the fields given, of `PROJECT_FIELDS`, `grouping_rules` among them, checked in `fns.ts`; a slug another project has throws), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
+  `updateProject` (only the fields given, of `PROJECT_FIELDS`, `grouping_rules` and the release thresholds among them, checked in `fns.ts`; a slug another project has throws), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;
@@ -62,8 +63,17 @@ helpers (`change`).
   entry (`{ count, hour, wasIgnored }`) and an `escalating` notice with the hour's most common release, environment
   and level. Escalating issues with no `escalating` entry in 7 days go back to `ongoing` first (index
   `issues_escalating`). `escalation.test.ts` on `test/fakes.ts`.
-- `releases.ts`: releases from events (kept within retention), and the release diff: new in it, came back in it,
-  still happening, and gone since the release before.
+- `releases.ts`: releases from events (kept within retention) and from sessions (a release with sessions and no events
+  is one too, its first and last seen the start of its first and last session days), newest first, and the release
+  diff: new in it, came back in it, still happening, and gone since the release before. `releaseHealth`: each
+  release's sessions and crashed, users and crashed users (`session_users_daily`, distinct hashes over every day and
+  environment), crash-free sessions and users (1 minus crashed over all), and over the last 24 hours, read as the UTC
+  days it spans, today and yesterday (sessions are only counted per day): its sessions, active users and adoption,
+  its share of those sessions. `adoptionStage`: adopted from 10% (`ADOPTED`), else replaced when a release first seen
+  after it has more of the sessions, else low adoption. `adoptionByDay` (30 UTC days, null on a day with no
+  sessions), `healthOf` (a project's `release_crash_free_min` and `release_new_issues_max`: healthy when each set
+  one holds, `failed` naming the others; null when none is set or can be judged, crash-free needing sessions),
+  `deploysOf` (50, newest first) and `storeDeploy`. `releases.test.ts` on `test/fakes.ts`.
 - `logs.ts`: `conditions` (a search's SQL over `logs l`, narrowed to a project, exported for `widgets.ts` and
   `export.ts`); the explorer's page (newest first, cursors for older and for the live tail's newer) over a `Window`:
   a preset range up to now (the list reads on past now, for the live tail) or an exact span `from` to `to` (`to` left
@@ -92,7 +102,7 @@ helpers (`change`).
 - `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
   change since the release before and `trend`, the p95 of each step (an hour in a day, 6 hours in a week, a day in 30;
   from the same read of `transaction_buckets`, grouped by the step too) (the project's two newest releases with
-  transactions); one transaction's hours, releases and slowest examples; sessions per release and `crashFree`;
+  transactions); one transaction's hours, releases and slowest examples (sessions are `releases.ts`');
   `checkSlowerReleases` (the cron, hourly at :05: a p95 50% longer in the newest release than the one before, 50
   transactions in each at least, told once via `slower_releases`); `prunePerformance` (the hourly cron: summaries after
   90 days, examples after 30).

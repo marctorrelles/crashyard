@@ -109,6 +109,8 @@
   group), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also New-project defaults), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
+- `release.tsx`: `AdoptionStage` (Adopted, Low adoption, Replaced) and `HealthBadge` (Healthy, or Unhealthy with the
+  thresholds it crossed in its title).
 - `uploads.tsx`: `UploadSteps`, the variables sentry-cli reads and each platform's upload steps, on Debug files; `size`.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
   same, keep them in step).

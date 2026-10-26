@@ -13,7 +13,7 @@ server, the build, or `tsr generate`): never edit it.
   pages are titled by the page with the project under it. Each page gives `Shell` its breadcrumbs: the section, the
   project (a list narrowed to it, the overview's for settings), then the page (a list narrowed to a project ends at it).
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
-  day and a 14-day sparkline; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
+  day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
   (bars side by side) and crash-free per release (`getOverviewCharts`, 30 days or `?days=14|90`, loaded with the
   overview, narrowed by `?project=`); failing monitors, new issues. Opening `/` as a page load with neither (not a
@@ -46,9 +46,14 @@ server, the build, or `tsr generate`): never edit it.
   newer), Suspect commits under the stack (sha linked through `commitUrl`, message, author, when, the files), Similar
   issues, each with Merge into this issue (a confirmation, then `mergeIssues` with this one first), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events, feedback, activity and notes.
-- `releases.tsx`: releases (crash-free sessions when the SDK sends them), a section per project for every project;
-  `projects/$slug/releases/$release.tsx`: one release's commits since the one before (from set-commits, each opening on
-  the repository when the project has one), and its diff against the one before.
+- `releases.tsx`: releases, a section per project for every project, each with its adoption stage, and on a desktop
+  its adoption, sessions, users and crash-free users (crash-free sessions under its issues); sorted by `?sort=`
+  (sessions, users, adoption, crashFree, crashFreeUsers, highest first, a release without the number last; newest
+  when unset, sorted in the page). `projects/$slug/releases/$release.tsx`: one release, Healthy or Unhealthy by the
+  project's thresholds (none without them), crash-free sessions and users, sessions and active users in 24 hours,
+  adoption, its share of each day's sessions over 30 days as a line, its deploys (environment, name linked to its
+  URL, when finished), its commits since the one before (from set-commits, each opening on the repository when the
+  project has one), and its diff against the one before.
 - `performance.tsx`: transactions by p95 with a sparkline of it over the period and the change since the release
   before (`?days=1|30`), a section per project; `projects/$slug/performance/transaction.tsx` (`?name=`): p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
@@ -69,7 +74,8 @@ server, the build, or `tsr generate`): never edit it.
   DSNs, the DSN of the first key that's on, uploads) for its pages, the group named by the project: `general` (name,
   platform, slug; a changed slug warns that `SENTRY_PROJECT` must change, and the page moves to the new slug),
   `issues` (Resolve issues not seen for N days, `auto_resolve_days`, off by default; Priority of new issues, a
-  priority per level, `priorities`), `grouping` (the rules in a monospace text area with the syntax and links to
+  priority per level, `priorities`; Release health, the lowest crash-free sessions in percent, saved as a fraction,
+  and the most new issues, empty for none), `grouping` (the rules in a monospace text area with the syntax and links to
   Sentry's docs; Check rules parses them in the page, `parseGroupingRules`, and says the line that's wrong; Save is
   refused the same way by `updateProject`), `filters` (a switch per inbound filter with what it catches, text areas
   of error message globs, release globs and allowed domains, one a line, and what was filtered in 30 days,
