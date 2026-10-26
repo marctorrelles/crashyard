@@ -27,7 +27,8 @@ Where things are:
 - `src/notify/`: routes, channels (Telegram, email, webhooks), quiet hours (see its AGENTS.md).
 - `src/auth/`: the Access check (see its AGENTS.md).
 - `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`.
-  `src/start.ts` limits them to same-origin calls (CSRF).
+  `src/start.ts` limits them to same-origin calls (CSRF), and refuses any but a GET from an agent (a viewer
+  `service:…`, an Access service token): agents change issues only through MCP, when Settings, Tokens lets them.
 - `src/data/`: the dashboard's SQL (see its AGENTS.md).
 - `src/search/`: Sentry's search syntax, as SQL (see its AGENTS.md).
 - `src/symbols/`: uploads and readable stacks (see its AGENTS.md).

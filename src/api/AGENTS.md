@@ -35,4 +35,7 @@ signature; `/mcp` comes after the Access check.
   commits since.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
-  web page can't call it with someone's Access cookie. See docs/mcp.md.
+  web page can't call it with someone's Access cookie. Agents, viewers `service:<common name>` (an Access service
+  token), only read: the tools marked `changes` (`resolve_issue`, `ignore_issue`, `add_note`) answer an `isError`
+  result saying where to allow them until the setting `agents.can_change` (Settings, Tokens) is on; people signed in
+  always can. See docs/mcp.md.

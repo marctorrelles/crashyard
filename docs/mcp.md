@@ -5,6 +5,9 @@ crash from your terminal. It can search issues, read one with its stack trace, b
 including by trace, and resolve, ignore or add a note to an issue. Every change it makes appears in the issue's
 activity as `service:<token id>`.
 
+Agents can read but not change issues until you allow it. To let an agent resolve, ignore or add notes, open
+Settings, then Tokens, and turn on **Let agents change issues**. The page also shows the MCP URL.
+
 The tools are `search_issues`, `get_issue`, `search_logs`, `resolve_issue`, `ignore_issue` and `add_note`.
 
 ## Give an agent access
@@ -26,7 +29,7 @@ Access service token.
      --header "CF-Access-Client-Secret: <client secret>"
    ```
 
-The token can reach everything a person can, including every project and the dashboard. To lock it out, revoke it on
+The token can read everything a person can, including every project and the dashboard. To lock it out, revoke it on
 the same page.
 
 ## Run it locally

@@ -1,9 +1,11 @@
 // POST /mcp: an MCP server (Streamable HTTP, answering with JSON), so an agent can search issues and logs, read an
 // issue with its stack, and resolve, ignore or note it. Behind Access like the dashboard: agents sign in with an
-// Access service token (CF-Access-Client-Id and CF-Access-Client-Secret headers). See docs/mcp.md.
+// Access service token (CF-Access-Client-Id and CF-Access-Client-Secret headers), and only read unless the setting
+// "Let agents change issues" is on. See docs/mcp.md.
 import * as issues from '../data/issues'
 import { listLogs, RANGES, type Range } from '../data/logs'
 import { projectBySlug } from '../data/projects'
+import { AGENTS_KEY, getSetting } from '../data/settings'
 import type { NormalizedEvent } from '../ingest/event'
 
 const VERSION = '2025-06-18'
@@ -11,6 +13,7 @@ const VERSION = '2025-06-18'
 type Rpc = { jsonrpc: '2.0'; id?: string | number | null; method: string; params?: Record<string, unknown> }
 type Tool = {
   name: string
+  changes?: true // resolves, ignores or notes: refused for agents unless Settings, Tokens lets them
   description: string
   inputSchema: Record<string, unknown>
   run: (args: Record<string, unknown>, ctx: { db: D1Database; viewer: string; origin: string }) => Promise<string>
@@ -173,6 +176,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'resolve_issue',
+    changes: true,
     description: 'Resolve an issue. in_next_release: only an event from a release other than its latest reopens it.',
     inputSchema: schema({ id: integer('issue id'), in_next_release: { type: 'boolean' } }, ['id']),
     run: async (a, { db, viewer }) => {
@@ -188,6 +192,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'ignore_issue',
+    changes: true,
     description: 'Ignore an issue: for good, for a number of further events, or for some hours.',
     inputSchema: schema(
       {
@@ -215,6 +220,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'add_note',
+    changes: true,
     description: 'Add a note to an issue, such as what caused it or the commit that fixes it.',
     inputSchema: schema({ id: integer('issue id'), text: string('the note') }, ['id', 'text']),
     run: async (a, { db, viewer }) => {
@@ -249,6 +255,17 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
     case 'tools/call': {
       const tool = TOOLS.find((t) => t.name === rpc.params?.name)
       if (!tool) return failure(rpc.id, -32602, `No tool ${String(rpc.params?.name)}`)
+      // An agent, signed in with an Access service token, reads; it changes issues only once the deployment allows it
+      if (tool.changes && ctx.viewer.startsWith('service:') && !(await getSetting(ctx.db, AGENTS_KEY, false)))
+        return reply(rpc.id, {
+          content: [
+            {
+              type: 'text',
+              text: 'Agents can read but not change issues. Turn on Let agents change issues in Settings, Tokens.',
+            },
+          ],
+          isError: true,
+        })
       try {
         const text = await tool.run((rpc.params?.arguments ?? {}) as Record<string, unknown>, ctx)
         return reply(rpc.id, { content: [{ type: 'text', text }] })

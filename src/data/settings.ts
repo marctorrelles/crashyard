@@ -24,6 +24,8 @@ export const setSetting = (db: D1Database, key: string, value: unknown, by: stri
 
 // The keys settings are kept under
 const DEFAULTS_KEY = 'defaults.project'
+/** Whether agents, signed in with an Access service token, may change issues through MCP: off unless turned on */
+export const AGENTS_KEY = 'agents.can_change'
 
 /** What a new project starts with: the columns' own defaults until changed on Settings, New-project defaults */
 export type ProjectDefaults = {
