@@ -1,0 +1,232 @@
+// Prebuilt dashboards to start from. Widgets whose data comes later (web vitals, crash-free users) join their
+// templates then.
+import type { Widget } from './widgets'
+
+export type Template = { key: string; name: string; description: string; widgets: Widget[] }
+
+export const TEMPLATES: Template[] = [
+  {
+    key: 'crashes',
+    name: 'Crashes',
+    description: 'Events over time and by level, the top unresolved issues and log errors by release.',
+    widgets: [
+      { id: '0e7e4751', title: 'Events', dataset: 'events', display: 'number', queries: [q('')], width: 1 },
+      { id: '1b0a6c2f', title: 'Events by level', dataset: 'events', display: 'bar', queries: [q('')], width: 2 },
+      {
+        id: '2c4d9e10',
+        title: 'Top unresolved issues',
+        dataset: 'issues',
+        display: 'list',
+        queries: [q('is:unresolved')],
+        width: 2,
+      },
+      {
+        id: '3f8b2a7d',
+        title: 'Log errors by release',
+        dataset: 'logs',
+        display: 'table',
+        queries: [q('level:error')],
+        groupBy: ['release'],
+        width: 1,
+      },
+    ],
+  },
+  {
+    key: 'mobile',
+    name: 'Mobile app health',
+    description: 'Crash-free sessions, sessions and crashes per release, and the fatal issues still open.',
+    widgets: [
+      {
+        id: '10000001',
+        title: 'Crash-free sessions',
+        dataset: 'sessions',
+        display: 'number',
+        queries: [q('', 'crash_free_rate')],
+        thresholds: { warning: 99.5, critical: 98, direction: 'below' },
+        width: 1,
+      },
+      {
+        id: '10000002',
+        title: 'Sessions by release',
+        dataset: 'sessions',
+        display: 'bar',
+        queries: [q('')],
+        groupBy: ['release'],
+        limit: 5,
+        width: 2,
+      },
+      {
+        id: '10000003',
+        title: 'Releases',
+        dataset: 'releases',
+        display: 'table',
+        queries: [
+          q('', 'crash_free_rate', 'Crash-free'),
+          q('', 'count', 'Events'),
+          q('', 'count_unique(user)', 'Users'),
+        ],
+        limit: 10,
+        width: 2,
+      },
+      {
+        id: '10000004',
+        title: 'Fatal issues',
+        dataset: 'issues',
+        display: 'list',
+        queries: [q('is:unresolved level:fatal')],
+        width: 1,
+      },
+      {
+        id: '10000005',
+        title: 'Events by release',
+        dataset: 'events',
+        display: 'line',
+        queries: [q('')],
+        groupBy: ['release'],
+        limit: 5,
+        width: 3,
+      },
+    ],
+  },
+  {
+    key: 'web',
+    name: 'Web app',
+    description: 'Errors and the users they reach, the slowest pages and how often requests fail.',
+    widgets: [
+      {
+        id: '20000001',
+        title: 'Errors',
+        dataset: 'events',
+        display: 'number',
+        queries: [q('level:error', 'count', 'Errors'), q('level:error', 'count_unique(user)', 'Users')],
+        width: 1,
+      },
+      {
+        id: '20000002',
+        title: 'Errors by environment',
+        dataset: 'events',
+        display: 'area',
+        queries: [q('')],
+        groupBy: ['environment'],
+        width: 2,
+      },
+      {
+        id: '20000003',
+        title: 'Slowest transactions',
+        dataset: 'transactions',
+        display: 'table',
+        queries: [q('', 'p95(duration)', 'p95'), q('', 'count', 'Transactions'), q('', 'failure_rate', 'Failed')],
+        groupBy: ['transaction'],
+        limit: 10,
+        width: 2,
+      },
+      {
+        id: '20000004',
+        title: 'Failure rate',
+        dataset: 'transactions',
+        display: 'number',
+        queries: [q('', 'failure_rate')],
+        thresholds: { warning: 1, critical: 5, direction: 'above' },
+        width: 1,
+      },
+      {
+        id: '20000005',
+        title: 'Top unresolved issues',
+        dataset: 'issues',
+        display: 'list',
+        queries: [q('is:unresolved')],
+        width: 3,
+      },
+    ],
+  },
+  {
+    key: 'backend',
+    name: 'Backend and logs',
+    description: 'Logs by level, error logs by release, the slowest transactions and the issues they raise.',
+    widgets: [
+      {
+        id: '30000001',
+        title: 'Error logs',
+        dataset: 'logs',
+        display: 'number',
+        queries: [q('level:[error,fatal]')],
+        width: 1,
+      },
+      { id: '30000002', title: 'Logs by level', dataset: 'logs', display: 'bar', queries: [q('')], width: 2 },
+      {
+        id: '30000003',
+        title: 'Error logs by release',
+        dataset: 'logs',
+        display: 'table',
+        queries: [q('level:[error,fatal]')],
+        groupBy: ['release'],
+        width: 1,
+      },
+      {
+        id: '30000004',
+        title: 'p95 duration',
+        dataset: 'transactions',
+        display: 'line',
+        queries: [q('', 'p95(duration)', 'p95'), q('', 'p50(duration)', 'p50')],
+        width: 2,
+      },
+      {
+        id: '30000005',
+        title: 'Top unresolved issues',
+        dataset: 'issues',
+        display: 'list',
+        queries: [q('is:unresolved')],
+        width: 3,
+      },
+    ],
+  },
+  {
+    key: 'uptime',
+    name: 'Uptime and crons',
+    description: 'Uptime, check-ins by status, each monitor’s uptime and its response time.',
+    widgets: [
+      {
+        id: '40000001',
+        title: 'Uptime',
+        dataset: 'monitors',
+        display: 'number',
+        queries: [q('', 'uptime')],
+        thresholds: { warning: 99.9, critical: 99, direction: 'below' },
+        width: 1,
+      },
+      {
+        id: '40000002',
+        title: 'Check-ins by status',
+        dataset: 'monitors',
+        display: 'bar',
+        queries: [q('')],
+        groupBy: ['status'],
+        width: 2,
+      },
+      {
+        id: '40000003',
+        title: 'Monitors',
+        dataset: 'monitors',
+        display: 'table',
+        queries: [q('', 'uptime', 'Uptime'), q('', 'p95(duration)', 'p95')],
+        groupBy: ['monitor'],
+        width: 1,
+      },
+      {
+        id: '40000004',
+        title: 'Response time',
+        dataset: 'monitors',
+        display: 'line',
+        queries: [q('kind:uptime', 'p95(duration)', 'p95'), q('kind:uptime', 'avg(duration)', 'Average')],
+        width: 2,
+      },
+    ],
+  },
+]
+
+/** The dashboard a fresh deployment is offered first */
+export const STARTER = TEMPLATES[0]
+
+function q(query: string, aggregate: Widget['queries'][number]['aggregate'] = 'count', label?: string) {
+  return label ? { query, aggregate, label } : { query, aggregate }
+}

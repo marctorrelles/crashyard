@@ -221,7 +221,7 @@ function Chart({
             />
           }
         />
-        {legend && <ChartLegend content={<ChartLegendContent />} />}
+        {legend && <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1" />} />}
         {series.map((s) => {
           const as = s.kind ?? kind
           const axis = s.axis ?? 'left'
@@ -363,36 +363,56 @@ export function BarList({
   )
 }
 
-/** One number, what it is, and its change against the period before (more reads red: these count what went wrong) */
+/**
+ * One number, what it is, and its change against the period before (more reads red: these count what went wrong,
+ * unless `higherIsBetter`, as a crash-free rate). `tone` colours it past a widget's thresholds
+ */
 export function BigNumber({
   value,
   label,
   change,
   format = count,
+  tone,
+  higherIsBetter,
 }: {
   value: number | null
   label: string
   change?: number | null
   format?: (v: number) => string
+  tone?: 'warning' | 'critical'
+  higherIsBetter?: boolean
 }) {
   return (
     <div className="min-w-0">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="flex items-baseline gap-2">
-        <span className="text-2xl font-semibold tabular-nums">{value === null ? '—' : format(value)}</span>
-        {change !== undefined && change !== null && <Change percent={Math.round(change * 100)} />}
+        <span
+          className={cn(
+            'text-2xl font-semibold tabular-nums',
+            tone === 'warning' && 'text-amber-600 dark:text-amber-400',
+            tone === 'critical' && 'text-red-600 dark:text-red-400',
+          )}
+        >
+          {value === null ? '—' : format(value)}
+        </span>
+        {change !== undefined && change !== null && (
+          <Change percent={Math.round(change * 100)} higherIsBetter={higherIsBetter} />
+        )}
       </p>
     </div>
   )
 }
 
-// A change as it reads, one set of classes a state: more red, less green, none (as rounded) muted
-function Change({ percent }: { percent: number }) {
+// A change as it reads, one set of classes a state: more red, less green (the other way round when higher is
+// better), none (as rounded) muted
+function Change({ percent, higherIsBetter }: { percent: number; higherIsBetter?: boolean }) {
+  const worse = 'text-red-600 dark:text-red-400'
+  const better = 'text-emerald-600 dark:text-emerald-400'
   const [sign, color] =
     percent > 0
-      ? ['+', 'text-red-600 dark:text-red-400']
+      ? ['+', higherIsBetter ? better : worse]
       : percent < 0
-        ? ['−', 'text-emerald-600 dark:text-emerald-400']
+        ? ['−', higherIsBetter ? worse : better]
         : ['±', 'text-muted-foreground']
   return (
     <span className={cn('text-xs tabular-nums', color)}>

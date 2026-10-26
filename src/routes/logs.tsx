@@ -1,6 +1,11 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import {
+  IconBell,
+  IconChartLine,
   IconChevronRight,
+  IconDots,
+  IconDownload,
+  IconLayoutDashboard,
   IconLogs,
   IconMinus,
   IconPlayerPause,
@@ -10,12 +15,25 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { count } from '@/components/bits'
 import { BarList, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
 import { SearchBar } from '@/components/search-bar'
 import { Time } from '@/components/time'
 import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -27,16 +45,35 @@ import {
 } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ValueMenu } from '@/components/value-menu'
+import { GroupBy as FieldSelect, WidgetView } from '@/components/widget'
 import { change } from '@/data/charts'
 import { GROUP_COLUMNS, MAX_SPAN } from '@/data/logs'
-import { getLogChart, getLogGroups, getLogs, getSuggestions } from '@/fns'
+import { type Aggregate, aggregateError, aggregatesOf, MAX_QUERIES, type Widget } from '@/data/widgets'
+import { addWidget, getDashboards, getLogChart, getLogGroups, getLogMaths, getLogs, getSuggestions } from '@/fns'
 import { cn } from '@/lib/utils'
 import { addValue, isSearchableKey, logAttributeKey } from '@/search/query'
 
 const RANGES = { '1h': 'Last hour', '24h': 'Last 24 hours', '7d': 'Last 7 days', '30d': 'Last 30 days' } as const
 type Range = keyof typeof RANGES
-// `from` and `to` (ms, a drag on the chart) stand in for `range` while they're set; `range` stays for Reset
-type Search = { project?: string; query?: string; range?: Range; from?: number; to?: number; groupBy?: string }
+// `from` and `to` (ms, a drag on the chart) stand in for `range` while they're set; `range` stays for Reset. `fn` is
+// the charts' functions, comma-separated (count when unset), `groupBy` up to 2 fields, comma-separated
+type Search = {
+  project?: string
+  query?: string
+  range?: Range
+  from?: number
+  to?: number
+  groupBy?: string
+  fn?: string
+}
+const listOf = (v?: string) => (v ? v.split(',') : [])
+/** The charts' functions: up to 3 a logs widget can compute, count when none */
+const functionsOf = (fn?: string): Aggregate[] => {
+  const list = listOf(fn).filter((f) => !aggregateError('logs', f)) as Aggregate[]
+  return list.length ? list.slice(0, MAX_QUERIES) : ['count']
+}
+// The first chart is the logs page's own (levels or one group's, the span before, zoom) for a count by one field or none
+const ownChart = (fns: Aggregate[], groupBy: string[]) => fns[0] === 'count' && groupBy.length <= 1
 
 const whole = (v: unknown) => (Number.isSafeInteger(Number(v)) && Number(v) >= 0 ? Number(v) : undefined)
 
@@ -52,19 +89,30 @@ export const Route = createFileRoute('/logs')({
       range: typeof s.range === 'string' && s.range in RANGES ? (s.range as Range) : undefined,
       from: exact ? from : undefined,
       to: exact ? to : undefined,
-      groupBy: typeof s.groupBy === 'string' && /^[\w.-]{1,60}$/.test(s.groupBy) ? s.groupBy : undefined,
+      groupBy:
+        typeof s.groupBy === 'string' && /^[\w.-]{1,60}(,[\w.-]{1,60})?$/.test(s.groupBy) ? s.groupBy : undefined,
+      fn: typeof s.fn === 'string' && s.fn && s.fn !== 'count' ? functionsOf(s.fn).join(',') : undefined,
     }
   },
   loaderDeps: ({ search }) => search,
-  // With a group-by, the chart is its groups (and the table over the list); else logs by level
+  // With a group-by, the chart is its groups (and the table over the list); else logs by level. Other functions, and
+  // two group-bys, are read as a logs widget is (`getLogMaths`)
   loader: async ({ deps }) => {
     const params = paramsOf(deps)
-    const [list, chart, groups] = await Promise.all([
+    const fns = functionsOf(deps.fn)
+    const groupBy = listOf(deps.groupBy)
+    const own = ownChart(fns, groupBy)
+    const others = own ? fns.slice(1) : fns
+    const table = groupBy.length > 0 && !(groupBy.length === 1 && fns.length === 1 && own)
+    const [list, chart, groups, maths] = await Promise.all([
       getLogs({ data: params }),
-      deps.groupBy ? undefined : getLogChart({ data: params }),
-      deps.groupBy ? getLogGroups({ data: { ...params, groupBy: deps.groupBy } }) : undefined,
+      own && !groupBy.length ? getLogChart({ data: params }) : undefined,
+      own && groupBy.length ? getLogGroups({ data: { ...params, groupBy: groupBy[0] } }) : undefined,
+      others.length || table
+        ? getLogMaths({ data: { ...params, functions: others, groupBy, table: table ? fns : [] } })
+        : undefined,
     ])
-    return { ...list, chart, groups }
+    return { ...list, chart, groups, charts: maths?.charts ?? [], table: maths?.table }
   },
   head: () => ({ meta: [{ title: 'Logs · crashyard' }] }),
   component: Logs,
@@ -107,17 +155,62 @@ function Logs() {
   const navigate = useNavigate({ from: Route.fullPath })
   const query = search.query ?? ''
   const go = (change: Partial<Search>) => void navigate({ search: (s) => ({ ...s, ...change }) })
+  const searchFor = (q: string) => q || undefined
   const [live, setLive] = useState(false)
-  const params = paramsOf(search)
+  const [adding, setAdding] = useState<Widget | null>(null)
+  const params = paramsOf({ ...search, query })
   const custom = 'from' in params
-  const pick: Pick = (key, value, negate) => go({ query: addValue(query, key, value, negate) || undefined })
+  const pick: Pick = (key, value, negate) => go({ query: searchFor(addValue(query, key, value, negate)) })
   // Keys whose values all differ (an id, a duration) say nothing as a facet
   const facets = new Map(
     [...Map.groupBy(data.facets, (f) => f.key)].filter(([, values]) => values[0].n > 1).slice(0, 10),
   )
   // Every log has a level, so the levels' counts add up to the sample the facets count over
   const sampled = data.facets.filter((f) => f.key === 'level').reduce((sum, f) => sum + f.n, 0)
-  const chart = chartOf(data, search.groupBy)
+  const fns = functionsOf(search.fn)
+  const groupBy = listOf(search.groupBy)
+  const own = ownChart(fns, groupBy)
+  const chart = own ? chartOf(data, groupBy[0]) : undefined
+  const setFns = (list: string[]) => go({ fn: list.length === 1 && list[0] === 'count' ? undefined : list.join(',') })
+  const setGroups = (list: (string | undefined)[]) => {
+    const g = list.filter((x): x is string => !!x)
+    go({ groupBy: g.length ? [...new Set(g)].join(',') : undefined })
+  }
+  // A chart as a dashboard widget: its function over the search, by the same fields
+  const widgetOf = (fn: Aggregate): Widget => ({
+    id: [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join(''),
+    title: fn === 'count' ? 'Logs' : fn,
+    dataset: 'logs',
+    display: fn === 'count' ? 'bar' : 'line',
+    queries: [{ query, aggregate: fn }],
+    ...(groupBy.length ? { groupBy } : {}),
+    width: 2,
+  })
+  const menu = (fn: Aggregate, i: number) => (
+    <ChartMenu
+      fn={fn}
+      onAdd={() => setAdding(widgetOf(fn))}
+      onAlert={
+        fn === 'count'
+          ? () =>
+              void navigate({
+                to: '/notifications',
+                search: { metric: 'log_count', query: query || undefined, project: search.project },
+              })
+          : undefined
+      }
+      onRemove={fns.length > 1 ? () => setFns(fns.filter((_, j) => j !== i)) : undefined}
+    />
+  )
+  const exportUrl = (format: 'csv' | 'jsonl') => {
+    const u = new URLSearchParams({ format, query })
+    if (search.project) u.set('project', search.project)
+    if ('from' in params) {
+      u.set('from', String(params.from))
+      u.set('to', String(params.to))
+    } else u.set('range', params.range)
+    return `/logs/export?${u}`
+  }
   return (
     <Shell wide crumbs={name ? [<Link to="/logs">Logs</Link>, name] : ['Logs']}>
       <PageHeader title="Logs">{name}</PageHeader>
@@ -129,7 +222,7 @@ function Logs() {
             project={search.project}
             range={search.range}
             placeholder='level:error song:42 "export failed"'
-            onSearch={(q) => go({ query: q || undefined })}
+            onSearch={(q) => go({ query: searchFor(q) })}
           />
         </div>
         <Select
@@ -159,11 +252,49 @@ function Logs() {
           </Button>
         )}
         <GroupBy
-          value={search.groupBy}
+          prefix="By"
+          value={groupBy[0]}
           project={search.project}
           range={search.range}
-          onChange={(groupBy) => go({ groupBy })}
+          onChange={(g) => setGroups(g ? [g, groupBy[1]] : [])}
         />
+        {groupBy[0] && (
+          <GroupBy
+            prefix="Then"
+            value={groupBy[1]}
+            exclude={groupBy[0]}
+            project={search.project}
+            range={search.range}
+            onChange={(g) => setGroups([groupBy[0], g])}
+          />
+        )}
+        <AddChart
+          disabled={fns.length >= MAX_QUERIES}
+          project={search.project}
+          range={search.range}
+          onAdd={(fn) => setFns([...fns, fn])}
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" aria-label="Export" title="Export">
+              <IconDownload data-icon="inline-start" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <a href={exportUrl('csv')} download>
+                Export CSV
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={exportUrl('jsonl')} download>
+                Export JSON Lines
+              </a>
+            </DropdownMenuItem>
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">The newest 10,000 logs of this search.</p>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           variant={live ? 'default' : 'outline'}
           onClick={() => setLive(!live)}
@@ -176,33 +307,81 @@ function Logs() {
         </Button>
       </div>
 
-      <section className="mb-3 rounded-xl border p-3 pb-1" aria-label="Logs over time">
-        <p className="mb-2 text-sm">
-          <span className="font-medium tabular-nums">{count(chart.total)}</span>{' '}
-          <span className="text-muted-foreground">
-            logs{search.groupBy && !Object.hasOwn(GROUP_COLUMNS, search.groupBy) && <> with {search.groupBy}</>}, per{' '}
-            {INTERVALS[chart.interval]}
-            {search.groupBy && Object.hasOwn(GROUP_COLUMNS, search.groupBy) && <> by {search.groupBy}</>}
-            {chart.before > 0 && (
-              <span className="max-sm:hidden">
-                , {count(chart.before)} in the{' '}
-                {'range' in params ? PERIODS[params.range] : spanText(chart.to - chart.from)} before
+      {chart && (
+        <section className="mb-3 rounded-xl border p-3 pb-1" aria-label="Logs over time">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <p className="text-sm">
+              <span className="font-medium tabular-nums">{count(chart.total)}</span>{' '}
+              <span className="text-muted-foreground">
+                logs{groupBy[0] && !Object.hasOwn(GROUP_COLUMNS, groupBy[0]) && <> with {groupBy[0]}</>}, per{' '}
+                {INTERVALS[chart.interval]}
+                {groupBy[0] && Object.hasOwn(GROUP_COLUMNS, groupBy[0]) && <> by {groupBy[0]}</>}
+                {chart.before > 0 && (
+                  <span className="max-sm:hidden">
+                    , {count(chart.before)} in the{' '}
+                    {'range' in params ? PERIODS[params.range] : spanText(chart.to - chart.from)} before
+                  </span>
+                )}
+                <span className="pointer-coarse:hidden"> · drag across the chart to zoom in</span>
               </span>
-            )}
-            <span className="pointer-coarse:hidden"> · drag across the chart to zoom in</span>
-          </span>
-        </p>
-        <TimeChart
-          x={chart.x}
-          series={chart.series}
-          previous={chart.previous}
-          height={140}
-          onZoom={(from, to) => go({ from: Math.max(from, chart.from), to: Math.min(to, chart.to) })}
-        />
-      </section>
+            </p>
+            {menu('count', 0)}
+          </div>
+          <TimeChart
+            x={chart.x}
+            series={chart.series}
+            previous={chart.previous}
+            height={140}
+            onZoom={(from, to) => go({ from: Math.max(from, chart.from), to: Math.min(to, chart.to) })}
+          />
+        </section>
+      )}
 
-      {data.groups && search.groupBy && (
-        <Groups groups={data.groups.groups} total={data.groups.total} field={search.groupBy} onPick={pick} />
+      {data.charts.length > 0 && (
+        <div className={cn('mb-3 grid gap-3', data.charts.length > 1 && 'md:grid-cols-2')}>
+          {data.charts.map((d, i) => {
+            const at = own ? i + 1 : i
+            const fn = fns[at]
+            if (!fn) return null
+            return (
+              <section
+                key={`${fn}-${at}`}
+                className="min-w-0 rounded-xl border p-3 pb-1"
+                aria-label={`${fn} over time`}
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-1.5 text-sm">
+                    <IconChartLine className="size-4 text-muted-foreground" />
+                    <span className="font-mono">{fn}</span>
+                    {groupBy.length > 0 && <span className="text-muted-foreground">by {groupBy.join(' and ')}</span>}
+                  </p>
+                  {menu(fn, at)}
+                </div>
+                <WidgetView
+                  widget={widgetOf(fn)}
+                  data={d}
+                  range={search.range ?? '24h'}
+                  project={search.project}
+                  height={140}
+                />
+              </section>
+            )
+          })}
+        </div>
+      )}
+
+      {data.table ? (
+        <section className="mb-3 rounded-xl border p-3" aria-label={`Logs by ${groupBy.join(' and ')}`}>
+          <WidgetView
+            widget={{ ...widgetOf(fns[0]), display: 'table', queries: fns.map((aggregate) => ({ query, aggregate })) }}
+            data={data.table}
+            range={search.range ?? '24h'}
+            project={search.project}
+          />
+        </section>
+      ) : (
+        data.groups &&
+        groupBy[0] && <Groups groups={data.groups.groups} total={data.groups.total} field={groupBy[0]} onPick={pick} />
       )}
 
       <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -230,7 +409,234 @@ function Logs() {
           />
         </div>
       </div>
+      {adding && <AddToDashboard widget={adding} onClose={() => setAdding(null)} />}
     </Shell>
+  )
+}
+
+/** A chart's menu: add it to a dashboard, alert on it (counts), remove it */
+function ChartMenu({
+  fn,
+  onAdd,
+  onAlert,
+  onRemove,
+}: {
+  fn: string
+  onAdd: () => void
+  onAlert?: () => void
+  onRemove?: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-sm" className="max-sm:size-10" aria-label={`More for ${fn}`}>
+          <IconDots />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={onAdd}>
+          <IconLayoutDashboard />
+          Add to dashboard
+        </DropdownMenuItem>
+        {onAlert && (
+          <DropdownMenuItem onSelect={onAlert}>
+            <IconBell />
+            Create alert
+          </DropdownMenuItem>
+        )}
+        {onRemove && (
+          <DropdownMenuItem onSelect={onRemove}>
+            <IconX />
+            Remove chart
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const FUNCTIONS = aggregatesOf('logs')
+const FUNCTION_NAMES: Record<string, string> = {
+  count: 'Count',
+  avg: 'Average',
+  sum: 'Sum',
+  min: 'Minimum',
+  max: 'Maximum',
+}
+
+/** "Add chart": a function, and for all but count a numeric attribute it's of */
+function AddChart({
+  disabled,
+  project,
+  range,
+  onAdd,
+}: {
+  disabled: boolean
+  project?: string
+  range?: Range
+  onAdd: (fn: Aggregate) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [fn, setFn] = useState('p95')
+  const [field, setField] = useState<string | undefined>('duration')
+  const aggregate = (fn === 'count' ? 'count' : `${fn}(${field ?? ''})`) as Aggregate
+  const error = aggregateError('logs', aggregate)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          disabled={disabled}
+          title={disabled ? 'Remove a chart first: the page shows 3 at most' : undefined}
+        >
+          <IconPlus data-icon="inline-start" />
+          Add chart
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72">
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (error) return
+            onAdd(aggregate)
+            setOpen(false)
+          }}
+        >
+          <div className="grid gap-2">
+            <Label htmlFor="chart-fn">Function</Label>
+            <Select value={fn} onValueChange={setFn}>
+              <SelectTrigger id="chart-fn" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[...FUNCTIONS.plain, ...FUNCTIONS.fns].map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {FUNCTION_NAMES[f] ?? f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {fn !== 'count' && (
+            <div className="grid gap-2">
+              <Label htmlFor="chart-field">Of the attribute</Label>
+              <FieldSelect
+                id="chart-field"
+                dataset="logs"
+                value={field}
+                project={project}
+                range={range}
+                none="Pick an attribute"
+                attributesOnly
+                onChange={setField}
+              />
+              <Input
+                aria-label="Attribute name"
+                value={field ?? ''}
+                placeholder="duration"
+                className="font-mono"
+                onChange={(e) => setField(e.target.value.trim() || undefined)}
+              />
+              <p className="text-xs text-muted-foreground">Logs where it isn’t a number are left out.</p>
+            </div>
+          )}
+          <Button type="submit" disabled={!!error}>
+            Add chart
+          </Button>
+        </form>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/** "Add to dashboard": the chart as a widget at the end of a dashboard picked from the list */
+function AddToDashboard({ widget, onClose }: { widget: Widget; onClose: () => void }) {
+  const [list, setList] = useState<{ id: number; name: string }[] | null>(null)
+  const [id, setId] = useState<string>('')
+  const [title, setTitle] = useState(widget.title)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    let live = true
+    void getDashboards().then((d) => {
+      if (!live) return
+      setList(d.dashboards)
+      setId(d.dashboards[0] ? String(d.dashboards[0].id) : '')
+    })
+    return () => {
+      live = false
+    }
+  }, [])
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <form
+          className="contents"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            setBusy(true)
+            try {
+              await addWidget({ data: { id: Number(id), widget: { ...widget, title: title.trim() || widget.title } } })
+              toast.success(`Added to ${list?.find((d) => String(d.id) === id)?.name ?? 'the dashboard'}`)
+              onClose()
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : 'The widget couldn’t be added')
+              setBusy(false)
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Add to dashboard</DialogTitle>
+            <DialogDescription>The chart joins the end of the dashboard, with this search.</DialogDescription>
+          </DialogHeader>
+          {list !== null && list.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No dashboards yet.{' '}
+              <Link to="/dashboards" className="underline">
+                Create one
+              </Link>{' '}
+              first.
+            </p>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="add-dashboard">Dashboard</Label>
+                <Select value={id} onValueChange={setId} disabled={list === null}>
+                  <SelectTrigger id="add-dashboard" className="w-full">
+                    <SelectValue placeholder="Loading…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(list ?? []).map((d) => (
+                      <SelectItem key={d.id} value={String(d.id)}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="add-title">Title</Label>
+                <Input
+                  id="add-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  maxLength={80}
+                  required
+                />
+              </div>
+            </>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy || !id}>
+              Add widget
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -272,12 +678,16 @@ function chartOf(
 
 /** The group-by: a log column, or an attribute (the keys stored, asked for when the menu first opens) */
 function GroupBy({
+  prefix,
   value,
+  exclude,
   project,
   range,
   onChange,
 }: {
+  prefix: string
   value?: string
+  exclude?: string
   project?: string
   range?: Range
   onChange: (groupBy: string | undefined) => void
@@ -291,13 +701,15 @@ function GroupBy({
       if ('keys' in r) setKeys(r.keys.filter((k) => k.kind === 'tag').map((k) => k.key))
     })
   }
-  const columns = Object.keys(GROUP_COLUMNS)
-  const attributes = [...new Set([...(value && !columns.includes(value) ? [value] : []), ...keys])]
+  const columns = Object.keys(GROUP_COLUMNS).filter((c) => c !== exclude)
+  const attributes = [...new Set([...(value && !columns.includes(value) ? [value] : []), ...keys])].filter(
+    (k) => k !== exclude,
+  )
   return (
     <Select value={value ?? 'none'} onValueChange={(v) => onChange(v === 'none' ? undefined : v)} onOpenChange={load}>
-      <SelectTrigger className="w-40" aria-label="Group by">
+      <SelectTrigger className="w-40" aria-label={prefix === 'By' ? 'Group by' : 'Then group by'}>
         <span className="flex min-w-0 gap-1.5">
-          <span className="text-muted-foreground">By</span>
+          <span className="text-muted-foreground">{prefix}</span>
           <SelectValue />
         </span>
       </SelectTrigger>

@@ -9,7 +9,7 @@ in `pnpm run deploy`).
   in the changelog with what to do.
 - Times are milliseconds since 1970 (`INTEGER`), days are `YYYY-MM-DD` in UTC, lists and objects are JSON text.
 - Every table a page lists from has the index it sorts by; say what a column holds in a comment beside it.
-- `dashboards.widgets` is JSON that `parseWidgets` (`src/data/dashboards.ts`) checks before it's written, and
+- `dashboards.widgets` is JSON that `parseWidgets` (`src/data/widgets.ts`) checks before it's written, and
   `readWidgets` again one widget at a time when it's read: a change to a widget's shape keeps reading the rows already
   stored, and one that no longer checks out shows as a placeholder to remove.
 - `issues_fts` is FTS5 over issue titles and culprits, kept in step by triggers.
@@ -33,3 +33,7 @@ in `pnpm run deploy`).
   list), `issues.priority` (filled from the level: fatal high, error medium, the rest low), `issues.ignore_until_users`,
   `issues_escalating` (partial), `projects.priorities` (null: by level). A worker from before 0014 writes no
   `event_hours` and new issues get `medium`.
+- 0015: `dashboards.revisions` (JSON, the widget lists of the last 10 saves, newest first, `'[]'` for the rows there
+  were) and `saved_searches` (a person's named search per page, pinned, shared; `saved_searches_page`). Widgets stay
+  as stored: v1 rows are upgraded on read and written as v2 on their next save. A worker from before 0015 reads a v2
+  widget as a placeholder, so rolling back shows saved v2 dashboards as widgets to redo, the data untouched.

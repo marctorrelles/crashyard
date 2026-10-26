@@ -19,7 +19,7 @@ export const spanOf = (w: Window, now: number) => ('range' in w ? { from: now - 
 type Search = { query: string; projectId?: number; window: Window }
 
 /** A search's conditions over `logs l`, narrowed to a project and to the slugs of its `project:` tokens */
-function conditions(opts: Omit<Search, 'window'>, now: number) {
+export function conditions(opts: Omit<Search, 'window'>, now: number) {
   const f = logFilter(opts.query, now)
   const where = [...f.where]
   const params = [...f.params]

@@ -20,11 +20,16 @@ server, the build, or `tsr generate`): never edit it.
   click on All projects, which is a client navigation) redirects to the viewer's Settings, Home (`getHome`, in
   `beforeLoad` on the server only).
 - `dashboards/index.tsx`: the dashboards (name, widgets or that they can't be read, when saved and by whom), New
-  dashboard (a name, then it opens in edit mode, `?edit=true`), and with none, Start with Crashes (`STARTER`).
-  `dashboards/$dashboardId.tsx`: one dashboard over a range (`?range=`, the logs page's), narrowed by `?project=`
-  (`getDashboard`, every widget's data in one call); its widgets in a grid of thirds (one column on a phone). Edit keeps
-  a draft (name, widgets added, changed, moved, removed; the range is fixed meanwhile, a changed widget shows its
-  preview) until Save writes the whole dashboard; Cancel drops it; Delete asks first. A chart's series or a table's
+  dashboard (a template picker, `RadioGroup`: Blank, which opens in edit mode, `?edit=true`, or one of `TEMPLATES`,
+  named after it unless a name is typed), and with none, Use the Crashes template (`STARTER`).
+  `dashboards/$dashboardId.tsx`: one dashboard over a range (`?range=`, the logs page's), narrowed by `?project=` and
+  the filter bar (`?environment=`, `?release=`, from `filterOptions`, and `?filter=`, a `SearchBar` of the issues'
+  grammar; each widget takes the keys its dataset knows) (`getDashboard`, every widget's data in one call); its widgets
+  in a grid of thirds (one column on a phone). Open shows a widget in `WidgetViewer`. History lists the revisions with
+  Restore (`restoreDashboard`, after a confirmation; the widgets there now become a revision). Duplicate dashboard
+  saves "Copy of <name>" and opens it. Edit keeps a draft (name, widgets added, changed, duplicated, moved by drag or
+  the arrows, removed; the range and filters are fixed meanwhile and the filter bar is hidden, a changed widget shows
+  its preview) until Save writes the whole dashboard; Cancel drops it; Delete asks first. A chart's series or a table's
   value opens the logs or issues with the widget's query and that value.
 - `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`, `days`); the
   search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
@@ -82,7 +87,13 @@ server, the build, or `tsr generate`): never edit it.
   instead of `getLogChart`): the chart's series are the 8 biggest groups and the rest, and over the list a table of them
   with their logs, the change since the span before ("new" when there were none), their share, + and − (a click on the
   value shows only it; none and the rest can't be picked). The chart doesn't poll: it's loaded again on each search.
-  Times to the millisecond in the viewer's zone and clock.
+  Times to the millisecond in the viewer's zone and clock. Charts: `?fn=` up to 3 functions, comma-separated (count
+  when unset), Add chart (a function and a numeric attribute); a count by one field or none is the page's own chart
+  above, the rest charts through `getLogMaths` (a logs widget each, `WidgetView`). `?groupBy=` takes 2 fields,
+  comma-separated (By, Then); with two, or with more functions than a count, the table is a row per group and a column
+  per function (`getLogMaths`' table) instead of the groups table. Each chart's menu: Add to dashboard (a dashboard
+  and a title, `addWidget`), Create alert for a count (`/notifications?metric=log_count&query=…&project=…`), Remove
+  chart. Export: CSV or JSON Lines of the current search, through `logs_.export.ts`.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
   monitor, and one monitor: its results or check-ins, how to check in, incidents, pause, edit, delete.
 - `notifications.tsx`: channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
@@ -92,7 +103,11 @@ server, the build, or `tsr generate`): never edit it.
   through `SearchBar`, checked on save by `tagFilterError`; "Wait before alerting again"; the row sums them up), and
   metric alerts: each with its state, its value and when it changed; Create metric alert opens a form with name,
   project, metric, filter, window of 1, 6 or 24 hours, direction and the warning and critical values, in percent or
-  milliseconds by the metric, each metric starting from its own defaults.
+  milliseconds by the metric, each metric starting from its own defaults. `?metric=` (with `query` and `project`, a slug)
+  opens Create metric alert filled in, the logs page's Create alert; closing it clears them from the URL.
+- `logs_.export.ts`: `/logs/export`, a server route (no page, not nested in `logs.tsx`): the search of `query`,
+  `project`, `range` or `from` and `to`, as `format` csv or jsonl, the newest 10,000, as an attachment with `nosniff`
+  and a sandbox CSP, for a signed-in viewer (403 without `x-crashyard-viewer`).
 - `attachments.$id.ts`: a server route, no page: an attachment from R2 for a signed-in viewer (the
   `x-crashyard-viewer` header `src/server.ts` sets, else 403). Images by `attachmentType` (png, jpeg, gif, webp, by
   type or else name) inline as that type; everything else, SVG and HTML included, `application/octet-stream` as

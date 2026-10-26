@@ -1,4 +1,4 @@
-import { ClientOnly, createFileRoute, useRouter } from '@tanstack/react-router'
+import { ClientOnly, createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import {
   IconBrandDiscord,
   IconBrandSlack,
@@ -57,7 +57,16 @@ import {
 import { KINDS, LEVELS, minutesText, type Route as NotifyRoute } from '@/notify/notice'
 import { frequencyOf, type Frequency, INTERVALS, WINDOWS } from '@/notify/rules'
 
+// `?metric=` opens Create metric alert with that metric, `query` as its filter and `project` (a slug) picked: the
+// logs page's Create alert
+type Search = { metric?: Metric; query?: string; project?: string }
+
 export const Route = createFileRoute('/notifications')({
+  validateSearch: (s: Record<string, unknown>): Search => ({
+    metric: typeof s.metric === 'string' && Object.hasOwn(METRICS, s.metric) ? (s.metric as Metric) : undefined,
+    query: typeof s.query === 'string' && s.query.length <= 1000 ? s.query : undefined,
+    project: typeof s.project === 'string' && s.project.length <= 60 ? s.project : undefined,
+  }),
   loader: () => getNotifications(),
   head: () => ({ meta: [{ title: 'Notifications · crashyard' }] }),
   component: Notifications,
@@ -77,7 +86,17 @@ function Notifications() {
   const d = Route.useLoaderData()
   const [channel, setChannel] = useState<Channel | 'new' | null>(null)
   const [route, setRoute] = useState<NotifyRoute | 'new' | null>(null)
-  const [metric, setMetric] = useState<MetricAlert | 'new' | null>(null)
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
+  const [metric, setMetric] = useState<MetricAlert | 'new' | null>(search.metric ? 'new' : null)
+  // What the link asked for, once: closing the form drops it from the URL
+  const initial = search.metric
+    ? {
+        metric: search.metric,
+        query: search.query ?? '',
+        project: d.projects.find((p) => p.slug === search.project)?.id,
+      }
+    : undefined
   return (
     <Shell crumbs={['Notifications']}>
       <PageHeader title="Notifications">
@@ -167,7 +186,17 @@ function Notifications() {
         )}
       </section>
 
-      {metric && <MetricDialog alert={metric === 'new' ? undefined : metric} d={d} onClose={() => setMetric(null)} />}
+      {metric && (
+        <MetricDialog
+          alert={metric === 'new' ? undefined : metric}
+          initial={metric === 'new' ? initial : undefined}
+          d={d}
+          onClose={() => {
+            setMetric(null)
+            if (search.metric) void navigate({ search: {}, replace: true })
+          }}
+        />
+      )}
       {channel && (
         <ChannelDialog
           channel={channel === 'new' ? undefined : channel}
@@ -914,10 +943,20 @@ const FILTERS: Record<Metric, string> = {
   log_count: 'level:error song:intro',
 }
 
-function MetricDialog({ alert, d, onClose }: { alert?: MetricAlert; d: Data; onClose: () => void }) {
+function MetricDialog({
+  alert,
+  initial,
+  d,
+  onClose,
+}: {
+  alert?: MetricAlert
+  initial?: { metric: Metric; query: string; project?: number }
+  d: Data
+  onClose: () => void
+}) {
   const router = useRouter()
-  const [metric, setMetric] = useState<Metric>(alert?.metric ?? 'crash_free_sessions')
-  const [project, setProject] = useState(String(alert?.project_id ?? d.projects[0]?.id ?? ''))
+  const [metric, setMetric] = useState<Metric>(alert?.metric ?? initial?.metric ?? 'crash_free_sessions')
+  const [project, setProject] = useState(String(alert?.project_id ?? initial?.project ?? d.projects[0]?.id ?? ''))
   const [hours, setHours] = useState(String(alert?.window_hours ?? 24))
   const [values, setValues] = useState(
     alert
@@ -926,7 +965,7 @@ function MetricDialog({ alert, d, onClose }: { alert?: MetricAlert; d: Data; onC
           warning: alert.warning === null ? '' : String(alert.warning),
           critical: String(alert.critical),
         }
-      : DEFAULTS.crash_free_sessions,
+      : DEFAULTS[initial?.metric ?? 'crash_free_sessions'],
   )
   const unit = UNITS[METRICS[metric].unit]
   const done = async () => {
@@ -1010,7 +1049,7 @@ function MetricDialog({ alert, d, onClose }: { alert?: MetricAlert; d: Data; onC
             <Field
               id="query"
               label="Filter"
-              defaultValue={alert?.query}
+              defaultValue={alert?.query ?? initial?.query}
               placeholder={FILTERS[metric]}
               hint="Leave empty to count everything in the project."
             />

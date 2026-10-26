@@ -1,6 +1,6 @@
 # Components
 
-- `ui/`: shadcn/ui (style `radix-nova`, neutral, `components.json` at the root). Added with
+- `ui/`: shadcn/ui (`radio-group` for the template picker among them; style `radix-nova`, neutral, `components.json` at the root). Added with
   `yes n | pnpm dlx shadcn@latest add <name>` (the `n` keeps the files it would overwrite); kept as upstream writes
   them, so they can be re-added with `--overwrite`. After adding one, fix its `cn` import to `@/lib/utils` if the CLI
   wrote `"cn"` (and `pnpm remove cn` if it added that package). The theme's colours are in `src/styles.css`.
@@ -49,16 +49,26 @@
   tick that starts a day says its date); it draws inside `<ClientOnly>`, a `Skeleton` of its size before. Colours: a
   series' own, else `LEVEL_COLORS` by key, the same as `Level`'s dots (fatal red 600, error orange 500, warning and
   logs' warn amber 400, info sky 500, debug zinc 400, logs' trace fainter), else the theme's `--chart-n`; `PALETTE`, 8
-  colours for groups and projects. `BarList`: values with a bar for their share, count and percent (or `format`'s text),
+  colours for groups and projects; the legend wraps. `BarList`: values with a bar for their share, count and percent (or `format`'s text),
   - (show only) and − (exclude) on hover, always shown on touch. `BigNumber`: a number, its label and its change (more
-    reads red, less green, none as rounded muted), on the overview and dashboards.
+    reads red, less green, the other way with `higherIsBetter`, none as rounded muted), `tone` amber or red past a
+    widget's thresholds, on the overview and dashboards.
 - `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset and group-by unless the title says just that,
-  query, then the number with its change, at its own height beside a taller widget, the chart, the table of values with their change, the issues, or what went wrong, a placeholder saying it can't be
-  read and to remove or redo it; a series or a value opens the logs or issues with it added), `WidgetActions` (edit
-  mode: edit, up, down, remove; 40 px on a phone) and `WidgetDialog` (title, dataset, `SearchBar` of its scope (what's
-  in it is saved on Add, searched or not, by its `onChange`; a placeholder redone is valid again), display
-  `ToggleGroup`, group-by, width, and a preview from `previewWidget` 400 ms after a change, a reply for an older widget
-  never shown).
+  queries; Open in view mode; draggable in edit mode, native HTML drag and drop onto another card), `WidgetView` (numbers
+  with their change, in their unit, `formatValue`, the first one amber or red past its thresholds; a chart, a query in
+  another unit on a second axis, averages and percentiles as unstacked lines; a table with a column per group field
+  and per query, Change and share for one query; issues; markdown; what went wrong; a series or the first field's value
+  opens the logs or issues with it added, for logs and events), `Markdown` (no library: paragraphs, line breaks,
+  `**bold**`, http and https links, lists of `-`, `*` or `1.`; nothing else, as React elements, no HTML),
+  `WidgetActions` (edit mode: a grip, edit, duplicate, up, down, remove; 40 px on a phone), `WidgetViewer` (a widget
+  full width in a dialog, then its numbers as a table sortable by any column and paged by 20: a bucket a row for a
+  chart, a group for a table, an issue for a list; a table or list isn't drawn twice; Open in Issues, Logs,
+  Performance, Monitors or Releases by dataset, `listOf`), `WidgetDialog` (the builder: title, dataset, then each query's
+  search (`SearchBar` for issues, events and logs, a text field of the fixed keys otherwise), function and field or
+  attribute, label when there are several, Add query up to 3; markdown a text area; display; group by and then by; sort
+  and groups or issues shown; thresholds for a number; width; a preview from `previewWidget` with the dashboard's
+  filters 400 ms after a change, a reply for an older widget never shown) and `GroupBy` (a dataset's fields, logs'
+  attributes asked for once; `attributesOnly` for the logs page's Add chart).
 - `value-menu.tsx`: `ValueMenu`, a value on a page as a `DropdownMenu`: show only this, exclude this, copy. Pages pass
   `addValue` for the first two, only for a key the grammar can write (`isSearchableKey`); its trigger sits above a row's
   link (`z-10`), its tap area 40 px high on a phone.

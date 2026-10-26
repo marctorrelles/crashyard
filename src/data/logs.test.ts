@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { sqliteD1 } from '../../test/fakes'
+import { csvField, exportLogs, MAX_LINES, toCsv, toJsonLines } from './export'
 import { hourly, readsHours } from './logs'
 
 const HOUR = 36e5
@@ -46,5 +48,47 @@ describe('logs', () => {
         [b, b + HOUR],
       ]).sql.match(/UNION ALL/g),
     ).toHaveLength(3)
+  })
+})
+
+describe('export', () => {
+  it('escapes quotes, commas and line breaks in CSV, and defuses formulas', () => {
+    expect(csvField('plain')).toBe('plain')
+    expect(csvField('say "hi"')).toBe('"say ""hi"""')
+    expect(csvField('a,b')).toBe('"a,b"')
+    expect(csvField('two\nlines')).toBe('"two\nlines"')
+    expect(csvField('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`)
+    expect(csvField(null)).toBe('')
+    expect(toCsv(['a', 'b'], [{ a: 1, b: 'x\r\ny' }])).toBe('a,b\r\n1,"x\r\ny"\r\n')
+  })
+
+  it('stops at 10,000 lines', () => {
+    const rows = Array.from({ length: MAX_LINES + 5 }, (_, i) => ({ a: i }))
+    expect(toCsv(['a'], rows).trimEnd().split('\r\n')).toHaveLength(MAX_LINES + 1)
+    expect(toJsonLines(rows).trimEnd().split('\n')).toHaveLength(MAX_LINES)
+  })
+
+  it('writes the newest logs of a search, times in UTC', async () => {
+    const db = sqliteD1()
+    const now = Date.UTC(2026, 9, 26, 12)
+    db.sqlite
+      .exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'pocketband', 'pocketband', 'k', 0);
+      INSERT INTO logs (project_id, timestamp, received, level, body, attributes) VALUES
+        (1, ${now - 60e3}, 0, 'error', 'Export failed, "disk full"', '{"song":42}'),
+        (1, ${now - 120e3}, 0, 'info', 'Saved', '{}'),
+        (1, ${now - 2 * DAY}, 0, 'error', 'Too old', '{}')`)
+    const csv = await exportLogs(db, { query: 'level:error', window: { range: '24h' } }, 'csv', now)
+    expect(csv).toBe(
+      'timestamp,level,project,release,environment,trace_id,body,attributes\r\n' +
+        '2026-10-26T11:59:00.000Z,error,pocketband,,,,"Export failed, ""disk full""","{""song"":42}"\r\n',
+    )
+    const lines = await exportLogs(db, { query: '', window: { range: '24h' } }, 'jsonl', now)
+    expect(
+      lines
+        .trimEnd()
+        .split('\n')
+        .map((l) => JSON.parse(l).body),
+    ).toEqual(['Export failed, "disk full"', 'Saved'])
+    expect(JSON.parse(lines.split('\n')[0]).attributes).toEqual({ song: 42 })
   })
 })

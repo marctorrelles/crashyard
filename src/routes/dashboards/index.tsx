@@ -16,7 +16,9 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { STARTER } from '@/data/dashboards'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { STARTER, TEMPLATES } from '@/data/templates'
+import type { Widget } from '@/data/widgets'
 import { getDashboards, saveDashboard } from '@/fns'
 
 export const Route = createFileRoute('/dashboards/')({
@@ -35,8 +37,8 @@ function Dashboards() {
   const name = useProjects().find((p) => p.slug === project)?.name ?? project
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
-  // A new dashboard opens in edit mode; the starter one as it is
-  const create = async (d: typeof STARTER, edit: boolean) => {
+  // A blank dashboard opens in edit mode; one from a template as it is
+  const create = async (d: { name: string; widgets: Widget[] }, edit: boolean) => {
     setBusy(true)
     try {
       const id = await saveDashboard({ data: d })
@@ -53,13 +55,9 @@ function Dashboards() {
   }
   return (
     <Shell crumbs={name ? [<Link to="/dashboards">Dashboards</Link>, name] : ['Dashboards']}>
-      <PageHeader
-        title="Dashboards"
-        actions={
-          dashboards.length > 0 && <NewDashboard busy={busy} onCreate={(name) => create({ name, widgets: [] }, true)} />
-        }
-      >
-        Charts and numbers built from issues, events and logs. Everyone on the team sees the same dashboards.
+      <PageHeader title="Dashboards" actions={dashboards.length > 0 && <NewDashboard busy={busy} onCreate={create} />}>
+        Charts and numbers built from issues, events, logs, transactions, sessions and monitors. Everyone on the team
+        sees the same dashboards.
       </PageHeader>
       {dashboards.length === 0 ? (
         <Empty
@@ -71,7 +69,7 @@ function Dashboards() {
                 <IconLayoutDashboard data-icon="inline-start" />
                 Use the Crashes template
               </Button>
-              <NewDashboard variant="outline" busy={busy} onCreate={(name) => create({ name, widgets: [] }, true)} />
+              <NewDashboard variant="outline" busy={busy} onCreate={create} />
             </div>
           }
         >
@@ -108,7 +106,7 @@ function Dashboards() {
   )
 }
 
-/** "New dashboard": a name, then the dashboard in edit mode */
+/** "New dashboard": a name and a template to start from, or a blank one that opens in edit mode */
 function NewDashboard({
   variant = 'default',
   busy,
@@ -116,9 +114,12 @@ function NewDashboard({
 }: {
   variant?: 'default' | 'outline'
   busy: boolean
-  onCreate: (name: string) => Promise<void>
+  onCreate: (d: { name: string; widgets: Widget[] }, edit: boolean) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
+  const [template, setTemplate] = useState('blank')
+  const [name, setName] = useState('')
+  const picked = TEMPLATES.find((t) => t.key === template)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -127,25 +128,51 @@ function NewDashboard({
           New dashboard
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
         <form
           className="contents"
           onSubmit={(e) => {
             e.preventDefault()
-            void onCreate(String(new FormData(e.currentTarget).get('name')).trim())
+            void onCreate({ name: name.trim() || picked?.name || 'Dashboard', widgets: picked?.widgets ?? [] }, !picked)
           }}
         >
           <DialogHeader>
             <DialogTitle>New dashboard</DialogTitle>
-            <DialogDescription>Name it, then add widgets.</DialogDescription>
+            <DialogDescription>Start from a template or from nothing. You can change all of it.</DialogDescription>
           </DialogHeader>
+          <RadioGroup value={template} onValueChange={setTemplate} aria-label="Template" className="gap-2">
+            {[
+              { key: 'blank', name: 'Blank', description: 'No widgets yet. It opens ready to add them.' },
+              ...TEMPLATES,
+            ].map((t) => (
+              <Label
+                key={t.key}
+                htmlFor={`template-${t.key}`}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border p-3 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+              >
+                <RadioGroupItem id={`template-${t.key}`} value={t.key} className="mt-0.5" />
+                <span className="grid gap-0.5">
+                  <span className="text-sm font-medium">{t.name}</span>
+                  <span className="text-xs text-muted-foreground">{t.description}</span>
+                </span>
+              </Label>
+            ))}
+          </RadioGroup>
           <div className="grid gap-2">
             <Label htmlFor="dashboard-name">Name</Label>
-            <Input id="dashboard-name" name="name" required maxLength={80} placeholder="Releases" autoComplete="off" />
+            <Input
+              id="dashboard-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required={!picked}
+              maxLength={80}
+              placeholder={picked?.name ?? 'Releases'}
+              autoComplete="off"
+            />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={busy}>
-              Create
+              Create dashboard
             </Button>
           </DialogFooter>
         </form>

@@ -44,7 +44,8 @@ helpers (`change`).
   `issues_escalating`). `escalation.test.ts` on `test/fakes.ts`.
 - `releases.ts`: releases from events (kept within retention), and the release diff: new in it, came back in it,
   still happening, and gone since the release before.
-- `logs.ts`: the explorer's page (newest first, cursors for older and for the live tail's newer) over a `Window`:
+- `logs.ts`: `conditions` (a search's SQL over `logs l`, narrowed to a project, exported for `widgets.ts` and
+  `export.ts`); the explorer's page (newest first, cursors for older and for the live tail's newer) over a `Window`:
   a preset range up to now (the list reads on past now, for the live tail) or an exact span `from` to `to` (`to` left
   out, 90 days at most, `MAX_SPAN`); facets over the newest 1000 that match; `logsByBucket`, logs per bucket and level
   over the window (the bucket from `intervalFor`, `timestamp - timestamp % size`: `%` reads integers, whatever D1
@@ -96,22 +97,60 @@ helpers (`change`).
   UTC day and level, or project with `by` (grouped by id, the slugs looked up after: `slugsOf`), of the issues a search
   matches, from `issue_days`). Plan: the issues by the filter (a scan, or a project's by `issues_project_last_seen`),
   then each one's days by `issue_days`' primary key; with no filter, the days by `issue_days_day`.
-- `dashboards.ts`: dashboards (`dashboards`, one row each, its widgets as JSON, who saved it last) and their widgets.
-  `parseWidgets` checks what the browser sends field by field: 20 at most, ids 8 hex digits and unique, a title (80), a
-  query (1000), a dataset (`issues`, `events`, `logs`) and a display it has (`DISPLAYS`: issues as a number or a list;
-  events and logs as a number, bars, area, line or a table), a width of 1 to 3 thirds and a group-by (60, a field name;
-  events by `level` or `project`, `EVENT_GROUPS`; logs a column or an attribute, which `logGroups` only binds; none for
-  issues); keys that aren't a widget's are dropped, and a placeholder (`invalid`) is refused. `readWidgets` reads the
-  stored ones one by one: a widget that no longer checks out (or text that isn't JSON or a list) becomes a placeholder
-  in its place, `invalid` holding why, with an id free (as is a repeated one's), so the dashboard opens and it can be
-  removed or redone; `listDashboards` counts widgets only of valid JSON (else `null`). `widgetData` reads one widget
-  through the lists' own functions and turns any error into `{ kind: 'error' }` (a placeholder's is its reason, without
-  a read). Logs: `logsByBucket` (by level), `logGroups` (a group-by, and the table, by level when none). Events come
-  from `issue_days`, so they're whole UTC days (`eventDays`): a number or table counts every day the window touches (24
-  hours: yesterday and today) against as many days before; a chart shows those days, a week at least, 90 at most. Issues
-  are as they are now, the window doesn't narrow them (`lastSeen:-24h` in the query does): a number counts the matching
-  ones against those of them first seen before the window began, a list the 10 with most events. `STARTER` is the
-  "Crashes" dashboard. Plan: the list by `dashboards_updated`; a dashboard by its primary key.
+- `widgets.ts`: dashboard widgets, schema v2 (`Widget`): a dataset (`DATASETS`: issues, events, logs, transactions,
+  sessions, monitors, releases, markdown), a display it has (`DISPLAYS`; markdown is `text`), 1 to 3 queries
+  (`MAX_QUERIES`) each a search, an aggregate and a label (40), up to 2 group-by fields (`GROUPS`; logs also any
+  attribute, only ever bound), a sort (by value or name, up or down), a limit of groups or issues shown (1 to 50, 8
+  unset), thresholds for a number (warning, critical, above or below), or markdown text (4000), and a width.
+  `aggregateError` refuses what a dataset can't compute with a sentence naming what it can: issues count; events count
+  and `count_unique(user)`; logs count and avg, sum, min, max, p50, p75, p95, p99 of a numeric attribute; transactions
+  count, `failure_rate` and avg or a percentile of `duration`; sessions count and `crash_free_rate`; monitors count,
+  `uptime`, `failure_rate` and any function of `duration`; releases count, users and crash-free rate. `uptime` is ours,
+  beyond the plan's list: 100 minus the failure rate. Transactions, sessions, monitors and releases take filters of
+  fixed keys only (`FILTER_KEYS`, checked on save like metric alerts). `upgradeWidget` turns the first shape (one
+  `query`, a count, a `groupBy` string) into v2: its query a count, its group-by a list of one; `parseWidget` upgrades
+  any widget without `queries` before checking, so stored v1 rows and v1 JSON from an old tab read the same.
+  `readWidgets` as before: one widget at a time, a placeholder for one that doesn't check out. `widgetData`: issues as
+  before (a count right now against those first seen before the window, the list by events); logs with one count and
+  a group-by of one or none, no sort or limit, through `logsByBucket`/`logGroups` (so v1 log widgets read exactly as
+  before, `log_hours` included); everything else through `compute`, over a source of rows `(ts, g0, g1, s, n, e, u,
+b)` per dataset: events from `event_hours` joined to the issues their search matches (`level`, `release` and
+  `environment` tokens go to the hour's own columns, the rest to the issues; level is the event's own, where v1 took the
+  issue's, the same whenever an issue's events share its level; a number counts the window's hours, where v1 counted
+  whole UTC days), or from `events` for distinct
+  `user_hash`; logs one row each, a measure from `json_extract` of the attribute in `logs.attributes` where its JSON
+  type is a number (others left out), groups from the columns or `log_attributes` joins; transactions from
+  `transaction_hours` (`sum_ms`, `count`, `errors`), percentiles from `transaction_buckets` through `percentile`, as
+  the performance pages; sessions from `sessions_daily`, whole UTC days; monitors finished cron check-ins (not
+  `in_progress`) and uptime results, one row each, failed unless `ok` (an uptime result has no environment or release,
+  so a filter on either leaves it out); releases group by release, events for counts and users, sessions for
+  crash-free. Aggregates are SQL over the source (count `SUM(n)`, avg `SUM(s)/SUM(n)`, rates from `e`), percentiles on
+  rows nearest-rank by window functions (`ROW_NUMBER`, the smallest value with p% at or below it). Groups: every
+  group's total of the first query picks the shown ones (`pickGroups`: biggest first, or the sort; level alone most
+  severe first), the rest one group `null` (`CASE … IN`), exact for every aggregate as it's computed as a group. One
+  count of events or logs with no group-by splits by level, as v1 did (`groupsOf`). Buckets: events and transactions
+  an hour up to 7 days, else a day (a 24-hour chart ending on the hour is 24 bars; mid-hour, its first and last are
+  part-hours), logs and monitors as the logs page (`intervalFor`), sessions a day. Hourly rollups read from the hour
+  that holds the window's start. A number is each query's value against the span before, the same length. `Filters`
+  and `applyFilters`: the dashboard's environment, release and search tokens appended to each query whose dataset
+  knows the key (issues, events and logs every key). Any error is `{ kind: 'error' }`. `widgets.test.ts` on
+  `test/fakes.ts`: v1 shapes read the same, aggregates refused, 24 hourly buckets with filters, avg and p95 of a log
+  attribute, two group-bys, a transaction p95 against `percentile`, crash-free per release, uptime and check-ins by
+  status.
+- `dashboards.ts`: dashboards (`dashboards`, one row each, its widgets as JSON, who saved it last). `saveDashboard`
+  writes v2; over an existing one it puts the widget list it had first in `revisions` (10 at most, `MAX_REVISIONS`,
+  `{ widgets, by, at }`, the widgets as stored, v1 too) when the widgets changed, written `WHERE updated = <read>` so two
+  saves at once can't drop a revision (the loser is told to open it again). `dashboardHistory`, `revisionWidgets` (read
+  as stored widgets are), `addWidget` (the logs page's, at the end, through `parseWidgets`), `filterOptions` (the
+  filter bar's environments and releases of the last 30 days from `event_hours`, by count, 50 each).
+  `listDashboards` counts widgets only of valid JSON (else `null`). Plan: the list by `dashboards_updated`; a dashboard
+  by its primary key.
+- `templates.ts`: `TEMPLATES`, the prebuilt dashboards "New dashboard" offers: Crashes (`STARTER`, as before), Mobile app
+  health, Web app, Backend and logs, Uptime and crons. Crash-free users and vitals join them in phase 6.
+- `export.ts`: the logs page's export: `exportLogs`, the newest 10,000 (`MAX_LINES`) logs of a search, times in UTC;
+  `toCsv` (a header, then a record a row: fields with a quote, comma or line break quoted and their quotes doubled;
+  one starting `=` `+` `-` `@`, a tab or a return gets a `'` first so a spreadsheet runs nothing) and `toJsonLines`.
+  Tested in `logs.test.ts`.
 - `source.ts`: stacks linked to the code. `storeCommits` (a release's commits from set-commits, its head as the
   release's `ref`, and `source_files`, every path the commits sent so far left: added or changed, not deleted since);
   `previousWithCommits`; `releaseCommits` (each linked to the project's `repo_url`); `frameLinks`, each in-app frame of

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { eventDays, parseWidgets, readWidgets, STARTER, widgetData } from './dashboards'
+import { sqliteD1 } from '../../test/fakes'
+import { addWidget, dashboardHistory, getDashboard, revisionWidgets, saveDashboard } from './dashboards'
+import { STARTER } from './templates'
+import { parseWidgets, readWidgets, upgradeWidget, widgetData } from './widgets'
 
+// A widget as stored before schema v2
 const widget = {
   id: '0a1b2c3d',
   title: 'Errors',
@@ -9,17 +13,19 @@ const widget = {
   display: 'bar',
   groupBy: 'release',
   width: 2,
-}
+} as const
+const upgraded = upgradeWidget(widget)
 
 describe('parseWidgets', () => {
-  it('accepts a valid widget, and the starter dashboard', () => {
-    expect(parseWidgets([widget])).toEqual([widget])
+  it('accepts a valid widget of either shape, and the starter dashboard', () => {
+    expect(parseWidgets([widget])).toEqual([upgraded])
+    expect(parseWidgets([upgraded])).toEqual([upgraded])
     expect(parseWidgets(STARTER.widgets)).toEqual(STARTER.widgets)
   })
 
   it('strips keys that are not a widget’s, and an empty group-by', () => {
-    expect(parseWidgets([{ ...widget, sql: 'DROP TABLE logs', extra: 1 }])).toEqual([widget])
-    const { groupBy: _, ...plain } = widget
+    expect(parseWidgets([{ ...widget, sql: 'DROP TABLE logs', extra: 1 }])).toEqual([upgraded])
+    const { groupBy: _, ...plain } = upgraded
     expect(parseWidgets([{ ...widget, groupBy: '' }])).toEqual([plain])
   })
 
@@ -37,7 +43,7 @@ describe('parseWidgets', () => {
     ['a width as text', { width: '2' }],
     ['a group-by over 60', { groupBy: 'x'.repeat(61) }],
     ['a group-by that is no field', { groupBy: 'a b' }],
-    ['an events group-by that is not level or project', { dataset: 'events', groupBy: 'release' }],
+    ['an events group-by it has not', { dataset: 'events', groupBy: 'song' }],
     ['a group-by on issues', { dataset: 'issues', display: 'list' }],
   ])('rejects %s', (_, change) => {
     expect(() => parseWidgets([{ ...widget, ...change }])).toThrow()
@@ -59,8 +65,8 @@ describe('readWidgets', () => {
   it('keeps the valid widgets and puts a placeholder where one no longer reads', async () => {
     const other = { ...widget, id: '00000001', title: 'Warnings' }
     const read = readWidgets(JSON.stringify([widget, { ...widget, display: 'pie', title: 'Pie' }, other]))
-    expect(read[0]).toEqual(widget)
-    expect(read[2]).toEqual(other)
+    expect(read[0]).toEqual(upgraded)
+    expect(read[2]).toEqual(upgradeWidget(other))
     expect(read[1]).toMatchObject({ id: '00000000', title: 'Pie', invalid: expect.stringContaining('shows as') })
     // Its data is the reason, without a read
     expect(await widgetData({} as D1Database, read[1], undefined, { range: '24h' }, 0)).toEqual({
@@ -85,19 +91,38 @@ describe('readWidgets', () => {
   })
 })
 
-describe('eventDays', () => {
-  const now = Date.UTC(2026, 9, 26, 15)
-  it('reads a week at least for a chart, and the days the window touches for a number', () => {
-    const chart = eventDays({ range: '24h' }, now, 7)
-    expect(chart.days).toHaveLength(7)
-    expect(chart.days.at(-1)).toBe('2026-10-26')
-    expect(chart.before.at(-1)).toBe('2026-10-19')
-    expect(eventDays({ range: '24h' }, now, 1).days).toEqual(['2026-10-25', '2026-10-26'])
-    expect(eventDays({ range: '30d' }, now, 7).days).toHaveLength(31)
+describe('revisions', () => {
+  it('keeps the widget lists of the last 10 saves, newest first, and restores one as it was', async () => {
+    const db = sqliteD1()
+    // A dashboard as stored before 0015: widgets of the first shape
+    db.sqlite.exec(`INSERT INTO dashboards (id, name, widgets, updated, updated_by)
+      VALUES (1, 'Crashes', '${JSON.stringify([widget])}', 100, 'marc@example.com')`)
+    expect((await getDashboard(db, 1))?.widgets).toEqual([upgraded])
+    for (let i = 1; i <= 12; i++)
+      await saveDashboard(
+        db,
+        { id: 1, name: 'Crashes', widgets: [{ ...upgraded, title: `Errors ${i}` }] },
+        `p${i}@example.com`,
+        100 + i,
+      )
+    // A save that changes no widget adds none
+    await saveDashboard(db, { id: 1, name: 'Renamed', widgets: [{ ...upgraded, title: 'Errors 12' }] }, 'x', 200)
+    const history = await dashboardHistory(db, 1)
+    expect(history).toHaveLength(10)
+    expect(history[0]).toEqual({ index: 0, by: 'p11@example.com', at: 111, widgets: 1 })
+    expect((await revisionWidgets(db, 1, 0))[0].title).toBe('Errors 11')
+    // The oldest kept is the tenth before the last
+    expect((await revisionWidgets(db, 1, 9))[0].title).toBe('Errors 2')
+    await expect(revisionWidgets(db, 1, 10)).rejects.toThrow('no longer kept')
   })
 
-  it('ends an exact span on the day of its last moment', () => {
-    const w = { from: Date.UTC(2026, 9, 1), to: Date.UTC(2026, 9, 3) }
-    expect(eventDays(w, now, 1)).toEqual({ days: ['2026-10-01', '2026-10-02'], before: ['2026-09-29', '2026-09-30'] })
+  it('reads a v1 revision as v2, and adds a widget at the end', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO dashboards (id, name, widgets, updated, updated_by)
+      VALUES (1, 'Crashes', '${JSON.stringify([widget])}', 100, 'marc@example.com')`)
+    await addWidget(db, 1, { ...upgraded, id: '00000009', title: 'More' }, 'marc@example.com', 200)
+    expect((await getDashboard(db, 1))?.widgets.map((w) => w.title)).toEqual(['Errors', 'More'])
+    expect(await revisionWidgets(db, 1, 0)).toEqual([upgraded])
+    await expect(addWidget(db, 1, upgraded, 'm', 300)).rejects.toThrow('share an id')
   })
 })

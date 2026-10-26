@@ -18,6 +18,7 @@ import * as source from './data/source'
 import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
+import * as widgets from './data/widgets'
 import { PRIORITIES, type Priority } from './ingest/priority'
 import { telegramChats, telegramToken } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
@@ -607,6 +608,59 @@ export const getLogGroups = createServerFn()
     return logs.logGroups(env.DB, { ...data, projectId: project?.id ?? (data.project ? -1 : undefined) }, Date.now())
   })
 
+// The logs page's maths: a chart for each of `functions` (count, or avg, sum, min, max or a percentile of a numeric
+// attribute) by up to 2 fields, and a table of the groups with a column for each of `table`'s
+export const getLogMaths = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    const list = (v: unknown, max: number) => {
+      if (!Array.isArray(v) || v.length > max) throw new Error(`expected ${max} at most`)
+      return v.map((x) => text(x, 80))
+    }
+    const functions = list(o.functions ?? [], widgets.MAX_QUERIES)
+    const table = list(o.table ?? [], widgets.MAX_QUERIES)
+    for (const f of [...functions, ...table]) {
+      const error = widgets.aggregateError('logs', f)
+      if (error) throw new Error(error)
+    }
+    const groupBy = list(o.groupBy ?? [], 2)
+    if (!groupBy.every((g) => /^[\w.-]{1,60}$/.test(g))) throw new Error('expected fields to group by')
+    return {
+      query: text(o.query ?? '', 1000),
+      project: optional((v) => text(v, 60))(o.project),
+      window: logWindow(o),
+      functions: functions as widgets.Aggregate[],
+      table: table as widgets.Aggregate[],
+      groupBy,
+    }
+  })
+  .handler(async ({ data }) => {
+    const projectId = await projectIdOf(data.project)
+    const now = Date.now()
+    const widget = (display: widgets.Display, queries: widgets.WidgetQuery[]): widgets.Widget => ({
+      id: '00000000',
+      title: 'Logs',
+      dataset: 'logs',
+      display,
+      queries,
+      ...(data.groupBy.length ? { groupBy: data.groupBy } : {}),
+      width: 3,
+    })
+    const read = (w: widgets.Widget) => widgets.widgetData(env.DB, w, projectId, data.window, now)
+    const [table, ...charts] = await Promise.all([
+      data.table.length && data.groupBy.length
+        ? read(
+            widget(
+              'table',
+              data.table.map((aggregate) => ({ query: data.query, aggregate })),
+            ),
+          )
+        : undefined,
+      ...data.functions.map((aggregate) => read(widget('line', [{ query: data.query, aggregate }]))),
+    ])
+    return { charts, table }
+  })
+
 // The search bar's suggestions: without a key, every key (the built-ins, then the tags or attributes stored, by how
 // often they're seen); with one, its values starting with `prefix`. Logs count over the range (24 hours by default).
 export const getSuggestions = createServerFn()
@@ -661,11 +715,24 @@ export const getDashboards = createServerFn().handler(async () => ({
 const projectIdOf = async (slug?: string) =>
   slug ? ((await projects.projectBySlug(env.DB, slug))?.id ?? -1) : undefined
 
+// The dashboard's filter bar: an environment, a release and a search, each laid over the widgets that know its key
+const dashboardFilters = (o: Input): widgets.Filters => ({
+  environment: optional((v) => text(v, 200))(o.environment),
+  release: optional((v) => text(v, 200))(o.release),
+  query: optional((v) => text(v, 1000))(o.filter),
+})
+
 // A dashboard and what each of its widgets shows over the window (a range, or `from` and `to`), narrowed to `project`
+// and the filter bar, with the bar's choices
 export const getDashboard = createServerFn()
   .validator((d: unknown) => {
     const o = object(d)
-    return { id: int(o.id), project: optional((v) => text(v, 60))(o.project), window: logWindow(o) }
+    return {
+      id: int(o.id),
+      project: optional((v) => text(v, 60))(o.project),
+      window: logWindow(o),
+      filters: dashboardFilters(o),
+    }
   })
   .handler(async ({ data }) => {
     const dashboard = await dashboards.getDashboard(env.DB, data.id)
@@ -673,24 +740,31 @@ export const getDashboard = createServerFn()
     const projectId = await projectIdOf(data.project)
     const now = Date.now()
     // 20 widgets at most (`parseWidgets`), so as many reads at once at most
-    const shown = await Promise.all(
-      dashboard.widgets.map((w) => dashboards.widgetData(env.DB, w, projectId, data.window, now)),
-    )
-    return { dashboard, data: Object.fromEntries(dashboard.widgets.map((w, i) => [w.id, shown[i]])), now }
+    const [options, ...shown] = await Promise.all([
+      dashboards.filterOptions(env.DB, projectId, now),
+      ...dashboard.widgets.map((w) => widgets.widgetData(env.DB, w, projectId, data.window, now, data.filters)),
+    ])
+    return {
+      dashboard,
+      data: Object.fromEntries(dashboard.widgets.map((w, i) => [w.id, shown[i]])),
+      options,
+      now,
+    }
   })
 
-// One widget's data before it's saved: the add-widget dialog's preview
+// One widget's data before it's saved: the widget builder's preview, and the viewer's other displays
 export const previewWidget = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
     return {
-      widget: dashboards.parseWidgets([o.widget])[0],
+      widget: widgets.parseWidgets([o.widget])[0],
       project: optional((v) => text(v, 60))(o.project),
       window: logWindow(o),
+      filters: dashboardFilters(o),
     }
   })
   .handler(async ({ data }) =>
-    dashboards.widgetData(env.DB, data.widget, await projectIdOf(data.project), data.window, Date.now()),
+    widgets.widgetData(env.DB, data.widget, await projectIdOf(data.project), data.window, Date.now(), data.filters),
   )
 
 // A whole dashboard written at once (a new one without `id`), every widget checked; who saved it is recorded
@@ -699,9 +773,37 @@ export const saveDashboard = createServerFn({ method: 'POST' })
     const o = object(d)
     const name = text(o.name, 80).trim()
     if (!name) throw new Error('Give the dashboard a name.')
-    return { id: optional((v) => int(v))(o.id), name, widgets: dashboards.parseWidgets(o.widgets) }
+    return { id: optional((v) => int(v))(o.id), name, widgets: widgets.parseWidgets(o.widgets) }
   })
   .handler(({ data }) => dashboards.saveDashboard(env.DB, data, viewer(), Date.now()))
+
+// The widget lists a dashboard had before its last 10 saves
+export const getDashboardHistory = createServerFn()
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => dashboards.dashboardHistory(env.DB, data.id))
+
+// A dashboard back to the widgets it had before a save; the ones it has now become a revision in turn
+export const restoreDashboard = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), index: int(o.index, 0, dashboards.MAX_REVISIONS - 1) }
+  })
+  .handler(async ({ data }) => {
+    const d = await dashboards.getDashboard(env.DB, data.id)
+    if (!d) throw new Error('This dashboard no longer exists.')
+    const list = await dashboards.revisionWidgets(env.DB, data.id, data.index)
+    if (list.some((w) => w.invalid))
+      throw new Error('That version has widgets that can’t be read, so it can’t be restored.')
+    return dashboards.saveDashboard(env.DB, { id: d.id, name: d.name, widgets: list }, viewer(), Date.now())
+  })
+
+// One widget added at the end of a dashboard: the logs page's "Add to dashboard"
+export const addWidget = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), widget: widgets.parseWidgets([o.widget])[0] }
+  })
+  .handler(({ data }) => dashboards.addWidget(env.DB, data.id, data.widget, viewer(), Date.now()))
 
 export const deleteDashboard = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
