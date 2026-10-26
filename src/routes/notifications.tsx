@@ -1,5 +1,14 @@
 import { ClientOnly, createFileRoute, useRouter } from '@tanstack/react-router'
-import { BellIcon, MailIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon, WebhookIcon } from 'lucide-react'
+import {
+  BellIcon,
+  MailIcon,
+  PencilIcon,
+  PlusIcon,
+  SendIcon,
+  SmartphoneIcon,
+  Trash2Icon,
+  WebhookIcon,
+} from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader, Shell } from '@/components/shell'
@@ -18,6 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { deleteChannel, deleteRoute, getNotifications, saveChannel, saveRoute, testRoute } from '@/fns'
 import type { Channel } from '@/notify/channels'
+import { barkSettings } from '@/notify/channels'
 import { KINDS, LEVELS, type Route as NotifyRoute } from '@/notify/notice'
 
 export const Route = createFileRoute('/notifications')({
@@ -27,7 +37,7 @@ export const Route = createFileRoute('/notifications')({
 })
 
 type Data = Awaited<ReturnType<typeof getNotifications>>
-const ICONS = { ntfy: BellIcon, email: MailIcon, webhook: WebhookIcon }
+const ICONS = { ntfy: BellIcon, bark: SmartphoneIcon, email: MailIcon, webhook: WebhookIcon }
 const list = <T,>(json: string | null): T[] => (json ? (JSON.parse(json) as T[]) : [])
 
 function Notifications() {
@@ -114,6 +124,8 @@ function summary(c: Channel) {
   const config = JSON.parse(c.config) as Record<string, string>
   if (c.kind === 'ntfy')
     return `ntfy · ${(config.server || 'https://ntfy.sh').replace(/^https?:\/\//, '')}/${config.topic.slice(0, 4)}…`
+  if (c.kind === 'bark')
+    return `Bark · ${(config.server || 'https://api.day.app').replace(/^https?:\/\//, '')}/${config.key.slice(0, 4)}…`
   if (c.kind === 'email') return `email · ${config.to}`
   return `${config.format ?? 'json'} webhook · ${new URL(config.url).host}`
 }
@@ -212,9 +224,11 @@ function ChannelDialog({
             const settings =
               kind === 'ntfy'
                 ? { server: f.server || undefined, topic: f.topic, token: f.token || undefined }
-                : kind === 'email'
-                  ? { to: f.to }
-                  : { url: f.url, format }
+                : kind === 'bark'
+                  ? barkSettings(f.key, f.server)
+                  : kind === 'email'
+                    ? { to: f.to }
+                    : { url: f.url, format }
             try {
               await saveChannel({
                 data: {
@@ -245,6 +259,7 @@ function ChannelDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ntfy">ntfy push</SelectItem>
+                  <SelectItem value="bark">Bark push (iPhone)</SelectItem>
                   <SelectItem value="email">Email (Cloudflare Email Routing)</SelectItem>
                   <SelectItem value="webhook">Webhook (JSON, Slack, Discord)</SelectItem>
                 </SelectContent>
@@ -268,6 +283,24 @@ function ChannelDialog({
                   type="url"
                 />
                 <Field id="token" label="Access token" defaultValue={config.token} hint="Only for a protected topic." />
+              </>
+            )}
+            {kind === 'bark' && (
+              <>
+                <Field
+                  id="key"
+                  label="Device key"
+                  defaultValue={config.key}
+                  required
+                  hint="Paste the key, or one of the Bark app’s URLs as it is (https://api.day.app/<key>/…)."
+                />
+                <Field
+                  id="server"
+                  label="Server"
+                  defaultValue={config.server}
+                  placeholder="https://api.day.app"
+                  type="url"
+                />
               </>
             )}
             {kind === 'email' && (

@@ -1,9 +1,9 @@
-// Sending a notice through a channel: ntfy, email (Cloudflare Email Routing) or a webhook.
+// Sending a notice through a channel: ntfy, Bark, email (Cloudflare Email Routing) or a webhook.
 import { type Notice, noticeLine } from './notice'
 
 export type Channel = {
   id: number
-  kind: 'ntfy' | 'email' | 'webhook'
+  kind: 'ntfy' | 'bark' | 'email' | 'webhook'
   name: string
   config: string // JSON
   quiet_from: number | null
@@ -11,6 +11,7 @@ export type Channel = {
 }
 
 type NtfyConfig = { server?: string; topic: string; token?: string }
+type BarkConfig = { server?: string; key: string } // the device key the Bark app shows
 type EmailConfig = { to: string }
 type WebhookConfig = { url: string; format?: 'json' | 'slack' | 'discord' }
 
@@ -23,6 +24,9 @@ export function isQuiet(channel: Pick<Channel, 'quiet_from' | 'quiet_to'>, at: n
   const minute = Math.floor((at % 86_400_000) / 60_000)
   return from < to ? minute >= from && minute < to : minute >= from || minute < to
 }
+
+// Pushed louder: what wants a look now
+const URGENT: string[] = ['new', 'regression', 'review_crash', 'monitor_down']
 
 export function ntfyRequest(config: NtfyConfig, notice: Notice): Request {
   const headers: Record<string, string> = {
@@ -40,11 +44,7 @@ export function ntfyRequest(config: NtfyConfig, notice: Notice): Request {
               : notice.issue.level === 'fatal'
                 ? 'boom'
                 : 'warning',
-    Priority: ['new', 'regression', 'review_crash', 'monitor_down'].includes(notice.kind)
-      ? 'high'
-      : notice.kind === 'weekly'
-        ? 'low'
-        : 'default',
+    Priority: URGENT.includes(notice.kind) ? 'high' : notice.kind === 'weekly' ? 'low' : 'default',
   }
   if (notice.actions) {
     headers.Actions = `http, Resolve, ${notice.actions.resolve}, method=POST, clear=true; http, Ignore, ${notice.actions.ignore}, method=POST, clear=true`
@@ -55,6 +55,32 @@ export function ntfyRequest(config: NtfyConfig, notice: Notice): Request {
     method: 'POST',
     headers,
     body: noticeLine(notice),
+  })
+}
+
+/** A Bark key as typed, or the app's whole URL (its server and key, then a title and body) */
+export function barkSettings(key: string, server: string) {
+  const url = key.trim().match(/^(https?:\/\/[^/]+)\/([^/?#]+)/)
+  return url
+    ? { server: url[1] === 'https://api.day.app' ? undefined : url[1], key: url[2] }
+    : { server: server || undefined, key: key.trim() }
+}
+
+/** A push through Bark (iPhone): its JSON API, on its public server unless the channel names another */
+export function barkRequest(config: BarkConfig, notice: Notice): Request {
+  const server = (config.server || 'https://api.day.app').replace(/\/$/, '')
+  return new Request(`${server}/push`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      device_key: config.key,
+      title: notice.issue.title.slice(0, 250),
+      body: noticeLine(notice),
+      url: notice.url,
+      group: notice.project.name,
+      // Time sensitive breaks through Focus; the week's summary waits in Notification Centre
+      level: URGENT.includes(notice.kind) ? 'timeSensitive' : notice.kind === 'weekly' ? 'passive' : 'active',
+    }),
   })
 }
 
@@ -80,6 +106,12 @@ export async function send(channel: Channel, notice: Notice, mailer?: Mailer, fr
       // ntfy says why as JSON: {"code":42901,"error":"limit reached: too many requests",…}
       const why = ((await response.json().catch(() => null)) as { error?: string } | null)?.error
       throw new Error(`ntfy answered ${response.status}${why ? `: ${why}` : ''}`)
+    }
+  } else if (channel.kind === 'bark') {
+    const response = await fetch(barkRequest(config as BarkConfig, notice))
+    if (!response.ok) {
+      const why = ((await response.json().catch(() => null)) as { message?: string } | null)?.message
+      throw new Error(`Bark answered ${response.status}${why ? `: ${why}` : ''}`)
     }
   } else if (channel.kind === 'webhook') {
     const { url, format } = config as WebhookConfig

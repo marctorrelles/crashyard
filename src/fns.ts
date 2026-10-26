@@ -319,7 +319,7 @@ export const saveChannel = createServerFn({ method: 'POST' })
     const o = object(d)
     return {
       id: optional((v) => int(v))(o.id),
-      kind: oneOf(['ntfy', 'email', 'webhook'] as const)(o.kind),
+      kind: oneOf(['ntfy', 'bark', 'email', 'webhook'] as const)(o.kind),
       name: text(o.name, 80).trim() || 'Untitled',
       config: json(o.config),
       quiet_from: minuteOfDay(o.quiet_from) ?? null,

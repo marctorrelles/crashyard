@@ -7,8 +7,12 @@ environment, each with its own thresholds, and send them to channels.
   `monitor_up`, `slower_release`, `weekly`: a project's week, which a route's levels and environments don't filter),
   `routeTakes`,
   `thresholdFor` (a threshold notice passes a route only if one of that route's thresholds was crossed), `noticeLine`.
-- `channels.ts`: ntfy (`Title`, `Click`, `Tags`, `Priority`, `Actions` headers; a refusal names ntfy's reason), webhooks (`json`, `slack`,
-  `discord`), email; `isQuiet` for a channel's quiet hours (minutes after midnight UTC, across midnight too).
+- `channels.ts`: ntfy (`Title`, `Click`, `Tags`, `Priority`, `Actions` headers; a refusal names ntfy's reason; ntfy.sh
+  limits by IP unless the sender has a paid tier, and Workers share Cloudflare's IPs, so its daily quota can be spent
+  by others), Bark (`barkRequest`: its JSON API, `POST /push` on api.day.app or the channel's server, the device key,
+  `timeSensitive` for what's urgent, `passive` for the week, no buttons; `barkSettings` reads the key or the app's whole
+  URL; a refusal names Bark's `message`), webhooks (`json`, `slack`, `discord`), email; `isQuiet` for a channel's quiet
+  hours (minutes after midnight UTC, across midnight too).
 - `email.ts`: a plain-text MIME message for Cloudflare Email Routing's `send_email` binding (`EMAIL`, from
   `EMAIL_FROM`; the address it sends to must be a verified destination).
 - `dispatch.ts`: `dispatch` sends each notice to its routes' channels, or holds it in `held_notifications` in quiet

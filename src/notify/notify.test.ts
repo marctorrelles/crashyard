@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { verifyAction, actionUrl } from './actions'
-import { isQuiet, ntfyRequest, webhookBody } from './channels'
+import { barkRequest, barkSettings, isQuiet, ntfyRequest, webhookBody } from './channels'
 import { crossed, type Notice, noticeLine, type Route, routeTakes, thresholdFor } from './notice'
 
 const notice = (over: Partial<Notice> = {}): Notice => ({
@@ -54,6 +54,29 @@ describe('channels', () => {
       'http, Resolve, https://r, method=POST, clear=true; http, Ignore, https://i, method=POST, clear=true',
     )
     expect(noticeLine(notice())).toBe('pocketband · 1.0 (10) · iPad13,1 · new')
+  })
+
+  it('push through Bark, time sensitive for a new issue, the week quietly', async () => {
+    const request = barkRequest({ key: 'k3y' }, notice())
+    expect(request.url).toBe('https://api.day.app/push')
+    expect(await request.json()).toMatchObject({
+      device_key: 'k3y',
+      title: 'EXC_BAD_ACCESS: doCrash',
+      body: 'pocketband · 1.0 (10) · iPad13,1 · new',
+      level: 'timeSensitive',
+    })
+    const weekly = barkRequest({ key: 'k', server: 'https://bark.example.com/' }, notice({ kind: 'weekly' }))
+    expect(weekly.url).toBe('https://bark.example.com/push')
+    expect(((await weekly.json()) as { level: string }).level).toBe('passive')
+  })
+
+  it('read a Bark key, or the app’s whole URL', () => {
+    expect(barkSettings(' k3y ', '')).toEqual({ server: undefined, key: 'k3y' })
+    expect(barkSettings('https://api.day.app/k3y/title/body', '')).toEqual({ server: undefined, key: 'k3y' })
+    expect(barkSettings('https://bark.example.com/k3y/', '')).toEqual({
+      server: 'https://bark.example.com',
+      key: 'k3y',
+    })
   })
 
   it('speak Slack’s and Discord’s webhook formats', () => {

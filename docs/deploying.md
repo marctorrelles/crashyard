@@ -125,7 +125,7 @@ crashyard sends email through Cloudflare Email Routing, to addresses you've veri
 3. In `wrangler.local.json`'s `vars`, set `EMAIL_FROM` to an address on your domain, such as `crashyard@example.com` (it needn't
    exist), and deploy again.
 
-Then add an email channel in the dashboard's notification settings. ntfy and webhook channels need nothing here.
+Then add an email channel in the dashboard's notification settings. ntfy, Bark and webhook channels need nothing here.
 
 ## Checking it
 
