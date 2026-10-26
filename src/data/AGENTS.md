@@ -100,6 +100,9 @@ helpers (`change`).
   an event matched to a file (`matchFile`: the file whose path ends with the most of the frame's, from its absolute
   path, its file, or for Java and Kotlin its package's folders and file; none on a tie) at the release's commit, else
   `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed.
+- `tokens.ts`: upload tokens (`cyt_`, kept as a SHA-256, shown once), each for one project (`project_id`) or every
+  project (null), listed with their project's slug; `tokenOf` marks one used; `uploadsOf`, a project's debug files and
+  bundles. `source.ts`'s `storeCommits` takes `only`, a scoped token's project.
 - `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `projectDefaults`: what `createProject` starts with, the columns' defaults under what

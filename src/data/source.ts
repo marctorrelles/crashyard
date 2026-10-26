@@ -11,11 +11,14 @@ export type GitCommit = {
   patch_set?: { path: string; type: string }[] // type A, M or D
 }
 
-/** The commits go to every project with this release; its head becomes the release's ref */
-export async function storeCommits(db: D1Database, version: string, commits: GitCommit[]) {
+/** The commits go to every project with this release (only `only`'s, for a project's token); its head becomes the
+ * release's ref */
+export async function storeCommits(db: D1Database, version: string, commits: GitCommit[], only: number | null = null) {
   const projects = (
     await db.prepare('SELECT project_id FROM releases WHERE version = ?').bind(version).all<{ project_id: number }>()
-  ).results.map((r) => r.project_id)
+  ).results
+    .map((r) => r.project_id)
+    .filter((id) => only === null || id === only)
   // Oldest first, so the last change to a path wins
   const present = new Map<string, boolean>()
   for (const c of [...commits].reverse()) for (const f of c.patch_set ?? []) present.set(f.path, f.type !== 'D')

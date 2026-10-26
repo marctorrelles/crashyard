@@ -1,18 +1,33 @@
 // Auth tokens for sentry-cli and the build plugins (SENTRY_AUTH_TOKEN): shown once when made, kept as a SHA-256.
-// They work for every project, and only for uploads and releases.
+// Each works for one project or every project, and only for uploads and releases.
 
-export type TokenRow = { id: number; name: string; created_by: string; created_at: number; last_used_at: number | null }
+export type TokenRow = {
+  id: number
+  name: string
+  project_id: number | null // null: every project
+  project: string | null // its slug
+  created_by: string
+  created_at: number
+  last_used_at: number | null
+}
 
 const sha256 = async (text: string) =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))]
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 
-export async function createToken(db: D1Database, name: string, by: string, now: number) {
+/** A new token, for one project or every project (`projectId` null) */
+export async function createToken(
+  db: D1Database,
+  name: string,
+  by: string,
+  now: number,
+  projectId: number | null = null,
+) {
   const token = `cyt_${[...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, '0')).join('')}`
   await db
-    .prepare('INSERT INTO tokens (name, hash, scopes, created_by, created_at) VALUES (?, ?, ?, ?, ?)')
-    .bind(name, await sha256(token), 'project:releases project:write', by, now)
+    .prepare('INSERT INTO tokens (name, hash, scopes, project_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(name, await sha256(token), 'project:releases project:write', projectId, by, now)
     .run()
   return token
 }
@@ -20,7 +35,10 @@ export async function createToken(db: D1Database, name: string, by: string, now:
 export const listTokens = async (db: D1Database) =>
   (
     await db
-      .prepare('SELECT id, name, created_by, created_at, last_used_at FROM tokens ORDER BY created_at DESC')
+      .prepare(
+        `SELECT t.id, t.name, t.project_id, p.slug AS project, t.created_by, t.created_at, t.last_used_at FROM tokens t
+         LEFT JOIN projects p ON p.id = t.project_id ORDER BY t.created_at DESC`,
+      )
       .all<TokenRow>()
   ).results
 
@@ -31,9 +49,9 @@ export async function tokenOf(db: D1Database, request: Request, now: number) {
   const bearer = request.headers.get('authorization')?.match(/^Bearer\s+(\S+)$/i)?.[1]
   if (!bearer) return null
   const row = await db
-    .prepare('SELECT id, name FROM tokens WHERE hash = ?')
+    .prepare('SELECT id, name, project_id FROM tokens WHERE hash = ?')
     .bind(await sha256(bearer))
-    .first<{ id: number; name: string }>()
+    .first<{ id: number; name: string; project_id: number | null }>()
   if (row) await db.prepare('UPDATE tokens SET last_used_at = ? WHERE id = ?').bind(now, row.id).run()
   return row
 }

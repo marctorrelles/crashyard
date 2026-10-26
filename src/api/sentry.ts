@@ -1,7 +1,8 @@
 // The part of Sentry's API (/api/0/…) that sentry-cli and the build plugins (Xcode's build phase, the Gradle plugin,
 // @sentry/vite-plugin) call: chunked uploads, assembling debug files and artifact bundles, and releases. Answers
 // in Sentry's shapes, checked against sentry-cli 3.8 (test/uploads.e2e.test.ts). The organisation in the path is
-// ignored: a deployment is one organisation. Every call needs an auth token (Authorization: Bearer).
+// ignored: a deployment is one organisation. Every call needs an auth token (Authorization: Bearer), and a token of one
+// project is refused for any other.
 import { previousWithCommits, storeCommits, type GitCommit } from '../data/source'
 import { tokenOf } from '../data/tokens'
 import { forgetMissing } from '../symbols/symbolicate'
@@ -28,6 +29,8 @@ type Ctx = {
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 const detail = (message: string, status: number) => json({ detail: message }, status)
+// Sentry's answer to a token without access to the project
+const forbidden = () => detail('You do not have permission to perform this action.', 403)
 
 type Assemble = Record<string, { name?: string; debug_id?: string; chunks?: string[] }>
 
@@ -53,7 +56,10 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
   const url = new URL(request.url)
   const path = url.pathname.replace(/\/?$/, '/')
   const now = Date.now()
-  if (!(await tokenOf(env.DB, request, now))) return detail('Invalid token', 401)
+  const token = await tokenOf(env.DB, request, now)
+  if (!token) return detail('Invalid token', 401)
+  // A token of one project reaches only that project
+  const allowed = (id: number) => token.project_id === null || token.project_id === id
 
   if (path === '/api/0/')
     return json({ version: '0', auth: { scopes: ['project:releases', 'project:write'] }, user: null })
@@ -105,6 +111,7 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
   if (m && request.method === 'POST') {
     const id = await projectId(env.DB, m[2])
     if (!id) return detail(`No project ${m[2]}`, 404)
+    if (!allowed(id)) return forbidden()
     const body = (await request.json()) as Assemble
     const out: Record<string, unknown> = {}
     const fresh: string[] = []
@@ -153,6 +160,7 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
       (x): x is number => !!x,
     )
     if (!ids.length) return detail('No such project', 404)
+    if (!ids.every(allowed)) return forbidden()
     const chunks = body.chunks ?? []
     const done = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM artifact_bundles WHERE checksum = ? AND project_id IN (${ids.map(() => '?').join(',')})`,
@@ -215,8 +223,9 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
     }
     if (m[3]) return json({ id: '1', environment: 'production', dateFinished: new Date(now).toISOString() }, 201)
     if (request.method === 'GET') return json(release)
-    for (const slug of slugs) {
-      const id = await projectId(env.DB, slug)
+    const ids = await Promise.all(slugs.map((slug) => projectId(env.DB, slug)))
+    if (!ids.every((id) => !id || allowed(id))) return forbidden()
+    for (const id of ids) {
       if (!id) continue
       await env.DB.prepare(
         `INSERT INTO releases (project_id, version, ref, created_at, released_at) VALUES (?, ?, ?, ?, ?)
@@ -225,8 +234,8 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
         .bind(id, name, body.ref ?? null, now, body.dateReleased ? Date.parse(body.dateReleased) : null)
         .run()
     }
-    // set-commits names no project: the commits go to every project with this release
-    if (body.commits?.length) await storeCommits(env.DB, name, body.commits)
+    // set-commits names no project: the commits go to every project with this release, or only the token's
+    if (body.commits?.length) await storeCommits(env.DB, name, body.commits, token.project_id)
     return json(release, request.method === 'POST' ? 201 : 200)
   }
 

@@ -228,4 +228,22 @@ describe('readable stacks, uploaded with sentry-cli', () => {
     const r = await fetch(`${dev.origin}/api/0/organizations/x/chunk-upload/`)
     expect(r.status).toBe(401)
   })
+
+  it('refuses a token of one project for another project’s upload, as Sentry does', async () => {
+    await dev.db
+      .prepare("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (2, 'other', 'other', ?, 0)")
+      .bind('e2e0other0key00000000000000000ab')
+      .run()
+    const scoped = await createToken(dev.db, 'other only', 'test', Date.now(), 2)
+    const assemble = (slug: string) =>
+      fetch(`${dev.origin}/api/0/projects/crashyard/${slug}/files/difs/assemble/`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${scoped}`, 'content-type': 'application/json' },
+        body: '{}',
+      })
+    const refused = await assemble('e2e')
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toEqual({ detail: 'You do not have permission to perform this action.' })
+    expect((await assemble('other')).status).toBe(200)
+  })
 })

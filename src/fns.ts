@@ -558,9 +558,13 @@ export const deleteDashboard = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => dashboards.deleteDashboard(env.DB, data.id).then(() => undefined))
 
+// A token for one project (`project`, its id) or every project
 export const createToken = createServerFn({ method: 'POST' })
-  .validator((d: unknown) => ({ name: text(object(d).name, 80).trim() || 'sentry-cli' }))
-  .handler(({ data }) => tokens.createToken(env.DB, data.name, viewer(), Date.now()))
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { name: text(o.name, 80).trim() || 'sentry-cli', project: optional((v) => int(v))(o.project) ?? null }
+  })
+  .handler(({ data }) => tokens.createToken(env.DB, data.name, viewer(), Date.now(), data.project))
 
 export const revokeToken = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))

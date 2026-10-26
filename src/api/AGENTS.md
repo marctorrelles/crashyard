@@ -21,7 +21,10 @@ signature; `/mcp` comes after the Access check.
   what was accepted) and skips the quota (what's held was let in). The raw envelope goes
   to R2 (`envelopes/<project>/<day>/<event>`). Notices are dispatched after the response (`ctx.waitUntil`). A crash
   tagged `distribution: app_review` or `testflight` also sends `review_crash`, once per issue.
-- `sentry.ts`: `/api/0/`, what sentry-cli and the build plugins call, with an auth token: chunk-upload (options,
+- `sentry.ts`: `/api/0/`, what sentry-cli and the build plugins call, with an auth token (`tokens`, for every project
+  or one, `project_id`: one project's token gets Sentry's 403, `You do not have permission to perform this action.`,
+  on `files/difs/assemble`, `artifactbundle/assemble` and a release that name another project, and its set-commits
+  reach only its own project; chunks are the organisation's, so any token uploads them): chunk-upload (options,
   then gzipped chunks), `files/difs/assemble` (debug files, ProGuard), `artifactbundle/assemble` (source maps), and
   releases (kept with their commit). Assembling happens in the request, so the answer is `ok` at once. The
   organisation in the path is ignored. Commits: `repos/` answers none, so `releases set-commits` (sentry-cli 3.8,
