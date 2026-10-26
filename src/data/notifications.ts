@@ -68,6 +68,20 @@ export async function testRoute(
           .all<Channel>()
       ).results
     : []
+  return sendTest(env, channels, origin)
+}
+
+/** The same through one channel, routes or not */
+export async function testChannel(
+  env: { DB: D1Database; EMAIL?: SendEmail; EMAIL_FROM?: string },
+  channelId: number,
+  origin: string,
+) {
+  const channel = await env.DB.prepare('SELECT * FROM channels WHERE id = ?').bind(channelId).first<Channel>()
+  return sendTest(env, channel ? [channel] : [], origin)
+}
+
+function sendTest(env: { EMAIL?: SendEmail; EMAIL_FROM?: string }, channels: Channel[], origin: string) {
   const notice: Notice = {
     kind: 'new',
     project: { id: 0, slug: 'test', name: 'crashyard' },

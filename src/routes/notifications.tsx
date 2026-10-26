@@ -1,11 +1,11 @@
 import { ClientOnly, createFileRoute, useRouter } from '@tanstack/react-router'
 import {
   MailIcon,
+  MessageCircleIcon,
   PencilIcon,
   PlusIcon,
   SendIcon,
   SearchIcon,
-  SendHorizontalIcon,
   Trash2Icon,
   WebhookIcon,
 } from 'lucide-react'
@@ -32,8 +32,10 @@ import {
   getNotifications,
   saveChannel,
   saveRoute,
+  testChannel,
   testRoute,
 } from '@/fns'
+import { cn } from '@/lib/utils'
 import type { Channel } from '@/notify/channels'
 import { KINDS, LEVELS, type Route as NotifyRoute } from '@/notify/notice'
 
@@ -44,7 +46,7 @@ export const Route = createFileRoute('/notifications')({
 })
 
 type Data = Awaited<ReturnType<typeof getNotifications>>
-const ICONS = { telegram: SendHorizontalIcon, email: MailIcon, webhook: WebhookIcon }
+const ICONS = { telegram: MessageCircleIcon, email: MailIcon, webhook: WebhookIcon }
 const list = <T,>(json: string | null): T[] => (json ? (JSON.parse(json) as T[]) : [])
 
 function Notifications() {
@@ -84,6 +86,7 @@ function Notifications() {
                       )}
                     </p>
                   </div>
+                  <TestButton label={`Send a test to ${c.name}`} send={() => testChannel({ data: { id: c.id } })} />
                   <Button size="icon-sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => setChannel(c)}>
                     <PencilIcon />
                   </Button>
@@ -131,7 +134,9 @@ function summary(c: Channel) {
   const config = JSON.parse(c.config) as Record<string, string>
   if (c.kind === 'telegram') return `Telegram · ${config.name ?? `chat ${config.chat}`}`
   if (c.kind === 'email') return `email · ${config.to}`
-  return `${config.format ?? 'json'} webhook · ${new URL(config.url).host}`
+  if (config.format === 'slack') return 'Slack'
+  if (config.format === 'discord') return 'Discord'
+  return `JSON webhook · ${new URL(config.url).host}`
 }
 
 // Quiet hours are kept in UTC; they're shown and set in the browser's time
@@ -149,7 +154,6 @@ const minutesOf = (value: string) => {
 }
 
 function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit: () => void }) {
-  const [busy, setBusy] = useState(false)
   const project =
     r.project_id === null
       ? 'Every project'
@@ -174,29 +178,51 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
           {levels.length > 0 && ` · ${levels.join(', ')}`}
         </p>
       </div>
-      <Button
-        size="icon-sm"
-        variant="ghost"
-        aria-label="Send a test"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true)
-          const results = await testRoute({ data: { id: r.id } })
-          setBusy(false)
-          for (const x of results) {
-            if (x.ok) toast.success(`Sent to ${x.channel}`)
-            else toast.error(`${x.channel}: ${x.error}`)
-          }
-          if (!results.length) toast.error('The route has no channels')
-        }}
-      >
-        <SendIcon />
-      </Button>
+      <TestButton label="Send a test" send={() => testRoute({ data: { id: r.id } })} />
       <Button size="icon-sm" variant="ghost" aria-label="Edit route" onClick={onEdit}>
         <PencilIcon />
       </Button>
     </li>
   )
+}
+
+/** Sends a made-up notice now, and says how each channel took it */
+function TestButton({
+  label,
+  send,
+}: {
+  label: string
+  send: () => Promise<({ channel: string; ok: true } | { channel: string; ok: false; error: string })[]>
+}) {
+  const [busy, setBusy] = useState(false)
+  return (
+    <Button
+      size="icon-sm"
+      variant="ghost"
+      aria-label={label}
+      title={label}
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true)
+        const results = await send().finally(() => setBusy(false))
+        for (const x of results) {
+          if (x.ok) toast.success(`Sent to ${x.channel}`)
+          else toast.error(`${x.channel}: ${x.error}`)
+        }
+        if (!results.length) toast.error('No channel to send to')
+      }}
+    >
+      <SendIcon />
+    </Button>
+  )
+}
+
+/** What the kind menu offers: Slack and Discord are webhooks in their formats */
+type Choice = 'telegram' | 'slack' | 'discord' | 'email' | 'webhook'
+function choiceOf(c?: Channel): Choice {
+  if (!c) return 'telegram'
+  const format = c.kind === 'webhook' ? (JSON.parse(c.config) as { format?: string }).format : undefined
+  return format === 'slack' || format === 'discord' ? format : c.kind
 }
 
 function ChannelDialog({
@@ -210,8 +236,9 @@ function ChannelDialog({
 }) {
   const router = useRouter()
   const config = channel ? (JSON.parse(channel.config) as Record<string, string>) : {}
-  const [kind, setKind] = useState<Channel['kind']>(channel?.kind ?? 'telegram')
-  const [format, setFormat] = useState(config.format ?? 'json')
+  const [choice, setChoice] = useState<Choice>(choiceOf(channel))
+  const kind: Channel['kind'] = choice === 'slack' || choice === 'discord' ? 'webhook' : choice
+  const blocked = choice === 'email' && !emailReady
   const [quiet, setQuiet] = useState(channel?.quiet_from != null)
   const done = async () => {
     onClose()
@@ -231,7 +258,7 @@ function ChannelDialog({
                 ? { token: f.token.trim(), chat: f.chat.trim(), name: f.chatName || undefined }
                 : kind === 'email'
                   ? { to: f.to }
-                  : { url: f.url, format }
+                  : { url: f.url.trim(), format: choice === 'webhook' ? 'json' : choice }
             try {
               await saveChannel({
                 data: {
@@ -256,52 +283,70 @@ function ChannelDialog({
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="channel-kind">Kind</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as Channel['kind'])}>
+              <Select value={choice} onValueChange={(v) => setChoice(v as Choice)}>
                 <SelectTrigger id="channel-kind" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="telegram">Telegram bot</SelectItem>
-                  <SelectItem value="email">Email (Cloudflare Email Routing)</SelectItem>
-                  <SelectItem value="webhook">Webhook (JSON, Slack, Discord)</SelectItem>
+                  <SelectItem value="telegram">Telegram</SelectItem>
+                  <SelectItem value="slack">Slack</SelectItem>
+                  <SelectItem value="discord">Discord</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="webhook">Webhook (JSON)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <Field id="name" label="Name" defaultValue={channel?.name} placeholder="My phone" required />
-            {kind === 'telegram' && <TelegramFields config={config} />}
-            {kind === 'email' && (
+            {blocked ? (
+              <EmailSetup />
+            ) : (
+              <Field id="name" label="Name" defaultValue={channel?.name} placeholder="My phone" required />
+            )}
+            {choice === 'telegram' && <TelegramFields config={config} />}
+            {choice === 'slack' && (
+              <Field
+                id="url"
+                label="Webhook URL"
+                type="url"
+                defaultValue={config.url}
+                required
+                pattern="https://hooks\.slack\.com/.+"
+                placeholder="https://hooks.slack.com/services/…"
+                hint="In Slack: api.slack.com/apps → Create New App (from scratch) → Incoming Webhooks → on → Add New Webhook, pick the channel, copy its URL."
+              />
+            )}
+            {choice === 'discord' && (
+              <Field
+                id="url"
+                label="Webhook URL"
+                type="url"
+                defaultValue={config.url}
+                required
+                pattern="https://(discord|discordapp)\.com/api/webhooks/.+"
+                placeholder="https://discord.com/api/webhooks/…"
+                hint="In Discord: the channel’s settings (the cog) → Integrations → Webhooks → New Webhook → Copy Webhook URL."
+              />
+            )}
+            {choice === 'email' && !blocked && (
               <Field
                 id="to"
                 label="To"
                 type="email"
                 defaultValue={config.to}
                 required
-                hint={
-                  emailReady
-                    ? 'It must be a verified destination in Email Routing.'
-                    : 'Email isn’t set up yet: see “Email notifications” in docs/deploying.md.'
-                }
+                hint="It must be a verified destination in this domain’s Cloudflare Email Routing."
               />
             )}
-            {kind === 'webhook' && (
-              <>
-                <Field id="url" label="URL" type="url" defaultValue={config.url} required />
-                <div className="grid gap-2">
-                  <Label htmlFor="channel-format">Format</Label>
-                  <Select value={format} onValueChange={setFormat}>
-                    <SelectTrigger id="channel-format" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="json">JSON</SelectItem>
-                      <SelectItem value="slack">Slack</SelectItem>
-                      <SelectItem value="discord">Discord</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
+            {choice === 'webhook' && (
+              <Field
+                id="url"
+                label="URL"
+                type="url"
+                defaultValue={config.url}
+                required
+                hint="Each notice is POSTed to it as JSON: kind, project, issue, event and url."
+              />
             )}
-            <div className="grid gap-2">
+            <div className={cn('grid gap-2', blocked && 'hidden')}>
               <Label className="flex items-center gap-2 font-normal">
                 <Checkbox checked={quiet} onCheckedChange={(c) => setQuiet(c === true)} />
                 Quiet hours: hold notifications, send them as one after
@@ -344,11 +389,31 @@ function ChannelDialog({
             ) : (
               <span />
             )}
-            <Button type="submit">Save</Button>
+            <Button type="submit" disabled={blocked}>
+              Save
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Email can't be sent until the deployment has it: what to do, in place of the fields */
+function EmailSetup() {
+  return (
+    <div className="grid gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+      <p className="font-medium">Email isn’t set up on this crashyard, so it can’t send any yet.</p>
+      <ol className="ml-4 list-decimal text-muted-foreground">
+        <li>In Cloudflare: your domain → Email → Email Routing, turn it on.</li>
+        <li>Destination addresses: add the address to notify, and confirm the email Cloudflare sends it.</li>
+        <li>
+          Set <code className="font-mono text-xs">EMAIL_FROM</code> (an address on the domain, it needn’t exist) in the
+          worker’s variables, and deploy again.
+        </li>
+      </ol>
+      <p className="text-muted-foreground">docs/deploying.md, “Email notifications”, has the details.</p>
+    </div>
   )
 }
 

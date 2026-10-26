@@ -10,7 +10,10 @@ environment, each with its own thresholds, and send them to channels.
 - `channels.ts`: Telegram (`telegramRequest`: the bot's `sendMessage` to its chat, as HTML, the title in bold and
   escaped, a button opening the notice's page, the week's summary without a sound; `telegramChats`, the chats that
   wrote to the bot lately, from `getUpdates`, for the settings' Find; `server` for a local Bot API server; a refusal
-  names Telegram's `description`), webhooks (`json`, `slack`, `discord`), email; `isQuiet` for a channel's quiet hours
+  names Telegram's `description`), webhooks (`json`; `slack`: Block Kit, the title in bold over its line and a button,
+  `text` for the notification; `discord`: an embed coloured by level or kind, its title linking to the page,
+  `allowed_mentions` empty so a title's `@everyone` pings no one; a refusal says the answer's first 200 characters),
+  email; `isQuiet` for a channel's quiet hours
   (minutes after midnight UTC, across midnight too). No ntfy: ntfy.sh limits by IP unless the sender pays, and a Worker
   sends from IPs Cloudflare shares, so others spend its daily quota. No Bark: iPhone only. Migration 0011 took both
   channels out.

@@ -95,7 +95,7 @@ helpers (`change`).
   an event matched to a file (`matchFile`: the file whose path ends with the most of the frame's, from its absolute
   path, its file, or for Java and Kotlin its package's folders and file; none on a tie) at the release's commit, else
   `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed.
-- `notifications.ts`: channels and routes, and `testRoute`, which sends a made-up notice through a route's channels
-  now and says how each went.
+- `notifications.ts`: channels and routes, and `testRoute` and `testChannel`, which send a made-up notice now through a
+  route's channels or one channel and say how each went.
 
 Keep anything a browser page imports (constants, types) free of `cloudflare:*` imports: they'd break the client build.

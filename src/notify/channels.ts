@@ -64,10 +64,42 @@ export async function telegramChats(token: string): Promise<{ id: string; name: 
   return [...chats].map(([id, name]) => ({ id, name }))
 }
 
+const COLORS = { red: 0xdc2626, orange: 0xf97316, amber: 0xf59e0b, green: 0x16a34a, sky: 0x0ea5e9 }
+const colorOf = (notice: Notice) =>
+  notice.kind === 'monitor_up'
+    ? COLORS.green
+    : notice.kind === 'weekly'
+      ? COLORS.sky
+      : notice.kind === 'monitor_down' || notice.issue.level === 'fatal'
+        ? COLORS.red
+        : notice.issue.level === 'error'
+          ? COLORS.orange
+          : COLORS.amber
+
+/** Slack's mrkdwn and Discord's markdown take `&`, `<` and `>` as markup */
+const slackText = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
 export function webhookBody(format: WebhookConfig['format'], notice: Notice): unknown {
-  const text = `${notice.issue.title}\n${noticeLine(notice)}\n${notice.url}`
-  if (format === 'slack') return { text }
-  if (format === 'discord') return { content: text }
+  const title = notice.issue.title.slice(0, 250)
+  const line = noticeLine(notice)
+  // Slack: the title in bold over its line, and a button; `text` is what the notification itself shows
+  if (format === 'slack')
+    return {
+      text: `${title}: ${line}`,
+      blocks: [
+        { type: 'section', text: { type: 'mrkdwn', text: `*${slackText(title)}*\n${slackText(line)}` } },
+        {
+          type: 'actions',
+          elements: [{ type: 'button', text: { type: 'plain_text', text: 'Open in crashyard' }, url: notice.url }],
+        },
+      ],
+    }
+  // Discord: an embed coloured by what it is, its title linking to the page; no mention in a title pings anyone
+  if (format === 'discord')
+    return {
+      embeds: [{ title, url: notice.url, description: line, color: colorOf(notice) }],
+      allowed_mentions: { parse: [] },
+    }
   return {
     kind: notice.kind,
     threshold: notice.threshold,
@@ -93,7 +125,10 @@ export async function send(channel: Channel, notice: Notice, mailer?: Mailer, fr
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(webhookBody(format, notice)),
     })
-    if (!response.ok) throw new Error(`the webhook answered ${response.status}`)
+    if (!response.ok) {
+      const why = (await response.text().catch(() => '')).slice(0, 200)
+      throw new Error(`the webhook answered ${response.status}${why ? `: ${why}` : ''}`)
+    }
   } else if (channel.kind === 'email') {
     if (!mailer || !from) throw new Error('email isn’t set up: the EMAIL binding and EMAIL_FROM')
     const subject = `[crashyard] ${notice.issue.title}`.slice(0, 200)

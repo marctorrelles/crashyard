@@ -361,6 +361,10 @@ export const testRoute = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => notifications.testRoute(env, data.id, origin()))
 
+export const testChannel = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => notifications.testChannel(env, data.id, origin()))
+
 const cursor = (v: unknown) => {
   const o = object(v)
   return { timestamp: int(o.timestamp), id: int(o.id) }

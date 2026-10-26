@@ -63,9 +63,22 @@ describe('channels', () => {
     expect(((await weekly.json()) as { disable_notification: boolean }).disable_notification).toBe(true)
   })
 
-  it('speak Slack’s and Discord’s webhook formats', () => {
-    expect(webhookBody('slack', notice())).toEqual({ text: expect.stringContaining('EXC_BAD_ACCESS') })
-    expect(webhookBody('discord', notice())).toEqual({ content: expect.stringContaining('/issues/7') })
+  it('speak Slack’s blocks and Discord’s embeds, escaped, mentioning no one', () => {
+    const n = notice({ issue: { ...notice().issue, title: '@everyone <b> & co' } })
+    expect(webhookBody('slack', n)).toMatchObject({
+      text: expect.stringContaining('@everyone <b> & co'),
+      blocks: [
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: expect.stringMatching(/^\*@everyone &lt;b&gt; &amp; co\*\n/) },
+        },
+        { type: 'actions', elements: [{ type: 'button', url: n.url }] },
+      ],
+    })
+    expect(webhookBody('discord', n)).toEqual({
+      embeds: [{ title: '@everyone <b> & co', url: n.url, description: expect.any(String), color: 0xdc2626 }],
+      allowed_mentions: { parse: [] },
+    })
   })
 
   it('keep quiet hours, across midnight too', () => {
