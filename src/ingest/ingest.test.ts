@@ -73,6 +73,25 @@ describe('events', () => {
     expect(e.debugImages.length).toBe(12)
   })
 
+  it('keeps every thread of an iOS crash, the crashed one first with its stack on the exception', async () => {
+    const e = await normalizeEvent(event('ios-crash'))
+    expect(e.threads).toHaveLength(11)
+    expect(e.threads![0]).toMatchObject({ id: '0', crashed: true, frames: [] })
+    expect(e.threads!.find((t) => t.name === 'com.apple.uikit.eventfetch-thread')!.frames).toHaveLength(12)
+    expect(await fingerprintOf(e)).toBe(await fingerprintOf({ ...e, threads: undefined }))
+  })
+
+  it('keeps 32 threads at most, of 100 frames each, the current one first', async () => {
+    const frames = Array.from({ length: 150 }, (_, i) => ({ function: `f${i}` }))
+    const threads = Array.from({ length: 40 }, (_, i) => ({ id: i, current: i === 35, stacktrace: { frames } }))
+    const e = await normalizeEvent({ message: 'hang', threads: { values: threads } })
+    expect(e.threads).toHaveLength(32)
+    expect(e.threads![0]).toMatchObject({ id: '35', current: true })
+    expect(e.threads![1].id).toBe('0')
+    expect(e.threads![0].frames).toHaveLength(100)
+    expect(e.threads![0].frames.at(-1)!.function).toBe('f149') // the innermost frames stay
+  })
+
   it('reads JS, Python and sentry-cli events into a title and culprit', async () => {
     for (const name of [
       'small-js-error',

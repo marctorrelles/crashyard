@@ -61,6 +61,9 @@
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (my code first, other frames folded, context
   lines; a frame with a link, from `frameLinks` by its indexes in the event, has a button opening its line in the
-  repository, 40 px on a phone), breadcrumbs, tags, contexts, raw JSON.
+  repository, 40 px on a phone; `Stack` folds a list of frames), then "Other threads" ("Threads" without an exception)
+  folded: a row per thread with a stack, its name or id and top frame (its app's, else the innermost), opening to its
+  stack; breadcrumbs, tags, contexts, raw JSON. Nested `<details>` use named groups (`group/threads`) so a chevron
+  turns only with its own.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
   same, keep them in step).

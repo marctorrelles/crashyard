@@ -10,7 +10,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   and checked; a debug file becomes a row per object with its
   SymCache (`symcaches/…`); a ProGuard mapping is kept as it is (its UUID from sentry-cli); an artifact bundle (zip
   with `manifest.json`) becomes a SourceMapCache per minified file and its map, found by debug id or URL (`~/path`).
-- `symbolicate.ts`: on each event, before grouping. Native frames by address within their image (the crashing
+- `symbolicate.ts`: on each event, before grouping, every stack: the exceptions', then each thread's, with the same
+  caches. Native frames by address within their image (the crashing
   frame as is, the others one byte back: return addresses), inlined calls as frames of their own; Android frames and
   obfuscated exception classes through ProGuard; JavaScript through SourceMapCaches, with context lines. Mapped
   frames are marked `symbolicated` so a second pass leaves them be. Debug files an event lacked go in

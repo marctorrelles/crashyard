@@ -2,7 +2,7 @@
 // breadcrumbs, tags, contexts and the raw JSON.
 import { IconChevronRight, IconExternalLink } from '@tabler/icons-react'
 import { useState } from 'react'
-import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent } from '@/ingest/event'
+import type { Breadcrumb, ExceptionValue, Frame, NormalizedEvent, Thread } from '@/ingest/event'
 import { cn } from '@/lib/utils'
 
 /** `links`: a frame's line in the repository, by `exception.frame` (their indexes in the event, `frameLinks`) */
@@ -33,6 +33,7 @@ export function EventView({ event, links = {} }: { event: NormalizedEvent; links
           <pre className="text-sm whitespace-pre-wrap">{event.message || event.title}</pre>
         </Section>
       )}
+      <Threads event={event} />
       {event.breadcrumbs.length > 0 && <Breadcrumbs crumbs={event.breadcrumbs} />}
       {Object.keys(event.tags).length > 0 && (
         <Section title="Tags">
@@ -79,14 +80,6 @@ function Exception({ exception: e, link }: { exception: ExceptionValue; link: (f
   // Most recent call first, as Sentry shows them
   const frames: Linked[] = e.frames.map((f, j) => ({ ...f, link: link(j) })).reverse()
   const anyInApp = frames.some((f) => f.inApp)
-  // Runs of other code fold into one line, unless asked for every frame
-  const groups: { inApp: boolean; frames: Linked[] }[] = []
-  for (const f of frames) {
-    const inApp = f.inApp || !anyInApp || all
-    const last = groups.at(-1)
-    if (last && last.inApp === inApp && !inApp) last.frames.push(f)
-    else groups.push({ inApp, frames: [f] })
-  }
   return (
     <Section
       title={e.synthetic ? 'Stack' : 'Exception'}
@@ -122,17 +115,80 @@ function Exception({ exception: e, link }: { exception: ExceptionValue; link: (f
       {frames.length === 0 ? (
         <p className="text-sm text-muted-foreground">This event came without a stack trace.</p>
       ) : (
-        <ol className="divide-y overflow-hidden rounded-xl border">
-          {groups.map((g, i) =>
-            g.inApp ? (
-              g.frames.map((f, j) => <FrameRow key={`${i}-${j}`} frame={f} open={i === 0 && j === 0} />)
-            ) : (
-              <FoldedFrames key={i} frames={g.frames} />
-            ),
-          )}
-        </ol>
+        <Stack frames={frames} all={all} />
       )}
     </Section>
+  )
+}
+
+/** Frames, most recent first: runs of other code fold into one line, unless `all` */
+function Stack({ frames, all, className }: { frames: Linked[]; all: boolean; className?: string }) {
+  const anyInApp = frames.some((f) => f.inApp)
+  const groups: { inApp: boolean; frames: Linked[] }[] = []
+  for (const f of frames) {
+    const inApp = f.inApp || !anyInApp || all
+    const last = groups.at(-1)
+    if (last && last.inApp === inApp && !inApp) last.frames.push(f)
+    else groups.push({ inApp, frames: [f] })
+  }
+  return (
+    <ol className={cn('divide-y overflow-hidden rounded-xl border', className)}>
+      {groups.map((g, i) =>
+        g.inApp ? (
+          g.frames.map((f, j) => <FrameRow key={`${i}-${j}`} frame={f} open={i === 0 && j === 0} />)
+        ) : (
+          <FoldedFrames key={i} frames={g.frames} />
+        ),
+      )}
+    </ol>
+  )
+}
+
+/** The threads besides the crashed one, folded: each its name and top frame, opening to its stack */
+function Threads({ event }: { event: NormalizedEvent }) {
+  // The crashed one's stack is the exception's, and it kept no frames of its own
+  const threads = (event.threads ?? []).filter((t) => t.frames.length)
+  if (!threads.length) return null
+  return (
+    <details className="group/threads rounded-xl border">
+      <summary className="flex cursor-pointer items-center gap-1 px-4 py-3 text-sm font-medium max-sm:py-3.5">
+        <IconChevronRight className="size-4 transition-transform group-open/threads:rotate-90" />
+        {event.exceptions.length ? 'Other threads' : 'Threads'}
+        <span className="font-normal text-muted-foreground">{threads.length}</span>
+      </summary>
+      <ul className="divide-y border-t">
+        {threads.map((t, i) => (
+          <ThreadRow key={i} thread={t} />
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+function ThreadRow({ thread: t }: { thread: Thread }) {
+  const frames = [...t.frames].reverse()
+  const top = frames.find((f) => f.inApp) ?? frames[0]
+  return (
+    <li>
+      <details className="group/thread">
+        <summary className="flex cursor-pointer items-start gap-1 px-4 py-2.5 max-sm:py-3">
+          <IconChevronRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform group-open/thread:rotate-90" />
+          <span className="grid min-w-0 gap-0.5">
+            <span className="text-sm break-words">
+              {t.name ?? (t.id !== undefined ? `Thread ${t.id}` : 'Thread')}
+              {t.current && <span className="ml-2 text-xs text-muted-foreground">Current</span>}
+            </span>
+            {top && (
+              <span className="font-mono text-xs break-all text-muted-foreground">
+                {top.function ?? top.instructionAddr ?? top.filename ?? '?'}
+                {top.package && <span className="font-sans"> in {basename(top.package)}</span>}
+              </span>
+            )}
+          </span>
+        </summary>
+        <Stack frames={frames} all={false} className="mx-3 mb-3" />
+      </details>
+    </li>
   )
 }
 

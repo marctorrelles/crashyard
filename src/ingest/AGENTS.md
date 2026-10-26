@@ -12,7 +12,10 @@ order.
   and bearer tokens in text are masked (an email's domain ends in letters, so a release like `app@1.2.0` stays).
   `user.id` is kept only as a hash.
 - `event.ts`: `normalizeEvent` turns what any SDK sends into one shape (`NormalizedEvent`): title, culprit, level,
-  frames (from the crashed thread when the exception has none), tags (pairs or object, plus derived: level, release,
+  frames (from the crashed thread when the exception has none), `threads` (every one of `threads.values`, 32 at most
+  of 100 frames each, the innermost; crashed, then current, first; the thread an exception matches, by `thread_id` or
+  `crashed`, keeps no frames, as its stack is the exception's; grouping reads only the exceptions; events stored
+  before have none), tags (pairs or object, plus derived: level, release,
   os, device, browser, runtime, handled, mechanism). A `captureMessage` sends a made-up exception: `synthetic`, titled
   by its message, `type` `message`.
 - `grouping.ts`: the fingerprint. Exception type + the top 5 in-app frames; a native frame without symbols is its

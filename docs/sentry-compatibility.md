@@ -33,6 +33,9 @@ Set the SDK's DSN to the one a crashyard project gives you. Nothing else changes
 | `session`, `sessions`                                                  | Counted per release and day for crash-free rates                                       |
 | `profile`, `replay`, `replay_recording`, `client_report` and any other | Accepted with a 200 and dropped                                                        |
 
+An event keeps up to 32 of its threads, each with its last 100 frames. The crashed thread's stack is shown as the
+exception's, and the others are listed under it.
+
 An envelope is accepted before it's processed, as Sentry's Relay does. If storing an item fails, the answer is still a
 `200` with the event ID, and crashyard tries the item again within a few minutes, up to five times.
 

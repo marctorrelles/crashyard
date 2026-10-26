@@ -59,7 +59,12 @@ export async function symbolicate(
   projectId: number,
   event: NormalizedEvent,
 ) {
-  const stacks = event.exceptions.map((e) => e.frames).filter((f) => f.length)
+  // Every stack: the exceptions', then each thread's, through the same caches
+  const targets: { frames: Frame[]; set: (frames: Frame[]) => void }[] = [
+    ...event.exceptions.map((e) => ({ frames: e.frames, set: (f: Frame[]) => void (e.frames = f) })),
+    ...(event.threads ?? []).map((t) => ({ frames: t.frames, set: (f: Frame[]) => void (t.frames = f) })),
+  ].filter((t) => t.frames.length)
+  const stacks = targets.map((t) => t.frames)
   if (!stacks.length) return
   const images = event.debugImages.filter((i) => i.debugId)
   const ids = [...new Set(images.map((i) => i.debugId!.toLowerCase()))]
@@ -192,7 +197,7 @@ export async function symbolicate(
   }
 
   // JavaScript, for projects with artifact bundles
-  if (!(await hasBundles(env.DB, projectId))) return finish(event, stacks, missing)
+  if (!(await hasBundles(env.DB, projectId))) return finish(event, targets, stacks, missing)
   const sourceMaps = new Map(
     images.filter((i) => i.type === 'sourcemap' && i.codeFile).map((i) => [i.codeFile!, i.debugId!.toLowerCase()]),
   )
@@ -216,7 +221,7 @@ export async function symbolicate(
     }
   }
 
-  finish(event, stacks, missing)
+  finish(event, targets, stacks, missing)
 }
 
 const bundlesSeen = new Map<number, { has: boolean; at: number }>()
@@ -248,13 +253,11 @@ async function hasBundles(db: D1Database, projectId: number) {
 
 function finish(
   event: NormalizedEvent,
+  targets: { set: (frames: Frame[]) => void }[],
   stacks: Frame[][],
   missing: Map<string, NonNullable<NormalizedEvent['missingDebugFiles']>[number]>,
 ) {
-  stacks.forEach((frames, n) => {
-    const exception = event.exceptions.filter((e) => e.frames.length)[n]
-    exception.frames = frames
-  })
+  stacks.forEach((frames, n) => targets[n].set(frames))
   const thrown = event.exceptions.at(-1)
   if (thrown?.frames.some((f) => f.symbolicated)) event.culprit = culpritOf(thrown.frames) ?? event.culprit
   event.missingDebugFiles = missing.size ? [...missing.values()] : undefined

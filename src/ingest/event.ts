@@ -26,6 +26,8 @@ export type ExceptionValue = {
   synthetic?: boolean // made by the SDK to carry a stack (captureMessage), not thrown
   frames: Frame[] // oldest first: the last frame is where it happened
 }
+/** A thread at the time of the event. The one whose stack is the exception's keeps no frames of its own */
+export type Thread = { id?: string; name?: string; crashed?: boolean; current?: boolean; frames: Frame[] }
 export type DebugImage = { type: string; debugId?: string; codeFile?: string; imageAddr?: string; imageSize?: number }
 export type Breadcrumb = {
   timestamp?: number
@@ -50,6 +52,7 @@ export type NormalizedEvent = {
   culprit: string
   message: string
   exceptions: ExceptionValue[] // oldest first, as Sentry sends them: the last is the one that was thrown
+  threads?: Thread[] // the crashed or current one first; events stored before threads were kept have none
   tags: Record<string, string>
   contexts: Record<string, unknown>
   breadcrumbs: Breadcrumb[]
@@ -117,18 +120,21 @@ function frameOf(raw: unknown): Frame {
 
 const framesOf = (stacktrace: unknown) => arr(obj(stacktrace).frames).map(frameOf)
 
-function exceptionsOf(event: Json): ExceptionValue[] {
-  const threads = arr(event.threads).map(obj)
+/** The threads kept, at most 32 of 100 frames each (the innermost) */
+export const MAX_THREADS = 32
+export const THREAD_FRAMES = 100
+
+function exceptionsOf(event: Json, threads: Json[], used: Set<Json>): ExceptionValue[] {
   return arr(event.exception).map((raw) => {
     const e = obj(raw)
     let frames = framesOf(e.stacktrace)
+    const thread =
+      threads.find((t) => e.thread_id !== undefined && String(t.id) === String(e.thread_id)) ??
+      threads.find((t) => t.crashed === true)
     // Native crashes (sentry-cocoa, sentry-native) put the stack on the crashed thread rather than on the exception
-    if (!frames.length) {
-      const thread =
-        threads.find((t) => e.thread_id !== undefined && String(t.id) === String(e.thread_id)) ??
-        threads.find((t) => t.crashed === true)
-      if (thread) frames = framesOf(thread.stacktrace)
-    }
+    if (!frames.length && thread) frames = framesOf(thread.stacktrace)
+    // Either way the thread's stack is the exception's: it's kept once, there
+    if (frames.length && thread) used.add(thread)
     const mechanism = obj(e.mechanism)
     return {
       type: str(e.type) ?? 'Error',
@@ -140,6 +146,20 @@ function exceptionsOf(event: Json): ExceptionValue[] {
       frames,
     }
   })
+}
+
+function threadsOf(threads: Json[], used: Set<Json>): Thread[] {
+  const rank = (t: Json) => (t.crashed === true ? 2 : t.current === true ? 1 : 0)
+  return [...threads]
+    .sort((a, b) => rank(b) - rank(a))
+    .slice(0, MAX_THREADS)
+    .map((t) => ({
+      id: str(t.id),
+      name: str(t.name) && cut(str(t.name)!, 200),
+      crashed: t.crashed === true || undefined,
+      current: t.current === true || undefined,
+      frames: used.has(t) ? [] : framesOf(t.stacktrace).slice(-THREAD_FRAMES),
+    }))
 }
 
 function messageOf(event: Json): string {
@@ -193,7 +213,10 @@ export async function normalizeEvent(
 ): Promise<NormalizedEvent> {
   const event = obj(raw)
   const contexts = obj(scrub(obj(event.contexts)))
-  const exceptions = exceptionsOf(event)
+  const rawThreads = arr(event.threads).map(obj)
+  const used = new Set<Json>()
+  const exceptions = exceptionsOf(event, rawThreads, used)
+  const threads = threadsOf(rawThreads, used)
   const main = exceptions.at(-1)
   const message = messageOf(event)
   const rawLevel = (str(event.level) ?? 'error').toLowerCase()
@@ -255,6 +278,7 @@ export async function normalizeEvent(
     culprit,
     message,
     exceptions,
+    threads: threads.length ? threads : undefined,
     tags,
     contexts,
     breadcrumbs: arr(event.breadcrumbs)
