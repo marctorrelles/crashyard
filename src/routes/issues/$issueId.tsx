@@ -13,7 +13,8 @@ import { Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { addNote, deleteNote, getIssue, mergeIssues } from '@/fns'
+import { SearchBar } from '@/components/search-bar'
+import { addNote, deleteNote, getIssue, getIssueEvents, mergeIssues } from '@/fns'
 import type { NormalizedEvent } from '@/ingest/event'
 import { addValue, isSearchableKey, NEW_FOR } from '@/search/query'
 
@@ -108,12 +109,8 @@ function IssuePage() {
                     {event.environment && ` · ${event.environment}`}
                   </span>
                   {event.traceId && (
-                    <Link
-                      to="/logs"
-                      search={{ query: `trace:${event.traceId}`, range: '30d' }}
-                      className="ml-2 text-xs underline"
-                    >
-                      Logs in this trace
+                    <Link to="/traces/$traceId" params={{ traceId: event.traceId }} className="ml-2 text-xs underline">
+                      Open trace
                     </Link>
                   )}
                 </div>
@@ -350,14 +347,52 @@ function Similar({ d }: { d: Data }) {
 }
 
 function Events({ d, current }: { d: Data; current?: string }) {
-  if (d.events.length < 2) return null
+  // A search over this issue's events, Explore's (`getIssueEvents`); none shows the latest as loaded
+  const [query, setQuery] = useState('')
+  const [found, setFound] = useState<{ id: string; received: number; release?: string; environment?: string }[] | null>(
+    null,
+  )
+  if (d.events.length < 2 && found === null) return null
+  const search = async (q: string) => {
+    setQuery(q)
+    if (!q.trim()) return setFound(null)
+    try {
+      const r = await getIssueEvents({ data: { issue: d.issue.id, query: q, columns: ['release', 'environment'] } })
+      setFound(
+        r.rows.map((e) => ({
+          id: e.id,
+          received: e.received,
+          release: e.values[0] ?? undefined,
+          environment: e.values[1] ?? undefined,
+        })),
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'That search didn’t work. Check it and try again.')
+    }
+  }
+  const list = found ?? d.events
   return (
     <section className="mt-8">
       <h2 className="mb-2 text-sm font-medium">
-        Events <span className="font-normal text-muted-foreground">(latest {d.events.length})</span>
+        Events{' '}
+        <span className="font-normal text-muted-foreground">
+          {found === null
+            ? `(latest ${d.events.length})`
+            : `(${found.length === 50 ? 'newest 50' : found.length} matching)`}
+        </span>
       </h2>
-      <ul className="max-h-96 divide-y overflow-auto rounded-xl border text-sm">
-        {d.events.map((e) => (
+      <div className="mb-2">
+        <SearchBar
+          scope="events"
+          query={query}
+          project={d.issue.project}
+          placeholder="device:iPad* release:1.2"
+          onSearch={(q) => void search(q)}
+        />
+      </div>
+      {list.length === 0 && <p className="text-sm text-muted-foreground">No events of this issue match.</p>}
+      <ul className="max-h-96 divide-y overflow-auto rounded-xl border text-sm empty:hidden">
+        {list.map((e) => (
           <li key={e.id}>
             <Link
               to="/issues/$issueId"

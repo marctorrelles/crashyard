@@ -133,6 +133,15 @@ helpers (`change`).
   UTC day and level, or project with `by` (grouped by id, the slugs looked up after: `slugsOf`), of the issues a search
   matches, from `issue_days`). Plan: the issues by the filter (a scan, or a project's by `issues_project_last_seen`),
   then each one's days by `issue_days`' primary key; with no filter, the days by `issue_days_day`.
+- `explore.ts`: Explore. `whereOf` (a search through `eventFilter` over a window, `all` for every event kept, the
+  page's project, an issue, `project:` slugs; every value bound, `explore.test.ts` checks none reaches the SQL),
+  `exploreEvents` (the newest 50 with `older`, the cursor of the next page by `received`; columns: `level`,
+  `release`, `environment`, `project` or a tag's value, 6 at most, `DEFAULT_COLUMNS` when none), `exploreChart` (count
+  or `count_unique(user)`, distinct `user_hash` per bucket, per bucket of `intervalFor` the range; with `groupBy`, a
+  built-in or a tag, the 10 biggest values, `GROUPS`, each a series, events without the tag in none), `traceOf` (a
+  trace's events with their issue and project, 200, by `events_trace`; its logs, 500, by `logs_trace`; its stored
+  transaction examples with their spans, 20). Plans: the window by `events_project` for a project, else a scan of the
+  window's events; tags by `event_tags`' primary key. `explore.test.ts` on `test/fakes.ts`.
 - `widgets.ts`: dashboard widgets, schema v2 (`Widget`): a dataset (`DATASETS`: issues, events, logs, transactions,
   sessions, monitors, releases, markdown), a display it has (`DISPLAYS`; markdown is `text`), 1 to 3 queries
   (`MAX_QUERIES`) each a search, an aggregate and a label (40), up to 2 group-by fields (`GROUPS`; logs also any

@@ -41,7 +41,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { SavedSearch, SearchPage } from '@/data/searches'
 import { deleteSearch, getSuggestions, pinSearch, saveSearch } from '@/fns'
-import { ISSUE_KEYS, type KeyInfo, LOG_KEYS, type Token, tokenize, unparse } from '@/search/query'
+import { EVENT_KEYS, ISSUE_KEYS, type KeyInfo, LOG_KEYS, type Token, tokenize, unparse } from '@/search/query'
 import { apply, contextAt, type Suggestion, suggest } from '@/search/suggest'
 
 type Values = { value: string; count: number }[]
@@ -89,7 +89,7 @@ export function SearchBar({
   onSearch,
   onChange,
 }: {
-  scope: 'issues' | 'logs'
+  scope: 'issues' | 'logs' | 'events'
   query: string
   project?: string
   range?: string
@@ -118,7 +118,14 @@ export function SearchBar({
 
   const base = `${scope}|${project ?? ''}|${range ?? ''}`
   const stored = cache.get(`${base}|keys`)
-  const keys = stored && 'keys' in stored ? stored.keys : scope === 'issues' ? ISSUE_KEYS : LOG_KEYS
+  const keys =
+    stored && 'keys' in stored
+      ? stored.keys
+      : scope === 'issues'
+        ? ISSUE_KEYS
+        : scope === 'events'
+          ? EVENT_KEYS
+          : LOG_KEYS
   const ctx = contextAt(text, Math.min(caret, text.length))
   const values = (key: string, prefix: string): Values => {
     // While the reply for this prefix is on its way, the one for a shorter prefix (narrowed by `suggest`)

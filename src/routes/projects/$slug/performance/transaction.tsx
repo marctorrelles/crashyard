@@ -120,18 +120,11 @@ function Transaction() {
                     {e.trace_id && (
                       <p className="flex flex-wrap gap-4 px-4 pb-3 text-xs">
                         <Link
-                          to="/logs"
-                          search={{ query: `trace:${e.trace_id}`, range: '30d' }}
+                          to="/traces/$traceId"
+                          params={{ traceId: e.trace_id }}
                           className="underline-offset-2 hover:underline"
                         >
-                          Logs in this trace
-                        </Link>
-                        <Link
-                          to="/issues"
-                          search={{ query: `trace:${e.trace_id}` }}
-                          className="underline-offset-2 hover:underline"
-                        >
-                          Issues in this trace
+                          Open trace
                         </Link>
                       </p>
                     )}

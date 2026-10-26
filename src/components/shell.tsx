@@ -7,6 +7,7 @@ import {
   IconBell,
   IconBug,
   IconCheck,
+  IconCompass,
   IconGauge,
   IconHome,
   IconLayoutDashboard,
@@ -136,7 +137,7 @@ export function Shell({
 type Page = { path: string; search: Record<string, unknown>; issueProject?: string }
 
 // The pages that list across projects and narrow to one with ?project= (a dashboard too, below)
-const LISTS = ['/', '/dashboards', '/issues', '/releases', '/performance', '/logs'] as const
+const LISTS = ['/', '/dashboards', '/issues', '/explore', '/releases', '/performance', '/logs'] as const
 type List = (typeof LISTS)[number]
 const isList = (path: string): path is List => (LISTS as readonly string[]).includes(path)
 // A dashboard's id, when the page is one
@@ -206,6 +207,13 @@ function AppSidebar() {
             <Item label="Issues" icon={IconBug} active={at('/issues')}>
               {(c) => (
                 <Link to="/issues" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Explore" icon={IconCompass} active={at('/explore')}>
+              {(c) => (
+                <Link to="/explore" search={search} onClick={close}>
                   {c}
                 </Link>
               )}

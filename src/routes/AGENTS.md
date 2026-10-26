@@ -45,7 +45,8 @@ server, the build, or `tsr generate`): never edit it.
   users, resolved in a release), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
   newer), Suspect commits under the stack (sha linked through `commitUrl`, message, author, when, the files), Similar
   issues, each with Merge into this issue (a confirmation, then `mergeIssues` with this one first), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
-  issues with or without that value), events, feedback, activity and notes.
+  issues with or without that value), events (the latest, and a `SearchBar` of scope `events` that searches this
+  issue's events through `getIssueEvents`, the newest 50 that match), feedback, activity and notes.
 - `releases.tsx`: releases, a section per project for every project, each with its adoption stage, and on a desktop
   its adoption, sessions, users and crash-free users (crash-free sessions under its issues); sorted by `?sort=`
   (sessions, users, adoption, crashFree, crashFreeUsers, highest first, a release without the number last; newest
@@ -58,7 +59,7 @@ server, the build, or `tsr generate`): never edit it.
   sparkline of it over the period and the change since the release before (`?days=1|30`), a section per project (one
   with vitals and no transactions too); `projects/$slug/performance/transaction.tsx` (`?name=`): its own vitals, p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
-  span waterfall and trace links.
+  span waterfall and Open trace.
 - `settings/`: the settings area. `route.tsx` is its frame: `Shell` with Settings, the project when it's a project's
   page, then the page; the page's name as the title; `SettingsNav` (`src/components/settings.tsx`) beside the page
   (a select over it on a phone). `index.tsx` goes to General. The deployment's pages, the group "crashyard": `general`
@@ -91,6 +92,16 @@ server, the build, or `tsr generate`): never edit it.
   (a time zone from `Intl.supportedValuesOf`, empty for the browser's, and a 12 or 24-hour clock), `stack-traces`
   (newest or oldest frame first, other frames open or not) and `home` (the overview's project and range). Each page saves only its own fields through `updateProject`, whose
   checks are per field. `projects/$slug/settings.tsx` redirects to the project's General.
+- `explore.tsx`: Explore, events across issues. The search lives in the URL (`project`, `query`, `range`, `columns`,
+  comma-separated, `groupBy`, `users`, `before`): `SearchBar` scope `events`, saved searches of page `explore` (the
+  pinned one opens with no `query`), a time range; Columns (a text field of tag names, applied on Enter or blur),
+  Group by (nothing, the built-ins or a chosen column), Count events or users; the count over time (stacked by group,
+  with a legend), the groups with their counts (a click searches that value), then the events (received, issue
+  title, the columns, on a phone the received time under the title and only the first column, and Open issue on its event) with Show older events (`before`).
+  `getExplore`, one call.
+- `traces/$traceId.tsx`: `/traces/<id>`, what's kept of a trace (`getTrace`): its stored transactions with their span
+  waterfall, its events with their issues, its logs, and a line saying only the slowest transactions keep their spans.
+  Every trace link opens it: a log's, an event's on its issue, a slow transaction's.
 - `logs.tsx`: the logs explorer. The search lives in the URL (`project`, `query`, `range`, `from`, `to`, `groupBy`): the
   search bar (`SearchBar`), a time range, and over the list logs per bucket and level (`getLogChart`, loaded with the
   list; the period before as a dashed line). A drag across the chart sets `from` and `to` (ms, clamped to the chart's
@@ -98,8 +109,8 @@ server, the build, or `tsr generate`): never edit it.
   range; a bad pair is dropped and the range counts). Facets (folded on a phone) are bars of their share with + and −
   (`addValue`: a second value of a key makes `key:[a,b]`; none for a key the grammar can't write, `isSearchableKey`);
   click a line for every field and attribute, each a menu to show only, exclude or copy it (`logAttributeKey`: none for
-  the SDK's `sentry.*`, but `sentry.release` and `sentry.environment` search their columns), and its trace's logs and
-  issues. Live (polls every 2 s for newer; off with an exact span), Older. Group by (`?groupBy=`: level, release,
+  the SDK's `sentry.*`, but `sentry.release` and `sentry.environment` search their columns), and Open trace, its trace's
+  page. Live (polls every 2 s for newer; off with an exact span), Older. Group by (`?groupBy=`: level, release,
   environment, project, or an attribute, the stored keys asked for when the menu first opens; `getLogGroups` loaded
   instead of `getLogChart`): the chart's series are the 8 biggest groups and the rest, and over the list a table of them
   with their logs, the change since the span before ("new" when there were none), their share, + and − (a click on the

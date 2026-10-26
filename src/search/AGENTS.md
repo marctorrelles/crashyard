@@ -36,6 +36,12 @@ proposes as you type (`suggest.ts`, pure, tested in `suggest.test.ts`).
 - `trace:<id>` finds the issues with an event in that trace.
 - `logFilter`: the same syntax over logs: `level` (`warning` reads as `warn`), `release`, `environment`, `trace`,
   `timestamp`, `has:`, free text in the body (FTS5 `logs_fts`); any other key is an attribute (`log_attributes`).
+- `eventFilter`: the same syntax over events one by one (`events e`), for Explore and an issue's event search:
+  `level`, `release`, `environment`, `platform`, `trace` (columns), `is:` (its issue's status: unresolved, resolved,
+  ignored), `issue` (ids, whole numbers only), `project`, `timestamp` (`received`), `has:` and any other key a tag
+  of the event's own (`event_tags`, not the issue's), words and quoted text as `instr(lower(e.message), lower(?))`
+  (events have no full-text index; `message` is title and message). `EVENT_KEYS` are its keys for the bar
+  (`SearchBar` scope `events`, whose stored keys and values are the issues' tags).
 - An issue reads as new for `NEW_FOR` (a week) after its first event, as Sentry's.
 - `suggest.ts`: `contextAt(query, caret)` says what the caret is in (a key or free word being typed, with `!`; or the
   value of a key, with its operator, inside a `[…]` list too; a quote not yet closed runs to the caret, spaces and all)

@@ -5,6 +5,7 @@ import { getCookie, getRequest, getRequestHeader, setCookie } from '@tanstack/re
 import { env } from 'cloudflare:workers'
 import * as charts from './data/charts'
 import * as dashboards from './data/dashboards'
+import * as explore from './data/explore'
 import * as health from './data/health'
 import * as issues from './data/issues'
 import * as logs from './data/logs'
@@ -31,7 +32,7 @@ import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { mailerOf } from './notify/email'
 import { version } from '../package.json'
-import { ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
+import { EVENT_KEYS, ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
 const ZONES = new Set([...Intl.supportedValuesOf('timeZone'), 'UTC'])
@@ -539,6 +540,59 @@ export const getTransaction = createServerFn()
     return { project, now, ...detail, vitals }
   })
 
+// Explore: events across issues for a search, with columns, a chart and a group-by; `issue` scopes it to one issue
+const exploreInput = (o: Input, project?: number): explore.ExploreInput => ({
+  query: text(o.query ?? '', 2000),
+  range: oneOf(['1h', '24h', '7d', '30d', 'all'] as const)(o.range ?? '24h'),
+  projectId: project,
+  issueId: optional((v) => int(v))(o.issue),
+  columns: Array.isArray(o.columns)
+    ? o.columns.slice(0, explore.MAX_COLUMNS).map((c) => {
+        const column = text(c, 60)
+        if (!/^[\w.:-]+$/.test(column)) throw new Error(`${column} isn’t a tag name.`)
+        return column
+      })
+    : undefined,
+  groupBy: optional((v) => text(v, 60))(o.groupBy),
+  aggregate: oneOf(explore.AGGREGATES)(o.aggregate ?? 'count'),
+  before: optional((v) => int(v))(o.before),
+})
+
+export const getExplore = createServerFn()
+  .validator((d: unknown) => object(d))
+  .handler(async ({ data: o }) => {
+    const slug = optional((v) => text(v, 60))(o.project)
+    const project = slug ? await projects.projectBySlug(env.DB, slug) : undefined
+    const given = exploreInput(o, slug ? (project?.id ?? -1) : undefined)
+    const input = { ...given, range: given.range === 'all' ? ('30d' as const) : given.range }
+    const now = Date.now()
+    const [events, chart] = await Promise.all([
+      explore.exploreEvents(env.DB, input, now),
+      explore.exploreChart(env.DB, input, now),
+    ])
+    return { ...events, chart, now }
+  })
+
+/** An issue's events for a search: the same as Explore, over every event it keeps */
+export const getIssueEvents = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return exploreInput({ ...o, range: 'all', issue: int(o.issue) })
+  })
+  .handler(async ({ data }) => ({ ...(await explore.exploreEvents(env.DB, data, Date.now())), now: Date.now() }))
+
+export const getTrace = createServerFn()
+  .validator((d: unknown) => {
+    const id = text(object(d).traceId, 64).toLowerCase()
+    if (!/^[0-9a-f]{32}$/.test(id)) throw new Error('A trace ID is 32 hexadecimal characters.')
+    return { traceId: id }
+  })
+  .handler(async ({ data }) => ({
+    ...(await explore.traceOf(env.DB, data.traceId)),
+    traceId: data.traceId,
+    now: Date.now(),
+  }))
+
 export const getNotifications = createServerFn().handler(async () => ({
   ...(await notifications.settings(env.DB)),
   projects: await projects.allProjects(env.DB),
@@ -803,7 +857,7 @@ export const getSuggestions = createServerFn()
   .validator((d: unknown) => {
     const o = object(d)
     return {
-      scope: oneOf(['issues', 'logs'] as const)(o.scope),
+      scope: oneOf(['issues', 'logs', 'events'] as const)(o.scope),
       project: optional((v) => text(v, 60))(o.project),
       key: optional((v) => text(v, 60))(o.key),
       prefix: text(o.prefix ?? '', 200),
@@ -817,17 +871,17 @@ export const getSuggestions = createServerFn()
     if (data.key !== undefined)
       return {
         values:
-          data.scope === 'issues'
+          data.scope !== 'logs'
             ? await suggestions.issueValues(env.DB, data.key, data.prefix, projectId)
             : await suggestions.logValues(env.DB, data.key, data.prefix, projectId, since),
       }
-    const builtIn = data.scope === 'issues' ? ISSUE_KEYS : LOG_KEYS
+    const builtIn = data.scope === 'issues' ? ISSUE_KEYS : data.scope === 'events' ? EVENT_KEYS : LOG_KEYS
     const names = new Set(builtIn.map((k) => k.key))
     const stored =
-      data.scope === 'issues'
+      data.scope !== 'logs'
         ? await suggestions.issueKeys(env.DB, projectId)
         : await suggestions.logKeys(env.DB, projectId, since)
-    const what = data.scope === 'issues' ? ['Tag', 'issue'] : ['Attribute', 'log']
+    const what = data.scope !== 'logs' ? ['Tag', 'issue'] : ['Attribute', 'log']
     return {
       keys: [
         ...builtIn,

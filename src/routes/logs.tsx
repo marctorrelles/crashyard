@@ -1036,11 +1036,8 @@ function LogLine({ log: l, showProject, onPick }: { log: Log; showProject: boole
           </dl>
           {l.trace_id && (
             <p className="flex flex-wrap gap-3 font-sans">
-              <Link to="/logs" search={{ query: `trace:${l.trace_id}`, range: '30d' }} className="underline">
-                Logs in this trace
-              </Link>
-              <Link to="/issues" search={{ query: `trace:${l.trace_id}` }} className="underline">
-                Issues in this trace
+              <Link to="/traces/$traceId" params={{ traceId: l.trace_id }} className="underline">
+                Open trace
               </Link>
             </p>
           )}

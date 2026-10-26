@@ -9,11 +9,11 @@
 - Our own components sit beside `ui/`, built from those. Every one works on a phone (touch targets of 40 px or more,
   nothing wider than the screen) and in light and dark.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
-  pages whatever's picked, Overview, Dashboards, Issues, Releases, Performance, Logs, Monitors, Notifications, and at
+  pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications, and at
   the foot Settings, then who's signed in with Sign out, Access's `/cdn-cgi/access/logout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
-  section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). The lists (overview, dashboards, issues, releases, performance, logs)
+  section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). The lists (overview, dashboards, issues, Explore, releases, performance, logs)
   take the filter as `?project=` (on a dashboard, picking a project keeps it and its range); the project shown comes
   from that, `/projects/$slug` or an issue's own; pages of no project keep the one last picked (cookie
   `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The filter's menu also has the
@@ -26,9 +26,9 @@
   through them, so the server and the browser write the same text.
 - `performance.tsx`: `ms` (a duration), `vitalValue`, `VitalRows` (a "Web vitals" and a "Mobile vitals" row of
   cards, each vital's p75, its rating as a dot and words, Not rated for those Sentry doesn't rate, and "Up 12% on the
-  release before"; a row only with a vital in it), `Period` and `Waterfall` (spans as
+  release before", or "Same as the release before" under 1%; a row only with a vital in it), `Period` and `Waterfall` (spans as
   bars, indented by depth; on a phone the bar goes under its name).
-- `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (key, operator
+- `search-bar.tsx`: `SearchBar` (scope issues, logs or events, Explore's, with `EVENT_KEYS` and the issues' tags): every `key:value` of the query is a pill (key, operator
   menu, value, × with a hairline between, the key and operator grey, the value bold; on a phone each reaches to a 44 px
   tap; `is:` has no key; the key or value turns it back into text with the value selected), free words stay in the
   input. A popover (`Popover` anchored on the bar, its width; `Command`, unfiltered, highlighted from the input)

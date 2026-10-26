@@ -226,6 +226,20 @@ export const LOG_KEYS: KeyInfo[] = [
   { key: 'project', description: 'Project', kind: 'text' },
 ]
 
+/** Explore's keys: events, one by one, across issues */
+export const EVENT_KEYS: KeyInfo[] = [
+  { key: 'level', description: 'Level', kind: 'enum', values: ['fatal', 'error', 'warning', 'info', 'debug'] },
+  { key: 'release', description: 'Release', kind: 'text' },
+  { key: 'environment', description: 'Environment', kind: 'text' },
+  { key: 'platform', description: 'SDK platform', kind: 'text' },
+  { key: 'is', description: 'Status of its issue', kind: 'enum', values: ['unresolved', 'resolved', 'ignored'] },
+  { key: 'issue', description: 'Issue ID', kind: 'number' },
+  { key: 'project', description: 'Project', kind: 'text' },
+  { key: 'trace', description: 'Trace ID', kind: 'text' },
+  { key: 'timestamp', description: 'Time it was received, such as -1h', kind: 'time', values: WITHIN },
+  { key: 'has', description: 'Has a tag', kind: 'enum' },
+]
+
 const DURATION = /^[-+](\d+)([smhdw])$/
 const UNIT = { s: 1e3, m: 6e4, h: 36e5, d: 864e5, w: 6048e5 }
 
@@ -460,5 +474,79 @@ export function logFilter(query: string, now: number): Filter {
     )
   }
   if (text.length) add('l.id IN (SELECT rowid FROM logs_fts WHERE logs_fts MATCH ?)', false, ftsWords(text))
+  return { where, params, projectSlugs }
+}
+
+const EVENT_COLUMNS: Record<string, string> = {
+  level: 'e.level',
+  release: 'e.release',
+  environment: 'e.environment',
+  platform: 'e.platform',
+  trace: 'e.trace_id',
+}
+
+/**
+ * SQL conditions over `events e`, for Explore and an issue's event search. Unknown keys are the event's own tags
+ * (`event_tags`); words are text in its title and message, case-insensitive. Every value is a bound parameter
+ */
+export function eventFilter(query: string, now: number): Filter {
+  const where: string[] = []
+  const params: unknown[] = []
+  const projectSlugs: string[] = []
+  const add = (sql: string, negate: boolean, ...values: unknown[]) => {
+    where.push(negate ? `NOT (${sql})` : sql)
+    params.push(...values)
+  }
+  for (const t of tokenize(query)) {
+    if (!t.key || t.key === 'message') {
+      for (const text of t.values ?? [t.value]) if (text) add('instr(lower(e.message), lower(?)) > 0', t.negate, text)
+      continue
+    }
+    const key = t.key
+    const values = valuesOf(t)
+    if (key === 'project') {
+      if (!t.negate) projectSlugs.push(...values)
+      else {
+        const [sql, slugs] = matchAny('slug', values)
+        add(`e.project_id NOT IN (SELECT id FROM projects WHERE ${sql})`, false, ...slugs)
+      }
+      continue
+    }
+    if (key === 'is') {
+      const known = values.filter((v) => STATUSES.has(v))
+      if (known.length) {
+        const [sql, statuses] = matchAny('i.status', known)
+        add(`EXISTS (SELECT 1 FROM issues i WHERE i.id = e.issue_id AND ${sql})`, t.negate, ...statuses)
+      }
+      continue
+    }
+    if (key === 'issue' || key === 'issue.id') {
+      const ids = values.map(Number).filter(Number.isInteger)
+      if (ids.length) add(`e.issue_id IN (${ids.map(() => '?').join(',')})`, t.negate, ...ids)
+      continue
+    }
+    if (key === 'timestamp') {
+      const at = t.values ? undefined : timeOf(t.value, now)
+      if (at !== undefined) add(`e.received ${timeOp(t)} ?`, t.negate, at)
+      continue
+    }
+    if (key === 'has') {
+      const [sql, keys] = matchAny('t.key', values)
+      add(`EXISTS (SELECT 1 FROM event_tags t WHERE t.event_id = e.id AND ${sql})`, t.negate, ...keys)
+      continue
+    }
+    if (EVENT_COLUMNS[key]) {
+      const [sql, matched] = matchAny(EVENT_COLUMNS[key], values)
+      add(sql, t.negate, ...matched)
+      continue
+    }
+    const [sql, matched] = matchAny('t.value', values)
+    add(
+      `EXISTS (SELECT 1 FROM event_tags t WHERE t.event_id = e.id AND t.key = ? AND ${sql})`,
+      t.negate,
+      key,
+      ...matched,
+    )
+  }
   return { where, params, projectSlugs }
 }
