@@ -96,9 +96,17 @@ const LOG_RESERVED = new Set([
   'project',
 ])
 
-/** The key a log attribute is searched by, if it can be: not a reserved name, and one the grammar can write */
-export const logAttributeKey = (key: string): string | undefined =>
-  isSearchableKey(key) && !LOG_RESERVED.has(key) ? key : undefined
+// The SDK's own attributes that are columns too; the other `sentry.*` ones aren't stored as attributes to search
+const SENTRY_COLUMNS: Record<string, string> = { 'sentry.release': 'release', 'sentry.environment': 'environment' }
+
+/**
+ * The key a log attribute is searched by, if it can be: `sentry.release` and `sentry.environment` by their columns,
+ * no other `sentry.*` (ingest doesn't store them in log_attributes), nor a reserved name, nor one the grammar can't write
+ */
+export function logAttributeKey(key: string): string | undefined {
+  if (key.startsWith('sentry.')) return SENTRY_COLUMNS[key]
+  return isSearchableKey(key) && !LOG_RESERVED.has(key) ? key : undefined
+}
 
 /** The query back as text, for a token changed or removed (the status tabs rewrite `is:`) */
 export const unparse = (tokens: Token[]) =>

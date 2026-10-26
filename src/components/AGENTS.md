@@ -18,15 +18,16 @@
   (relative to a `now` from the loader), `Level`, `count`, `percent`.
 - `performance.tsx`: `ms` (a duration), `Period` and `Waterfall` (spans as
   bars, indented by depth; on a phone the bar goes under its name).
-- `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (a `ButtonGroup`:
-  key, operator menu, value, ×; the key or value turns it back into text with the value selected), free words stay
-  in the input. A popover (`Popover` anchored on the bar, its width; `Command`, unfiltered, highlighted from the input)
+- `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (a `ButtonGroup`: key,
+  operator menu, value, ×; the key or value turns it back into text with the value selected), free words stay in the
+  input. A popover (`Popover` anchored on the bar, its width; `Command`, unfiltered, highlighted from the input)
   proposes what `src/search/suggest.ts` says for the caret. ↑ ↓ move, Enter picks what's highlighted or else searches
   (nothing is highlighted until an arrow is pressed, so a plain search never loses its Enter), Tab picks the first or
-  highlighted, Esc closes, Backspace on an empty input turns the last pill back into text. Picking a value makes a
-  pill and searches; changing or removing a pill searches. Keys come once on focus and values 150 ms after typing
-  stops, from `getSuggestions`, cached by scope, project, range, key and prefix for the page's life (a late reply only
-  fills its own entry; while one is on its way, a shorter prefix's narrows). On the issues and logs pages.
+  highlighted, Esc closes, Backspace on an empty input turns the last pill back into text; while an IME composes, its
+  keys are left to it. Picking a value makes a pill and searches; changing or removing a pill searches. Keys come once
+  on focus and values 150 ms after typing stops (each kind with its own timer, so one never cancels the other), from
+  `getSuggestions`, cached by scope, project, range, key and prefix for the page's life (a late reply only fills its own
+  entry; while one is on its way, a shorter prefix's narrows). On the issues and logs pages.
 - `charts.tsx`: shadcn's `ChartContainer` over recharts. `TimeChart`: counts per bucket (`x` is bucket starts in ms or
   UTC days `YYYY-MM-DD`), series stacked as bars or areas (lines aren't; `stacked={false}` puts bars side by side), a
   series' own `kind` and `axis: 'right'` (a second axis, `formatRight`; the transaction page's count under its p95),

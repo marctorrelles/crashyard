@@ -42,7 +42,8 @@ server, the build, or `tsr generate`): never edit it.
   span), which stand in for the range while they're set (it reads "Custom" with the span; Reset clears them, back to the
   range; a bad pair is dropped and the range counts). Facets (folded on a phone) are bars of their share with + and −
   (`addValue`: a second value of a key makes `key:[a,b]`; none for a key the grammar can't write, `isSearchableKey`);
-  click a line for every field and attribute, each a menu to show only, exclude or copy it, and its trace's logs and
+  click a line for every field and attribute, each a menu to show only, exclude or copy it (`logAttributeKey`: none for
+  the SDK's `sentry.*`, but `sentry.release` and `sentry.environment` search their columns), and its trace's logs and
   issues. Live (polls every 2 s for newer; off with an exact span), Older. Group by (`?groupBy=`: level, release,
   environment, project, or an attribute, the stored keys asked for when the menu first opens; `getLogGroups` loaded
   instead of `getLogChart`): the chart's series are the 8 biggest groups and the rest, and over the list a table of them

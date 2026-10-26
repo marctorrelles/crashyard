@@ -204,6 +204,9 @@ describe('search', () => {
     expect(logAttributeKey('song')).toBe('song')
     expect(logAttributeKey('level')).toBeUndefined()
     expect(logAttributeKey('a/b')).toBeUndefined()
+    expect(logAttributeKey('sentry.release')).toBe('release')
+    expect(logAttributeKey('sentry.environment')).toBe('environment')
+    expect(logAttributeKey('sentry.sdk.name')).toBeUndefined()
   })
 
   it('reads back any tokens it writes, and adding a value leaves the other keys alone', () => {

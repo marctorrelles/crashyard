@@ -84,7 +84,8 @@ export function SearchBar({
   const [cache, setCache] = useState(() => new Map<string, Reply>())
   const input = useRef<HTMLInputElement>(null)
   const bar = useRef<HTMLDivElement>(null)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // One timer per kind of request: asking for values doesn't cancel the keys asked for on focus
+  const timers = useRef<Partial<Record<'keys' | 'values', ReturnType<typeof setTimeout>>>>({})
   const asked = useRef(new Set<string>())
 
   const base = `${scope}|${project ?? ''}|${range ?? ''}`
@@ -105,10 +106,10 @@ export function SearchBar({
       : suggest(ctx, { keys, values: [] })
   const shown = open && items.length > 0
 
-  const ask = (id: string, data: { key?: string; prefix: string }, delay: number) => {
+  const ask = (kind: 'keys' | 'values', id: string, data: { key?: string; prefix: string }, delay: number) => {
     if (cache.has(id) || asked.current.has(id)) return
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
+    clearTimeout(timers.current[kind])
+    timers.current[kind] = setTimeout(() => {
       asked.current.add(id)
       getSuggestions({ data: { scope, project, range, ...data } }).then(
         (reply) => setCache((c) => new Map(c).set(id, reply)),
@@ -122,7 +123,7 @@ export function SearchBar({
     if (at.part !== 'value' || !at.key) return
     const info = keys.find((k) => k.key === at.key)
     if (info?.values || info?.kind === 'number' || at.key === 'has') return
-    ask(`${base}|${at.key}|${at.prefix}`, { key: at.key, prefix: at.prefix }, DEBOUNCE)
+    ask('values', `${base}|${at.key}|${at.prefix}`, { key: at.key, prefix: at.prefix }, DEBOUNCE)
   }
 
   // Text and caret together, with the caret placed once the input shows the new text
@@ -166,6 +167,8 @@ export function SearchBar({
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // While an IME composes, its keys (Enter to confirm a word) are the IME's, not the bar's
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
       setOpen(true)
@@ -285,7 +288,7 @@ export function SearchBar({
             onSelect={(e) => setCaret(caretOf(e))}
             onFocus={(e) => {
               setOpen(true)
-              ask(`${base}|keys`, { prefix: '' }, 0)
+              ask('keys', `${base}|keys`, { prefix: '' }, 0)
               askValues(text, caretOf(e))
             }}
             onBlur={() => setOpen(false)}

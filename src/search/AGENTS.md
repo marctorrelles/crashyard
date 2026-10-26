@@ -10,11 +10,12 @@ proposes as you type (`suggest.ts`, pure, tested in `suggest.test.ts`).
   quoted (a seeded property test checks thousands of random token lists read back as written). `scan` gives every token
   with its place in the text (for the caret).
 - The query stays the one truth; helpers rewrite it: `withToken` one key (the status tabs edit `is:`), `setToken` and
-  `removeToken` one token by index (a pill), `addValue` includes or excludes a value (a facet): including adds it to
-  the key's `key:[…]` (or adds `key:value`), excluding to `!key:[…]`, and either takes it out of the other; a list of
-  one reads `key:value` again, of none goes. Only keys the grammar can write (`isSearchableKey`: `[\w.-]+`) take a
-  value; any other key (`song name`, `sentry:user`) leaves the query as it is, and pages offer no + or − for it.
-  `logAttributeKey`: the key a log attribute is searched by, none for the reserved names (`level`, `release`, …).
+  `removeToken` one token by index (a pill), `addValue` includes or excludes a value (a facet): including adds it to the
+  key's `key:[…]` (or adds `key:value`), excluding to `!key:[…]`, and either takes it out of the other; a list of one
+  reads `key:value` again, of none goes. Only keys the grammar can write (`isSearchableKey`: `[\w.-]+`) take a value;
+  any other key (`song name`, `sentry:user`) leaves the query as it is, and pages offer no + or − for it.
+  `logAttributeKey`: the key a log attribute is searched by: `sentry.release` and `sentry.environment` by their columns,
+  none for the other `sentry.*` (ingest doesn't store them as attributes) or the reserved names (`level`, `release`, …).
 - `ISSUE_KEYS` and `LOG_KEYS`: the built-in keys for the bar, each with a description, a kind (`enum`, `text`,
   `number`, `time`, `tag`) and, for enums and times, its values.
 - Lists in SQL: `col IN (?,…)` (for a tag, `v.value IN`), or an `OR` of matches when one has a `*`; `is:[…]` is an `OR`
