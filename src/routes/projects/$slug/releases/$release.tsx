@@ -43,7 +43,7 @@ function Release() {
           )}
         </p>
       </div>
-      <div className="grid gap-6">
+      <div className="grid gap-6 *:min-w-0">
         <Group title="New in this release" issues={d.fresh} empty="Nothing new." />
         <Group title="Came back" issues={d.regressed} empty="Nothing came back." />
         {d.previous && (
