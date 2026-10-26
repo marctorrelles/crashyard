@@ -27,6 +27,7 @@ import { parseGroupingRules } from './ingest/rules'
 import { telegramChats, telegramToken } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
 import { LEVELS } from './notify/notice'
+import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { mailerOf } from './notify/email'
 import { version } from '../package.json'
@@ -965,8 +966,8 @@ export const getMonitors = createServerFn().handler(async () => ({
 export const getMonitor = createServerFn()
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(async ({ data }) => {
-    const monitor = await monitors.getMonitor(env.DB, data.id)
-    return monitor ? { ...monitor, projects: await projects.allProjects(env.DB), now: Date.now() } : null
+    const monitor = await monitors.getMonitor(env.DB, data.id, Date.now())
+    return monitor ? { ...monitor, projects: await projects.allProjects(env.DB) } : null
   })
 
 const httpUrl = (v: unknown) => {
@@ -974,6 +975,40 @@ const httpUrl = (v: unknown) => {
   if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('The URL must start with http:// or https://.')
   return u.toString()
 }
+// An uptime check's request headers, 20 at most, names as HTTP allows them
+const uptimeHeaders = (v: unknown): [string, string][] | undefined => {
+  if (v === undefined || v === null) return undefined
+  if (!Array.isArray(v) || v.length > 20) throw new Error('expected up to 20 headers')
+  return v.map((pair) => {
+    if (!Array.isArray(pair) || pair.length !== 2) throw new Error('expected a header name and value')
+    const name = text(pair[0], 100).trim()
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)) throw new Error(`${name || 'A header'} isn’t a header name.`)
+    return [name, text(pair[1], 2000)]
+  })
+}
+
+// What an uptime check's answer must be, 10 at most
+const assertionsOf = (v: unknown): Assertion[] | undefined => {
+  if (v === undefined || v === null) return undefined
+  if (!Array.isArray(v) || v.length > 10) throw new Error('expected up to 10 assertions')
+  return v.map((raw): Assertion => {
+    const a = object(raw)
+    if (a.kind === 'status') {
+      const codes = Array.isArray(a.in) ? a.in.map((x) => int(x, 100, 599)) : []
+      if (!codes.length || codes.length > 20) throw new Error('Give the statuses it may answer, such as 200, 204.')
+      return { kind: 'status', in: codes }
+    }
+    if (a.kind === 'header') return { kind: 'header', name: text(a.name, 100).trim(), contains: text(a.contains, 500) }
+    if (a.kind === 'json') {
+      const path = text(a.path, 200).trim()
+      if (!/^(\$\.?)?[\w-]+(\.[\w-]+|\[\d+\])*$/.test(path))
+        throw new Error('A JSON path reads like $.status or $.checks[0].ok.')
+      return { kind: 'json', path, equals: text(a.equals, 500) }
+    }
+    throw new Error('expected a status, header or JSON assertion')
+  })
+}
+
 export const saveMonitor = createServerFn({ method: 'POST' })
   .validator((d: unknown): monitors.MonitorInput => {
     const o = object(d)
@@ -993,7 +1028,10 @@ export const saveMonitor = createServerFn({ method: 'POST' })
         kind: 'uptime',
         config: {
           url: httpUrl(c.url),
-          method: oneOf(['GET', 'HEAD', 'POST'] as const)(c.method ?? 'GET'),
+          method: oneOf(UPTIME_METHODS)(c.method ?? 'GET'),
+          headers: uptimeHeaders(c.headers),
+          body: optional((v) => text(v, 10_000))(c.body),
+          assertions: assertionsOf(c.assertions),
           expectedStatus: optional((v) => int(v, 100, 599))(c.expectedStatus),
           mustContain: optional((v) => text(v, 200))(c.mustContain),
           intervalMinutes: int(c.intervalMinutes ?? 5, 1, 60),

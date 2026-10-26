@@ -5,14 +5,26 @@ import type { Notice } from '../notify/notice'
 import { nextRun, type Schedule } from './schedule'
 
 export type CronConfig = { schedule: Schedule; timezone?: string; checkinMargin?: number; maxRuntime?: number }
+/** What an uptime check's answer must be: a status among some, a header containing a value, a JSON path equal to one */
+export type Assertion =
+  | { kind: 'status'; in: number[] }
+  | { kind: 'header'; name: string; contains: string }
+  | { kind: 'json'; path: string; equals: string }
+
 export type UptimeConfig = {
   url: string
   method?: string
-  expectedStatus?: number // or any 2xx
+  headers?: [string, string][]
+  body?: string // sent with POST, PUT and PATCH
+  assertions?: Assertion[]
+  expectedStatus?: number // or any 2xx; a status assertion takes its place
   mustContain?: string
   intervalMinutes: number
   timeoutMs?: number
 }
+
+export const UPTIME_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
+export const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH'])
 
 export type MonitorRow = {
   id: number
@@ -29,10 +41,13 @@ export type MonitorRow = {
   next_due: number | null
   last_seen: number | null
   environment: string
+  muted_at: number | null
 }
 
 type Env = { DB: D1Database; PUBLIC_URL?: string }
 const MINUTE = 60_000
+/** A monitor failing this long is muted: no more alerts until it recovers, as Sentry's crons do */
+export const MUTE_AFTER = 14 * 1440 * MINUTE
 
 /** Where the monitor stands after one more result, and whether that opened or closed an incident */
 export function afterResult(
@@ -100,8 +115,11 @@ async function apply(
         monitor.id,
       ),
     )
+  // Recovering unmutes it, and says so
+  if (next.change === 'up' && monitor.muted_at)
+    statements.push(env.DB.prepare('UPDATE monitors SET muted_at = NULL WHERE id = ?').bind(monitor.id))
   await env.DB.batch(statements)
-  if (!next.change) return undefined
+  if (!next.change || (next.change === 'down' && monitor.muted_at)) return undefined
   const project = await env.DB.prepare('SELECT id, slug, name FROM projects WHERE id = ?')
     .bind(monitor.project_id)
     .first<Notice['project']>()
@@ -131,6 +149,7 @@ type CheckIn = {
   duration?: number // seconds
   release?: string
   environment?: string
+  contexts?: { trace?: { trace_id?: string } }
   monitor_config?: {
     schedule?: { type?: string; value?: string | number; unit?: string }
     checkin_margin?: number
@@ -226,14 +245,17 @@ export async function recordCheckIn(
       : null
   const id = given ?? open?.id ?? fallbackId ?? crypto.randomUUID().replace(/-/g, '')
   const duration = typeof payload.duration === 'number' ? Math.round(payload.duration * 1000) : null
-  await env.DB.prepare(
-    `INSERT INTO check_ins (id, monitor_id, status, started, finished, duration, release, environment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  const traceId = payload.contexts?.trace?.trace_id
+  const environment = payload.environment ?? null
+  const statements = [
+    env.DB.prepare(
+      `INSERT INTO check_ins (id, monitor_id, status, started, finished, duration, release, environment, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET status = excluded.status, finished = excluded.finished,
        duration = COALESCE(excluded.duration, excluded.finished - check_ins.started),
        release = COALESCE(check_ins.release, excluded.release),
-       environment = COALESCE(check_ins.environment, excluded.environment)`,
-  )
-    .bind(
+       environment = COALESCE(check_ins.environment, excluded.environment),
+       trace_id = COALESCE(check_ins.trace_id, excluded.trace_id)`,
+    ).bind(
       id,
       monitor.id,
       status,
@@ -241,9 +263,16 @@ export async function recordCheckIn(
       status === 'in_progress' ? null : now,
       duration,
       payload.release ?? null,
-      payload.environment ?? null,
-    )
-    .run()
+      environment,
+      typeof traceId === 'string' && /^[0-9a-f]{32}$/.test(traceId) ? traceId : null,
+    ),
+    // Its state in the environment it came from: a check-in is the latest word there
+    env.DB.prepare(
+      `INSERT INTO monitor_environments (monitor_id, environment, status, last_check_in) VALUES (?, ?, ?, ?)
+       ON CONFLICT DO UPDATE SET status = excluded.status, last_check_in = excluded.last_check_in`,
+    ).bind(monitor.id, (environment ?? monitor.environment).slice(0, 64), status === 'error' ? 'failing' : status, now),
+  ]
+  await env.DB.batch(statements)
   const nextDue = dueAfter(cron, now)
   if (status === 'in_progress') {
     await env.DB.prepare('UPDATE monitors SET next_due = ?, last_seen = ? WHERE id = ?')
@@ -254,25 +283,82 @@ export async function recordCheckIn(
   return apply(env, monitor, status === 'ok', status, now, nextDue)
 }
 
-/** One uptime check: the request, how long it took, and whether it answered as it should */
+const hex = (bytes: number) =>
+  [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('')
+
+/** A JSON path as `$.a.b[0].c` (or without the `$.`), read from a value; undefined where it leads nowhere */
+export function atPath(value: unknown, path: string): unknown {
+  const parts = path
+    .replace(/^\$\.?/, '')
+    .split(/\.|\[(\d+)\]/)
+    .filter((p) => p !== undefined && p !== '')
+  let at: unknown = value
+  for (const p of parts) {
+    if (at === null || typeof at !== 'object') return undefined
+    at = (at as Record<string, unknown>)[p]
+  }
+  return at
+}
+
+/** What's wrong with an answer, by the assertions, or undefined when it's fine */
+function failed(a: Assertion, response: Response, json: () => unknown): string | undefined {
+  if (a.kind === 'status')
+    return a.in.includes(response.status) ? undefined : `returned HTTP ${response.status}, not ${a.in.join(' or ')}`
+  if (a.kind === 'header') {
+    const value = response.headers.get(a.name)
+    return value?.includes(a.contains) ? undefined : `the ${a.name} header didn’t contain “${a.contains}”`
+  }
+  const found = atPath(json(), a.path)
+  const text = found === undefined ? undefined : typeof found === 'string' ? found : JSON.stringify(found)
+  return text === a.equals
+    ? undefined
+    : text === undefined
+      ? `the response had nothing at ${a.path}`
+      : `${a.path} was “${text.slice(0, 80)}”, not “${a.equals}”`
+}
+
+/**
+ * One uptime check: the request with its method, headers and body (and a `sentry-trace` header, as Sentry's uptime
+ * checks send, so the server's own SDK can tie its work to it), how long it took, and whether it answered as it should
+ */
 export async function check(config: UptimeConfig, fetcher: typeof fetch = fetch) {
   const started = Date.now()
+  const method = config.method ?? 'GET'
   try {
+    const headers = new Headers(config.headers ?? [])
+    if (!headers.has('user-agent')) headers.set('user-agent', 'crashyard uptime check')
+    headers.set('sentry-trace', `${hex(16)}-${hex(8)}-0`)
     const response = await fetcher(config.url, {
-      method: config.method ?? 'GET',
+      method,
       redirect: 'follow',
-      headers: { 'user-agent': 'crashyard uptime check' },
+      headers,
+      body: BODY_METHODS.has(method) && config.body ? config.body : undefined,
       signal: AbortSignal.timeout(config.timeoutMs ?? 10_000),
     })
     const ms = Date.now() - started
-    const statusOk = config.expectedStatus ? response.status === config.expectedStatus : response.ok
+    const assertions = config.assertions ?? []
+    const statusOk = assertions.some((a) => a.kind === 'status')
+      ? true
+      : config.expectedStatus
+        ? response.status === config.expectedStatus
+        : response.ok
     let error = statusOk ? undefined : `returned HTTP ${response.status}`
-    if (statusOk && config.mustContain) {
-      const body = (await response.text()).slice(0, 1024 * 1024)
-      if (!body.includes(config.mustContain)) error = `the response didn’t contain “${config.mustContain}”`
-    } else {
-      await response.body?.cancel()
+    const needsBody = !!config.mustContain || assertions.some((a) => a.kind === 'json')
+    const body = needsBody && method !== 'HEAD' ? (await response.text()).slice(0, 1024 * 1024) : undefined
+    if (!needsBody) await response.body?.cancel()
+    if (!error && config.mustContain && !body?.includes(config.mustContain))
+      error = `the response didn’t contain “${config.mustContain}”`
+    let parsed: { value: unknown } | undefined
+    const json = () => {
+      if (!parsed)
+        try {
+          parsed = { value: JSON.parse(body ?? '') }
+        } catch {
+          parsed = { value: undefined }
+        }
+      return parsed.value
     }
+    for (const a of assertions) error ??= failed(a, response, json)
     return { ok: !error, status: response.status, ms, error }
   } catch (e) {
     const timedOut = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')
@@ -323,6 +409,14 @@ export async function runMonitors(env: Env, now: number, fetcher: typeof fetch =
     const n = await apply(env, fresh!, false, 'timeout', now, fresh!.next_due)
     if (n) notices.push(n)
   }
+
+  // Failing for 14 days: muted, with no alerts until it recovers (apply), as Sentry's crons
+  await env.DB.prepare(
+    `UPDATE monitors SET muted_at = ? WHERE status = 'failing' AND muted_at IS NULL AND id IN
+       (SELECT monitor_id FROM incidents WHERE closed_at IS NULL AND opened_at <= ?)`,
+  )
+    .bind(now, now - MUTE_AFTER)
+    .run()
 
   // ponytail: every due check at once; a concurrency limit if a deployment has hundreds
   const results = await Promise.all(

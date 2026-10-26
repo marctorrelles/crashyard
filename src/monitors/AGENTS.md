@@ -11,9 +11,26 @@ Cron monitors (jobs that check in, Sentry's way) and uptime checks (URLs the wor
     Relay's nil id (an HTTP one that named none), finishes the monitor's latest run in progress, as Sentry pairs
     them, else it's its own with the caller's `fallbackId`; finishing a run fills its release and environment when it
     had none. A retry of an HTTP `ok` after it already closed the run in progress writes a check-in of its own.
+    Each check-in keeps its trace (`contexts.trace.trace_id`, which `captureCheckIn` sends from the scope) and sets
+    its environment's row in `monitor_environments` (in_progress, ok, or failing for an error; the monitor's own
+    environment when it names none).
+  - Errors during a job (`getMonitor` in `src/data/monitors.ts`): checked in @sentry/core 11.9.0
+    (`build/esm/monitor.js`, `server-runtime-client.js`): `withMonitor` puts no monitor slug on events, it runs the
+    callback in an isolation scope that keeps the propagation context, so its errors and both of its check-ins share
+    one trace id, and `captureCheckIn` sends that trace as `contexts.trace`. So an error is the job's when it shares a
+    check-in's trace, or, for SDKs that set it, when its `contexts.monitor.slug` names the monitor (the `monitor.slug`
+    tag `normalizeEvent` derives).
+  - Muting: a monitor with an incident open for 14 days (`MUTE_AFTER`) gets `muted_at` from `runMonitors`; `apply`
+    sends no `monitor_down` while it's set, and recovery clears it and still sends `monitor_up`, as Sentry's crons
+    mute and unmute. Resuming a paused monitor clears it too.
   - `runMonitors`, every minute from the cron: cron monitors whose check-in is late (the next run plus the margin)
     get a `missed` check-in; runs in progress past `maxRuntime` (30 minutes by default) time out; uptime checks
-    that are due run (`check`: status, or any 2xx; text it must contain; a timeout).
+    that are due run (`check`: the method of `UPTIME_METHODS`, the config's headers, a body only for POST, PUT and
+    PATCH, `BODY_METHODS`, and a `sentry-trace` header of a new trace, unsampled, as Sentry's uptime checks send; then
+    status, or any 2xx, unless a status assertion stands in for it; text it must contain; `assertions`: a status
+    among some, a header containing a value, a JSON path, `atPath` `$.a.b[0]`, whose value, a string or else its JSON,
+    equals one; the first that fails is the error; a timeout). Headers, body and assertions live in `config`, beside
+    the method and status, not in columns of their own.
   - `afterResult`: failures and successes in a row against the monitor's thresholds (Sentry's
     `failure_issue_threshold`, `recovery_threshold`; uptime checks default to two failures). Crossing one opens or
     closes an incident and sends `monitor_down` or `monitor_up` through the routes.

@@ -97,8 +97,12 @@ helpers (`change`).
   `log_attributes`' primary key, temp B-trees for the groups; `log_hours` by its primary key (a project's) or
   `log_hours_hour`, the part-hours by `logs_time` (a multi-index OR). `pruneLogs` (the hourly cron, in the same
   budget): logs past their project's retention, 1000 a batch until done, and the hours of `log_hours` wholly past it.
-- `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents, making,
-  changing, pausing (a resumed one starts again from pending) and deleting; failing monitors for home.
+- `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents (with
+  `uptime`, the share of results that passed, or of finished runs that were ok, over 24 hours, 7 and 30 days, null
+  with none; `p95`, `p95Series` nearest rank, per hour over 24 hours for an uptime check's response times, per day
+  over 30 days for a job's durations; `environments`; `errors`, the newest 20 events naming its slug in the
+  `monitor.slug` tag, by `event_tags_lookup`, or in the trace of one of its last 200 check-ins, by `events_trace`),
+  making, changing, pausing (a resumed one starts again from pending, unmuted) and deleting; failing monitors for home.
 - `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
   change since the release before and `trend`, the p95 of each step (an hour in a day, 6 hours in a week, a day in 30;
   from the same read of `transaction_buckets`, grouped by the step too) (the project's two newest releases with

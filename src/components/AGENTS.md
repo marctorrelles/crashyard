@@ -113,6 +113,10 @@
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
 - `release.tsx`: `AdoptionStage` (Adopted, Low adoption, Replaced) and `HealthBadge` (Healthy, or Unhealthy with the
   thresholds it crossed in its title).
+- `monitor-form.tsx`: `MonitorForm`, adding or editing a monitor. An uptime check has its method (`UPTIME_METHODS`),
+  headers as name and value rows with Add header, a body for POST, PUT and PATCH, the status and text it must
+  contain, and assertions (a row each: status is one of, header contains, JSON path equals) with Add assertion; the
+  dialog is wider for it. A cron monitor its slug, schedule, grace period and runtime.
 - `uploads.tsx`: `UploadSteps`, the variables sentry-cli reads and each platform's upload steps, on Debug files; `size`.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
   same, keep them in step).

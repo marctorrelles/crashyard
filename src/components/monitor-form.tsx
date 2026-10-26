@@ -1,5 +1,6 @@
 // Adding or changing a monitor: an uptime check (a URL the worker checks) or a cron monitor (a job that checks in).
 import { useNavigate, useRouter } from '@tanstack/react-router'
+import { IconPlus, IconX } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,41 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { saveMonitor } from '@/fns'
+import { type Assertion, BODY_METHODS, UPTIME_METHODS } from '@/monitors/monitors'
+
+type Row = { key: number; name: string; value: string }
+type AssertionRow = { key: number; kind: Assertion['kind']; a: string; b: string }
+let nextKey = 0
+const rowsOf = (headers: unknown): Row[] =>
+  Array.isArray(headers) ? headers.map(([name, value]) => ({ key: nextKey++, name, value })) : []
+const assertionRowsOf = (list: unknown): AssertionRow[] =>
+  Array.isArray(list)
+    ? (list as Assertion[]).map((a) => ({
+        key: nextKey++,
+        kind: a.kind,
+        a: a.kind === 'status' ? a.in.join(', ') : a.kind === 'header' ? a.name : a.path,
+        b: a.kind === 'header' ? a.contains : a.kind === 'json' ? a.equals : '',
+      }))
+    : []
+const assertionOf = (r: AssertionRow): Assertion =>
+  r.kind === 'status'
+    ? {
+        kind: 'status',
+        in: r.a
+          .split(/[\s,]+/)
+          .filter(Boolean)
+          .map(Number),
+      }
+    : r.kind === 'header'
+      ? { kind: 'header', name: r.a.trim(), contains: r.b }
+      : { kind: 'json', path: r.a.trim(), equals: r.b }
+const ASSERTION_LABELS: Record<Assertion['kind'], [string, string, string, string]> = {
+  status: ['Status is one of', '200, 204', '', ''],
+  header: ['Header contains', 'content-type', 'Contains', 'json'],
+  json: ['JSON path equals', '$.status', 'Equals', 'ok'],
+}
 
 type Project = { id: number; slug: string; name: string }
 export type Editing = {
@@ -65,10 +100,12 @@ export function MonitorForm({
   const [scheduleType, setScheduleType] = useState(schedule.type)
   const [unit, setUnit] = useState(schedule.unit ?? 'hour')
   const [method, setMethod] = useState(String(c.method ?? 'GET'))
+  const [headers, setHeaders] = useState<Row[]>(() => rowsOf(c.headers))
+  const [assertions, setAssertions] = useState<AssertionRow[]>(() => assertionRowsOf(c.assertions))
   const uptime = editing.kind === 'uptime'
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent className={`max-h-[90dvh] overflow-y-auto${uptime ? ' sm:max-w-2xl' : ''}`}>
         <form
           className="contents"
           onSubmit={async (e) => {
@@ -79,6 +116,9 @@ export function MonitorForm({
               ? {
                   url: f.url,
                   method,
+                  headers: headers.filter((h) => h.name.trim()).map((h) => [h.name.trim(), h.value]),
+                  body: BODY_METHODS.has(method) ? f.body || undefined : undefined,
+                  assertions: assertions.filter((a) => a.a.trim()).map(assertionOf),
                   expectedStatus: num(f.expectedStatus),
                   mustContain: f.mustContain || undefined,
                   intervalMinutes: num(f.intervalMinutes),
@@ -166,7 +206,7 @@ export function MonitorForm({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {['GET', 'HEAD', 'POST'].map((m) => (
+                        {UPTIME_METHODS.map((m) => (
                           <SelectItem key={m} value={m}>
                             {m}
                           </SelectItem>
@@ -183,12 +223,138 @@ export function MonitorForm({
                     placeholder="Any 2xx"
                   />
                 </div>
+                <div className="grid gap-2">
+                  <Label>Headers</Label>
+                  {headers.map((h, i) => (
+                    <div key={h.key} className="flex gap-2">
+                      <Input
+                        aria-label="Header name"
+                        placeholder="Authorization"
+                        value={h.name}
+                        onChange={(e) => setHeaders(headers.with(i, { ...h, name: e.target.value }))}
+                        className="w-2/5"
+                      />
+                      <Input
+                        aria-label="Header value"
+                        placeholder="Bearer …"
+                        value={h.value}
+                        onChange={(e) => setHeaders(headers.with(i, { ...h, value: e.target.value }))}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Remove header"
+                        onClick={() => setHeaders(headers.filter((_, j) => j !== i))}
+                      >
+                        <IconX />
+                      </Button>
+                    </div>
+                  ))}
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHeaders([...headers, { key: nextKey++, name: '', value: '' }])}
+                    >
+                      <IconPlus data-icon="inline-start" />
+                      Add header
+                    </Button>
+                  </div>
+                </div>
+                {BODY_METHODS.has(method) && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="m-body">Body</Label>
+                    <Textarea
+                      id="m-body"
+                      name="body"
+                      rows={3}
+                      defaultValue={String(c.body ?? '')}
+                      placeholder='{"ping": true}'
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                )}
                 <Field
                   id="mustContain"
                   label="Response must contain"
                   defaultValue={c.mustContain as string | undefined}
                   placeholder="Optional"
                 />
+                <div className="grid gap-2">
+                  <Label>Assertions</Label>
+                  <p className="-mt-1 text-xs text-muted-foreground">
+                    Every one must hold for the check to pass. A status assertion replaces the status above.
+                  </p>
+                  {assertions.map((r, i) => {
+                    const [, aHint, bLabel, bHint] = ASSERTION_LABELS[r.kind]
+                    return (
+                      <div
+                        key={r.key}
+                        className="grid grid-cols-[1fr_auto] gap-2 rounded-lg border p-2 sm:grid-cols-[10rem_1fr_1fr_auto]"
+                      >
+                        <Select
+                          value={r.kind}
+                          onValueChange={(v) =>
+                            setAssertions(assertions.with(i, { ...r, kind: v as Assertion['kind'] }))
+                          }
+                        >
+                          <SelectTrigger aria-label="Kind of assertion" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(ASSERTION_LABELS).map(([kind, [label]]) => (
+                              <SelectItem key={kind} value={kind}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          aria-label={ASSERTION_LABELS[r.kind][0]}
+                          placeholder={aHint}
+                          value={r.a}
+                          onChange={(e) => setAssertions(assertions.with(i, { ...r, a: e.target.value }))}
+                          className={r.kind === 'json' ? 'font-mono max-sm:col-span-2' : 'max-sm:col-span-2'}
+                        />
+                        {r.kind === 'status' ? (
+                          <span className="max-sm:hidden" />
+                        ) : (
+                          <Input
+                            aria-label={bLabel}
+                            placeholder={bHint}
+                            value={r.b}
+                            onChange={(e) => setAssertions(assertions.with(i, { ...r, b: e.target.value }))}
+                            className="max-sm:col-span-2"
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Remove assertion"
+                          className="max-sm:col-start-2 max-sm:row-start-1"
+                          onClick={() => setAssertions(assertions.filter((_, j) => j !== i))}
+                        >
+                          <IconX />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAssertions([...assertions, { key: nextKey++, kind: 'status', a: '', b: '' }])}
+                    >
+                      <IconPlus data-icon="inline-start" />
+                      Add assertion
+                    </Button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Field
                     id="intervalMinutes"

@@ -164,7 +164,11 @@ An `ok` or `error` without a `check_in_id` finishes the run in progress. To crea
 check-in as JSON with its `monitor_config`, for example
 `{"status": "ok", "monitor_config": {"schedule": {"type": "crontab", "value": "0 3 * * *"}}}`.
 
-To watch a URL, add an uptime check under Monitors.
+To watch a URL, add an uptime check under Monitors. It can send headers and a body, and check the status, a header or a
+value in the JSON it answers. Each request carries a `sentry-trace` header, as Sentry's uptime checks do.
+
+Errors the job raises inside `Sentry.withMonitor` share its check-ins' trace, and are listed on the monitor under
+"Errors during this job". A monitor that keeps failing for 14 days is muted until it recovers.
 
 ## Content Security Policy reports
 

@@ -113,7 +113,9 @@ server, the build, or `tsr generate`): never edit it.
   chart. Export: CSV or JSON Lines of the current search, through `logs_.export.ts`. Saved searches beside the bar: with no `query` in the
   URL the viewer's pinned one opens, so a search cleared while one is pinned stays in the URL as `query=`.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
-  monitor, and one monitor: its results or check-ins, how to check in, incidents, pause, edit, delete.
+  monitor, and one monitor: muted since when, if it is; up, or runs ok, over 24 hours, 7 and 30 days; a p95 line of
+  response times or run times; its environments with their status; its results or check-ins, how to check in;
+  Errors during this job, each opening its event; incidents; pause, edit, delete.
 - `notifications.tsx`: channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, or what to set up first
   while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours in the browser's time), routes, each with a

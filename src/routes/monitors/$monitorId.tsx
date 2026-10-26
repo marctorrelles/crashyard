@@ -1,7 +1,9 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { IconPencil, IconPlayerPause, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
-import { Ago } from '@/components/bits'
+import { Ago, Level, percent } from '@/components/bits'
+import { TimeChart } from '@/components/charts'
+import { ms as short } from '@/components/performance'
 import { Time } from '@/components/time'
 import { Beats, incidentReason, MonitorStatus } from '@/components/beats'
 import { Code } from '@/components/linking'
@@ -86,6 +88,68 @@ function MonitorPage() {
         {m.kind === 'cron' && config.timezone ? ` (${String(config.timezone)})` : ''}
       </PageHeader>
 
+      {m.muted_at && (
+        <p className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-2.5 text-sm">
+          Muted <Time at={m.muted_at} /> after failing for 14 days. Alerts start again once it recovers.
+        </p>
+      )}
+      <section className="mb-6 grid gap-3" aria-label="Uptime and timing">
+        <dl className="grid grid-cols-3 gap-3">
+          {(
+            [
+              ['24 hours', d.uptime.day],
+              ['7 days', d.uptime.week],
+              ['30 days', d.uptime.month],
+            ] as const
+          ).map(([label, value]) => (
+            <div key={label} className="rounded-xl border p-3">
+              <dt className="text-xs text-muted-foreground">
+                {m.kind === 'uptime' ? 'Up' : 'Runs ok'} over {label}
+              </dt>
+              <dd className="text-lg font-semibold tabular-nums">{value === null ? '–' : percent(value)}</dd>
+            </div>
+          ))}
+        </dl>
+        {d.p95.some((p) => p.p95 !== null) && (
+          <div className="rounded-xl border p-3 pb-1">
+            <p className="mb-2 text-sm text-muted-foreground">
+              {m.kind === 'uptime'
+                ? 'Response time p95 per hour, the last 24 hours'
+                : 'Run time p95 per day, the last 30 days'}
+            </p>
+            <TimeChart
+              x={d.p95.map((p) => p.at)}
+              series={[
+                { key: 'p95', label: 'p95', values: d.p95.map((p) => p.p95), kind: 'line', color: 'var(--chart-1)' },
+              ]}
+              format={(v) => short(v)}
+              className="h-32 md:h-40"
+            />
+          </div>
+        )}
+      </section>
+      {d.environments.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-medium">Environments</h2>
+          <ul className="divide-y rounded-xl border text-sm">
+            {d.environments.map((e) => (
+              <li key={e.environment} className="flex items-center gap-3 px-3 py-2">
+                <span
+                  className={cn(
+                    'size-2 rounded-full',
+                    e.status === 'ok' ? 'bg-emerald-500' : e.status === 'in_progress' ? 'bg-sky-500' : 'bg-red-500',
+                  )}
+                />
+                <span className="flex-1 font-mono text-xs">{e.environment}</span>
+                <span className="text-xs text-muted-foreground">
+                  {e.status === 'in_progress' ? 'Running' : e.status === 'ok' ? 'Ok' : 'Failing'} ·{' '}
+                  <Ago at={e.last_check_in} now={now} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {m.kind === 'uptime' ? (
         <section className="mb-6 rounded-xl border p-4">
           <dl className="mb-3 grid grid-cols-3 gap-3 text-sm">
@@ -176,6 +240,34 @@ Sentry.captureCheckIn({ checkInId: id, monitorSlug: '${m.slug}', status: 'ok' })
                   <span className="min-w-0 flex-1 truncate text-right text-muted-foreground">
                     {[c.release, c.environment].filter(Boolean).join(' · ')}
                   </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {m.kind === 'cron' && (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-medium">Errors during this job</h2>
+          {d.errors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No errors from its runs. Errors show here when they share a check-in’s trace, as with Sentry.withMonitor.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-xl border text-sm">
+              {d.errors.map((e) => (
+                <li key={e.id}>
+                  <Link
+                    to="/issues/$issueId"
+                    params={{ issueId: String(e.issue_id) }}
+                    search={{ event: e.id }}
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-muted/40"
+                  >
+                    <Level level={e.level} />
+                    <span className="min-w-0 flex-1 truncate">{e.title}</span>
+                    <Ago at={e.received} now={now} className="shrink-0 text-xs text-muted-foreground" />
+                  </Link>
                 </li>
               ))}
             </ul>
