@@ -1,4 +1,5 @@
 // Issues: the list (searched, sorted, with a sparkline each), one issue with its events, and what can be done to them.
+import type { Priority } from '../ingest/priority'
 import { issueFilter } from '../search/query'
 import { scoped } from './charts'
 import { lastDays } from './projects'
@@ -8,6 +9,8 @@ export const SORTS = {
   firstSeen: 'i.first_seen',
   events: 'i.count',
   users: 'i.user_count',
+  // High first, then the most recently seen of each
+  priority: "CASE i.priority WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC, i.last_seen",
 }
 export type Sort = keyof typeof SORTS
 export const PAGE = 50
@@ -26,6 +29,7 @@ export type IssueRow = {
   ignore_until_count: number | null
   ignore_until: number | null
   ignore_until_users: number | null
+  priority: Priority
   count: number
   user_count: number
   first_seen: number
@@ -183,6 +187,7 @@ export type IssueChange =
   | { action: 'ignore'; forEvents?: number; forUsers?: number; until?: number; untilEscalating?: boolean }
   | { action: 'reopen' }
   | { action: 'delete' }
+  | { action: 'priority'; priority: Priority }
 
 /** Resolves, ignores, reopens or deletes issues; every change is written to each one's activity, with who did it */
 export async function changeIssues(db: D1Database, ids: number[], change: IssueChange, by: string, now: number) {
@@ -232,12 +237,16 @@ export async function changeIssues(db: D1Database, ids: number[], change: IssueC
         until: change.until ?? null,
         untilEscalating: kind === 'until_escalating',
       }
+    } else if (change.action === 'priority') {
+      set = 'priority = ?'
+      values = [change.priority]
+      data = { priority: change.priority }
     } else {
       set =
         "status = 'unresolved', substatus = 'ongoing', resolved_in_release = NULL, ignore_until = NULL, ignore_until_count = NULL, ignore_until_users = NULL"
       values = []
     }
-    const kind = { resolve: 'resolved', ignore: 'ignored', reopen: 'reopened' }[change.action]
+    const kind = { resolve: 'resolved', ignore: 'ignored', reopen: 'reopened', priority: 'priority' }[change.action]
     statements.push(
       db.prepare(`UPDATE issues SET ${set} WHERE id = ?`).bind(...values, id),
       db

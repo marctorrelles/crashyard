@@ -7,6 +7,7 @@ import { Time } from '@/components/time'
 import { BarList, LEVEL_COLORS, TimeChart } from '@/components/charts'
 import { EventView } from '@/components/event-view'
 import { IssueActions } from '@/components/issue-actions'
+import { PRIORITY_LABELS, PriorityBadge } from '@/components/priority'
 import { Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,6 +62,7 @@ function IssuePage() {
             {issue.title}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <PriorityBadge id={issue.id} priority={issue.priority} />
             <StatusBadge issue={issue} now={now} />
             {issue.culprit && <span className="font-mono text-xs break-all">{issue.culprit}</span>}
           </p>
@@ -303,6 +305,8 @@ const KIND_TEXT: Record<string, (data: Record<string, unknown>) => React.ReactNo
   merged: (x) => `Merged with ${(x.issues as { title: string }[]).map((i) => `“${i.title}”`).join(', ')}`,
   review_crash: () => 'Crashed in App Review or TestFlight',
   escalating: (x) => `Escalating with ${x.count} events in an hour${x.wasIgnored ? ', so it’s no longer ignored' : ''}`,
+  priority: (x) =>
+    `Priority set to ${PRIORITY_LABELS[x.priority as keyof typeof PRIORITY_LABELS]?.toLowerCase() ?? x.priority}`,
 }
 
 function Activity({ d }: { d: Data }) {

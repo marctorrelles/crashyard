@@ -1,5 +1,5 @@
 -- Alerts on rates: events per issue and hour, routes that fire on a frequency with filters and a wait between alerts,
--- metric alerts and escalation.
+-- metric alerts, escalation and priority.
 
 -- Events per issue and hour, by level, release and environment, written at ingest in storeEvent's batch (every event,
 -- those spike protection counts without keeping too). Metric alerts and escalation read it. Pruned with the events
@@ -58,7 +58,13 @@ CREATE TABLE metric_alerts (
 );
 CREATE INDEX metric_alerts_project ON metric_alerts (project_id);
 
+-- How much an issue matters: high, medium or low, from its level when it's made (projects.priorities)
+ALTER TABLE issues ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium';
+UPDATE issues SET priority = CASE level WHEN 'fatal' THEN 'high' WHEN 'error' THEN 'medium' ELSE 'low' END;
 -- Escalating issues, which the hourly check looks through to turn back to ongoing
 CREATE INDEX issues_escalating ON issues (id) WHERE substatus = 'escalating';
 -- Ignored until this many users: the user count that ends it
 ALTER TABLE issues ADD COLUMN ignore_until_users INTEGER;
+
+-- A project's priority for new issues by level, JSON { fatal: 'high', … }; null for the built-in one
+ALTER TABLE projects ADD COLUMN priorities TEXT;

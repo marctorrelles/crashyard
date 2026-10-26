@@ -18,8 +18,10 @@ import * as source from './data/source'
 import * as suggestions from './data/suggest'
 import * as tokens from './data/tokens'
 import * as updates from './data/updates'
+import { PRIORITIES, type Priority } from './ingest/priority'
 import { telegramChats, telegramToken } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
+import { LEVELS } from './notify/notice'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { mailerOf } from './notify/email'
 import { version } from '../package.json'
@@ -167,6 +169,12 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
   daily_transaction_quota: limit,
   repo_url: (v) => source.repoUrl(text(v ?? '', 300)),
   auto_resolve_days: (v) => (v === null || v === '' ? null : int(v, 1, 3650)),
+  // A priority per level, or null for the built-in ones
+  priorities: (v) => {
+    if (v === null) return null
+    const o = object(v)
+    return JSON.stringify(Object.fromEntries(LEVELS.map((l) => [l, oneOf(PRIORITIES)(o[l])])))
+  },
 }
 export const updateProject = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
@@ -274,7 +282,7 @@ export const getIssue = createServerFn()
 export const changeIssues = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    const action = oneOf(['resolve', 'ignore', 'reopen', 'delete'] as const)(o.action)
+    const action = oneOf(['resolve', 'ignore', 'reopen', 'delete', 'priority'] as const)(o.action)
     const change: issues.IssueChange =
       action === 'resolve'
         ? { action, inRelease: o.inRelease === true }
@@ -286,7 +294,9 @@ export const changeIssues = createServerFn({ method: 'POST' })
               until: optional((v) => int(v))(o.until),
               untilEscalating: o.untilEscalating === true,
             }
-          : { action }
+          : action === 'priority'
+            ? { action, priority: oneOf<Priority>(PRIORITIES)(o.priority) }
+            : { action }
     return { ids: ints(o.ids), change }
   })
   .handler(({ data }) => issues.changeIssues(env.DB, data.ids, data.change, viewer(), Date.now()))

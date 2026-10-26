@@ -30,9 +30,9 @@ server, the build, or `tsr generate`): never edit it.
   search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
   issues it matches for the last 14, 30 or 90 days (`?days=`, `getIssueChart`, loaded with the list), the period
   before as a dashed line. Status tabs: Unresolved, Escalating (`is:escalating`), Resolved, Ignored, All, scrolling
-  on a phone. A row's project and release are menus to show only or exclude that value. Bulk resolve,
+  on a phone; sort by priority too; each row has its priority's menu. A row's project and release are menus to show only or exclude that value. Bulk resolve,
   ignore, merge and delete.
-- `issues/$issueId.tsx`: one issue: its status (Escalating, ignored until it escalates or N
+- `issues/$issueId.tsx`: one issue: its priority (a menu), status (Escalating, ignored until it escalates or N
   users), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
   newer), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events, feedback, activity and notes.
@@ -58,7 +58,8 @@ server, the build, or `tsr generate`): never edit it.
   `projects/$slug/route.tsx` loads the project's settings once (`getProjectSettings`: the project, its keys with their
   DSNs, the DSN of the first key that's on, uploads) for its pages, the group named by the project: `general` (name,
   platform, slug; a changed slug warns that `SENTRY_PROJECT` must change, and the page moves to the new slug),
-  `issues` (Resolve issues not seen for N days, `auto_resolve_days`, off by default), `keys` (Create key; per key its
+  `issues` (Resolve issues not seen for N days, `auto_resolve_days`, off by default; Priority of new issues, a
+  priority per level, `priorities`), `keys` (Create key; per key its
   DSN, name, daily event limit, empty for none, events today, and an on switch that asks before turning a key off),
   `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
   send commits), `connect` (the DSN and `Linking`), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug

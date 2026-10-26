@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Ago, count, Level, Sparkline } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
 import { IssueActions } from '@/components/issue-actions'
+import { PriorityBadge } from '@/components/priority'
 import { SearchBar } from '@/components/search-bar'
 import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +19,7 @@ import { addValue, NEW_FOR, tokenize, withToken } from '@/search/query'
 const SORTS = {
   lastSeen: 'Last seen',
   firstSeen: 'First seen',
+  priority: 'Priority',
   events: 'Events',
   users: 'Users',
 } as const
@@ -215,6 +217,7 @@ function Issues() {
                   <span className="truncate text-sm font-medium">{i.title}</span>
                 </Link>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <PriorityBadge id={i.id} priority={i.priority} />
                   {!project && (
                     <ValueMenu
                       field="project"

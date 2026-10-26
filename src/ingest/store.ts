@@ -1,6 +1,7 @@
 // Writing an event: its issue (made, counted, reopened), the event itself, its tags and the counts, in one D1 batch.
 import { eventJson } from './budget'
 import type { NormalizedEvent } from './event'
+import { priorityFor } from './priority'
 
 export type Project = {
   id: number
@@ -9,6 +10,7 @@ export type Project = {
   daily_event_quota: number
   daily_log_quota: number
   daily_transaction_quota: number
+  priorities?: string | null // JSON, a new issue's priority by level; null for PRIORITY_BY_LEVEL
 }
 
 type IssueRow = {
@@ -94,8 +96,8 @@ export async function storeEvent(
   if (!issue) {
     issue = await db
       .prepare(
-        `INSERT INTO issues (project_id, fingerprint, title, culprit, type, level, platform, substatus, first_seen, last_seen, first_release)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?)
+        `INSERT INTO issues (project_id, fingerprint, title, culprit, type, level, platform, substatus, first_seen, last_seen, first_release, priority)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)
          ON CONFLICT (project_id, fingerprint) DO NOTHING RETURNING ${ISSUE_COLUMNS}`,
       )
       .bind(
@@ -109,6 +111,7 @@ export async function storeEvent(
         event.received,
         event.received,
         event.release ?? null,
+        priorityFor(project.priorities, event.level),
       )
       .first<IssueRow>()
     isNew = !!issue

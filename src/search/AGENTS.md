@@ -22,7 +22,7 @@ proposes as you type (`suggest.ts`, pure, tested in `suggest.test.ts`).
   of the statuses, `project:[…]` adds every slug, `has:[…]` any of the keys, `message:[…]` any of the phrases (FTS5
   `OR`); numbers and times ignore a list. Every value is a `?` bind.
 - Keys: `is:` (`unresolved`, `resolved`, `ignored`, `new`, `regressed`, `escalating`, `ongoing`), `level`,
-  `type`, `platform`,
+  `priority` (`high`, `medium`, `low`), `type`, `platform`,
   `firstRelease`, `lastRelease`, `project`, `has:`, `times`/`events`, `users`, `lastSeen`/`firstSeen` (`-24h` within,
   `+24h` longer ago, or a date). Any other key is a tag: "had an event with it", from `issue_tag_values`. `*` matches
   with GLOB (case-sensitive, as Sentry's).

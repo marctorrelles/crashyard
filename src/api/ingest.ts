@@ -67,7 +67,7 @@ async function projectFor(db: D1Database, id: number, key: string): Promise<Keye
   if (hit && Date.now() - hit.at < 60_000) return hit.found
   const row = await db
     .prepare(
-      `SELECT p.id, p.slug, p.name, p.daily_event_quota, p.daily_log_quota, p.daily_transaction_quota,
+      `SELECT p.id, p.slug, p.name, p.daily_event_quota, p.daily_log_quota, p.daily_transaction_quota, p.priorities,
          k.id AS key_id, k.enabled, k.daily_limit
        FROM project_keys k JOIN projects p ON p.id = k.project_id WHERE k.project_id = ? AND k.public_key = ?`,
     )
@@ -81,6 +81,7 @@ async function projectFor(db: D1Database, id: number, key: string): Promise<Keye
       daily_event_quota: row.daily_event_quota,
       daily_log_quota: row.daily_log_quota,
       daily_transaction_quota: row.daily_transaction_quota,
+      priorities: row.priorities,
     },
     key: { id: row.key_id, enabled: !!row.enabled, daily_limit: row.daily_limit },
   }
@@ -347,7 +348,7 @@ export async function retryEnvelope(
   todo: Todo | undefined,
 ): Promise<Todo> {
   const project = await env.DB.prepare(
-    'SELECT id, slug, name, daily_event_quota, daily_log_quota, daily_transaction_quota FROM projects WHERE id = ?',
+    'SELECT id, slug, name, daily_event_quota, daily_log_quota, daily_transaction_quota, priorities FROM projects WHERE id = ?',
   )
     .bind(held.projectId)
     .first<Project>()

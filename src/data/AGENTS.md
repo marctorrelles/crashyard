@@ -30,7 +30,8 @@ helpers (`change`).
   that many days, resolved 100 a batch with an `auto_resolved` activity entry (`{ days }`), within 20 seconds; the
   overview's resolved per day counts only `resolved`, what a person did. Ignoring takes `untilEscalating`
   (`until_escalating`, the default in the UI: only escalation opens it) and `forUsers` (`ignore_until_users`, the user
-  count that ends it, as `ignore_until_count`). A merge adds the merged issues' `event_hours` into the
+  count that ends it, as `ignore_until_count`); `priority` sets `issues.priority` with a `priority` activity entry;
+  `SORTS.priority` is high first, then the most recently seen. A merge adds the merged issues' `event_hours` into the
   first.
 - `escalation.ts`: `escalating(hours)`: the last of a week of hourly counts plus the hour just ended escalates with 10
   events or more (`MIN_EVENTS`) and more than twice (`FACTOR`) the busiest hour before it, so steady traffic, however

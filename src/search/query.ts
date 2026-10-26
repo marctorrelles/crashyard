@@ -188,6 +188,7 @@ export const ISSUE_KEYS: KeyInfo[] = [
     values: ['unresolved', 'resolved', 'ignored', 'new', 'regressed', 'escalating', 'ongoing'],
   },
   { key: 'level', description: 'Level', kind: 'enum', values: ['fatal', 'error', 'warning', 'info', 'debug'] },
+  { key: 'priority', description: 'Priority', kind: 'enum', values: ['high', 'medium', 'low'] },
   { key: 'type', description: 'Error, message or CSP report', kind: 'text' },
   { key: 'platform', description: 'SDK platform', kind: 'text' },
   { key: 'firstRelease', description: 'Release it first appeared in', kind: 'text' },
@@ -229,6 +230,7 @@ const COLUMNS: Record<string, string> = {
   platform: 'i.platform',
   firstRelease: 'i.first_release',
   lastRelease: 'i.last_release',
+  priority: 'i.priority',
   'issue.id': 'i.id',
 }
 const NUMBERS: Record<string, string> = { times: 'i.count', events: 'i.count', users: 'i.user_count' }

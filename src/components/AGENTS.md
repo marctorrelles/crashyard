@@ -65,6 +65,8 @@
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection. Ignore is a split
   button: its click ignores until it escalates; the menu has that first, then forever, N more times, N more users and
   for a time.
+- `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a
+  menu to change it, above a list row's link, 40 px on a phone; `PRIORITY_LABELS`.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's
   `stackOrder`, the crashing frame open; my code first, other frames folded unless `showOtherFrames`, context
   lines; a frame with a link, from `frameLinks` by its indexes in the event, has a button opening its line in the

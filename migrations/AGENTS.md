@@ -30,5 +30,6 @@ in `pnpm run deploy`).
   can't be null; one upsert in `storeEvent`'s batch, every event spike protection counts too; filled from the events
   kept, one `INSERT … SELECT … GROUP BY`; pruned with the events), `events.user_hash` (null before), routes'
   `frequency`, `releases`, `query` and `interval_minutes`, `route_fires`, `metric_alerts` (its last `value` too, for the
-  list), `issues.ignore_until_users`, `issues_escalating`
-  (partial). A worker from before 0014 writes no `event_hours`.
+  list), `issues.priority` (filled from the level: fatal high, error medium, the rest low), `issues.ignore_until_users`,
+  `issues_escalating` (partial), `projects.priorities` (null: by level). A worker from before 0014 writes no
+  `event_hours` and new issues get `medium`.

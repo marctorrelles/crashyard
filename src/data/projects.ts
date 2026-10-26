@@ -19,6 +19,7 @@ export type ProjectRow = {
   daily_transaction_quota: number
   repo_url: string | null // where its code is, for stacks and commits to link to (`source.ts`)
   auto_resolve_days: number | null // resolve issues not seen for this many days; null is off
+  priorities: string | null // JSON, a new issue's priority by level; null for PRIORITY_BY_LEVEL
   created_at: number
 }
 
@@ -206,6 +207,7 @@ export const PROJECT_FIELDS = [
   'daily_transaction_quota',
   'repo_url',
   'auto_resolve_days',
+  'priorities',
 ] as const
 export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>
 
