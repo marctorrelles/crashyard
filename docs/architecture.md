@@ -47,7 +47,8 @@ flowchart LR
   Access misses stays closed.
 - **The scheduled task**, `scheduled` in `src/server.ts`. Every minute it runs uptime checks and looks for missed
   check-ins, in `src/monitors/`, sends alerts held through quiet hours, and tries again the envelopes that failed. Every hour it looks for slower releases. On
-  Mondays at 07:00 UTC it sends the weekly summary, and at 03:00 UTC every day it deletes data past its retention.
+  Mondays at 07:00 UTC it sends the weekly summary, and every hour it deletes data past its retention, for up to 20
+  seconds.
 - **Search**, in `src/search/`. Sentry's query syntax is turned into parameterized SQL, with FTS5 for free text.
 
 The reasons behind these choices are in [decisions/](decisions/).

@@ -101,13 +101,16 @@ Open your subdomain again. Cloudflare's sign-in page comes first, then the crash
 ## 4. Clean up stored files
 
 This step is optional but recommended. crashyard keeps every envelope in R2 exactly as it arrived, so it can be
-reprocessed or inspected. These lifecycle rules delete envelopes after 30 days, and delete the pieces of uploads that
-never finished after one day:
+reprocessed or inspected. These lifecycle rules delete envelopes after 30 days, attachments such as screenshots after
+90 days, and the pieces of uploads that never finished after one day:
 
 ```sh
 pnpm wrangler r2 bucket lifecycle add crashyard-files envelopes envelopes/ --expire-days 30
+pnpm wrangler r2 bucket lifecycle add crashyard-files attachments attachments/ --expire-days 90
 pnpm wrangler r2 bucket lifecycle add crashyard-files chunks chunks/ --expire-days 1
 ```
+
+crashyard also deletes an event's attachments itself once the event is past its project's retention.
 
 ## 5. Email notifications
 

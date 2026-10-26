@@ -40,7 +40,7 @@ console.log(`Wrote ${file}.`)
 
 if (await yes('Deploy now (build, migrate the D1 database, deploy)?')) {
   run(['run', 'deploy'])
-  if (await yes('Have R2 delete raw envelopes after 30 days and unfinished uploads after one?')) {
+  if (await yes('Have R2 delete raw envelopes after 30 days, attachments after 90 and unfinished uploads after one?')) {
     run([
       'wrangler',
       'r2',
@@ -65,6 +65,19 @@ if (await yes('Deploy now (build, migrate the D1 database, deploy)?')) {
       'chunks/',
       '--expire-days',
       '1',
+      '--force',
+    ])
+    run([
+      'wrangler',
+      'r2',
+      'bucket',
+      'lifecycle',
+      'add',
+      'crashyard-files',
+      'attachments',
+      'attachments/',
+      '--expire-days',
+      '90',
       '--force',
     ])
   }

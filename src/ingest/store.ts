@@ -37,6 +37,9 @@ export type Stored = {
 
 /** Events of one issue in one minute past which they're counted but not kept */
 export const SPIKE_LIMIT = 60
+/** Values of a tag kept per issue; the rest count as `other` */
+export const TAG_VALUES = 100
+const OTHER_TAG_VALUE = 'other'
 
 export const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 
@@ -181,14 +184,18 @@ export async function storeEvent(
       )
     }
   }
+  // A key keeps 100 values per issue; a new value past them counts under `other`. Reads stop at the value or the 100th
   for (const [key, value] of tags) {
     statements.push(
       db
         .prepare(
-          `INSERT INTO issue_tag_values (issue_id, key, value, count, last_seen) VALUES (?, ?, ?, 1, ?)
+          `INSERT INTO issue_tag_values (issue_id, key, value, count, last_seen)
+           VALUES (?1, ?2, CASE WHEN EXISTS (SELECT 1 FROM issue_tag_values WHERE issue_id = ?1 AND key = ?2 AND value = ?3)
+             OR (SELECT COUNT(*) FROM (SELECT 1 FROM issue_tag_values WHERE issue_id = ?1 AND key = ?2 LIMIT ?5)) < ?5
+             THEN ?3 ELSE '${OTHER_TAG_VALUE}' END, 1, ?4)
            ON CONFLICT DO UPDATE SET count = count + 1, last_seen = excluded.last_seen`,
         )
-        .bind(issue.id, key, value, now),
+        .bind(issue.id, key, value, now, TAG_VALUES),
     )
   }
   if (event.userHash) {

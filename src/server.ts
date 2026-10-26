@@ -58,7 +58,7 @@ export default {
   },
 }
 
-// The cron: monitors (missed check-ins, uptime checks), held notifications, envelopes to try again, and once a day,
+// The cron: monitors (missed check-ins, uptime checks), held notifications, envelopes to try again, and hourly,
 // retention. Each job is on its own: one that throws doesn't stop the others
 async function everyMinute(env: Env, now: number) {
   const at = new Date(now)
@@ -84,20 +84,21 @@ async function everyMinute(env: Env, now: number) {
   await job('held notifications', () => flushHeld(env, now))
   // Envelopes that failed in their request, tried again
   await job('retries', async () => (await import('./ingest/retry')).retryPending(env, now))
-  // Once a day, at 03:00 UTC: events, logs, check-ins and uptime results past their retention
-  if (at.getUTCHours() === 3 && at.getUTCMinutes() === 0)
-    await job('retention', async () => {
-      const [{ pruneEvents }, { pruneLogs }, { pruneMonitors }, { prunePerformance }] = await Promise.all([
-        import('./data/projects'),
-        import('./data/logs'),
-        import('./monitors/monitors'),
-        import('./data/performance'),
-      ])
-      await pruneEvents(env.DB, now)
-      await pruneLogs(env.DB, now)
-      await pruneMonitors(env.DB, now)
-      await prunePerformance(env.DB, now)
-    })
+  // Hourly, at :15: events, attachments, issues, logs, transactions, check-ins and uptime results past their retention,
+  // within 20 seconds together; what's left goes the next hour
+  if (at.getUTCMinutes() === 15) {
+    const [{ pruneEvents, PRUNE_BUDGET }, { pruneLogs }, { pruneMonitors }, { prunePerformance }] = await Promise.all([
+      import('./data/projects'),
+      import('./data/logs'),
+      import('./monitors/monitors'),
+      import('./data/performance'),
+    ])
+    const deadline = Date.now() + PRUNE_BUDGET
+    await job('event retention', () => pruneEvents(env.DB, now, env.FILES, deadline))
+    await job('log retention', () => pruneLogs(env.DB, now, deadline))
+    await job('performance retention', () => prunePerformance(env.DB, now))
+    await job('monitor retention', () => pruneMonitors(env.DB, now))
+  }
 }
 
 async function job(name: string, run: () => Promise<unknown>) {

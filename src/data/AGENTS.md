@@ -9,8 +9,11 @@ helpers (`change`).
   first seen per day, and how many in the last 24 hours; issues resolved per day, distinct, from `issue_activity`'s
   `resolved`, by `issue_activity_kind_at`; crash-free sessions of each project's two newest releases by their first
   session in 90 days, from `sessions_daily`; one batch of four), creating a project (slug from the name, a new key),
-  changing, rotating its key, deleting (foreign keys cascade), `pruneEvents` (the daily cron: events past their
-  project's retention; issues and counts stay), `dsnOf`, `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
+  changing, rotating its key, deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
+  their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
+  seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
+  a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;
+  `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`), `dsnOf`, `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
   a tenth so a crash never reads 100%; one batch of four).
@@ -41,8 +44,8 @@ helpers (`change`).
   → 3,058, `level:error` 70,506 → 5,222; groups by level 241,729 → 17,788, by project 422,996 → 17,791. Any other
   search scans as before. Plan: the window by `logs_time` (a project's, `logs_project_time`), an attribute by
   `log_attributes`' primary key, temp B-trees for the groups; `log_hours` by its primary key (a project's) or
-  `log_hours_hour`, the part-hours by `logs_time` (a multi-index OR). `pruneLogs` (the daily cron): logs past their
-  project's retention, and the hours of `log_hours` wholly past it.
+  `log_hours_hour`, the part-hours by `logs_time` (a multi-index OR). `pruneLogs` (the hourly cron, in the same
+  budget): logs past their project's retention, 1000 a batch until done, and the hours of `log_hours` wholly past it.
 - `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents, making,
   changing, pausing (a resumed one starts again from pending) and deleting; failing monitors for home.
 - `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
@@ -50,7 +53,7 @@ helpers (`change`).
   from the same read of `transaction_buckets`, grouped by the step too) (the project's two newest releases with
   transactions); one transaction's hours, releases and slowest examples; sessions per release and `crashFree`;
   `checkSlowerReleases` (the cron, hourly at :05: a p95 50% longer in the newest release than the one before, 50
-  transactions in each at least, told once via `slower_releases`); `prunePerformance` (the daily cron: summaries after
+  transactions in each at least, told once via `slower_releases`); `prunePerformance` (the hourly cron: summaries after
   90 days, examples after 30).
 - `updates.ts`: whether a newer crashyard is out, from the repo's latest GitHub release, asked once a day through
   the Cache API, for home's banner; nothing about the deployment is sent.

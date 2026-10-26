@@ -22,7 +22,9 @@ order.
 - `store.ts`: `storeEvent` writes an event: dedupes by event id, creates the issue (`ON CONFLICT DO NOTHING
 RETURNING`), then one batch for the counts, days, tags, users and activity. `transitionOf` decides a reopening: a
   resolved issue regresses on any event, or, resolved in a release, only on another release's; an ignore ends by
-  count or date. Spike protection: past 60 events a minute an issue only counts, it stores no more events. An issue
+  count or date. Spike protection: past 60 events a minute an issue only counts, it stores no more events. A tag keeps
+  100 values per issue (`TAG_VALUES`); a new one past them counts under `other` (reading at most the value's row or the
+  first 100), so a search for such a value doesn't find the issue. An issue
   found with a count of 0 was made by a try whose batch then failed: the event is still its first (`isNew`, a "New
   issue" alert and the `created` activity); two first events racing may both say so.
 - `retry.ts`: durable ingest (docs/decisions/0004). `hold` puts the body at `pending/<project>/<received ms>-<16 hex>`

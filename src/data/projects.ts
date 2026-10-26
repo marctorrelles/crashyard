@@ -215,15 +215,67 @@ export const rotateKey = (db: D1Database, id: number) =>
 export const deleteProject = (db: D1Database, id: number) =>
   db.prepare('DELETE FROM projects WHERE id = ?').bind(id).run()
 
-/** The daily cron: events past their project's retention. Issues and their daily counts stay */
-export async function pruneEvents(db: D1Database, now: number) {
-  await db
-    .prepare(
-      `DELETE FROM events WHERE rowid IN (SELECT e.rowid FROM events e JOIN projects p ON p.id = e.project_id
-       WHERE e.received < ? - p.event_retention_days * 86400000 LIMIT 5000)`,
-    )
-    .bind(now)
-    .run()
+/** What the hourly prune may take, all of it together, in wall-clock ms */
+export const PRUNE_BUDGET = 20_000
+
+/** A delete run batch after batch until one deletes nothing or the deadline passes; how many rows went */
+export async function inBatches(deadline: number, step: () => Promise<number>) {
+  let total = 0
+  while (Date.now() < deadline) {
+    const n = await step()
+    total += n
+    if (!n) break
+  }
+  return total
+}
+
+const changes = (r: D1Result) => r.meta.changes ?? 0
+
+/**
+ * The hourly cron: events past their project's retention, then attachments past it (rows and R2 objects), then issues
+ * last seen before it, with everything of theirs (days, tags, users, activity, fingerprints: foreign keys cascade),
+ * each in batches until done or the deadline. Issues go 100 at a time, as each takes its rows with it
+ */
+export async function pruneEvents(db: D1Database, now: number, files?: R2Bucket, deadline = Date.now() + PRUNE_BUDGET) {
+  const events = await inBatches(deadline, async () =>
+    changes(
+      await db
+        .prepare(
+          `DELETE FROM events WHERE rowid IN (SELECT e.rowid FROM events e JOIN projects p ON p.id = e.project_id
+           WHERE e.received < ? - p.event_retention_days * 86400000 LIMIT 1000)`,
+        )
+        .bind(now)
+        .run(),
+    ),
+  )
+  const attachments = await inBatches(deadline, async () => {
+    const { results } = await db
+      .prepare(
+        `SELECT a.id, a.r2_key FROM attachments a JOIN projects p ON p.id = a.project_id
+         WHERE a.received < ? - p.event_retention_days * 86400000 LIMIT 1000`,
+      )
+      .bind(now)
+      .all<{ id: number; r2_key: string }>()
+    if (!results.length) return 0
+    await files?.delete(results.map((r) => r.r2_key))
+    await db
+      .prepare(`DELETE FROM attachments WHERE id IN (${results.map(() => '?').join(',')})`)
+      .bind(...results.map((r) => r.id))
+      .run()
+    return results.length
+  })
+  const issues = await inBatches(deadline, async () =>
+    changes(
+      await db
+        .prepare(
+          `DELETE FROM issues WHERE id IN (SELECT i.id FROM issues i JOIN projects p ON p.id = i.project_id
+           WHERE i.last_seen < ? - p.event_retention_days * 86400000 LIMIT 100)`,
+        )
+        .bind(now)
+        .run(),
+    ),
+  )
+  return { events, attachments, issues }
 }
 
 /**

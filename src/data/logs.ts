@@ -2,6 +2,7 @@
 // what's newer than the newest shown (the live tail), and how many there were per bucket of time, by level.
 import { logFilter, tokenize } from '../search/query'
 import { buckets, fill, type Interval, intervalFor, SIZE, slugsOf } from './charts'
+import { inBatches, PRUNE_BUDGET } from './projects'
 
 export const PAGE_LOGS = 100
 export const RANGES = { '1h': 36e5, '24h': 864e5, '7d': 6048e5, '30d': 2592e6 } as const
@@ -298,21 +299,31 @@ export async function logGroups(db: D1Database, opts: Search & { groupBy: string
   }
 }
 
-/** The daily cron: logs past their project's retention, and the hours of `log_hours` wholly past it */
-export async function pruneLogs(db: D1Database, now: number) {
-  await db.batch([
-    db
-      .prepare(
-        `DELETE FROM logs WHERE id IN (SELECT l.id FROM logs l JOIN projects p ON p.id = l.project_id
-         WHERE l.timestamp < ? - p.log_retention_days * 86400000 LIMIT 5000)`,
-      )
-      .bind(now),
-    // The shortest retention bounds the read by `log_hours_hour`; each row is then held to its own project's
-    db
-      .prepare(
-        `DELETE FROM log_hours WHERE hour <= (SELECT ? - MIN(log_retention_days) * 86400000 - 3600000 FROM projects)
-         AND hour <= ? - (SELECT p.log_retention_days FROM projects p WHERE p.id = log_hours.project_id) * 86400000 - 3600000`,
-      )
-      .bind(now, now),
-  ])
+/**
+ * The hourly cron: logs past their project's retention, 1000 at a time until none are left or the deadline, and the
+ * hours of `log_hours` wholly past it
+ */
+export async function pruneLogs(db: D1Database, now: number, deadline = Date.now() + PRUNE_BUDGET) {
+  const logs = await inBatches(
+    deadline,
+    async () =>
+      (
+        await db
+          .prepare(
+            `DELETE FROM logs WHERE id IN (SELECT l.id FROM logs l JOIN projects p ON p.id = l.project_id
+             WHERE l.timestamp < ? - p.log_retention_days * 86400000 LIMIT 1000)`,
+          )
+          .bind(now)
+          .run()
+      ).meta.changes ?? 0,
+  )
+  // The shortest retention bounds the read by `log_hours_hour`; each row is then held to its own project's
+  await db
+    .prepare(
+      `DELETE FROM log_hours WHERE hour <= (SELECT ? - MIN(log_retention_days) * 86400000 - 3600000 FROM projects)
+       AND hour <= ? - (SELECT p.log_retention_days FROM projects p WHERE p.id = log_hours.project_id) * 86400000 - 3600000`,
+    )
+    .bind(now, now)
+    .run()
+  return { logs }
 }

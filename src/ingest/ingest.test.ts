@@ -6,7 +6,8 @@ import { EnvelopeError, parseEnvelope, payloadJson } from './envelope'
 import { eventIdOf, normalizeEvent, timestampOf } from './event'
 import { fingerprintOf, mask } from './grouping'
 import { scrub, scrubText } from './scrub'
-import { transitionOf } from './store'
+import { sqliteD1 } from '../../test/fakes'
+import { type Project, storeEvent, TAG_VALUES, transitionOf } from './store'
 
 const fixture = (path: string) => readFileSync(`test/fixtures/${path}`)
 const event = (name: string) => JSON.parse(readFileSync(`test/fixtures/events/${name}.json`, 'utf8'))
@@ -180,5 +181,25 @@ describe('reopening', () => {
     expect(transitionOf(issue({ status: 'ignored', ignore_until_count: 6 }), undefined, 0)).toBe('ignore_expired')
     expect(transitionOf(issue({ status: 'ignored', ignore_until_count: 10 }), undefined, 0)).toBeUndefined()
     expect(transitionOf(issue({ status: 'ignored', ignore_until: 100 }), undefined, 100)).toBe('ignore_expired')
+  })
+})
+
+describe('storing', () => {
+  it('keeps 100 values of a tag per issue and counts the rest under other', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0)")
+    const project = { id: 1, slug: 'a', name: 'a' } as Project
+    for (let i = 0; i < TAG_VALUES + 50; i++) {
+      const e = await normalizeEvent({ message: 'same', tags: { url: `/page/${i % (TAG_VALUES + 25)}` } }, 1000 + i)
+      await storeEvent(db, project, e, 'one')
+    }
+    const values = db.sqlite
+      .prepare("SELECT value, count FROM issue_tag_values WHERE key = 'url' ORDER BY count DESC, value")
+      .all() as { value: string; count: number }[]
+    expect(values).toHaveLength(TAG_VALUES + 1)
+    // 125 values, then the first 25 again: 25 past the cap, and 25 kept ones seen twice
+    expect(values[0]).toEqual({ value: 'other', count: 25 })
+    expect(values.filter((v) => v.count === 2)).toHaveLength(25)
+    expect(values.reduce((n, v) => n + v.count, 0)).toBe(TAG_VALUES + 50)
   })
 })
