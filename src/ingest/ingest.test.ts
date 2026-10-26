@@ -7,7 +7,7 @@ import { readBody } from './body'
 import { EnvelopeError, parseEnvelope, payloadJson } from './envelope'
 import { eventIdOf, normalizeEvent, timestampOf } from './event'
 import { fingerprintOf, mask } from './grouping'
-import { scrub, scrubText } from './scrub'
+import { loadExtraFields, scrub, scrubText, setExtraFields } from './scrub'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
 import { type Project, storeEvent, TAG_VALUES, transitionOf } from './store'
 
@@ -209,6 +209,23 @@ describe('grouping', () => {
 })
 
 describe('scrubbing', () => {
+  it('also takes out the deployment’s own field names, in any case, from settings once a minute', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO settings (key, value) VALUES ('privacy.scrub_fields', '["IBAN", " pin "]')`)
+    await loadExtraFields(db, 1_000_000)
+    expect(scrub({ iban: 'ES00', customer_pin: '1234', name: 'x' })).toEqual({
+      iban: '[Filtered]',
+      customer_pin: '[Filtered]',
+      name: 'x',
+    })
+    db.sqlite.exec(`UPDATE settings SET value = '[]'`)
+    await loadExtraFields(db, 1_030_000)
+    expect(scrub({ iban: 'ES00' })).toEqual({ iban: '[Filtered]' })
+    await loadExtraFields(db, 1_061_000)
+    expect(scrub({ iban: 'ES00' })).toEqual({ iban: 'ES00' })
+    setExtraFields([])
+  })
+
   it('takes secrets out of keys and text', () => {
     expect(scrubText('release app@1.2.0, web@2026.10.12; me@mail.example.org')).toBe(
       'release app@1.2.0, web@2026.10.12; [email]',

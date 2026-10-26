@@ -18,6 +18,7 @@ import {
   stableEventId,
   type Todo,
 } from '../ingest/retry'
+import { loadExtraFields } from '../ingest/scrub'
 import { dayOf, type Project, storeEvent } from '../ingest/store'
 import { sharedSymbolic } from '../symbols/module'
 import { symbolicate } from '../symbols/symbolicate'
@@ -261,6 +262,7 @@ type Pass = {
  */
 async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, number>) {
   const { env, project, received: now } = c
+  await loadExtraFields(env.DB)
   const notices: Notice[] = []
   const failed: Todo = []
   let firstEventId: string | undefined

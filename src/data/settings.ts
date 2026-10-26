@@ -24,6 +24,8 @@ export const setSetting = (db: D1Database, key: string, value: unknown, by: stri
 
 // The keys settings are kept under
 const DEFAULTS_KEY = 'defaults.project'
+/** Field names to scrub at ingest, on top of the built-in ones (src/ingest/scrub.ts) */
+export const SCRUB_KEY = 'privacy.scrub_fields'
 /** Whether agents, signed in with an Access service token, may change issues through MCP: off unless turned on */
 export const AGENTS_KEY = 'agents.can_change'
 
