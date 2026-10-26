@@ -2,6 +2,7 @@
 // a limit, thresholds for a number, or markdown text. Widgets of the first shape (one query, a count, one group-by)
 // are upgraded when they're read. What the browser sends is checked field by field before it's stored.
 import { percentile } from '../performance/histogram'
+import { isVital, VITALS } from '../performance/vitals'
 import { issueFilter, matchAny, tokenize, unparse } from '../search/query'
 import { buckets, intervalFor, LEVELS, scoped, SIZE, slugsOf } from './charts'
 import { listIssues } from './issues'
@@ -36,13 +37,24 @@ export const DISPLAYS: Record<Dataset, readonly Display[]> = {
 const FIELD_FNS = ['avg', 'sum', 'min', 'max', 'p50', 'p75', 'p95', 'p99'] as const
 type FieldFn = (typeof FIELD_FNS)[number]
 export type Aggregate =
-  'count' | 'count_unique(user)' | 'failure_rate' | 'crash_free_rate' | 'uptime' | `${FieldFn}(${string})`
+  | 'count'
+  | 'count_unique(user)'
+  | 'failure_rate'
+  | 'crash_free_rate'
+  | 'crash_free_users'
+  | 'uptime'
+  | `${FieldFn}(${string})`
 const AGGREGATES: Record<Dataset, { plain: Aggregate[]; fns?: readonly FieldFn[]; fields?: string[] }> = {
   issues: { plain: ['count'] },
   events: { plain: ['count', 'count_unique(user)'] },
   logs: { plain: ['count'], fns: FIELD_FNS },
-  transactions: { plain: ['count', 'failure_rate'], fns: ['avg', 'p50', 'p75', 'p95', 'p99'], fields: ['duration'] },
-  sessions: { plain: ['count', 'crash_free_rate'] },
+  // A vital (src/performance/vitals.ts) only by its percentiles: its histograms keep no sums
+  transactions: {
+    plain: ['count', 'failure_rate'],
+    fns: ['avg', 'p50', 'p75', 'p95', 'p99'],
+    fields: ['duration', ...Object.keys(VITALS)],
+  },
+  sessions: { plain: ['count', 'crash_free_rate', 'crash_free_users'] },
   monitors: { plain: ['count', 'uptime', 'failure_rate'], fns: FIELD_FNS, fields: ['duration'] },
   releases: { plain: ['count', 'count_unique(user)', 'crash_free_rate'] },
   markdown: { plain: [] },
@@ -66,12 +78,14 @@ export function aggregateError(dataset: Dataset, aggregate: string): string | nu
   const a = AGGREGATES[dataset]
   const { fn, field } = parseAggregate(aggregate)
   if (field === undefined ? a.plain.includes(fn as Aggregate) : a.fns?.includes(fn as FieldFn)) {
+    if (field !== undefined && isVital(field) && !/^p\d\d$/.test(fn))
+      return `A vital can show p50, p75, p95 or p99, such as p75(${field}).`
     if (field === undefined || !a.fields || a.fields.includes(field)) return null
   }
   const names: string[] = [...a.plain]
   if (a.fns) {
-    const of = a.fields ? a.fields.join(' or ') : 'an attribute'
-    names.push(`${a.fns.join(', ')} of ${of}`)
+    const of = a.fields ? a.fields.filter((f) => !isVital(f)).join(' or ') : 'an attribute'
+    names.push(`${a.fns.join(', ')} of ${of}${a.fields?.some(isVital) ? ', or p50 to p99 of a vital such as lcp' : ''}`)
   }
   const example = a.fns ? `, such as ${a.fns.at(-2)}(${a.fields?.[0] ?? 'duration'})` : ''
   return `${NAMES[dataset]} can show ${names.slice(0, -1).join(', ')}${names.length > 1 ? ' or ' : ''}${names.at(-1)}${example}.`
@@ -330,8 +344,11 @@ export type WidgetData =
 /** The unit an aggregate's value is in */
 export function unitOf(aggregate: string): Unit {
   const { fn, field } = parseAggregate(aggregate)
-  if (fn === 'failure_rate' || fn === 'crash_free_rate' || fn === 'uptime') return 'percent'
+  if (fn === 'failure_rate' || fn === 'crash_free_rate' || fn === 'crash_free_users' || fn === 'uptime')
+    return 'percent'
   if (field === 'duration') return 'ms'
+  if (field !== undefined && isVital(field))
+    return VITALS[field].unit === 'ms' ? 'ms' : VITALS[field].unit === 'percent' ? 'percent' : 'number'
   return field === undefined ? 'count' : 'number'
 }
 
@@ -358,7 +375,8 @@ const SEP = '\u001f'
 
 // A source of rows, of any dataset: ts (ms), g0 and g1 (the groups, null when not grouped), s (the measure, summed),
 // n (how many rows it stands for), e (of those, failed), u (a user, distinct), b (a histogram bucket)
-type Source = { sql: string; params: unknown[]; raw: boolean; histogram?: boolean }
+// `scale`: a histogram's values are stored times this (a vital's), so percentiles are divided by it
+type Source = { sql: string; params: unknown[]; raw: boolean; histogram?: boolean; scale?: number }
 type Span = { from: number; to: number }
 type Ctx = { db: D1Database; projectId?: number; now: number }
 type Cell = { at: number; key: string | null; v: number | null }
@@ -451,6 +469,16 @@ function transactionsSource(ctx: Ctx, q: WidgetQuery, groupBy: string[], span: S
   const project = ctx.projectId ? ' AND t.project_id = ?' : ''
   const projectParams = ctx.projectId ? [ctx.projectId] : []
   const histogram = /^p\d\d\(/.test(q.aggregate)
+  const { field } = parseAggregate(q.aggregate)
+  if (field !== undefined && isVital(field))
+    return {
+      sql: `SELECT t.hour AS ts, ${groupCols(groupBy, cols)}, NULL AS s, t.count AS n, 0 AS e, NULL AS u, t.bucket AS b
+        FROM vital_buckets t WHERE t.vital = ? AND t.hour >= ? AND t.hour < ?${project}${c.sql}`,
+      params: [field, span.from, span.to, ...projectParams, ...c.params],
+      raw: false,
+      histogram: true,
+      scale: VITALS[field].scale,
+    }
   const sql = histogram
     ? `SELECT t.hour AS ts, ${groupCols(groupBy, cols)}, NULL AS s, t.count AS n, 0 AS e, NULL AS u, t.bucket AS b
        FROM transaction_buckets t WHERE t.hour >= ? AND t.hour < ?${project}${c.sql}`
@@ -466,6 +494,15 @@ function sessionsSource(ctx: Ctx, q: WidgetQuery, groupBy: string[], span: Span)
   const cols = { release: 's.release', environment: 's.environment', project: 's.project_id' }
   const c = columnFilter(q.query, cols)
   const project = ctx.projectId ? ' AND s.project_id = ?' : ''
+  // Crash-free users: each user's day, crashed or not, counted as distinct hashes
+  if (q.aggregate === 'crash_free_users')
+    return {
+      sql: `SELECT CAST(strftime('%s', s.day) AS INTEGER) * 1000 AS ts, ${groupCols(groupBy, cols)}, NULL AS s,
+        1 AS n, s.crashed AS e, s.did_hash AS u, NULL AS b
+        FROM session_users_daily s WHERE s.day >= ? AND s.day <= ?${project}${c.sql}`,
+      params: [dayOf(span.from), dayOf(span.to - 1), ...(ctx.projectId ? [ctx.projectId] : []), ...c.params],
+      raw: false,
+    }
   return {
     sql: `SELECT CAST(strftime('%s', s.day) AS INTEGER) * 1000 AS ts, ${groupCols(groupBy, cols)}, NULL AS s,
       s.started AS n, s.crashed AS e, NULL AS u, NULL AS b
@@ -544,12 +581,16 @@ function aggregateSql(aggregate: string): string {
       return 'MAX(s)'
     case 'failure_rate':
       return 'SUM(e) * 100.0 / NULLIF(SUM(n), 0)'
+    case 'crash_free_users':
+      return '100 - COUNT(DISTINCT CASE WHEN e = 1 THEN u END) * 100.0 / NULLIF(COUNT(DISTINCT u), 0)'
     case 'crash_free_rate':
     case 'uptime':
       return '100 - SUM(e) * 100.0 / NULLIF(SUM(n), 0)'
   }
   throw new Error(`No aggregate ${aggregate}.`)
 }
+
+const scaled = (v: number | null, scale = 1) => (v === null ? null : v / scale)
 
 /** A group's key from g0 and g1, or the rest (`null`) when `only` names the groups shown and it isn't one */
 const keyOf = (groupBy: string[]) =>
@@ -590,7 +631,7 @@ async function compute(
     return [...cells.values()].map((group) => ({
       at: group[0].at,
       key: group[0].k,
-      v: percentile(new Map(group.map((r) => [r.b, r.n])), Number(pct[1]) / 100),
+      v: scaled(percentile(new Map(group.map((r) => [r.b, r.n])), Number(pct[1]) / 100), src.scale),
     }))
   }
   if (pct) {

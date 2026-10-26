@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
 import { IconGauge } from '@tabler/icons-react'
 import { count, Sparkline } from '@/components/bits'
-import { ms, Period } from '@/components/performance'
+import { ms, Period, VitalRows } from '@/components/performance'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { getPerformance } from '@/fns'
 import { cn } from '@/lib/utils'
@@ -28,7 +28,7 @@ function Performance() {
   const { project, days } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const name = project && (sections[0]?.project.name ?? project)
-  const shown = sections.filter((d) => d.transactions.length > 0)
+  const shown = sections.filter((d) => d.transactions.length > 0 || d.vitals.length > 0)
   return (
     <Shell crumbs={name ? [<Link to="/performance">Performance</Link>, name] : ['Performance']}>
       <PageHeader
@@ -58,6 +58,7 @@ function Performance() {
                 <span className="font-mono">{d.latest}</span>
               </p>
             )}
+            <VitalRows vitals={d.vitals} />
             <Transactions slug={d.project.slug} transactions={d.transactions} days={days} />
           </section>
         ))}

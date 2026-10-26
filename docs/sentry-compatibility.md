@@ -21,17 +21,17 @@ Set the SDK's DSN to the one a crashyard project gives you. Nothing else changes
 
 ## Envelope items
 
-| Item                                                                   | What crashyard does                                                                    |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `event`                                                                | An error, crash or message. Scrubbed, symbolicated and grouped into an issue           |
-| `attachment`                                                           | Stored in R2, up to 1 MB each, and shown on its event with a download                  |
-| `feedback`, `user_report`                                              | User feedback, shown on its issue                                                      |
-| `log`                                                                  | Sentry logs. Stored, searchable and linked to their trace                              |
-| `check_in`                                                             | Cron monitors. A check-in with a schedule creates the monitor                          |
-| `transaction`                                                          | Summarized as counts, percentiles and the slowest few with their spans, not kept whole |
-| `span`, the streamed span v2 format                                    | Treated as transactions, one per segment span. JavaScript SDKs send these since v11    |
-| `session`, `sessions`                                                  | Counted per release and day for crash-free rates, adoption and users                   |
-| `profile`, `replay`, `replay_recording`, `client_report` and any other | Accepted with a 200 and dropped                                                        |
+| Item                                                                   | What crashyard does                                                                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `event`                                                                | An error, crash or message. Scrubbed, symbolicated and grouped into an issue                                                          |
+| `attachment`                                                           | Stored in R2, up to 1 MB each, and shown on its event with a download                                                                 |
+| `feedback`, `user_report`                                              | User feedback, shown on its issue                                                                                                     |
+| `log`                                                                  | Sentry logs. Stored, searchable and linked to their trace                                                                             |
+| `check_in`                                                             | Cron monitors. A check-in with a schedule creates the monitor                                                                         |
+| `transaction`                                                          | Summarized as counts, percentiles and the slowest few with their spans, not kept whole. Its `measurements` give web and mobile vitals |
+| `span`, the streamed span v2 format                                    | Treated as transactions, one per segment span. JavaScript SDKs send these since v11                                                   |
+| `session`, `sessions`                                                  | Counted per release and day for crash-free rates, adoption and users                                                                  |
+| `profile`, `replay`, `replay_recording`, `client_report` and any other | Accepted with a 200 and dropped                                                                                                       |
 
 An event keeps its `request`, meaning the method, URL, query string, headers and up to 8 KB of body, and up to 16 KB of
 its `extra` data. Both are scrubbed like the rest of the event, and headers such as `Authorization` and `Cookie` are
@@ -63,6 +63,11 @@ limits: browser extensions, localhost, legacy browsers, web crawlers, health-che
 errors, `ChunkLoadError`, and error messages and releases by pattern. They use the lists in Sentry's Relay. With
 allowed domains set, a request whose `Origin` or `Referer` isn't one of them is refused with a `403`, as Relay does.
 Deleting an issue with "Delete and discard future events" drops its later events the same way.
+
+A transaction's `measurements` give the web vitals LCP, INP, CLS, FCP and TTFB, and the mobile vitals cold and warm
+app start, time to initial and full display, and slow and frozen frames. Each is shown as its 75th percentile, rated
+by Sentry's thresholds. Streamed spans carry no measurements, so a browser SDK with span streaming turned on sends no
+vitals yet.
 
 A session's `did`, the distinct ID the SDK sends, counts users per release and day for crash-free users and active
 users. Only a hash of it is stored. A session without one counts no user.

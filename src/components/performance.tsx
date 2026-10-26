@@ -1,6 +1,8 @@
-// Pieces of the performance pages: durations, the period picker and a span waterfall.
+// Pieces of the performance pages: durations, the period picker, vitals and a span waterfall.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { VitalSummary } from '@/data/performance'
 import type { Span } from '@/performance/ingest'
+import { MOBILE_VITALS, type Rating, RATING_LABELS, VITALS, type Vital, WEB_VITALS } from '@/performance/vitals'
 import { cn } from '@/lib/utils'
 
 /** A duration, short: 840 ms, 2.4 s, 3.1 min */
@@ -71,5 +73,71 @@ export function Waterfall({ spans, duration }: { spans: Span[]; duration: number
         </li>
       ))}
     </ul>
+  )
+}
+
+/** A vital's p75 in its unit */
+export const vitalValue = (vital: Vital, v: number | null) =>
+  v === null
+    ? '–'
+    : VITALS[vital].unit === 'ms'
+      ? ms(v)
+      : VITALS[vital].unit === 'percent'
+        ? `${v.toFixed(v < 10 ? 1 : 0)}%`
+        : v.toFixed(2)
+
+const RATING_COLORS: Record<Rating, string> = {
+  good: 'bg-emerald-500',
+  meh: 'bg-amber-400',
+  poor: 'bg-red-500',
+}
+
+/** "Web vitals" and "Mobile vitals", each vital measured as p75 with its rating and its change since the release before */
+export function VitalRows({ vitals }: { vitals: VitalSummary[] }) {
+  const rows = [
+    ['Web vitals', WEB_VITALS],
+    ['Mobile vitals', MOBILE_VITALS],
+  ] as const
+  return (
+    <>
+      {rows.map(([title, kinds]) => {
+        const shown = vitals.filter((v) => (kinds as readonly Vital[]).includes(v.vital))
+        if (!shown.length) return null
+        return (
+          <section key={title} className="mb-4" aria-label={title}>
+            <h3 className="mb-2 text-sm font-medium">
+              {title} <span className="font-normal text-muted-foreground">p75</span>
+            </h3>
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {shown.map((v) => (
+                <div key={v.vital} className="rounded-xl border p-3">
+                  <dt className="truncate text-xs text-muted-foreground" title={VITALS[v.vital].label}>
+                    {VITALS[v.vital].short}
+                  </dt>
+                  <dd className="text-lg font-semibold tabular-nums">{vitalValue(v.vital, v.p75)}</dd>
+                  <dd className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {v.rating ? (
+                      <>
+                        <span className={cn('size-2 shrink-0 rounded-full', RATING_COLORS[v.rating])} />
+                        {RATING_LABELS[v.rating]}
+                      </>
+                    ) : (
+                      'Not rated'
+                    )}
+                  </dd>
+                  {v.change !== null && (
+                    <dd className="text-xs text-muted-foreground tabular-nums">
+                      {Math.round(v.change * 100) === 0
+                        ? 'Same as the release before'
+                        : `${v.change > 0 ? 'Up' : 'Down'} ${Math.abs(Math.round(v.change * 100))}% on the release before`}
+                    </dd>
+                  )}
+                </div>
+              ))}
+            </dl>
+          </section>
+        )
+      })}
+    </>
   )
 }

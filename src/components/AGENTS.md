@@ -24,7 +24,9 @@
 - `time.tsx`: `formatTime(at, { zone, clock }, style)` (`Intl.DateTimeFormat` in English, `hourCycle` from the clock,
   formats cached; an unknown zone writes UTC), `useTimePrefs` and `<Time>`. Every date or time the app shows goes
   through them, so the server and the browser write the same text.
-- `performance.tsx`: `ms` (a duration), `Period` and `Waterfall` (spans as
+- `performance.tsx`: `ms` (a duration), `vitalValue`, `VitalRows` (a "Web vitals" and a "Mobile vitals" row of
+  cards, each vital's p75, its rating as a dot and words, Not rated for those Sentry doesn't rate, and "Up 12% on the
+  release before"; a row only with a vital in it), `Period` and `Waterfall` (spans as
   bars, indented by depth; on a phone the bar goes under its name).
 - `search-bar.tsx`: `SearchBar` (scope issues or logs): every `key:value` of the query is a pill (key, operator
   menu, value, × with a hairline between, the key and operator grey, the value bold; on a phone each reaches to a 44 px

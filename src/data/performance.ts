@@ -2,6 +2,7 @@
 // before, one transaction's hours and examples; and the slower-release check.
 import { percentile } from '../performance/histogram'
 import type { Span } from '../performance/ingest'
+import { fromStored, rate, type Rating, VITALS, type Vital } from '../performance/vitals'
 import type { Notice } from '../notify/notice'
 
 const HOUR = 3_600_000
@@ -134,6 +135,54 @@ export async function transaction(db: D1Database, projectId: number, name: strin
   }
 }
 
+export type VitalSummary = {
+  vital: Vital
+  p75: number | null
+  rating: Rating | null
+  change: number | null
+  count: number
+}
+
+/**
+ * A project's vitals over a period, or one transaction's: p75 of each with its rating, and its change from the
+ * release before to the newest (the project's two newest releases with transactions); only vitals measured
+ */
+export async function vitals(db: D1Database, projectId: number, days: number, now: number, name?: string) {
+  const since = Math.floor((now - days * 864e5) / HOUR) * HOUR
+  const rows = (
+    await db
+      .prepare(
+        `SELECT vital, release, bucket, SUM(count) AS count FROM vital_buckets WHERE project_id = ? AND hour >= ?${name === undefined ? '' : ' AND name = ?'}
+         GROUP BY vital, release, bucket`,
+      )
+      .bind(projectId, since, ...(name === undefined ? [] : [name]))
+      .all<{ vital: Vital; release: string; bucket: number; count: number }>()
+  ).results.filter((r) => Object.hasOwn(VITALS, r.vital))
+  const [latest, previous] = await releasesOf(db, projectId, since)
+  const p75 = (vital: Vital, release?: string) => {
+    const h = new Map<number, number>()
+    for (const r of rows)
+      if (r.vital === vital && (release === undefined || r.release === release))
+        h.set(r.bucket, (h.get(r.bucket) ?? 0) + r.count)
+    const p = percentile(h, 0.75)
+    return { p75: p === null ? null : fromStored(vital, p), count: [...h.values()].reduce((a, b) => a + b, 0) }
+  }
+  return [...new Set(rows.map((r) => r.vital))]
+    .sort((a, b) => Object.keys(VITALS).indexOf(a) - Object.keys(VITALS).indexOf(b))
+    .map((vital): VitalSummary => {
+      const all = p75(vital)
+      const now75 = latest ? p75(vital, latest).p75 : null
+      const was75 = previous ? p75(vital, previous).p75 : null
+      return {
+        vital,
+        p75: all.p75,
+        count: all.count,
+        rating: rate(vital, all.p75),
+        change: now75 !== null && was75 ? now75 / was75 - 1 : null,
+      }
+    })
+}
+
 const ENOUGH = 50 // transactions in each release before comparing them
 const SLOWER = 1.5 // p95 half again as long
 
@@ -200,6 +249,7 @@ export async function prunePerformance(db: D1Database, now: number) {
   await db.batch([
     db.prepare('DELETE FROM transaction_hours WHERE hour < ?').bind(now - 90 * 864e5),
     db.prepare('DELETE FROM transaction_buckets WHERE hour < ?').bind(now - 90 * 864e5),
+    db.prepare('DELETE FROM vital_buckets WHERE hour < ?').bind(now - 90 * 864e5),
     db.prepare('DELETE FROM transaction_examples WHERE timestamp < ?').bind(now - 30 * 864e5),
   ])
 }

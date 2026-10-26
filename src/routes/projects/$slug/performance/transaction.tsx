@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-ro
 import { IconChevronRight } from '@tabler/icons-react'
 import { Ago, count } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
-import { ms, Period, Waterfall } from '@/components/performance'
+import { ms, Period, VitalRows, Waterfall } from '@/components/performance'
 import { PageHeader, Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { getTransaction } from '@/fns'
@@ -55,6 +55,7 @@ function Transaction() {
       <p className="mb-5 text-sm text-muted-foreground">
         {count(total)} transactions in this period{errors > 0 && <> · {count(errors)} failed</>}
       </p>
+      <VitalRows vitals={d.vitals} />
       <section className="mb-6 rounded-xl border p-3 pb-1" aria-label="p95 and count per hour">
         <p className="mb-2 text-sm text-muted-foreground">
           The line is the p95 duration per hour, on the left axis. The bars are the number of transactions, on the

@@ -167,7 +167,7 @@ describe('parseWidgets', () => {
       'Issue events can show count or count_unique(user).',
     )
     expect(aggregateError('transactions', 'p95(cpu)')).toBe(
-      'Transactions can show count, failure_rate or avg, p50, p75, p95, p99 of duration, such as p95(duration).',
+      'Transactions can show count, failure_rate or avg, p50, p75, p95, p99 of duration, or p50 to p99 of a vital such as lcp, such as p95(duration).',
     )
     expect(aggregateError('logs', 'p95(duration)')).toBeNull()
     expect(aggregateError('logs', 'crash_free_rate')).toMatch(/^Logs can show count or avg, sum, min, max/)
@@ -325,6 +325,34 @@ describe('datasets', () => {
         { group: ['1.0'], values: [98] },
       ],
     })
+  })
+
+  it('reads crash-free users and a vital’s p75', async () => {
+    const db = seeded()
+    db.sqlite.exec(`INSERT INTO session_users_daily (project_id, release, environment, day, did_hash, crashed) VALUES
+      (1, '1.0', 'production', '2026-10-26', 'a', 0), (1, '1.0', 'production', '2026-10-26', 'b', 1),
+      (1, '1.0', 'production', '2026-10-25', 'b', 0), (1, '1.0', 'production', '2026-10-25', 'c', 0),
+      (1, '1.0', 'production', '2026-10-25', 'd', 0);
+      INSERT INTO vital_buckets (project_id, name, release, hour, vital, bucket, count) VALUES
+      (1, '/', '1.0', ${NOW - HOUR}, 'cls', 26, 3), (1, '/', '1.0', ${NOW - HOUR}, 'lcp', 40, 9)`)
+    const users = await widgetData(
+      db,
+      v2({ dataset: 'sessions', queries: [{ query: '', aggregate: 'crash_free_users' }] }),
+      undefined,
+      { range: '7d' },
+      NOW,
+    )
+    // Four users, one crashed: a user counts once however many days
+    expect(users).toMatchObject({ kind: 'number', values: [{ value: 75, unit: 'percent' }] })
+    const cls = await widgetData(
+      db,
+      v2({ dataset: 'transactions', queries: [{ query: '', aggregate: 'p75(cls)' }] }),
+      undefined,
+      window,
+      NOW,
+    )
+    expect(cls).toMatchObject({ kind: 'number', values: [{ value: Math.round(1.2 ** 26) / 1000, unit: 'number' }] })
+    expect(aggregateError('transactions', 'avg(lcp)')).toBe('A vital can show p50, p75, p95 or p99, such as p75(lcp).')
   })
 
   it('reads monitors’ uptime and check-ins by status', async () => {

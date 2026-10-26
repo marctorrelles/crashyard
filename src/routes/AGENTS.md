@@ -54,8 +54,9 @@ server, the build, or `tsr generate`): never edit it.
   adoption, its share of each day's sessions over 30 days as a line, its deploys (environment, name linked to its
   URL, when finished), its commits since the one before (from set-commits, each opening on the repository when the
   project has one), and its diff against the one before.
-- `performance.tsx`: transactions by p95 with a sparkline of it over the period and the change since the release
-  before (`?days=1|30`), a section per project; `projects/$slug/performance/transaction.tsx` (`?name=`): p95 per hour
+- `performance.tsx`: Web vitals and Mobile vitals (`VitalRows`, only those measured), then transactions by p95 with a
+  sparkline of it over the period and the change since the release before (`?days=1|30`), a section per project (one
+  with vitals and no transactions too); `projects/$slug/performance/transaction.tsx` (`?name=`): its own vitals, p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and trace links.
 - `settings/`: the settings area. `route.tsx` is its frame: `Shell` with Settings, the project when it's a project's

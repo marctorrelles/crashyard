@@ -2,6 +2,7 @@
 // count and histogram (2 rows), and becomes an example only if it's among the day's ten slowest for its name.
 import { dayOf } from '../ingest/store'
 import { bucketOf } from './histogram'
+import { vitalsOf } from './vitals'
 
 type Json = Record<string, unknown>
 const obj = (v: unknown): Json => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Json) : {})
@@ -51,6 +52,7 @@ export function summarize(raw: Json, received: number) {
     timestamp: Math.round(end) || received,
     duration: Math.round(end - start),
     spans: list,
+    vitals: vitalsOf(raw.measurements),
   }
 }
 
@@ -105,6 +107,15 @@ export async function storeTransaction(db: D1Database, projectId: number, t: Sum
         'INSERT INTO project_days (project_id, day, transactions) VALUES (?, ?, 1) ON CONFLICT DO UPDATE SET transactions = transactions + 1',
       )
       .bind(projectId, dayOf(received)),
+    // Each vital the SDK measured, into its histogram: a browser page load adds about five rows, an app start one or two
+    ...t.vitals.map((v) =>
+      db
+        .prepare(
+          `INSERT INTO vital_buckets (project_id, name, release, hour, vital, bucket, count) VALUES (?, ?, ?, ?, ?, ?, 1)
+           ON CONFLICT DO UPDATE SET count = count + 1`,
+        )
+        .bind(projectId, t.name, t.release, hour, v.vital, bucketOf(v.stored)),
+    ),
   ]
   // An example only if it's among the day's slowest for its name
   const slowest = await db

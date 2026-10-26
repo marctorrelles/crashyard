@@ -102,10 +102,12 @@ helpers (`change`).
 - `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
   change since the release before and `trend`, the p95 of each step (an hour in a day, 6 hours in a week, a day in 30;
   from the same read of `transaction_buckets`, grouped by the step too) (the project's two newest releases with
-  transactions); one transaction's hours, releases and slowest examples (sessions are `releases.ts`');
+  transactions); one transaction's hours, releases and slowest examples (sessions are `releases.ts`'); `vitals`, a
+  project's or one transaction's vitals over the period from `vital_buckets`: p75 of each measured, its rating, and its
+  change from the release before to the newest (the same two releases);
   `checkSlowerReleases` (the cron, hourly at :05: a p95 50% longer in the newest release than the one before, 50
   transactions in each at least, told once via `slower_releases`); `prunePerformance` (the hourly cron: summaries after
-  90 days, examples after 30).
+  90 days, vital buckets too, examples after 30).
 - `updates.ts`: whether a newer crashyard is out, from the repo's latest GitHub release, asked once a day through
   the Cache API, for home's banner; nothing about the deployment is sent.
 - `suggest.ts`: the search bar's keys and values from what's stored. Issues: tag keys by how many issues have them, a
@@ -135,7 +137,10 @@ helpers (`change`).
   `aggregateError` refuses what a dataset can't compute with a sentence naming what it can: issues count; events count
   and `count_unique(user)`; logs count and avg, sum, min, max, p50, p75, p95, p99 of a numeric attribute; transactions
   count, `failure_rate` and avg or a percentile of `duration`; sessions count and `crash_free_rate`; monitors count,
-  `uptime`, `failure_rate` and any function of `duration`; releases count, users and crash-free rate. `uptime` is ours,
+  `uptime`, `failure_rate` and any function of `duration`; releases count, users and crash-free rate. Transactions
+  also take p50 to p99 of a vital (`p75(lcp)`, `vital_buckets` through `percentile`, divided by the vital's scale,
+  `Source.scale`; in ms, percent, or a number for CLS), and sessions `crash_free_users` (`session_users_daily`, 100
+  minus distinct crashed hashes over distinct hashes, so a user counts once however many days). `uptime` is ours,
   beyond the plan's list: 100 minus the failure rate. Transactions, sessions, monitors and releases take filters of
   fixed keys only (`FILTER_KEYS`, checked on save like metric alerts). `upgradeWidget` turns the first shape (one
   `query`, a count, a `groupBy` string) into v2: its query a count, its group-by a list of one; `parseWidget` upgrades
@@ -176,7 +181,8 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   `listDashboards` counts widgets only of valid JSON (else `null`). Plan: the list by `dashboards_updated`; a dashboard
   by its primary key.
 - `templates.ts`: `TEMPLATES`, the prebuilt dashboards "New dashboard" offers: Crashes (`STARTER`, as before), Mobile app
-  health, Web app, Backend and logs, Uptime and crons. Crash-free users and vitals join them in phase 6.
+  health (with crash-free users, cold and warm starts, slow and frozen frames), Web app (with LCP, INP and CLS), Backend
+  and logs, Uptime and crons.
 - `export.ts`: the logs page's export: `exportLogs`, the newest 10,000 (`MAX_LINES`) logs of a search, times in UTC;
   `toCsv` (a header, then a record a row: fields with a quote, comma or line break quoted and their quotes doubled;
   one starting `=` `+` `-` `@`, a tab or a return gets a `'` first so a spreadsheet runs nothing) and `toJsonLines`.

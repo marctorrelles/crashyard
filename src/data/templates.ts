@@ -1,5 +1,4 @@
-// Prebuilt dashboards to start from. Widgets whose data comes later (web vitals, crash-free users) join their
-// templates then.
+// Prebuilt dashboards to start from.
 import type { Widget } from './widgets'
 
 export type Template = { key: string; name: string; description: string; widgets: Widget[] }
@@ -34,7 +33,8 @@ export const TEMPLATES: Template[] = [
   {
     key: 'mobile',
     name: 'Mobile app health',
-    description: 'Crash-free sessions, sessions and crashes per release, and the fatal issues still open.',
+    description:
+      'Crash-free sessions and users, app starts and frames, sessions and crashes per release, and the fatal issues still open.',
     widgets: [
       {
         id: '10000001',
@@ -44,6 +44,31 @@ export const TEMPLATES: Template[] = [
         queries: [q('', 'crash_free_rate')],
         thresholds: { warning: 99.5, critical: 98, direction: 'below' },
         width: 1,
+      },
+      {
+        id: '10000006',
+        title: 'Crash-free users',
+        dataset: 'sessions',
+        display: 'number',
+        queries: [q('', 'crash_free_users')],
+        thresholds: { warning: 99.5, critical: 98, direction: 'below' },
+        width: 1,
+      },
+      {
+        id: '10000007',
+        title: 'App starts',
+        dataset: 'transactions',
+        display: 'number',
+        queries: [q('', 'p75(app_start_cold)', 'Cold'), q('', 'p75(app_start_warm)', 'Warm')],
+        width: 1,
+      },
+      {
+        id: '10000008',
+        title: 'Slow and frozen frames',
+        dataset: 'transactions',
+        display: 'line',
+        queries: [q('', 'p75(frames_slow_rate)', 'Slow'), q('', 'p75(frames_frozen_rate)', 'Frozen')],
+        width: 2,
       },
       {
         id: '10000002',
@@ -100,6 +125,14 @@ export const TEMPLATES: Template[] = [
         display: 'number',
         queries: [q('level:error', 'count', 'Errors'), q('level:error', 'count_unique(user)', 'Users')],
         width: 1,
+      },
+      {
+        id: '20000006',
+        title: 'Web vitals',
+        dataset: 'transactions',
+        display: 'number',
+        queries: [q('', 'p75(lcp)', 'LCP'), q('', 'p75(inp)', 'INP'), q('', 'p75(cls)', 'CLS')],
+        width: 3,
       },
       {
         id: '20000002',

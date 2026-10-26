@@ -109,7 +109,7 @@ export function formatValue(unit: Unit, v: number | null) {
 export const queryName = (q: WidgetQuery) => q.label || q.aggregate
 
 // Rates where more is good: their change reads green when it goes up
-const higherIsBetter = (q: WidgetQuery) => ['crash_free_rate', 'uptime'].includes(q.aggregate)
+const higherIsBetter = (q: WidgetQuery) => ['crash_free_rate', 'crash_free_users', 'uptime'].includes(q.aggregate)
 
 /** Past which threshold a number is, if any */
 function toneOf(w: Widget, v: number | null): 'warning' | 'critical' | undefined {

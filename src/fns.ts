@@ -517,6 +517,7 @@ export const getPerformance = createServerFn()
       list.map(async (project) => ({
         project,
         ...(await performance.transactions(env.DB, project.id, Number(data.days), now)),
+        vitals: await performance.vitals(env.DB, project.id, Number(data.days), now),
       })),
     )
   })
@@ -530,7 +531,11 @@ export const getTransaction = createServerFn()
     const project = await projects.projectBySlug(env.DB, data.slug)
     if (!project) return null
     const now = Date.now()
-    return { project, now, ...(await performance.transaction(env.DB, project.id, data.name, Number(data.days), now)) }
+    const [detail, vitals] = await Promise.all([
+      performance.transaction(env.DB, project.id, data.name, Number(data.days), now),
+      performance.vitals(env.DB, project.id, Number(data.days), now, data.name),
+    ])
+    return { project, now, ...detail, vitals }
   })
 
 export const getNotifications = createServerFn().handler(async () => ({
