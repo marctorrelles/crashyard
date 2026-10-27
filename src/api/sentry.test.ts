@@ -58,6 +58,21 @@ describe('the Sentry API', () => {
     expect((await previous(onlyA)).version).toBe('1.0')
   })
 
+  it('finds a project by its slug or its number, a slug of digits first', async () => {
+    const { env, all, onlyA, call } = await setup()
+    env.DB.sqlite.exec("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (3, '1', 'one', 'k3', 0)")
+    const deploy = (token: string, project: string) =>
+      call(token, 'POST', 'releases/2.0/deploys/', { environment: 'production', projects: [project] })
+    expect((await deploy(all, '2')).status).toBe(201)
+    expect((await deploy(all, '1')).status).toBe(201) // the project whose slug is 1, not project 1
+    expect((await deploy(onlyA, '2')).status).toBe(403)
+    await deploy(all, '99') // no project 99: no deploy
+    expect(env.DB.sqlite.prepare('SELECT project_id FROM deploys ORDER BY project_id').all()).toEqual([
+      { project_id: 2 },
+      { project_id: 3 },
+    ])
+  })
+
   it('refuses a token of project a everything on project b', async () => {
     const { env, onlyA, call } = await setup()
     const refused = { detail: 'You do not have permission to perform this action.' }

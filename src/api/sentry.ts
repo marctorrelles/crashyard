@@ -35,8 +35,17 @@ const forbidden = () => detail('You do not have permission to perform this actio
 
 type Assemble = Record<string, { name?: string; debug_id?: string; chunks?: string[] }>
 
-const projectId = async (db: D1Database, slug: string) =>
-  (await db.prepare('SELECT id FROM projects WHERE slug = ?').bind(slug).first<{ id: number }>())?.id
+// A project by its slug or, as Sentry takes either, its number (the end of its DSN, what a script without
+// SENTRY_PROJECT falls back to); a slug of digits wins over another project's number
+const projectId = async (db: D1Database, slugOrId: string) =>
+  (
+    await db
+      .prepare(
+        'SELECT id FROM projects WHERE slug = ?1 OR (?2 IS NOT NULL AND id = ?2) ORDER BY slug = ?1 DESC LIMIT 1',
+      )
+      .bind(slugOrId, /^\d+$/.test(slugOrId) ? Number(slugOrId) : null)
+      .first<{ id: number }>()
+  )?.id
 
 const difOf = (row: DebugFileRow) => ({
   id: String(row.id),

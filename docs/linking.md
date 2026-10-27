@@ -87,7 +87,7 @@ Point them at crashyard:
 ```sh
 export SENTRY_URL=https://crashyard.example.com/
 export SENTRY_ORG=crashyard            # any name works, a deployment is a single organization
-export SENTRY_PROJECT=<project slug>
+export SENTRY_PROJECT=<project slug>   # or its number, the one at the end of its DSN
 export SENTRY_AUTH_TOKEN=<a token>     # created in Settings, then Tokens, for this project or every project
 ```
 

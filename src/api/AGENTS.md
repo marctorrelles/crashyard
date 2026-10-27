@@ -57,7 +57,8 @@ signature; `/mcp` comes after the Access check.
   reach only its own project; chunks are the organisation's, so any token uploads them): chunk-upload (options,
   then gzipped chunks), `files/difs/assemble` (debug files, ProGuard), `artifactbundle/assemble` (source maps), and
   releases (kept with their commit). Assembling happens in the request, so the answer is `ok` at once. The
-  organisation in the path is ignored. Commits: `repos/` answers none, so `releases set-commits` (sentry-cli 3.8,
+  organisation in the path is ignored. A project, in a path or a body's `projects`, is its slug or, as Sentry takes
+  either, its number (`projectId`: a slug of digits wins over another project's number). Commits: `repos/` answers none, so `releases set-commits` (sentry-cli 3.8,
   `--local` or not) reads the local git and PUTs the release with `commits` (id, message, author, time and each one's
   files, `patch_set`, A/M/D), newest first, which go to every project with that release (`src/data/source.ts`);
   before that it asks `previous-with-commits/` (the newest earlier release of those projects with commits, its head
@@ -68,7 +69,7 @@ signature; `/mcp` comes after the Access check.
   (`storeDeploy`): those named, checked by `allowed` as other uploads, else every project with the release (in
   `releases`, events or sessions), a project's token only its own; answered in Sentry's Deploy shape (`id`,
   `environment`, `name`, `url`, `dateStarted`, `dateFinished`), 201. `deploys list` (GET) lists them.
-  `sentry.test.ts` calls it on `test/fakes.ts`: deploy links, and a project's token refused on another project for
+  `sentry.test.ts` calls it on `test/fakes.ts`: a project by slug or number, deploy links, and a project's token refused on another project for
   artifact bundles, releases POST and PUT, set-commits, deploys and previous-with-commits.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
