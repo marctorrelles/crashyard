@@ -23,7 +23,7 @@ function General() {
       description="Its name across crashyard, and the slug sentry-cli and build plugins use."
     >
       <form
-        className="grid gap-4 sm:grid-cols-2"
+        className="grid gap-4 @xl:grid-cols-2"
         onSubmit={async (e) => {
           e.preventDefault()
           const name = new FormData(e.currentTarget).get('name')
@@ -52,7 +52,7 @@ function General() {
           </Select>
           <Hint>Which setup guide Connect an app shows.</Hint>
         </div>
-        <div className="grid gap-2 sm:col-span-2">
+        <div className="grid gap-2 @xl:col-span-2">
           <Label htmlFor="slug">Slug</Label>
           <Input
             id="slug"
@@ -61,7 +61,7 @@ function General() {
             required
             maxLength={40}
             pattern="[a-z0-9][a-z0-9\-]*"
-            className="font-mono sm:max-w-sm"
+            className="font-mono @xl:max-w-sm"
           />
           {slug !== project.slug ? (
             <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
@@ -72,7 +72,7 @@ function General() {
             <Hint>Lowercase letters, numbers and dashes. It appears in links and in SENTRY_PROJECT.</Hint>
           )}
         </div>
-        <div className="sm:col-span-2">
+        <div className="@xl:col-span-2">
           <SaveButton saving={saving} />
         </div>
       </form>

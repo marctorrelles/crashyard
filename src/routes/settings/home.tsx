@@ -18,7 +18,7 @@ function Home() {
   const { save } = useSave()
   return (
     <SettingsCard title="Overview" description="What the overview shows when you open crashyard.">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 @xl:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="home-project">Project</Label>
           <Select

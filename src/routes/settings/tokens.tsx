@@ -42,7 +42,7 @@ function Tokens() {
             </div>
           )}
           <form
-            className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+            className="grid gap-3 @xl:grid-cols-[1fr_1fr_auto] @xl:items-end"
             onSubmit={async (e) => {
               e.preventDefault()
               try {

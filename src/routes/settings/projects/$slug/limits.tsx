@@ -15,7 +15,7 @@ function Limits() {
       description="How much this project takes in a day, and how long it keeps it."
     >
       <form
-        className="grid gap-4 sm:grid-cols-2"
+        className="grid gap-4 @xl:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault()
           const values = Object.fromEntries(new FormData(e.currentTarget))
@@ -23,7 +23,7 @@ function Limits() {
         }}
       >
         <LimitInputs values={project} />
-        <div className="sm:col-span-2">
+        <div className="@xl:col-span-2">
           <SaveButton saving={saving} />
         </div>
       </form>

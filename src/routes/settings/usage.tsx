@@ -57,7 +57,7 @@ function Usage() {
             void navigate({ to: '/settings/usage', search: { project: v === ALL ? undefined : v } })
           }
         >
-          <SelectTrigger className="w-full sm:w-56" aria-label="Project">
+          <SelectTrigger className="w-full @xl:w-56" aria-label="Project">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -62,7 +62,7 @@ function Health() {
       </SettingsCard>
 
       <SettingsCard title="Stored files" description="Uploads and attachments, kept in R2.">
-        <dl className="grid gap-2 text-sm sm:grid-cols-3">
+        <dl className="grid gap-2 text-sm @xl:grid-cols-3">
           {[
             ['Debug files', h.files.debugFiles],
             ['Source maps', h.files.bundles],

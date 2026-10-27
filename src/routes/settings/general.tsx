@@ -25,7 +25,7 @@ function General() {
         title="Cloudflare Access"
         description="Access signs people in. Without both values, crashyard refuses every dashboard request."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 @xl:grid-cols-2">
           <ReadOnly
             label="Team domain"
             value={access.team ?? 'Not set'}

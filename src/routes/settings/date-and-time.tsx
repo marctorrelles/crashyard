@@ -44,7 +44,7 @@ function DateAndTime() {
               value={zone}
               onChange={(e) => setZone(e.target.value)}
               placeholder="Your browser’s"
-              className="sm:max-w-sm"
+              className="@xl:max-w-sm"
             />
             <datalist id="zones">
               {ZONES.map((z) => (

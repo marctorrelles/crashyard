@@ -7,7 +7,8 @@ const root = getRouteApi('__root__')
 export const Route = createFileRoute('/settings')({ component: SettingsLayout })
 
 // The settings area: the deployment's pages, the project's and the viewer's own, listed at the left edge with the page
-// beside them; on a phone the title, then the list as selects, then the page
+// centred beside them; with less room, a phone or a narrow window with the sidebar open, the title, then the list as
+// selects, then the page
 function SettingsLayout() {
   const { lastProject } = root.useLoaderData()
   const projects = useProjects()
@@ -30,15 +31,19 @@ function SettingsLayout() {
         page,
       ]}
     >
-      <div className="grid gap-5 md:grid-cols-[12rem_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-8">
-        <div className="min-w-0 *:mb-0 md:col-start-2 md:max-w-4xl">
-          <PageHeader title={page}>{project?.name}</PageHeader>
-        </div>
-        <div className="md:col-start-1 md:row-span-2 md:row-start-1">
-          <SettingsNav lastProject={lastProject} />
-        </div>
-        <div className="grid min-w-0 content-start gap-5 md:col-start-2 md:max-w-4xl">
-          <Outlet />
+      {/* The frame and the page are containers: the list goes beside the page, and a page's fields side by side, by
+          the room they have, which the sidebar's width changes, not the window's */}
+      <div className="@container/settings">
+        <div className="grid gap-5 @3xl/settings:grid-cols-[12rem_minmax(0,1fr)] @3xl/settings:grid-rows-[auto_1fr] @3xl/settings:gap-x-8">
+          <div className="mx-auto w-full max-w-4xl min-w-0 *:mb-0 @3xl/settings:col-start-2">
+            <PageHeader title={page}>{project?.name}</PageHeader>
+          </div>
+          <div className="@3xl/settings:col-start-1 @3xl/settings:row-span-2 @3xl/settings:row-start-1">
+            <SettingsNav lastProject={lastProject} />
+          </div>
+          <div className="@container mx-auto grid w-full max-w-4xl min-w-0 content-start gap-5 @3xl/settings:col-start-2">
+            <Outlet />
+          </div>
         </div>
       </div>
     </Shell>

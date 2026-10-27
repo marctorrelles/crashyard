@@ -48,7 +48,7 @@ function DebugFiles() {
           </Empty>
         ) : (
           <div className="grid gap-3">
-            <InputGroup className="sm:max-w-sm">
+            <InputGroup className="@xl:max-w-sm">
               <InputGroupAddon>
                 <IconSearch />
               </InputGroupAddon>

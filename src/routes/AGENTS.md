@@ -67,7 +67,10 @@ server, the build, or `tsr generate`): never edit it.
   span waterfall and Open trace.
 - `settings/`: the settings area. `route.tsx` is its frame: `Shell` (`full`) with Settings, the project when it's a
   project's page, then the page; `SettingsNav` (`src/components/settings.tsx`) at the left edge, the page's name as
-  the title and the page beside it, up to `max-w-4xl` (on a phone the title, the list as selects, the page). `index.tsx` goes to General. The deployment's pages, the group "crashyard": `general`
+  the title and the page centred beside it, up to `max-w-4xl`; with less room the title, the list as selects, the
+  page. It goes by the room it has, not the window: the frame is `@container/settings` (the list beside from
+  `@3xl/settings`) and the page column a `@container`, so settings pages lay out with container variants (`@xl:`
+  where a page elsewhere says `sm:`, `@3xl:` for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. The deployment's pages, the group "crashyard": `general`
   (public URL and Access, read-only, each saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
   and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
   `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload

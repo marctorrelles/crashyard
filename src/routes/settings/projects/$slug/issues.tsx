@@ -56,7 +56,7 @@ function AutoResolve() {
               inputMode="numeric"
               value={days}
               onChange={(e) => setDays(e.target.value)}
-              className="sm:max-w-40"
+              className="@xl:max-w-40"
             />
             <Hint>Checked every hour.</Hint>
           </div>
@@ -87,7 +87,7 @@ function Priorities() {
           void save(() => updateProject({ data: { id: project.id, priorities: chosen } }))
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-[8rem_12rem] sm:items-center">
+        <div className="grid gap-3 @xl:grid-cols-[8rem_12rem] @xl:items-center">
           {LEVELS.map((level) => (
             <div key={level} className="contents">
               <Label htmlFor={`priority-${level}`}>{level[0].toUpperCase() + level.slice(1)}</Label>
@@ -144,7 +144,7 @@ function ReleaseHealth() {
           )
         }}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 @xl:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor="crash-free-min">Lowest crash-free sessions in percent</Label>
             <Input

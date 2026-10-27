@@ -64,7 +64,7 @@ function KeyCard({ projectId, k }: { projectId: number; k: Key }) {
       description={`${count(k.today)} event${k.today === 1 ? '' : 's'} today${k.daily_limit !== null ? ` of ${count(k.daily_limit)}` : ''}${k.enabled ? '' : ' · Off'}`}
     >
       <form
-        className="grid gap-4 sm:grid-cols-2"
+        className="grid gap-4 @xl:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault()
           const f = new FormData(e.currentTarget)
@@ -75,7 +75,7 @@ function KeyCard({ projectId, k }: { projectId: number; k: Key }) {
           )
         }}
       >
-        <div className="grid min-w-0 gap-2 sm:col-span-2">
+        <div className="grid min-w-0 gap-2 @xl:col-span-2">
           <Label>DSN</Label>
           <Code text={k.dsn} />
         </div>
@@ -97,7 +97,7 @@ function KeyCard({ projectId, k }: { projectId: number; k: Key }) {
           />
           <Hint>Leave it empty to use only the project’s limit.</Hint>
         </div>
-        <div className="flex items-center gap-3 sm:col-span-2">
+        <div className="flex items-center gap-3 @xl:col-span-2">
           <Switch
             id={`on-${k.id}`}
             checked={enabled}
@@ -108,7 +108,7 @@ function KeyCard({ projectId, k }: { projectId: number; k: Key }) {
           />
           <Label htmlFor={`on-${k.id}`}>{enabled ? 'On, events are accepted' : 'Off, events are refused'}</Label>
         </div>
-        <div className="sm:col-span-2">
+        <div className="@xl:col-span-2">
           <SaveButton saving={saving} />
         </div>
       </form>

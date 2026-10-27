@@ -99,7 +99,7 @@ export function SettingsNav({ lastProject }: { lastProject: string | null }) {
     )
   return (
     <>
-      <div className="grid gap-2 md:hidden">
+      <div className="grid gap-2 @3xl/settings:hidden">
         {picker('h-10 w-full')}
         <Select value={path} onValueChange={(to) => void navigate({ href: to })}>
           <SelectTrigger className="h-10 w-full" aria-label="Settings page">
@@ -119,7 +119,7 @@ export function SettingsNav({ lastProject }: { lastProject: string | null }) {
           </SelectContent>
         </Select>
       </div>
-      <nav className="grid content-start gap-5 max-md:hidden" aria-label="Settings">
+      <nav className="grid content-start gap-5 @max-3xl/settings:hidden" aria-label="Settings">
         {groups.map((g) => (
           <div key={g.label} className="grid gap-0.5">
             {g.project ? (
@@ -167,7 +167,7 @@ export function SettingsCard({
   className?: string
 }) {
   return (
-    <section className={cn('min-w-0 rounded-xl border p-4 sm:p-5', className)}>
+    <section className={cn('min-w-0 rounded-xl border p-4 @xl:p-5', className)}>
       <h2 className="font-medium">{title}</h2>
       {description && <div className="mt-0.5 text-sm text-muted-foreground">{description}</div>}
       {children && <div className="mt-4">{children}</div>}
