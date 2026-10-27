@@ -17,7 +17,8 @@ helpers (`change`).
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, the cron's shared one (`PRUNE_BUDGET`, 20 s, when called alone); `inBatches`;
   `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
-  hour, 1000 a batch, then `issue_minutes` past a day, 1000 a batch), `dsnOf` (a project id and a key), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
+  hour, 1000 a batch, then `issue_minutes` past a day, then
+  `session_users_daily` past the event retention, 1000 a batch each), `dsnOf` (a project id and a key), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
   Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
@@ -51,9 +52,11 @@ helpers (`change`).
   `issue_fingerprints`, an `unmerged` entry on the source and `unmerged_from` on the new one; one batch. Only kept
   events move: what spike protection only counted, or retention pruned, stays counted on the source. A fingerprint
   with no events kept just leaves `issue_fingerprints` (answers null), so its next event opens a new issue. Events
-  stored before 0016 have no fingerprint: both first hash up to 2000 of the issue's from their JSON with version 1 and
-  no rules, as ingest did then, and write it (`backfillFingerprints`; the list is a GET that writes, derived data
-  only).
+  stored before 0016 have no fingerprint: both first hash the issue's with version 1 and no rules, as ingest did then,
+  and write it (`backfillFingerprints`: only `json_extract` of what grouping reads, exceptions, fingerprint, message
+  and title, never the whole `data`, 200 a batch, looping until none are left or its deadline; one it can't read is
+  marked `''` and stays). The list, a GET that writes derived data only, loops 5 seconds; the unmerge 20, and when
+  that isn't enough it moves nothing and says it's only partly done, to unmerge again, which goes on from there.
 - `escalation.ts`: `escalating(hours)`: the last of a week of hourly counts plus the hour just ended escalates with 10
   events or more (`MIN_EVENTS`) and more than twice (`FACTOR`) the busiest hour before it, so steady traffic, however
   busy, and its usual peaks don't. `checkEscalation` (the cron, hourly at :25, within its deadline): the hour just ended's

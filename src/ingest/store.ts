@@ -3,6 +3,7 @@ import { eventJson } from './budget'
 import type { NormalizedEvent } from './event'
 import { GROUPING_VERSION, type Hasher, HASHERS } from './grouping'
 import { priorityFor } from './priority'
+import { applyRules, rulesOf } from './rules'
 
 export type Project = {
   id: number
@@ -21,6 +22,13 @@ export type Project = {
 
 /** How long a project computes the grouping before a new version as well, so open issues keep their events */
 export const GROUPING_OVERLAP = 30 * 86_400_000
+
+/**
+ * An event's fingerprint as the project groups it: its grouping rules (stack rules set in-app on the event itself),
+ * then `groupingOf`. Ingest and reprocessing both come through here, so a late debug file keeps the project's rules
+ */
+export const groupingFor = (db: D1Database, project: Project, event: NormalizedEvent, now: number) =>
+  groupingOf(db, project, applyRules(event, rulesOf(project.grouping_rules)), now)
 
 /**
  * The fingerprint of an event, as grouping sees it, at the current grouping version. The first event of a project

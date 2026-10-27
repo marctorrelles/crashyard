@@ -422,23 +422,47 @@ export async function autoResolve(db: D1Database, now: number, deadline = Date.n
   return total
 }
 
-/** Events of an issue stored before 0016 have no fingerprint: computed from their JSON, as ingest hashed them then */
-const BACKFILL = 2000
-async function backfillFingerprints(db: D1Database, issueId: number) {
-  const rows = (
-    await db
-      .prepare('SELECT id, data FROM events WHERE issue_id = ? AND fingerprint IS NULL LIMIT ?')
-      .bind(issueId, BACKFILL)
-      .all<{ id: string; data: string }>()
-  ).results
-  if (!rows.length) return
+/**
+ * Events of an issue stored before 0016 have no fingerprint: computed as ingest hashed them then, from only the parts
+ * grouping reads, 200 a batch, until none are left or the deadline. Answers whether none are left
+ */
+const BACKFILL = 200
+async function backfillFingerprints(db: D1Database, issueId: number, deadline: number) {
+  while (Date.now() < deadline) {
+    const rows = (
+      await db
+        .prepare(
+          `SELECT id, json_extract(data, '$.exceptions') AS exceptions, json_extract(data, '$.fingerprint') AS fingerprint,
+             json_extract(data, '$.message') AS message, json_extract(data, '$.title') AS title
+           FROM events WHERE issue_id = ? AND fingerprint IS NULL LIMIT ?`,
+        )
+        .bind(issueId, BACKFILL)
+        .all<{ id: string; exceptions: string | null; fingerprint: string | null; message: string; title: string }>()
+    ).results
+    if (!rows.length) return true
+    await backfillBatch(db, rows)
+  }
+  return false
+}
+
+async function backfillBatch(
+  db: D1Database,
+  rows: { id: string; exceptions: string | null; fingerprint: string | null; message: string; title: string }[],
+) {
   const byPrint = new Map<string, string[]>()
   for (const r of rows) {
     let print: string
     try {
-      print = await HASHERS[1](JSON.parse(r.data) as NormalizedEvent)
+      const event = {
+        exceptions: r.exceptions ? JSON.parse(r.exceptions) : [],
+        fingerprint: r.fingerprint ? JSON.parse(r.fingerprint) : undefined,
+        message: r.message ?? '',
+        title: r.title ?? '',
+      } as NormalizedEvent
+      print = await HASHERS[1](event)
     } catch {
-      continue
+      // Unreadable: marked '' so it isn't read again; it stays with this issue
+      print = ''
     }
     byPrint.set(print, [...(byPrint.get(print) ?? []), r.id])
   }
@@ -459,7 +483,8 @@ export type MergedFingerprint = { fingerprint: string; events: number; last: num
 
 /** The fingerprints merged into an issue, with their kept events, newest first, for Unmerge */
 export async function mergedFingerprints(db: D1Database, issueId: number): Promise<MergedFingerprint[]> {
-  await backfillFingerprints(db, issueId)
+  // Bounded: what's left is hashed when the unmerge is sent
+  await backfillFingerprints(db, issueId, Date.now() + 5_000)
   const rows = (
     await db
       .prepare(
@@ -489,7 +514,10 @@ export async function unmergeIssue(db: D1Database, id: number, fingerprint: stri
     .bind(id, fingerprint)
     .first<{ id: number; project_id: number; priority: string }>()
   if (!source) throw new Error('That fingerprint isn’t merged into this issue. Open the issue again to see its own.')
-  await backfillFingerprints(db, id)
+  if (!(await backfillFingerprints(db, id, Date.now() + 20_000)))
+    throw new Error(
+      'The unmerge is only partly done. This issue’s older events are still being sorted by fingerprint. Unmerge again to finish.',
+    )
   const latest = await db
     .prepare('SELECT data FROM events WHERE issue_id = ? AND fingerprint = ? ORDER BY received DESC LIMIT 1')
     .bind(id, fingerprint)

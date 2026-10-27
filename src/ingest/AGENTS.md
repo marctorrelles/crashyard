@@ -33,7 +33,8 @@ order.
   `fingerprint` wins, `{{ default }}` expands to the default. `GROUPING_VERSION` (1) and `HASHERS` (version →
   hash): version 1 is that hash, unchanged; `rules.test.ts` checks it against `grouping-v1.json`, every fixture's
   fingerprint taken before versions existed, so no open issue split. A change that moves fingerprints adds version 2
-  to `HASHERS` and bumps `GROUPING_VERSION`: `groupingOf` (store.ts) then, on a project's first event at it, records
+  to `HASHERS` and bumps `GROUPING_VERSION`: `groupingOf` (store.ts, through `groupingFor`, which applies the
+  project's rules first, for ingest and `src/symbols/reprocess.ts` alike) then, on a project's first event at it, records
   `grouping_previous` and `grouping_until` 30 days ahead (`GROUPING_OVERLAP`; the `UPDATE … WHERE grouping_version =`
   the old one, so racing isolates write it once, and the cached project row is updated in place), and until then
   computes the old hash too: when it differs and no issue has the new one, the issue holding the old (directly or

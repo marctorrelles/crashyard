@@ -399,7 +399,21 @@ export async function pruneEvents(db: D1Database, now: number, files?: R2Bucket,
         .run(),
     ),
   )
-  return { events, attachments, issues, hours, minutes }
+  // Session users per day, kept as long as the events
+  const sessionUsers = await inBatches(deadline, async () =>
+    changes(
+      await db
+        .prepare(
+          `DELETE FROM session_users_daily WHERE (project_id, release, environment, day, did_hash) IN (
+             SELECT s.project_id, s.release, s.environment, s.day, s.did_hash FROM session_users_daily s
+             JOIN projects p ON p.id = s.project_id
+             WHERE s.day < strftime('%Y-%m-%d', (? - p.event_retention_days * 86400000) / 1000, 'unixepoch') LIMIT 1000)`,
+        )
+        .bind(now)
+        .run(),
+    ),
+  )
+  return { events, attachments, issues, hours, minutes, sessionUsers }
 }
 
 /**

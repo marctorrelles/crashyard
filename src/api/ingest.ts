@@ -8,7 +8,6 @@ import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson, toEnvelop
 import { cspEvent, cspReports, isSecurityType } from '../ingest/security'
 import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { filterReason, originAllowed, parseFilters, transactionFilterReason } from '../ingest/filters'
-import { applyRules, rulesOf } from '../ingest/rules'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
 import { fromSpans, sessionCounts, storeSessions, storeTransaction, summarize } from '../performance/ingest'
@@ -23,7 +22,7 @@ import {
   type Todo,
 } from '../ingest/retry'
 import { loadExtraFields } from '../ingest/scrub'
-import { dayOf, groupingOf, type Project, storeEvent } from '../ingest/store'
+import { dayOf, groupingFor, type Project, storeEvent } from '../ingest/store'
 import { sharedSymbolic } from '../symbols/module'
 import { symbolicate } from '../symbols/symbolicate'
 import type { Notice, Route } from '../notify/notice'
@@ -396,8 +395,7 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
     // Readable stacks before grouping, so the same crash groups by its functions across builds
     await symbolicate(env, sharedSymbolic, project.id, event)
     // The project's stack trace rules set in-app on the event itself; grouping sees the frames they leave
-    const grouping = applyRules(event, rulesOf(project.grouping_rules))
-    const { fingerprint, version } = await groupingOf(env.DB, project, grouping, now)
+    const { fingerprint, version } = await groupingFor(env.DB, project, event, now)
     if (await isDiscarded(env.DB, project.id, fingerprint)) {
       filtered++
       filteredEvents++
