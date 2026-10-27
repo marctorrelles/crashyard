@@ -29,13 +29,23 @@ function seeded() {
 }
 
 describe('user search', () => {
-  it('hashes as ingest always has, so users stored before still match', async () => {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('user-42'))
-    const before = [...new Uint8Array(digest)]
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-      .slice(0, 32)
-    expect(hashUser('user-42')).toBe(before)
+  it('hashes as ingest always has (crypto.subtle), so users stored before still match', async () => {
+    const subtle = async (text: string) => {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+      return [...new Uint8Array(digest)]
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+        .slice(0, 32)
+    }
+    // Every length around SHA-256's 64-byte blocks and their padding, and text that isn't ASCII
+    const texts = [
+      '',
+      'user-42',
+      'ana@example.com',
+      'Àna Pons 😀',
+      ...Array.from({ length: 140 }, (_, n) => 'x'.repeat(n)),
+    ]
+    for (const text of texts) expect(hashUser(text)).toBe(await subtle(text))
   })
 
   it('keeps a hash per field, never the IP address, and nothing for no user', () => {
@@ -46,7 +56,7 @@ describe('user search', () => {
   it('finds one person’s issues and events by any field, or by the field named', async () => {
     const db = seeded()
     const issues = async (query: string) => {
-      const f = issueFilter(query, NOW, undefined, userMatch)
+      const f = issueFilter(query, NOW)
       const rows = await db
         .prepare(`SELECT i.id FROM issues i WHERE ${f.where.join(' AND ') || '1'} ORDER BY i.id`)
         .bind(...f.params)
@@ -65,7 +75,7 @@ describe('user search', () => {
     expect(await issues('!user:ana')).toEqual([1])
 
     const events = async (query: string) => {
-      const f = eventFilter(query, NOW, userMatch)
+      const f = eventFilter(query, NOW)
       const rows = await db
         .prepare(`SELECT e.id FROM events e WHERE ${f.where.join(' AND ')} ORDER BY e.id`)
         .bind(...f.params)
@@ -75,7 +85,5 @@ describe('user search', () => {
     expect(await events('user:ana@example.com')).toEqual(['e2'])
     expect(await events('user:old-id')).toEqual(['e1'])
     expect(await events('!user.username:ana')).toEqual(['e1'])
-    // Without the matcher, as in the browser, nobody matches
-    expect(issueFilter('user:u-7', NOW).params).toEqual(['none', 'none'])
   })
 })

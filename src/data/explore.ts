@@ -2,7 +2,6 @@
 // columns asked for, a chart of a count over time and a group-by on a tag. Also an issue's own event search.
 import type { Span } from '../performance/ingest'
 import { eventFilter, matchAny } from '../search/query'
-import { userMatch } from '../search/user'
 import { buckets, intervalFor, SIZE } from './charts'
 import { RANGES, type Range } from './logs'
 
@@ -36,7 +35,7 @@ export type ExploreInput = {
 
 /** The WHERE of a search: the window, the page's project or issue, the search's tokens; every value bound */
 export function whereOf(input: ExploreInput, now: number) {
-  const f = eventFilter(input.query, now, userMatch)
+  const f = eventFilter(input.query, now)
   const where = ['e.received >= ?', 'e.received < ?', ...f.where]
   const params: unknown[] = [input.range === 'all' ? 0 : now - RANGES[input.range], now + 1, ...f.params]
   if (input.projectId !== undefined) {

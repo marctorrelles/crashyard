@@ -3,7 +3,6 @@ import type { NormalizedEvent } from '../ingest/event'
 import { HASHERS } from '../ingest/grouping'
 import type { Priority } from '../ingest/priority'
 import { issueFilter, UNREAD } from '../search/query'
-import { userMatch } from '../search/user'
 import { scoped } from './charts'
 import { lastDays } from './projects'
 
@@ -70,7 +69,7 @@ export async function listIssues(
   now: number,
 ) {
   // The chart over the list narrows the same way (`issueEventsByDay`), so the two agree
-  const f = scoped(issueFilter(opts.query, now, opts.viewer, userMatch), opts.projectId)
+  const f = scoped(issueFilter(opts.query, now, opts.viewer), opts.projectId)
   const where = f.where.length ? `WHERE ${f.where.join(' AND ')}` : ''
   // One more than a page, to know there's another
   const rows = (

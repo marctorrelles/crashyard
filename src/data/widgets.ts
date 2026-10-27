@@ -4,7 +4,6 @@
 import { percentile } from '../performance/histogram'
 import { isVital, VITALS } from '../performance/vitals'
 import { filterExample, issueFilter, matchAny, tokenize, unparse } from '../search/query'
-import { userMatch } from '../search/user'
 import { buckets, intervalFor, LEVELS, scoped, SIZE, slugsOf } from './charts'
 import { listIssues } from './issues'
 import { conditions as logConditions, GROUP_COLUMNS, logGroups, logsByBucket, spanOf, type Window } from './logs'
@@ -412,7 +411,7 @@ function splitEventQuery(query: string) {
 /** Events per hour from `event_hours`, or each event from `events` for distinct users, of the issues a search matches */
 function eventsSource(ctx: Ctx, q: WidgetQuery, groupBy: string[], span: Span): Source {
   const split = splitEventQuery(q.query)
-  const f = scoped(issueFilter(split.issues, ctx.now, undefined, userMatch), ctx.projectId)
+  const f = scoped(issueFilter(split.issues, ctx.now), ctx.projectId)
   const issues = f.where.map((w) => ` AND ${w}`).join('')
   if (q.aggregate === 'count_unique(user)') {
     const cols = {
@@ -852,7 +851,7 @@ async function issuesData(ctx: Ctx, w: Widget, window: Window): Promise<WidgetDa
   if (w.display === 'number') {
     const values = await Promise.all(
       w.queries.map(async (q) => {
-        const f = scoped(issueFilter(q.query, ctx.now, undefined, userMatch), ctx.projectId)
+        const f = scoped(issueFilter(q.query, ctx.now), ctx.projectId)
         const row = await ctx.db
           .prepare(
             `SELECT COUNT(*) AS value, COALESCE(SUM(i.first_seen < ?), 0) AS previous FROM issues i

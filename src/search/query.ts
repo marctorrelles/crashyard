@@ -1,5 +1,6 @@
 // Sentry's search syntax, turned into SQL over issues: `key:value` tokens and free text.
 // `is:unresolved level:error release:1.0.1 device:iPad* "audio engine" !os:Android times:>10 lastSeen:-24h has:user`
+import { userMatch } from './user'
 
 /** How long an issue reads as new, as Sentry's */
 export const NEW_FOR = 7 * 864e5
@@ -331,14 +332,10 @@ export type Filter = { where: string[]; params: unknown[]; projectSlugs: string[
 export const UNREAD =
   'NOT EXISTS (SELECT 1 FROM issue_views v WHERE v.email = ? AND v.issue_id = i.id AND v.at >= i.last_seen)'
 
-/** What `user:` and `user.<field>:` match, as hashes (`userMatch`, src/search/user.ts, server only); without it, as in
- *  the browser, no user matches */
-type UserMatch = (key: string, value: string) => { legacy: string; keys: string[] }
-const NO_USER: UserMatch = () => ({ legacy: 'none', keys: [] }) // never a hash, which is hex
 const isUserKey = (key: string) => key === 'user' || /^user\.(id|email|username|name)$/.test(key)
 
 /** Events of any of a key's values: the hash kept before 0021 (`user_hash`) or one of its fields' (`user_keys`) */
-function eventUsers(key: string, values: string[], userMatch: UserMatch): [string, unknown[]] {
+function eventUsers(key: string, values: string[]): [string, unknown[]] {
   const matches = values.map((v) => userMatch(key, v))
   const keys = matches.flatMap((m) => m.keys)
   // coalesce: an event with no user is a plain no, not null, so a negated search keeps it
@@ -353,7 +350,7 @@ function eventUsers(key: string, values: string[], userMatch: UserMatch): [strin
 }
 
 /** SQL conditions over `issues i` for a query. Unknown keys are tags (issue_tag_values): "had an event with it" */
-export function issueFilter(query: string, now: number, viewer?: string, userMatch: UserMatch = NO_USER): Filter {
+export function issueFilter(query: string, now: number, viewer?: string): Filter {
   const where: string[] = []
   const params: unknown[] = []
   const projectSlugs: string[] = []
@@ -424,7 +421,7 @@ export function issueFilter(query: string, now: number, viewer?: string, userMat
         'u.user_hash',
         matches.map((m) => m.legacy),
       )
-      const [eventsSql, hashes] = eventUsers(key, values, userMatch)
+      const [eventsSql, hashes] = eventUsers(key, values)
       add(
         `(EXISTS (SELECT 1 FROM issue_users u WHERE u.issue_id = i.id AND ${legacySql}) OR i.id IN (SELECT e.issue_id FROM events e WHERE ${eventsSql}))`,
         t.negate,
@@ -539,7 +536,7 @@ const EVENT_COLUMNS: Record<string, string> = {
  * SQL conditions over `events e`, for Explore and an issue's event search. Unknown keys are the event's own tags
  * (`event_tags`); words are text in its title and message, case-insensitive. Every value is a bound parameter
  */
-export function eventFilter(query: string, now: number, userMatch: UserMatch = NO_USER): Filter {
+export function eventFilter(query: string, now: number): Filter {
   const where: string[] = []
   const params: unknown[] = []
   const projectSlugs: string[] = []
@@ -571,7 +568,7 @@ export function eventFilter(query: string, now: number, userMatch: UserMatch = N
       continue
     }
     if (isUserKey(key)) {
-      const [sql, hashes] = eventUsers(key, values, userMatch)
+      const [sql, hashes] = eventUsers(key, values)
       add(`(${sql})`, t.negate, ...hashes)
       continue
     }
