@@ -39,6 +39,9 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
   bookmarks, saved searches and sign-in). Every POST server function in `src/fns.ts` names its least role,
   `.middleware([signedIn | member | admin | owner])`; `sign-in.test.ts` fails on one that doesn't. In Access mode
   everyone is an owner (Access's policy says who comes in).
+- Agent tokens (`cyp_`, `user_tokens`): only on `/mcp`, only in crashyard mode, as `Authorization: Bearer`; checked in
+  `src/server.ts` before the session, acting as their person with `tokenRole` (read: viewer; change: at most member),
+  `last_used_at` at most once a minute. Removing the person deletes them.
 - `sign-in.test.ts` on `test/fakes.ts`: the mode rule, dev, sessions (unknown, expired, a removed person, renewal and
   the cookie's flags), `/auth`'s Origin check, setup's code and once only, challenges once and for five minutes,
   invites once and expiry, recovery codes once, signing out, the last owner, the last way in, role order, passkey

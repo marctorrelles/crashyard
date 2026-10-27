@@ -6,6 +6,7 @@ import * as issues from '../data/issues'
 import { suspectCommits } from '../data/suspects'
 import { listLogs, RANGES, type Range } from '../data/logs'
 import { projectBySlug } from '../data/projects'
+import { type Role, reaches } from '../data/people'
 import { AGENTS_KEY, getSetting } from '../data/settings'
 import type { NormalizedEvent } from '../ingest/event'
 
@@ -17,7 +18,10 @@ type Tool = {
   changes?: true // resolves, ignores or notes: refused for agents unless Settings, Tokens lets them
   description: string
   inputSchema: Record<string, unknown>
-  run: (args: Record<string, unknown>, ctx: { db: D1Database; viewer: string; origin: string }) => Promise<string>
+  run: (
+    args: Record<string, unknown>,
+    ctx: { db: D1Database; viewer: string; role: Role; origin: string },
+  ) => Promise<string>
 }
 
 const string = (description: string) => ({ type: 'string', description })
@@ -270,17 +274,16 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
     case 'tools/call': {
       const tool = TOOLS.find((t) => t.name === rpc.params?.name)
       if (!tool) return failure(rpc.id, -32602, `No tool ${String(rpc.params?.name)}`)
-      // An agent, signed in with an Access service token, reads; it changes issues only once the deployment allows it
-      if (tool.changes && ctx.viewer.startsWith('service:') && !(await getSetting(ctx.db, AGENTS_KEY, false)))
-        return reply(rpc.id, {
-          content: [
-            {
-              type: 'text',
-              text: 'Agents can read but not change issues. Turn on Let agents change issues in Settings, Tokens.',
-            },
-          ],
-          isError: true,
-        })
+      // An agent with an Access service token changes issues only once the deployment allows it; one with an agent
+      // token as far as the token's scope and its person's role go
+      const refusal = !tool.changes
+        ? null
+        : ctx.viewer.startsWith('service:')
+          ? !(await getSetting(ctx.db, AGENTS_KEY, false)) &&
+            'Agents can read but not change issues. Turn on Let agents change issues in Settings, Tokens.'
+          : !reaches(ctx.role, 'member') &&
+            'This token can only read. Create one that can change issues in Settings, Agent tokens.'
+      if (refusal) return reply(rpc.id, { content: [{ type: 'text', text: refusal }], isError: true })
       try {
         const text = await tool.run((rpc.params?.arguments ?? {}) as Record<string, unknown>, ctx)
         return reply(rpc.id, { content: [{ type: 'text', text }] })
@@ -296,7 +299,8 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
   }
 }
 
-export async function handleMcp(request: Request, db: D1Database, viewer: string) {
+/** `who`: the email it acts as and the role it has (src/auth/AGENTS.md) */
+export async function handleMcp(request: Request, db: D1Database, who: { email: string; role: Role }) {
   if (request.method !== 'POST')
     return new Response('crashyard’s MCP server takes JSON-RPC over POST', { status: 405, headers: { Allow: 'POST' } })
   // Not from a web page: JSON only (a page can't send that cross-site without a preflight we don't answer)
@@ -312,7 +316,7 @@ export async function handleMcp(request: Request, db: D1Database, viewer: string
   } catch {
     return Response.json(failure(null, -32700, 'Parse error'), { status: 400 })
   }
-  const ctx = { db, viewer, origin: new URL(request.url).origin }
+  const ctx = { db, viewer: who.email, role: who.role, origin: new URL(request.url).origin }
   const calls = (Array.isArray(body) ? body : [body]) as Rpc[]
   const answers = []
   for (const rpc of calls) {

@@ -88,7 +88,8 @@ server, the build, or `tsr generate`): never edit it.
   and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
   `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload
   tokens with their project or All projects, who made them, when last used, Delete; Create token with a name and a
-  project, the token shown once; Agents: the MCP URL and Let agents change issues, `agents.can_change`), `usage` (30
+  project, the token shown once; Agents: the MCP URL, and with Access Let agents change issues, `agents.can_change`,
+  else where agent tokens are made), `usage` (30
   UTC days of events with rate-limited, filtered and failed, logs and transactions, each a chart and totals,
   `?project=`), `health` (the database against 10 GB, warning from 80%; stored files; the cron, late after 3 minutes; failed
   notifications, each by its kind's label from `KINDS`, "Metric alert" for any metric kind; envelopes pending and failed; the pruning backlog) and `about` (the version, a newer release,
@@ -112,7 +113,9 @@ server, the build, or `tsr generate`): never edit it.
   the newest 10 source map bundles) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
   recovery codes left and Make new codes, shown once; where they're signed in, This browser, Sign out each and Sign
   out everywhere else; with Access, who it signed in, and while no one is set up, Create passkey to become the
-  owner before switching), then, each saved at once through `savePreference` and read from the root's loader: `appearance` (the theme, `STYLES` in `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to
+  owner before switching), `agent-tokens` (crashyard's own sign-in only: a person's `cyp_` tokens for MCP with a
+  name, Read only or Read and change issues, and an expiry; the token and the `claude mcp add` command shown once;
+  Delete), then, each saved at once through `savePreference` and read from the root's loader: `appearance` (the theme, `STYLES` in `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to
   preview it, and System, Light, Dark, both applied at once), `date-and-time`
   (a time zone from `Intl.supportedValuesOf`, empty for the browser's, and a 12 or 24-hour clock), `stack-traces`
   (newest or oldest frame first, other frames open or not) and `home` (the overview's project and range). Each page saves only its own fields through `updateProject`, whose

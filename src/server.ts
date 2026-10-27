@@ -74,6 +74,18 @@ export default {
       })
       if (answer) return answer
     }
+    // An agent with its person's token (Settings, Agent tokens), on /mcp only
+    const bearer = request.headers.get('Authorization')?.match(/^Bearer (cyp_\S+)$/)?.[1]
+    if (url.pathname === '/mcp' && mode === 'crashyard' && bearer) {
+      const [{ handleMcp }, people] = await Promise.all([import('./api/mcp'), import('./data/people')])
+      const token = await people.userTokenOf(env.DB, bearer, now)
+      if (!token)
+        return new Response('That agent token isn’t valid anymore. Create a new one in Settings.', { status: 401 })
+      return handleMcp(request, env.DB, {
+        email: token.user.email,
+        role: people.tokenRole(token.user.role, token.scope),
+      })
+    }
     // The sign-in pages are open to anyone, and only to someone signed out
     const signInPage = mode === 'crashyard' && SIGN_IN_PAGES.test(url.pathname)
     if (signInPage && who) return Response.redirect(new URL('/', url), 303)
@@ -90,7 +102,7 @@ export default {
     }
     if (url.pathname === '/mcp' && who) {
       const { handleMcp } = await import('./api/mcp')
-      return handleMcp(request, env.DB, who.email)
+      return handleMcp(request, env.DB, who)
     }
     // The dashboard reads who's signed in from these headers only; any sent from outside are dropped
     const headers = new Headers()

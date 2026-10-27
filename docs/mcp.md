@@ -2,18 +2,34 @@
 
 crashyard runs an MCP server over Streamable HTTP at `/mcp`. An agent such as Claude Code can use it to investigate a
 crash from your terminal. It can search issues, read one with its stack trace, breadcrumbs and contexts, search logs,
-including by trace, and resolve, ignore or add a note to an issue. Every change it makes appears in the issue's
-activity as `service:<token id>`.
-
-Agents can read but not change issues until you allow it. To let an agent resolve, ignore or add notes, open
-Settings, then Tokens, and turn on **Let agents change issues**. The page also shows the MCP URL.
+including by trace, and resolve, ignore or add a note to an issue.
 
 The tools are `search_issues`, `get_issue`, `search_logs`, `resolve_issue`, `ignore_issue` and `add_note`.
 
 ## Give an agent access
 
-`/mcp` sits behind Cloudflare Access, like the dashboard. An agent can't sign in through a browser, so it uses an
-Access service token.
+An agent can't sign in through a browser, so it uses a token. Which one depends on how your crashyard signs people in.
+
+### With crashyard's own sign-in
+
+1. Open Settings, then **Agent tokens**, and choose **Create token**. Name it after the agent, choose whether it can
+   only read or also change issues, and when it expires.
+2. Copy the token. It's shown only once, with the command to add it to Claude Code:
+
+   ```sh
+   claude mcp add --transport http crashyard https://crashyard.example.com/mcp \
+     --header "Authorization: Bearer cyp_…"
+   ```
+
+The token acts as you. Every change it makes appears in the issue's activity under your email, and it can never do
+more than your role allows. A token that can only read can't resolve, ignore or add notes. Delete it on the same page
+to lock it out. Removing someone deletes their tokens too.
+
+### With Cloudflare Access
+
+`/mcp` sits behind Access, like the dashboard, so the agent uses an Access service token. It can read but not change
+issues until you allow it: open Settings, then Tokens, and turn on **Let agents change issues**. Every change it makes
+appears in the issue's activity as `service:<token id>`.
 
 1. In [one.dash.cloudflare.com](https://one.dash.cloudflare.com), go to Access, then Service credentials, then
    Service Tokens, and choose **Create Service Token**. Name it, for example `claude`, and choose how long it lasts.
@@ -34,7 +50,7 @@ the same page.
 
 ## Run it locally
 
-`pnpm dev` runs without Access, so `http://localhost:3000/mcp` answers anyone on your machine.
+`pnpm dev` signs everyone in as `dev@localhost`, so `http://localhost:3000/mcp` answers anyone on your machine.
 
 ```sh
 curl -s localhost:3000/mcp -H 'content-type: application/json' \

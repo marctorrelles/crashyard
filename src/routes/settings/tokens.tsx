@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi, Link, useRouter } from '@tanstack/react-router'
 import { IconKey, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -20,9 +20,11 @@ export const Route = createFileRoute('/settings/tokens')({
 })
 
 const ALL = 'all'
+const root = getRouteApi('__root__')
 
 function Tokens() {
   const { tokens, projects, agentsCanChange, origin, now } = Route.useLoaderData()
+  const { auth } = root.useLoaderData()
   const router = useRouter()
   const { save, saving } = useSave()
   const [made, setMade] = useState<string>()
@@ -131,34 +133,55 @@ function Tokens() {
         </div>
       </SettingsCard>
 
-      <SettingsCard
-        title="Agents"
-        description="Agents such as Claude Code reach crashyard over MCP, signed in with a Cloudflare Access service token."
-      >
-        <div className="grid gap-4">
+      {auth === 'crashyard' ? (
+        // Each person makes their own, acting as them
+        <SettingsCard
+          title="Agents"
+          description={
+            <>
+              Agents such as Claude Code reach crashyard over MCP with an agent token, which each person creates in{' '}
+              <Link to="/settings/agent-tokens" className="font-medium text-foreground underline underline-offset-2">
+                Agent tokens
+              </Link>
+              .
+            </>
+          }
+        >
           <div className="grid min-w-0 gap-2">
             <Label>MCP URL</Label>
             <Code text={`${origin}/mcp`} />
           </div>
-          <div className="grid gap-1">
-            <div className="flex items-center gap-3">
-              <Switch
-                id="agents"
-                checked={agentsCanChange}
-                disabled={saving}
-                onCheckedChange={(on) =>
-                  void save(
-                    () => saveAgentsCanChange({ data: { on } }),
-                    on ? 'Agents can change issues' : 'Agents can only read',
-                  )
-                }
-              />
-              <Label htmlFor="agents">Let agents change issues</Label>
+        </SettingsCard>
+      ) : (
+        <SettingsCard
+          title="Agents"
+          description="Agents such as Claude Code reach crashyard over MCP, signed in with a Cloudflare Access service token."
+        >
+          <div className="grid gap-4">
+            <div className="grid min-w-0 gap-2">
+              <Label>MCP URL</Label>
+              <Code text={`${origin}/mcp`} />
             </div>
-            <Hint>When it’s off, agents can search and read but can’t resolve, ignore or add notes.</Hint>
+            <div className="grid gap-1">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="agents"
+                  checked={agentsCanChange}
+                  disabled={saving}
+                  onCheckedChange={(on) =>
+                    void save(
+                      () => saveAgentsCanChange({ data: { on } }),
+                      on ? 'Agents can change issues' : 'Agents can only read',
+                    )
+                  }
+                />
+                <Label htmlFor="agents">Let agents change issues</Label>
+              </div>
+              <Hint>When it’s off, agents can search and read but can’t resolve, ignore or add notes.</Hint>
+            </div>
           </div>
-        </div>
-      </SettingsCard>
+        </SettingsCard>
+      )}
     </>
   )
 }

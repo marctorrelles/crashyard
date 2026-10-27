@@ -1593,3 +1593,37 @@ export const getInvitePage = createServerFn()
     const invite = await people.inviteOf(env.DB, data.token, Date.now())
     return invite && { inviter: invite.inviter, role: invite.role, email: invite.email, usable: invite.usable }
   })
+
+// Agent tokens: a person's `cyp_` tokens for MCP, acting as them as far as the token's scope goes
+
+export const getAgentTokens = createServerFn()
+  .middleware([signedIn])
+  .handler(async () => ({
+    tokens: await people.userTokensOf(env.DB, me()),
+    mcp: `${env.PUBLIC_URL?.replace(/\/$/, '') || origin()}/mcp`,
+    now: Date.now(),
+  }))
+
+export const createAgentToken = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const name = text(o.name, 80, 'The token name').trim()
+    if (!name) throw new Error('Give the token a name, such as the agent or machine that uses it.')
+    return {
+      name,
+      scope: oneOf(['read', 'change'] as const)(o.scope),
+      days: o.days === null ? null : Number(oneOf(['30', '90', '365'] as const)(String(o.days))),
+    }
+  })
+  .handler(({ data }) => {
+    const now = Date.now()
+    return people.createUserToken(env.DB, me(), data.name, data.scope, data.days ? now + data.days * 864e5 : null, now)
+  })
+
+export const revokeAgentToken = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(async ({ data }) => {
+    await people.revokeUserToken(env.DB, me(), data.id)
+  })

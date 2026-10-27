@@ -178,6 +178,24 @@ describe('people', () => {
     expect(await people.passkeysOf(db, ada.id)).toEqual([])
   })
 
+  it('acts for an agent token’s person until it expires or they’re removed, marking it used once a minute', async () => {
+    const db = sqliteD1()
+    const ada = await owner(db)
+    const bo = await owner(db, 'bo@example.com', 'admin')
+    const token = await people.createUserToken(db, bo.id, 'Claude', 'change', NOW + DAY, NOW)
+    expect(token).toMatch(/^cyp_/)
+    const found = await people.userTokenOf(db, token, NOW)
+    expect(found).toMatchObject({ user: { email: 'bo@example.com' }, scope: 'change' })
+    expect(people.tokenRole(found!.user.role, found!.scope)).toBe('member')
+    await people.userTokenOf(db, token, NOW + 30_000)
+    expect((await people.userTokensOf(db, bo.id))[0].last_used_at).toBe(NOW)
+    expect(await people.userTokenOf(db, token, NOW + DAY)).toBeNull()
+    const other = await people.createUserToken(db, bo.id, 'CI', 'read', null, NOW)
+    await people.removeUser(db, bo.id)
+    expect(await people.userTokenOf(db, other, NOW)).toBeNull()
+    expect(ada.role).toBe('owner')
+  })
+
   it('reads roles in order', () => {
     expect(people.reaches('owner', 'admin')).toBe(true)
     expect(people.reaches('member', 'member')).toBe(true)
