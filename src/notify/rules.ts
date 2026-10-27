@@ -26,71 +26,80 @@ export function frequencyOf(json: string | null | undefined): Frequency | null {
   }
 }
 
-/** An issue's events and distinct users in a window, up to and without the event just stored */
-export type IssueStats = { events: number; eventsBefore: number; users: number; usersBefore: number }
+/** An issue's events and distinct users in a window ending at an event */
+export type IssueStats = { events: number; users: number }
 
-/** What the event reached: the route's limit, from below it to it, so a steady count past it doesn't fire again */
-export function crossedBy(f: Frequency, stats: IssueStats): 'events' | 'users' | undefined {
-  if (f.events && stats.eventsBefore < f.events && stats.events >= f.events) return 'events'
-  if (f.users && stats.usersBefore < f.users && stats.users >= f.users) return 'users'
+/** What reached the route's limit in the window, if anything: the count at it or over it */
+function reachedBy(f: Frequency, stats: IssueStats): 'events' | 'users' | undefined {
+  if (f.events && stats.events >= f.events) return 'events'
+  if (f.users && stats.users >= f.users) return 'users'
   return undefined
-}
-
-export const frequencyCrossed = (route: Pick<Route, 'frequency'>, stats: IssueStats): boolean => {
-  const f = frequencyOf(route.frequency)
-  return !!f && !!crossedBy(f, stats)
 }
 
 export type StoredEvent = {
   issueId: number
   issueCount: number // the issue's count with this event: a window can't hold more
-  eventId: string
   received: number
-  userHash?: string
-  kept: boolean // false when spike protection counted it without storing it, so it isn't in `events`
 }
 
 /**
- * An issue's events and users in the window ending at this event, from `events` by `events_issue`. Each count reads
- * at most one more than the limit: only whether the event took it from below to the limit matters
+ * An issue's events and users in the window ending at this event. Events from `issue_minutes`, every one spike
+ * protection counted too, over the window's whole minutes up to the event's own; users from the events kept, by
+ * `events_issue`, reading at most one more than the limit
  */
 export async function windowStats(db: D1Database, at: StoredEvent, f: Frequency): Promise<IssueStats> {
-  const from = at.received - f.minutes * 60_000
   let events = 0
   if (f.events && at.issueCount >= f.events) {
+    const minute = Math.floor(at.received / 60_000)
     const row = await db
       .prepare(
-        'SELECT COUNT(*) AS n FROM (SELECT 1 FROM events WHERE issue_id = ? AND received > ? AND received <= ? LIMIT ?)',
+        'SELECT COALESCE(SUM(count), 0) AS n FROM issue_minutes WHERE issue_id = ? AND minute > ? AND minute <= ?',
       )
-      .bind(at.issueId, from, at.received, f.events + 1)
+      .bind(at.issueId, minute - f.minutes, minute)
       .first<{ n: number }>()
     events = row?.n ?? 0
   }
   let users = 0
-  let usersBefore = 0
   if (f.users) {
-    const [distinct, seen] = await db.batch<{ n: number }>([
-      db
-        .prepare(
-          `SELECT COUNT(*) AS n FROM (SELECT DISTINCT user_hash FROM events
-           WHERE issue_id = ? AND received > ? AND received <= ? AND user_hash IS NOT NULL LIMIT ?)`,
-        )
-        .bind(at.issueId, from, at.received, f.users + 1),
-      db
-        .prepare(
-          `SELECT COUNT(*) AS n FROM (SELECT 1 FROM events
-           WHERE issue_id = ? AND received > ? AND received <= ? AND user_hash = ? AND id != ? LIMIT 1)`,
-        )
-        .bind(at.issueId, from, at.received, at.userHash ?? '', at.eventId),
-    ])
-    users = distinct.results[0]?.n ?? 0
-    const added = at.kept && !!at.userHash && !seen.results[0]?.n
-    usersBefore = users - (added ? 1 : 0)
+    const row = await db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM (SELECT DISTINCT user_hash FROM events
+         WHERE issue_id = ? AND received > ? AND received <= ? AND user_hash IS NOT NULL LIMIT ?)`,
+      )
+      .bind(at.issueId, at.received - f.minutes * 60_000, at.received, f.users + 1)
+      .first<{ n: number }>()
+    users = row?.n ?? 0
   }
-  return { events, eventsBefore: events - (at.kept && events > 0 ? 1 : 0), users, usersBefore }
+  return { events, users }
 }
 
-/** The routes whose frequency this event reached, with what it reached, for a `frequency` notice each */
+/**
+ * Whether the route may fire for the issue: it hasn't within the window before this event. Recorded in the same
+ * statement (`route_fires.frequency_at`, apart from the wait's `at`), so events stored at once, or out of order, fire
+ * once
+ */
+async function mayFire(db: D1Database, routeId: number, issueId: number, received: number, minutes: number) {
+  try {
+    const row = await db
+      .prepare(
+        `INSERT INTO route_fires (route_id, issue_id, at, frequency_at) VALUES (?, ?, 0, ?)
+         ON CONFLICT DO UPDATE SET frequency_at = excluded.frequency_at
+         WHERE frequency_at IS NULL OR frequency_at <= excluded.frequency_at - ? RETURNING 1`,
+      )
+      .bind(routeId, issueId, received, minutes * 60_000)
+      .first()
+    return !!row
+  } catch (error) {
+    // Can't record it: an alert too many beats one missed
+    console.error('notify: route_fires frequency', error)
+    return true
+  }
+}
+
+/**
+ * The routes whose frequency fires on this event, with what it reached, for a `frequency` notice each: the count in
+ * the window is at the limit or over it, and the route hasn't fired for the issue within the window
+ */
 export async function frequencyHits(
   db: D1Database,
   routes: Route[],
@@ -100,9 +109,9 @@ export async function frequencyHits(
   for (const route of routes) {
     const f = frequencyOf(route.frequency)
     if (!f) continue
-    const stats = await windowStats(db, at, f)
-    const what = crossedBy(f, stats)
-    if (what) hits.push({ route, rate: { count: what === 'events' ? f.events! : f.users!, what, minutes: f.minutes } })
+    const what = reachedBy(f, await windowStats(db, at, f))
+    if (what && (await mayFire(db, route.id, at.issueId, at.received, f.minutes)))
+      hits.push({ route, rate: { count: what === 'events' ? f.events! : f.users!, what, minutes: f.minutes } })
   }
   return hits
 }

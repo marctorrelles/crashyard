@@ -605,10 +605,7 @@ async function noticesFor(
     ? await frequencyHits(env.DB, routes, {
         issueId: stored.issue.id,
         issueCount: stored.issue.count,
-        eventId: event.id,
         received: event.received,
-        userHash: event.userHash,
-        kept: stored.stored,
       })
     : []
   for (const { route, rate } of hits) notices.push({ ...base, kind: 'frequency', routeId: route.id, rate })

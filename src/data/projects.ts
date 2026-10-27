@@ -387,7 +387,19 @@ export async function pruneEvents(db: D1Database, now: number, files?: R2Bucket,
         .run(),
     ),
   )
-  return { events, attachments, issues, hours }
+  // Events per minute, for frequency routes, whose windows are a day at most
+  const minutes = await inBatches(deadline, async () =>
+    changes(
+      await db
+        .prepare(
+          `DELETE FROM issue_minutes WHERE (issue_id, minute) IN (
+             SELECT issue_id, minute FROM issue_minutes WHERE minute < ? LIMIT 1000)`,
+        )
+        .bind(Math.floor((now - 86_400_000) / 60_000))
+        .run(),
+    ),
+  )
+  return { events, attachments, issues, hours, minutes }
 }
 
 /**

@@ -797,7 +797,8 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                   </Select>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Frequency reached alerts once, on the event that takes the issue to that many.
+                  Frequency reached alerts on the event that takes the issue to that many, then not again for that long.
+                  {frequency.what === 'users' && ' Users are counted from the events kept, at most 60 a minute.'}
                 </p>
               </fieldset>
             )}

@@ -92,7 +92,7 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   first 100), so a search for such a value doesn't find the issue. An issue
   found with a count of 0 was made by a try whose batch then failed: the event is still its first (`isNew`, a "New
   issue" alert and the `created` activity); two first events racing may both say so. The batch also upserts
-  `event_hours` (every event, kept or not) and writes `events.user_hash`. A new issue's priority is the project's for
+  `event_hours` and `issue_minutes` (every event, kept or not) and writes `events.user_hash`. A new issue's priority is the project's for
   its level (`priority.ts`: `priorityFor`, `projects.priorities`, else `PRIORITY_BY_LEVEL`); a project's `priorities`
   comes with it from ingest's cached read. An ignore `until_users` ends on an event from a user the issue hadn't had
   (one read of `issue_users`, only then) that takes `user_count` to `ignore_until_users`; `until_escalating` never ends

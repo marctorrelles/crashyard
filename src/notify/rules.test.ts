@@ -3,7 +3,7 @@ import { sqliteD1 } from '../../test/fakes'
 import { normalizeEvent } from '../ingest/event'
 import { type Project, storeEvent } from '../ingest/store'
 import type { Route } from './notice'
-import { frequencyCrossed, frequencyHits, matchesFilters, tagFilterError, throttled } from './rules'
+import { frequencyHits, matchesFilters, tagFilterError, throttled } from './rules'
 
 const MINUTE = 60_000
 const DAY = 864e5
@@ -42,10 +42,7 @@ async function firings(r: Route, times: number[], user?: (i: number) => string) 
     const hits = await frequencyHits(db, [r], {
       issueId: stored.issue.id,
       issueCount: stored.issue.count,
-      eventId: e.id,
       received: at,
-      userHash: e.userHash,
-      kept: stored.stored,
     })
     if (hits.length) fired.push(i + 1)
   }
@@ -74,18 +71,21 @@ describe('frequency', () => {
     expect(await firings(r, times, (i) => `user-${i % 3}`)).toEqual([])
   })
 
-  it('reads a limit crossed only from below it', () => {
-    const r = route()
-    expect(frequencyCrossed(r, { events: 50, eventsBefore: 49, users: 0, usersBefore: 0 })).toBe(true)
-    expect(frequencyCrossed(r, { events: 51, eventsBefore: 50, users: 0, usersBefore: 0 })).toBe(false)
-    expect(
-      frequencyCrossed(route({ frequency: '{"events":50,"minutes":7}' }), {
-        events: 50,
-        eventsBefore: 49,
-        users: 0,
-        usersBefore: 0,
-      }),
-    ).toBe(false)
+  it('fires once when events are stored out of order', async () => {
+    // 48, then one received at 60 s stored before one received at 50 s, as a slow symbolication does, then 20 more
+    const times = [
+      ...Array.from({ length: 48 }, (_, i) => T0 + i * 1000),
+      T0 + 60_000,
+      T0 + 50_000,
+      ...Array.from({ length: 20 }, (_, i) => T0 + 70_000 + i * 1000),
+    ]
+    expect(await firings(route(), times)).toEqual([51])
+  })
+
+  it('counts events past spike protection, firing once for 400 a minute against 1,000 in 10 minutes', async () => {
+    // 400 a minute for 7.5 minutes: spike protection keeps 60 a minute, the window counts them all
+    const times = Array.from({ length: 3000 }, (_, i) => T0 + i * 150)
+    expect(await firings(route({ frequency: '{"events":1000,"minutes":10}' }), times)).toEqual([1000])
   })
 })
 

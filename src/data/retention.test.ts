@@ -30,6 +30,8 @@ describe('retention', () => {
       INSERT INTO attachments (event_id, project_id, filename, size, r2_key, received) VALUES
         ('${'0'.repeat(31)}1', 1, 'old.png', 1, 'attachments/1/old.png', ${old}),
         ('${'f'.repeat(32)}', 1, 'new.png', 1, 'attachments/1/new.png', ${NOW});
+      INSERT INTO issue_minutes (issue_id, minute, count) VALUES
+        (2, ${Math.floor((NOW - 2 * DAY) / 60_000)}, 3), (2, ${Math.floor(NOW / 60_000)}, 1);
     `)
     await files.put('attachments/1/old.png', 'x')
     await files.put('attachments/1/new.png', 'x')
@@ -37,12 +39,19 @@ describe('retention', () => {
 
     const started = Date.now()
     const deadline = started + 20_000
-    expect(await pruneEvents(db, NOW, files, deadline)).toEqual({ events: 12000, attachments: 1, issues: 1, hours: 0 })
+    expect(await pruneEvents(db, NOW, files, deadline)).toEqual({
+      events: 12000,
+      attachments: 1,
+      issues: 1,
+      hours: 0,
+      minutes: 1,
+    })
     expect(await pruneLogs(db, NOW, deadline)).toEqual({ logs: 12000 })
     expect(Date.now() - started).toBeLessThan(20_000)
 
     expect([count('events'), count('logs'), count('attachments'), count('issues')]).toEqual([1, 1, 1, 1])
     expect([count('issue_days'), count('issue_tag_values'), count('issue_activity')]).toEqual([1, 0, 0])
+    expect(count('issue_minutes')).toBe(1)
     expect([...files.objects.keys()]).toEqual(['attachments/1/new.png'])
   })
 
@@ -54,6 +63,7 @@ describe('retention', () => {
       attachments: 0,
       issues: 0,
       hours: 0,
+      minutes: 0,
     })
   })
 })

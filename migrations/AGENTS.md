@@ -51,3 +51,8 @@ in `pnpm run deploy`).
   (`check_ins_trace`), `monitors.muted_at`, `projects.release_crash_free_min` and `release_new_issues_max`. Nothing is
   backfilled: sessions before it have no users, transactions no vitals. Every column is nullable, so a worker from
   before 0017 runs as it did.
+- 0018: `issue_minutes` (every event of an issue per minute, kept or only counted, for frequency routes' windows; one
+  upsert in `storeEvent`'s batch, so an event writes one more row; pruned after a day by `pruneEvents`, no index on
+  `minute` as the table holds about a day; no backfill, so windows open just after it count from then) and
+  `route_fires.frequency_at` (when the route's frequency last fired for the issue). A worker from before 0018 writes no
+  `issue_minutes` and fires as it did.

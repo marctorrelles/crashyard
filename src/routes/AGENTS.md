@@ -130,7 +130,8 @@ server, the build, or `tsr generate`): never edit it.
 - `notifications.tsx`: channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, or what to set up first
   while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours in the browser's time), routes, each with a
-  test send (with Frequency reached, "Only when an issue gets" N events or users in a window; releases as globs; tags
+  test send (with Frequency reached, "Only when an issue gets" N events or users in a window, its hint saying it
+  alerts again only after that long and, for users, that they count from the events kept; releases as globs; tags
   through `SearchBar`, checked on save by `tagFilterError`; "Wait before alerting again"; the row sums them up), and
   metric alerts: each with its state, its value and when it changed; Create metric alert opens a form with name,
   project, metric, filter, window of 1, 6 or 24 hours, direction and the warning and critical values, in percent or

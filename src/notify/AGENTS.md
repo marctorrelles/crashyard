@@ -15,12 +15,15 @@ environment, each with its own thresholds, and send them to channels.
   hour's most common release, environment and level and no tags: a tag filter on another key doesn't match it, a
   negated one does.
 - `rules.ts`: routes on rates. `frequencyOf` (`{ events?, users?, minutes }`, `WINDOWS` 5, 10, 30, 60, 1440),
-  `windowStats` (the issue's events and distinct `user_hash` in the window ending at the event, from `events` by
-  `events_issue`, each count reading at most the limit plus one; skipped when the issue's whole count is under it),
-  `crossedBy`/`frequencyCrossed` (from below the limit to it, so a steady count past it doesn't fire again; it can
-  fire again once the window drops under and climbs back, which the route's wait holds), `frequencyHits` (what
-  `noticesFor` in `src/api/ingest.ts` calls per event, so on the cron's retries too, with the event's own `received`).
-  Events spike protection doesn't keep aren't in `events`: a frequency counts at most 60 a minute. `matchesFilters`:
+  `windowStats` (the issue's events in the window ending at the event: `SUM(count)` of `issue_minutes` over the
+  window's minutes up to the event's own, every event spike protection counted too, so exact to the minute and
+  skipped when the issue's whole count is under the limit; distinct `user_hash` from `events` by `events_issue`,
+  reading at most the limit plus one, so users count from the events kept, at most 60 a minute, as the form says),
+  `frequencyHits` (what `noticesFor` in `src/api/ingest.ts` calls per event, so on the cron's retries too, with the
+  event's own `received`): a route fires when the window's count is at the limit or over it and it hasn't fired for
+  the issue within the window: `mayFire`, one upsert on `route_fires.frequency_at` (0018) with `WHERE frequency_at
+<= received - window … RETURNING`, as `throttled`, so events stored at once or out of order fire once. Its own
+  column, as `at` is the wait's, set by every kind; a row it inserts has `at` 0, which no wait holds. `matchesFilters`:
   release globs and a tag filter in the search's grammar (`tokenize`): `key:value`, `!`, lists, `has:`, `*` globs,
   case-sensitive; a key reads its tag, else `release`, `environment`, `level`, `os`, `device`, and also `<key>.name`
   (so `os:iOS` matches `os.name`, `os` holding the version too). `tagFilterError` refuses words, comparisons and the
@@ -57,5 +60,5 @@ environment, each with its own thresholds, and send them to channels.
   Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them after 30 days.
 
 `notify.test.ts` covers routes, thresholds, frequency and metric kinds, filters, channel formats, quiet hours and the
-signed links. `rules.test.ts` (the gate: 50 events in 10 minutes fire once, 365 one a day never; users; the wait;
-filters) and `metrics.test.ts` (crossing, staying, recovering, below, logs) run on `test/fakes.ts`.
+signed links. `rules.test.ts` (the gate: 50 events in 10 minutes fire once, 365 one a day never; out of order and past spike
+protection, once each; users; the wait; filters) and `metrics.test.ts` (crossing, staying, recovering, below, logs) run on `test/fakes.ts`.

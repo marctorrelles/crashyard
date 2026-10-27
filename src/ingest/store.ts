@@ -269,6 +269,12 @@ export async function storeEvent(
          ON CONFLICT DO UPDATE SET count = count + 1`,
       )
       .bind(project.id, issue.id, now - (now % 3_600_000), event.level, event.release ?? '', event.environment ?? ''),
+    // Every event too, per minute: frequency routes' windows read these
+    db
+      .prepare(
+        'INSERT INTO issue_minutes (issue_id, minute, count) VALUES (?, ?, 1) ON CONFLICT DO UPDATE SET count = count + 1',
+      )
+      .bind(issue.id, minute),
   ]
   if (keep) {
     statements.push(

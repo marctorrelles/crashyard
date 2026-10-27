@@ -17,7 +17,7 @@ helpers (`change`).
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
   a batch deletes nothing or the deadline, the cron's shared one (`PRUNE_BUDGET`, 20 s, when called alone); `inBatches`;
   `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
-  hour, 1000 a batch), `dsnOf` (a project id and a key), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
+  hour, 1000 a batch, then `issue_minutes` past a day, 1000 a batch), `dsnOf` (a project id and a key), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
   Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
