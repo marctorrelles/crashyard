@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
-import { statusPage } from './monitors'
+import { addUpdate, createPost, statusPage } from './status'
 
 const DAY = 86_400_000
 const now = Date.UTC(2026, 9, 27, 12)
@@ -30,5 +30,52 @@ describe('statusPage', () => {
     // A project with nothing shown has no page, the same as one that doesn't exist
     expect(await statusPage(db, 'quiet', now)).toBeNull()
     expect(await statusPage(db, 'nope', now)).toBeNull()
+  })
+
+  it('shows what the team posts, where each stands, and never who posted it', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'quiet', 'Quiet', 'k', 0)")
+    const post = (title: string, impact: 'minor' | 'notice' | 'maintenance', at: number, window?: [number, number]) =>
+      createPost(
+        db,
+        1,
+        {
+          title,
+          impact,
+          state: impact === 'minor' ? 'investigating' : 'update',
+          message: `About ${title}`,
+          starts: window?.[0] ?? null,
+          ends: window?.[1] ?? null,
+        },
+        'ana@example.com',
+        at,
+      )
+    const slow = await post('Slow checkouts', 'minor', now - 3600_000)
+    await addUpdate(db, slow, 'identified', 'A full disk', 'ana@example.com', now - 1800_000)
+    const old = await post('Login errors', 'minor', now - 40 * DAY)
+    await addUpdate(db, old, 'resolved', 'Fixed', 'ana@example.com', now - 40 * DAY + 1)
+    await post('Database upgrade', 'maintenance', now - DAY, [now + DAY, now + DAY + 3600_000])
+    await post('Last week’s upgrade', 'maintenance', now - 8 * DAY, [now - 7 * DAY, now - 7 * DAY + 3600_000])
+    await post('New status page', 'notice', now - 60_000)
+
+    // No uptime check shown, yet the posts make a page
+    const page = await statusPage(db, 'quiet', now)
+    expect(page?.posts.map((p) => [p.title, p.phase])).toEqual([
+      ['Database upgrade', 'upcoming'],
+      ['New status page', 'open'],
+      ['Slow checkouts', 'open'],
+      ['Last week’s upgrade', 'past'],
+    ])
+    expect(page?.posts[2].updates.map((u) => u.state)).toEqual(['identified', 'investigating'])
+    expect(JSON.stringify(page)).not.toContain('ana@example.com')
+    // Resolved, it moves to the past; another update opens it again
+    await addUpdate(db, slow, 'resolved', 'Done', 'ana@example.com', now)
+    expect((await statusPage(db, 'quiet', now + 1))?.posts.find((p) => p.title === 'Slow checkouts')?.phase).toBe(
+      'past',
+    )
+    await addUpdate(db, slow, 'monitoring', 'Watching it', 'ana@example.com', now + 2)
+    expect((await statusPage(db, 'quiet', now + 3))?.posts.find((p) => p.title === 'Slow checkouts')?.phase).toBe(
+      'open',
+    )
   })
 })

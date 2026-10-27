@@ -19,6 +19,7 @@ import * as releases from './data/releases'
 import * as searches from './data/searches'
 import * as settings from './data/settings'
 import * as source from './data/source'
+import * as status from './data/status'
 import * as suggestions from './data/suggest'
 import * as suspectsData from './data/suspects'
 import * as tokens from './data/tokens'
@@ -1646,7 +1647,73 @@ export const getSignInPage = createServerFn().handler(async () => ({ github: !!(
 // name, never their addresses (src/data/monitors.ts statusPage)
 export const getStatusPage = createServerFn()
   .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
-  .handler(({ data }) => monitors.statusPage(env.DB, data.slug, Date.now()))
+  .handler(({ data }) => status.statusPage(env.DB, data.slug, Date.now()))
+
+// What a project's status page shows and says, for the team
+export const getStatusPosts = createServerFn()
+  .middleware([signedIn])
+  .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
+  .handler(async ({ data }) => {
+    const project = await projects.projectBySlug(env.DB, data.slug)
+    if (!project) throw new Error('That project no longer exists.')
+    const now = Date.now()
+    return {
+      checks: await status.checksOf(env.DB, project.id),
+      posts: await status.postsOf(env.DB, project.id, now),
+      now,
+    }
+  })
+
+const statusMessage = (v: unknown) => {
+  const m = text(v, 5000, 'The message').trim()
+  if (!m) throw new Error('Write a message to post.')
+  return m
+}
+
+export const createStatusPost = createServerFn({ method: 'POST' })
+  .middleware([member])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const impact = oneOf(Object.keys(status.IMPACTS) as status.Impact[])(o.impact)
+    const title = text(o.title, 120, 'The title').trim()
+    if (!title) throw new Error('Give it a title.')
+    const maintenance = impact === 'maintenance'
+    const starts = maintenance ? int(o.starts, 0, Number.MAX_SAFE_INTEGER, 'The start') : null
+    const ends = maintenance ? int(o.ends, 0, Number.MAX_SAFE_INTEGER, 'The end') : null
+    if (starts !== null && ends! <= starts) throw new Error('Maintenance ends after it starts. Check both times.')
+    return {
+      slug: text(o.slug, 60),
+      title,
+      impact,
+      state: oneOf(status.STATES_FOR[impact])(o.state),
+      message: statusMessage(o.message),
+      starts,
+      ends,
+    }
+  })
+  .handler(async ({ data: { slug, ...post } }) => {
+    const project = await projects.projectBySlug(env.DB, slug)
+    if (!project) throw new Error('That project no longer exists.')
+    return status.createPost(env.DB, project.id, post, viewer(), Date.now())
+  })
+
+export const addStatusUpdate = createServerFn({ method: 'POST' })
+  .middleware([member])
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), state: text(o.state, 20), message: statusMessage(o.message) }
+  })
+  .handler(async ({ data }) => {
+    const post = await status.postOf(env.DB, data.id)
+    if (!post) throw new Error('That post was deleted.')
+    const state = oneOf(status.STATES_FOR[post.impact])(data.state)
+    await status.addUpdate(env.DB, post.id, state, data.message, viewer(), Date.now())
+  })
+
+export const deleteStatusPost = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => status.deletePost(env.DB, data.id).then(() => undefined))
 
 // Before anyone is set up, the Workers plan too, so the owner knows from the start what needs Paid
 export const getSetupPage = createServerFn().handler(async () => {

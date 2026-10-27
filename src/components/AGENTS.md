@@ -68,9 +68,7 @@
   dash reading Not reported when the window's events name no user; a chart, a query in
   another unit on a second axis, averages and percentiles as unstacked lines; a table with a column per group field
   and per query, Change and share for one query; issues; markdown; what went wrong; a series or the first field's value
-  opens the logs or issues with it added, for logs and events), `Markdown` (no library: paragraphs, line breaks,
-  `**bold**`, http and https links, lists of `-`, `*` or `1.`; nothing else, as React elements, no HTML),
-  `WidgetActions` (edit mode: a grip, edit, duplicate, up, down, remove; 40 px on a phone), `WidgetViewer` (a widget
+  opens the logs or issues with it added, for logs and events), `WidgetActions` (edit mode: a grip, edit, duplicate, up, down, remove; 40 px on a phone), `WidgetViewer` (a widget
   full width in a dialog, then its numbers as a table sortable by any column and paged by 20, scrolling sideways
   inside its border on a phone (`min-w-0` on the dialog's grid items): a bucket a row for a
   chart, a group for a table, an issue for a list; a table or list isn't drawn twice; Open in Issues, Logs,
@@ -133,6 +131,8 @@
   group), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also New-project defaults), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
+- `markdown.tsx`: `Markdown` (no library: paragraphs, line breaks, `**bold**`, http and https links, lists of `-`,
+  `*` or `1.`; nothing else, as React elements, no HTML), for markdown widgets and status page posts.
 - `plan.tsx`: `usePlan` (the Workers plan from `getPlan` after the page loads, undefined meanwhile, null when it
   couldn't be found; `recheck`) `PaidNote`, the amber note, for `/setup`, which has the plan from its loader; and `NeedsPaid`, that note shown only on Workers Free saying what doesn't work
   there (Debug files, Connect an app's Workers card, Import from Sentry).

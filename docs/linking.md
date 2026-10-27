@@ -190,6 +190,11 @@ To share how a service is doing, open the uptime check and turn on "Show on the 
 is then at `/status/<project>`, open to anyone with the link. It shows each check you chose by name, whether it's up,
 its last 30 days and its incidents. It never shows the address being checked or why a check failed.
 
+To tell people more, open the project's settings and choose Status page. There you pick the checks it shows and post
+to it: an incident, which some or all services feel, a notice, or planned maintenance with its start and end. Add
+updates as things change, such as Identified, Monitoring and Resolved. Messages can have bold text, links and lists.
+The page names no one who posted. Resolved posts and ended maintenance stay on the page for 30 days.
+
 Errors the job raises inside `Sentry.withMonitor` share its check-ins' trace, and are listed on the monitor under
 "Errors during this job". A monitor that keeps failing for 14 days is muted until it recovers.
 

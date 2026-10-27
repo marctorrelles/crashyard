@@ -74,3 +74,6 @@ in `pnpm run deploy`).
 - 0025: `monitors.public` (0), an uptime check on its project's status page. A worker from before has no status page.
 - 0026: `sentry_imports`, each Sentry issue imported into a project and the issue it became, so importing again
   skips it. A new table: a worker from before ignores it.
+- 0027: `status_posts` (a project's incidents, notices and maintenance, `impact`; maintenance has its window) and
+  `status_updates` (each post's updates, `state`, the markdown message and who posted it). New tables: a worker from
+  before shows no posts.

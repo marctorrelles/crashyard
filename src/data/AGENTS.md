@@ -102,8 +102,15 @@ helpers (`change`).
   `log_attributes`' primary key, temp B-trees for the groups; `log_hours` by its primary key (a project's) or
   `log_hours_hour`, the part-hours by `logs_time` (a multi-index OR). `pruneLogs` (the hourly cron, in the same
   budget): logs past their project's retention, 1000 a batch until done, and the hours of `log_hours` wholly past it.
-- `monitors.ts`: `statusPage` and `setPublic` (`status.test.ts`: only chosen uptime checks, nothing of their URLs or
-  errors), the monitors page (each with its last 30 results), one monitor's history and incidents (with
+- `status.ts`: a project's status page. `statusPage` (no sign-in: the uptime checks with `public` on, their state,
+  30 UTC days, incidents, and the posts; never a URL, why a check failed or who posted; null when it shows nothing,
+  as for no such project) and the posts (0027): `IMPACTS` (minor, major, notice, maintenance), `STATES_FOR` (an
+  incident's investigating, identified, monitoring, resolved; a notice's or maintenance's update, resolved, shown as
+  Completed for maintenance, `stateLabel`), `createPost` (the post and its first update), `addUpdate` (resolved
+  closes it, any other state opens it again), `deletePost`, `postsOf` (open, or ended in 30 days, newest first, each
+  with `phase`: open, upcoming, ongoing, past; maintenance ends at `ends_at` unless resolved first), `checksOf`.
+  `status.test.ts`: only chosen checks, nothing of their URLs or errors, the posts' phases, no poster's email.
+- `monitors.ts`: `setPublic`, the monitors page (each with its last 30 results), one monitor's history and incidents (with
   `uptime`, the share of results that passed, or of finished runs that were ok, over 24 hours, 7 and 30 days, null
   with none; `p95`, `p95Series` nearest rank, per hour over 24 hours for an uptime check's response times, per day
   over 30 days for a job's durations; `environments`; `errors`, the newest 20 events naming its slug in the
