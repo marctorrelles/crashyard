@@ -17,10 +17,11 @@ server, the build, or `tsr generate`): never edit it.
 - `signin.tsx`, `setup.tsx`, `invite.$token.tsx`: crashyard's own sign-in pages, the only ones open while signed out
   (`src/server.ts`), drawn without the sidebar (the root renders `Layout` only with a viewer; `getSidebar` returns
   nothing of the deployment's without one). Their loaders (`getSetupPage`, `getInvitePage`) need no role and run
-  only in the server render, as every move from them is a whole page load. `/signin`: Sign in with a passkey, and Lost
+  only in the server render, as every move from them is a whole page load. `/signin` (`getSignInPage`): Sign in with a passkey, Sign in with GitHub when it's set up, and Lost
   your passkey? Use a recovery code (email and code); `?next=` is where it goes after. `/setup`: the setup code, name
   and email, while there's no one (else Sign in; without `SETUP_CODE`, how to set it). `/invite/<token>`: who invited
-  them and as what, a name and email (the invite's, when it names one), or that it can't be used and who to ask.
+  them and as what, a name and email (the invite's, when it names one), Join with GitHub when it's set up, or that it
+  can't be used and who to ask. `?error=` on `/signin` and an invite says what went wrong with GitHub.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
@@ -83,7 +84,9 @@ server, the build, or `tsr generate`): never edit it.
   where a page elsewhere says `sm:`, `@3xl:` for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. The deployment's pages, the group "crashyard": `people` (owners only, and only listed for them with crashyard's own
   sign-in: everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove
   after a confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the
-  invites waiting, each with Withdraw invite), `general`
+  invites waiting, each with Withdraw invite; Sign in with GitHub: an optional organization and Add Sign in with
+  GitHub, which posts the app's manifest to GitHub, back with `?github=added|stale|failed` as a toast; once on, the
+  app linked on GitHub and Remove Sign in with GitHub), `general`
   (public URL, and how people sign in or Access's values, read-only, each saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
   and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
   `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload

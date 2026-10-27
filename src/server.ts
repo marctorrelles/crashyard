@@ -62,6 +62,16 @@ export default {
     const mode = authMode(env)
     const now = Date.now()
     const who = await whoIs(request, env, mode, import.meta.env.DEV, now)
+    const github = mode === 'crashyard' && url.pathname.match(/^\/auth\/github\/(\w+)$/)
+    if (github && request.method === 'GET') {
+      const [{ handleGitHub }, { relyingParty }] = await Promise.all([
+        import('./auth/github'),
+        import('./auth/passkeys'),
+      ])
+      const { origin } = relyingParty(request, env, import.meta.env.DEV)
+      const answer = await handleGitHub(github[1], { request, db: env.DB, base: origin, who, now })
+      if (answer) return answer
+    }
     if (url.pathname.startsWith('/auth/')) {
       const { handleAuth } = await import('./auth/passkeys')
       const answer = await handleAuth(url.pathname.slice('/auth/'.length), {

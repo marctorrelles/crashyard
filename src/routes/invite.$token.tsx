@@ -1,10 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { NewPerson, SignInFrame } from '@/components/sign-in'
+import { IconBrandGithub } from '@tabler/icons-react'
+import { GITHUB_ERRORS, NewPerson, Or, SignInFrame } from '@/components/sign-in'
 import { Button } from '@/components/ui/button'
 import { ROLE_LABELS } from '@/data/people'
 import { getInvitePage } from '@/fns'
 
 export const Route = createFileRoute('/invite/$token')({
+  validateSearch: (s: Record<string, unknown>): { error?: string } => ({
+    error: typeof s.error === 'string' ? s.error : undefined,
+  }),
   loader: ({ params }) => getInvitePage({ data: { token: params.token } }),
   head: () => ({ meta: [{ title: 'Join · crashyard' }] }),
   component: Invite,
@@ -14,6 +18,7 @@ export const Route = createFileRoute('/invite/$token')({
 function Invite() {
   const invite = Route.useLoaderData()
   const { token } = Route.useParams()
+  const { error } = Route.useSearch()
   if (!invite?.usable)
     return (
       <SignInFrame
@@ -41,6 +46,20 @@ function Invite() {
       }
       email={invite.email}
       extra={{ fields: null, body: () => ({ token }) }}
+      failed={error && GITHUB_ERRORS[error]}
+      alternative={
+        invite.github && (
+          <>
+            <Or />
+            <Button asChild variant="outline" className="h-11 text-base">
+              <a href={`/auth/github/start?invite=${encodeURIComponent(token)}`}>
+                <IconBrandGithub className="size-5" />
+                Join with GitHub
+              </a>
+            </Button>
+          </>
+        )
+      }
     />
   )
 }

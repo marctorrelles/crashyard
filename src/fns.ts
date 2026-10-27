@@ -12,6 +12,7 @@ import * as logs from './data/logs'
 import * as monitors from './data/monitors'
 import * as notifications from './data/notifications'
 import * as people from './data/people'
+import { GITHUB_KEY, gitHubApp, startApp } from './auth/github'
 import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
@@ -1534,8 +1535,18 @@ export const getPeople = createServerFn()
   .middleware([owner])
   .handler(async () => {
     const now = Date.now()
-    const [users, invites] = await Promise.all([people.listUsers(env.DB), people.listInvites(env.DB, now)])
-    return { users, invites, me: Number(getRequestHeader('x-crashyard-user')) || null, now }
+    const [users, invites, app] = await Promise.all([
+      people.listUsers(env.DB),
+      people.listInvites(env.DB, now),
+      gitHubApp(env.DB),
+    ])
+    return {
+      users,
+      invites,
+      me: Number(getRequestHeader('x-crashyard-user')) || null,
+      github: app && { slug: app.slug, owner: app.owner },
+      now,
+    }
   })
 
 export const createInvite = createServerFn({ method: 'POST' })
@@ -1582,6 +1593,8 @@ export const removePerson = createServerFn({ method: 'POST' })
 // The sign-in pages' own data, read while signed out (only during their server render: src/server.ts answers 401 to a
 // server function call from a signed-out browser), so they say nothing about the deployment beyond what the page needs
 
+export const getSignInPage = createServerFn().handler(async () => ({ github: !!(await gitHubApp(env.DB)) }))
+
 export const getSetupPage = createServerFn().handler(async () => ({
   ready: !!env.SETUP_CODE,
   done: (await people.userCount(env.DB)) > 0,
@@ -1591,7 +1604,15 @@ export const getInvitePage = createServerFn()
   .validator((d: unknown) => ({ token: text(object(d).token, 100) }))
   .handler(async ({ data }) => {
     const invite = await people.inviteOf(env.DB, data.token, Date.now())
-    return invite && { inviter: invite.inviter, role: invite.role, email: invite.email, usable: invite.usable }
+    return (
+      invite && {
+        inviter: invite.inviter,
+        role: invite.role,
+        email: invite.email,
+        usable: invite.usable,
+        github: !!(await gitHubApp(env.DB)),
+      }
+    )
   })
 
 // Agent tokens: a person's `cyp_` tokens for MCP, acting as them as far as the token's scope goes
@@ -1626,4 +1647,24 @@ export const revokeAgentToken = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(async ({ data }) => {
     await people.revokeUserToken(env.DB, me(), data.id)
+  })
+
+// Sign in with GitHub (src/auth/github.ts): the owner creates the GitHub App from a manifest, and can remove it
+
+export const startGitHubApp = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .validator((d: unknown) => {
+    const org = text(object(d).org ?? '', 39, 'The organization').trim()
+    if (org && !/^[a-z\d](?:[a-z\d-]*[a-z\d])?$/i.test(org))
+      throw new Error('That isn’t a GitHub organization name. Copy it from the organization’s address on GitHub.')
+    return { org: org || null }
+  })
+  .handler(({ data }) =>
+    startApp(env.DB, env.PUBLIC_URL?.replace(/\/$/, '') || origin(), data.org, viewer(), Date.now()),
+  )
+
+export const removeGitHub = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .handler(async () => {
+    await settings.setSetting(env.DB, GITHUB_KEY, null, viewer(), Date.now())
   })

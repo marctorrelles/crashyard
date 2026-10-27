@@ -275,13 +275,21 @@ export function deviceName(userAgent: string | null) {
 
 // Challenges
 
-export type Purpose = 'setup' | 'signin' | 'register' | 'invite'
+export type Purpose = 'setup' | 'signin' | 'register' | 'invite' | 'github' | 'github-app'
 
-export async function saveChallenge(db: D1Database, challenge: string, purpose: Purpose, data: unknown, now: number) {
+/** A challenge, five minutes unless `ttl` says otherwise (creating the GitHub App takes longer) */
+export async function saveChallenge(
+  db: D1Database,
+  challenge: string,
+  purpose: Purpose,
+  data: unknown,
+  now: number,
+  ttl = 5 * 60_000,
+) {
   const id = randomToken(16)
   await db
     .prepare('INSERT INTO challenges (id, challenge, purpose, data, expires_at) VALUES (?, ?, ?, ?, ?)')
-    .bind(id, challenge, purpose, JSON.stringify(data), now + 5 * 60_000)
+    .bind(id, challenge, purpose, JSON.stringify(data), now + ttl)
     .run()
   return id
 }
@@ -450,3 +458,8 @@ export async function userTokenOf(db: D1Database, token: string, now: number) {
 /** What a token may do: a read token reads, a change token triages, never more than its person's role */
 export const tokenRole = (role: Role, scope: 'read' | 'change'): Role =>
   scope === 'read' ? 'viewer' : reaches(role, 'member') ? 'member' : role
+
+export const linkGitHub = (db: D1Database, userId: number, githubId: number) =>
+  db.prepare('UPDATE users SET github_id = ? WHERE id = ?').bind(githubId, userId).run()
+export const userByGitHub = (db: D1Database, githubId: number) =>
+  db.prepare('SELECT * FROM users WHERE github_id = ?').bind(githubId).first<User>()

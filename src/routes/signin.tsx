@@ -1,22 +1,28 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { IconArrowLeft, IconFingerprint } from '@tabler/icons-react'
+import { IconArrowLeft, IconBrandGithub, IconFingerprint } from '@tabler/icons-react'
 import { useState } from 'react'
-import { auth, nextPath, Problem, SignInFrame, signInWithPasskey } from '@/components/sign-in'
+import { auth, GITHUB_ERRORS, nextPath, Or, Problem, SignInFrame, signInWithPasskey } from '@/components/sign-in'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getSignInPage } from '@/fns'
 
 export const Route = createFileRoute('/signin')({
-  validateSearch: (s: Record<string, unknown>) => ({ next: typeof s.next === 'string' ? s.next : undefined }),
+  validateSearch: (s: Record<string, unknown>): { next?: string; error?: string } => ({
+    next: typeof s.next === 'string' ? s.next : undefined,
+    error: typeof s.error === 'string' ? s.error : undefined,
+  }),
+  loader: () => getSignInPage(),
   head: () => ({ meta: [{ title: 'Sign in · crashyard' }] }),
   component: SignIn,
 })
 
 // Signing in: a passkey the browser picks, so there's nothing to type; a recovery code for whoever lost theirs
 function SignIn() {
-  const { next } = Route.useSearch()
+  const { next, error: failed } = Route.useSearch()
+  const { github } = Route.useLoaderData()
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
+  const [error, setError] = useState<string | undefined>(failed && GITHUB_ERRORS[failed])
   const [recovering, setRecovering] = useState(false)
   const run = async (step: () => Promise<unknown>) => {
     setBusy(true)
@@ -97,6 +103,17 @@ function SignIn() {
           <IconFingerprint className="size-5" />
           Sign in with a passkey
         </Button>
+        {github && (
+          <>
+            <Or />
+            <Button asChild variant="outline" className="h-11 text-base">
+              <a href={`/auth/github/start?next=${encodeURIComponent(nextPath(next))}`}>
+                <IconBrandGithub className="size-5" />
+                Sign in with GitHub
+              </a>
+            </Button>
+          </>
+        )}
         {error && <Problem>{error}</Problem>}
       </div>
     </SignInFrame>

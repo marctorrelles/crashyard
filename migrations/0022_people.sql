@@ -36,11 +36,11 @@ CREATE TABLE sessions (
 CREATE INDEX sessions_user ON sessions (user_id);
 CREATE INDEX sessions_expires ON sessions (expires_at);
 
--- A passkey ceremony's challenge, one use, five minutes
+-- A passkey ceremony's challenge, or a GitHub sign-in's state, one use, minutes
 CREATE TABLE challenges (
   id TEXT PRIMARY KEY,
   challenge TEXT NOT NULL,
-  purpose TEXT NOT NULL,                      -- setup, signin, register or invite
+  purpose TEXT NOT NULL,                      -- setup, signin, register, invite, github or github-app
   data TEXT NOT NULL,                         -- JSON: who it's for
   expires_at INTEGER NOT NULL
 ) WITHOUT ROWID;

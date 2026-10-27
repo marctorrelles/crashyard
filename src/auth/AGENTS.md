@@ -40,6 +40,20 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
   bookmarks, saved searches and sign-in). Every POST server function in `src/fns.ts` names its least role,
   `.middleware([signedIn | member | admin | owner])`; `sign-in.test.ts` fails on one that doesn't. In Access mode
   everyone is an owner (Access's policy says who comes in).
+- `github.ts`: Sign in with GitHub, optional, GETs under `/auth/github/` routed by `src/server.ts` in crashyard mode.
+  The owner creates a private GitHub App from `manifest(base)` (name `crashyard <host>`, at most 34 characters;
+  `redirect_url` `/auth/github/created`, `callback_urls` `/auth/github/callback`, permission `emails: read` only, no
+  webhook), posted from Settings, People to `github.com/settings/apps/new` or an organization's (`startApp`, a
+  `github-app` state of an hour). `created` (owners only) trades the code at `app-manifests/<code>/conversions` for
+  the app's id, slug, client id and secret, kept in `settings` as `auth.github` (`GitHubApp`). `start` sets a state
+  (`github`, ten minutes, the PKCE verifier as its challenge, `next` and an invite) and binds it to the browser with
+  the `crashyard_github` cookie (`Path=/auth/github`); `callback` takes it only when the cookie matches, trades the
+  code with the verifier, reads `/user` and `/user/emails`, then signs in, in order: the account linked before
+  (`users.github_id`), someone here by any verified email (linking the account, unless theirs is another), or with an
+  invite its role (only the email it names, if it names one; one use), else `/signin?error=github-unknown`. GitHub
+  says who someone is; crashyard decides who comes in. Errors go back to `/signin` or the invite as `?error=`.
+  Membership of an organization as a way in is left out: it needs the app installed on the organization with
+  members read.
 - Agent tokens (`cyp_`, `user_tokens`): only on `/mcp`, only in crashyard mode, as `Authorization: Bearer`; checked in
   `src/server.ts` before the session, acting as their person with `tokenRole` (read: viewer; change: at most member),
   `last_used_at` at most once a minute. Removing the person deletes them.
@@ -48,3 +62,5 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
   invites once and expiry, recovery codes once, signing out, the last owner, the last way in, role order, passkey
   names, and the role of every changing server function. `access.test.ts`: Access's fail-closed rules. The ceremonies
   themselves were driven in Chrome with a CDP virtual authenticator (setup, sign out, sign in, invite).
+  `github.test.ts` with GitHub stubbed: the manifest, keeping the app (owners, its own state), PKCE, by email then by
+  account, an unverified email, another browser's callback, invites (the named email, once).

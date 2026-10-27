@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { IconMailPlus, IconTrash, IconUserPlus } from '@tabler/icons-react'
-import { useState } from 'react'
+import { IconBrandGithub, IconMailPlus, IconTrash, IconUserPlus } from '@tabler/icons-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
 import { Code } from '@/components/linking'
 import { Hint, SettingsCard, useSave } from '@/components/settings'
@@ -9,9 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { INVITE_DAYS, type Role, ROLE_HINTS, ROLE_LABELS, ROLES } from '@/data/people'
-import { changeRole, createInvite, getPeople, removePerson, revokeInvite } from '@/fns'
+import { changeRole, createInvite, getPeople, removeGitHub, removePerson, revokeInvite, startGitHubApp } from '@/fns'
 
 export const Route = createFileRoute('/settings/people')({
+  validateSearch: (s: Record<string, unknown>): { github?: string } => ({
+    github: typeof s.github === 'string' ? s.github : undefined,
+  }),
   loader: () => getPeople(),
   head: () => ({ meta: [{ title: 'People · Settings · crashyard' }] }),
   component: People,
@@ -195,6 +199,116 @@ function People() {
           )}
         </div>
       </SettingsCard>
+      <GitHub />
     </>
+  )
+}
+
+// Back from GitHub after creating the app: what happened, once
+const GITHUB_RESULTS: Record<string, [ok: boolean, text: string]> = {
+  added: [true, 'Sign in with GitHub is on'],
+  stale: [false, 'That took too long. Add Sign in with GitHub again.'],
+  failed: [false, 'GitHub didn’t hand over the app. Delete it on GitHub, then add Sign in with GitHub again.'],
+}
+
+function GitHub() {
+  const { github } = Route.useLoaderData()
+  const { github: result } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const { save, saving } = useSave()
+  const [org, setOrg] = useState('')
+  useEffect(() => {
+    const shown = result && GITHUB_RESULTS[result]
+    if (!shown) return
+    if (shown[0]) toast.success(shown[1])
+    else toast.error(shown[1])
+    void navigate({ search: { github: undefined }, replace: true })
+  }, [result, navigate])
+  if (github)
+    return (
+      <SettingsCard
+        title="Sign in with GitHub"
+        description="People here can sign in with their GitHub account, and invites can be used with it."
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="flex min-w-0 items-center gap-2 text-sm">
+            <IconBrandGithub className="size-5 shrink-0" />
+            <span className="min-w-0">
+              Through the GitHub App{' '}
+              <a
+                href={`https://github.com/apps/${github.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline underline-offset-2"
+              >
+                {github.slug}
+              </a>
+              {github.owner && <span className="text-muted-foreground"> of {github.owner}</span>}
+            </span>
+          </p>
+          <Button
+            variant="outline"
+            disabled={saving}
+            className="max-sm:h-10"
+            onClick={() => {
+              if (
+                !confirm(
+                  'Remove Sign in with GitHub? People who only sign in with GitHub will need a passkey or a recovery code. Delete the app on GitHub afterwards.',
+                )
+              )
+                return
+              void save(() => removeGitHub(), 'Sign in with GitHub removed')
+            }}
+          >
+            Remove Sign in with GitHub
+          </Button>
+        </div>
+      </SettingsCard>
+    )
+  return (
+    <SettingsCard
+      title="Sign in with GitHub"
+      description="Let people sign in with their GitHub account. crashyard creates a private GitHub App for it, which can only read who someone is. People here sign in by a verified email of theirs, and anyone else needs an invite."
+    >
+      <form
+        className="grid gap-3 @xl:grid-cols-[1fr_auto] @xl:items-start"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void save(async () => {
+            const { action, manifest } = await startGitHubApp({ data: { org } })
+            // GitHub takes the manifest as a form post, then sends the owner back to /auth/github/created
+            const form = document.createElement('form')
+            form.method = 'post'
+            form.action = action
+            const field = Object.assign(document.createElement('input'), {
+              type: 'hidden',
+              name: 'manifest',
+              value: manifest,
+            })
+            form.appendChild(field)
+            document.body.appendChild(form)
+            form.submit()
+          }, 'Opening GitHub…')
+        }}
+      >
+        <div className="grid gap-2">
+          <Label htmlFor="github-org">Organization</Label>
+          <Input
+            id="github-org"
+            value={org}
+            onChange={(e) => setOrg(e.target.value)}
+            placeholder="Optional"
+            maxLength={39}
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+          <Hint>To keep the app in an organization you manage on GitHub. Empty: your own account.</Hint>
+        </div>
+        <Button type="submit" variant="outline" disabled={saving} className="@xl:mt-[1.375rem] max-sm:h-10">
+          <IconBrandGithub data-icon="inline-start" />
+          Add Sign in with GitHub
+        </Button>
+      </form>
+    </SettingsCard>
   )
 }

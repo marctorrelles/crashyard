@@ -123,9 +123,9 @@
   line, alone in the middle of a muted page, `max-w-sm`), `auth` (a POST to `/auth/<path>`, its `error` thrown as
   the sentence to show), `createPasskey` and `signInWithPasskey` (`@simplewebauthn/browser`; a cancelled prompt,
   an existing passkey or an unusable browser in words), `nextPath` (only a path on this site), `RecoveryCodes` (two
-  columns, Copy and Download as a text file), `Problem` (an error under a form) and `NewPerson` (setup and invite:
+  columns, Copy and Download as a text file), `Problem` (an error under a form), `GITHUB_ERRORS` (`?error=` from GitHub sign-in in words), `Or` and `NewPerson` (setup and invite:
   the page's own fields, name, email or the invite's fixed one, Create passkey; then the recovery codes and
-  Continue to crashyard, a whole page load).
+  Continue to crashyard, a whole page load; `alternative` under it, the invite's Join with GitHub).
 - `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's `PROJECT` with Grouping and Filters, `PERSONAL`), `SettingsNav` (the list,
   the project's group for the page's project, else the one picked last, else the first, headed by a `Select` of every
   project that opens the same page of the one picked, or its General from a page that isn't a project's; with too little room

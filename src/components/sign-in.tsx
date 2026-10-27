@@ -151,15 +151,21 @@ export function NewPerson({
   description,
   email,
   extra,
+  alternative,
+  failed,
 }: {
   kind: 'setup' | 'invite'
   title: string
   description: React.ReactNode
   email?: string | null
   extra?: { fields: React.ReactNode; body: (form: FormData) => Record<string, unknown> }
+  /** Another way to join, under Create passkey: an invite's Join with GitHub */
+  alternative?: React.ReactNode
+  /** What went wrong before the page opened */
+  failed?: string
 }) {
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
+  const [error, setError] = useState<string | undefined>(failed)
   const [codes, setCodes] = useState<string[]>()
   if (codes)
     return (
@@ -223,7 +229,29 @@ export function NewPerson({
         <p className="text-center text-xs text-balance text-muted-foreground">
           Your device keeps the passkey and unlocks it with your face, fingerprint or screen lock.
         </p>
+        {alternative}
       </form>
     </SignInFrame>
   )
 }
+
+/** What went wrong signing in with GitHub, from `?error=` (src/auth/github.ts) */
+export const GITHUB_ERRORS: Record<string, string> = {
+  'github-stale': 'That took too long, or started in another browser. Try again.',
+  'github-cancelled': 'GitHub didn’t sign you in. Try again when you’re ready.',
+  'github-failed': 'GitHub couldn’t be reached. Try again in a moment.',
+  'github-unknown':
+    'No one here uses that GitHub account or its email addresses. Ask an owner for an invite, or sign in with a passkey.',
+  'github-email': 'This invite is for another email. Sign in to GitHub with the account that has it.',
+  'github-no-email': 'Your GitHub account has no verified email. Verify one on GitHub, then try again.',
+  'invite-used': 'This invite has expired or was already used. Ask whoever sent it for a new one.',
+}
+
+/** The line between passkeys and GitHub */
+export const Or = () => (
+  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+    <span className="h-px flex-1 bg-border" />
+    or
+    <span className="h-px flex-1 bg-border" />
+  </div>
+)

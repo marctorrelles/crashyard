@@ -250,7 +250,7 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   recovery code or GitHub; `deviceName` from the user agent, "iPhone, Safari"); challenges (`saveChallenge`,
   `takeChallenge` deletes as it reads, so one use, five minutes); invites (7 days, `useInvite` only while unused and
   unexpired); recovery codes (ten, `readableCode` groups of five without 0, O, 1, I or L, `normalCode` before
-  hashing so case, spaces and dashes don't matter); user tokens (`cyp_`). Secrets are compared by their digests.
+  hashing so case, spaces and dashes don't matter); user tokens (`cyp_`); `userByGitHub` and `linkGitHub`. Secrets are compared by their digests.
 - `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `projectDefaults`: what `createProject` starts with, the columns' defaults under what
