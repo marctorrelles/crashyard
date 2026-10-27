@@ -22,6 +22,13 @@ server, the build, or `tsr generate`): never edit it.
   and email, while there's no one (else Sign in; without `SETUP_CODE`, how to set it). `/invite/<token>`: who invited
   them and as what, a name and email (the invite's, when it names one), Join with GitHub when it's set up, or that it
   can't be used and who to ask. `?error=` on `/signin` and an invite says what went wrong with GitHub.
+- `status.$slug.tsx`: a project's public status page, open signed out (`src/server.ts`'s `STATUS_PAGE`, GET only)
+  and drawn without the sidebar for anyone (the root checks the path). `getStatusPage`, no role, read in the server
+  render only (a signed-out server function call is still 401): the project's uptime checks with `public` on, their
+  state, 30 UTC days as bars (all passed, at least 99%, less, none), uptime over them and the incidents then; never a
+  URL or why a check failed. A project with none shown is a 404, as one that doesn't exist. Loads again each minute
+  with a meta refresh, no script. Turned on per check on its monitor page, Show on the status page
+  (`setMonitorPublic`, admin).
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day

@@ -1292,6 +1292,14 @@ export const pauseMonitor = createServerFn({ method: 'POST' })
   })
   .handler(({ data }) => monitors.setPaused(env.DB, data.id, data.paused, Date.now()))
 
+export const setMonitorPublic = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), on: o.on === true }
+  })
+  .handler(({ data }) => monitors.setPublic(env.DB, data.id, data.on).then(() => undefined))
+
 export const deleteMonitor = createServerFn({ method: 'POST' })
   .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
@@ -1588,6 +1596,12 @@ export const removePerson = createServerFn({ method: 'POST' })
 // server function call from a signed-out browser), so they say nothing about the deployment beyond what the page needs
 
 export const getSignInPage = createServerFn().handler(async () => ({ github: !!(await gitHubApp(env.DB)) }))
+
+// A project's status page, read while signed out as the sign-in pages are: only the uptime checks chosen for it, by
+// name, never their addresses (src/data/monitors.ts statusPage)
+export const getStatusPage = createServerFn()
+  .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
+  .handler(({ data }) => monitors.statusPage(env.DB, data.slug, Date.now()))
 
 export const getSetupPage = createServerFn().handler(async () => ({
   ready: !!env.SETUP_CODE,

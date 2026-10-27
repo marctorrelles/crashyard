@@ -9,6 +9,8 @@ const start = createStartHandler(defaultStreamHandler)
 // envelope, an event, a security report, or a check-in over HTTP (`cron/<slug>/<key>`, the key optional)
 // crashyard's own sign-in pages, open while signed out (src/auth/AGENTS.md)
 const SIGN_IN_PAGES = /^\/(signin|setup|invite\/[^/]+)\/?$/
+// A project's public status page, open to anyone (src/routes/status.$slug.tsx): a GET only, its data read in the render
+const STATUS_PAGE = /^\/status\/[a-z0-9][a-z0-9-]*\/?$/
 
 const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
 
@@ -101,7 +103,8 @@ export default {
     // The sign-in pages are open to anyone, and only to someone signed out
     const signInPage = SIGN_IN_PAGES.test(url.pathname)
     if (signInPage && who) return Response.redirect(new URL('/', url), 303)
-    if (!who && !signInPage) {
+    const statusPage = request.method === 'GET' && STATUS_PAGE.test(url.pathname)
+    if (!who && !signInPage && !statusPage) {
       if (url.pathname === '/mcp' || url.pathname.startsWith('/_serverFn') || request.method !== 'GET')
         return new Response('Sign in to crashyard first.', { status: 401 })
       const { userCount } = await import('./data/people')

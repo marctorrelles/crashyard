@@ -1,4 +1,4 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
 import { Layout } from '@/components/shell'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -26,10 +26,12 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
-  // Signed out, only the sign-in pages open (src/server.ts), on their own without the sidebar
+  // Signed out, only the sign-in pages and status pages open (src/server.ts), on their own without the sidebar; a
+  // status page has none for anyone, as the public sees it
   component: function Root() {
     const { viewer } = Route.useLoaderData()
-    return viewer ? (
+    const status = useRouterState({ select: (s) => s.location.pathname.startsWith('/status/') })
+    return viewer && !status ? (
       <Layout>
         <Outlet />
       </Layout>
