@@ -120,4 +120,14 @@ describe('channels', () => {
     expect(isQuiet({ quiet_from: 22 * 60, quiet_to: 7 * 60 }, at(12))).toBe(false)
     expect(isQuiet({ quiet_from: null, quiet_to: null }, at(3))).toBe(false)
   })
+
+  it('keep quiet hours in their own time zone, across daylight saving', () => {
+    const night = { quiet_from: 22 * 60, quiet_to: 7 * 60, quiet_zone: 'Europe/Madrid' }
+    // 21:30 UTC is 22:30 in Madrid in winter, 23:30 in summer: quiet both times
+    expect(isQuiet(night, Date.UTC(2026, 0, 15, 21, 30))).toBe(true)
+    expect(isQuiet(night, Date.UTC(2026, 6, 15, 21, 30))).toBe(true)
+    // 05:30 UTC is 06:30 in winter, still quiet, and 07:30 in summer, not
+    expect(isQuiet(night, Date.UTC(2026, 0, 15, 5, 30))).toBe(true)
+    expect(isQuiet(night, Date.UTC(2026, 6, 15, 5, 30))).toBe(false)
+  })
 })

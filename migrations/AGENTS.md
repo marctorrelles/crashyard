@@ -60,3 +60,5 @@ in `pnpm run deploy`).
   copied (the oldest of each kept; they shared one R2 object), the one delete in a migration. Attachments are keyed
   by their item index from then on. A worker from before 0019 that retries a whole envelope with an attachment hits
   the index on that item, which then fails each try and ends in `failed/`; its event and other items are stored.
+- 0020: `channels.quiet_zone` (the IANA zone of a channel's quiet hours; null for the rows there were, which stay in
+  UTC). A worker from before 0020 reads a zoned channel's quiet hours as UTC.

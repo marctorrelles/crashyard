@@ -1,4 +1,4 @@
-import { ClientOnly, createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import {
   IconBrandDiscord,
   IconBrandSlack,
@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
 import { SearchBar } from '@/components/search-bar'
+import { useTimePrefs } from '@/components/time'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -84,6 +85,7 @@ const list = <T,>(json: string | null): T[] => (json ? (JSON.parse(json) as T[])
 
 function Notifications() {
   const d = Route.useLoaderData()
+  const { zone } = useTimePrefs()
   const [channel, setChannel] = useState<Channel | 'new' | null>(null)
   const [route, setRoute] = useState<NotifyRoute | 'new' | null>(null)
   const search = Route.useSearch()
@@ -126,10 +128,7 @@ function Notifications() {
                     <p className="truncate text-sm font-medium">{c.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {summary(c)}
-                      {c.quiet_from !== null && c.quiet_to !== null && (
-                        // In the browser's time, which the server can't know
-                        <ClientOnly>{` · quiet ${clock(c.quiet_from)}–${clock(c.quiet_to)}`}</ClientOnly>
-                      )}
+                      {c.quiet_from !== null && c.quiet_to !== null && quietLine(c, zone)}
                     </p>
                   </div>
                   <TestButton label={`Send a test to ${c.name}`} send={() => testChannel({ data: { id: c.id } })} />
@@ -218,15 +217,28 @@ function summary(c: Channel) {
   return `JSON webhook · ${new URL(config.url).host}`
 }
 
-// Quiet hours are kept in UTC; they're shown and set in the browser's time
-// ponytail: today's offset, so a daylight-saving change moves them an hour; store a time zone if that matters
-const offset = () => new Date().getTimezoneOffset()
-const toLocal = (utc: number) => (((utc - offset()) % 1440) + 1440) % 1440
-const toUtc = (local: number) => (((local + offset()) % 1440) + 1440) % 1440
-const clock = (utc: number) => {
-  const m = toLocal(utc)
-  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+// Quiet hours are kept in a time zone, the viewer's (chosen, else the browser's) when they're saved. A channel saved
+// before zones has them in UTC: shown in the viewer's zone, at today's offset, and saved in it from then on
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+const fromUtc = (utc: number, zone: string) => {
+  const today = new Date()
+  const at = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) + utc * 60_000
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: zone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23',
+  }).formatToParts(at)
+  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0)
+  return part('hour') * 60 + part('minute')
 }
+/** A channel's quiet from or to, as the time it reads in `zone` */
+const quietClock = (c: Pick<Channel, 'quiet_zone'>, minutes: number, zone: string) =>
+  hhmm(c.quiet_zone ? minutes : fromUtc(minutes, zone))
+const quietLine = (c: Channel, zone: string) =>
+  ` · quiet ${quietClock(c, c.quiet_from!, zone)}–${quietClock(c, c.quiet_to!, zone)}${
+    c.quiet_zone && c.quiet_zone !== zone ? ` ${c.quiet_zone}` : ''
+  }`
 const minutesOf = (value: string) => {
   const [h, m] = value.split(':').map(Number)
   return h * 60 + m
@@ -340,6 +352,9 @@ function ChannelDialog({
   const kind: Channel['kind'] = choice === 'slack' || choice === 'discord' ? 'webhook' : choice
   const blocked = choice === 'email' && !emailReady
   const [quiet, setQuiet] = useState(channel?.quiet_from != null)
+  // The channel's own zone, else the viewer's
+  const { zone } = useTimePrefs()
+  const quietZone = channel?.quiet_zone ?? zone
   const done = async () => {
     onClose()
     await router.invalidate()
@@ -370,8 +385,9 @@ function ChannelDialog({
                   kind,
                   name: f.name,
                   config: JSON.stringify(settings),
-                  quiet_from: quiet && f.quiet_from ? toUtc(minutesOf(f.quiet_from)) : null,
-                  quiet_to: quiet && f.quiet_to ? toUtc(minutesOf(f.quiet_to)) : null,
+                  quiet_from: quiet && f.quiet_from ? minutesOf(f.quiet_from) : null,
+                  quiet_to: quiet && f.quiet_to ? minutesOf(f.quiet_to) : null,
+                  quiet_zone: quiet ? quietZone : null,
                 },
               })
               await done()
@@ -464,7 +480,9 @@ function ChannelDialog({
                     type="time"
                     required
                     aria-label="Quiet from"
-                    defaultValue={channel?.quiet_from != null ? clock(channel.quiet_from) : '22:00'}
+                    defaultValue={
+                      channel?.quiet_from != null ? quietClock(channel, channel.quiet_from, quietZone) : '22:00'
+                    }
                   />
                   <span className="text-sm text-muted-foreground">to</span>
                   <Input
@@ -472,10 +490,13 @@ function ChannelDialog({
                     type="time"
                     required
                     aria-label="Quiet until"
-                    defaultValue={channel?.quiet_to != null ? clock(channel.quiet_to) : '08:00'}
+                    defaultValue={
+                      channel?.quiet_to != null ? quietClock(channel, channel.quiet_to, quietZone) : '08:00'
+                    }
                   />
                 </div>
               )}
+              {quiet && <p className="text-xs text-muted-foreground">In {quietZone}.</p>}
             </div>
           </div>
           <DialogFooter className="sm:justify-between">

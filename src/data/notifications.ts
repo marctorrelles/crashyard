@@ -53,13 +53,17 @@ export const deleteMetricAlert = (db: D1Database, id: number) =>
 export async function saveChannel(db: D1Database, c: ChannelInput, now: number) {
   if (c.id) {
     await db
-      .prepare('UPDATE channels SET kind = ?, name = ?, config = ?, quiet_from = ?, quiet_to = ? WHERE id = ?')
-      .bind(c.kind, c.name, c.config, c.quiet_from, c.quiet_to, c.id)
+      .prepare(
+        'UPDATE channels SET kind = ?, name = ?, config = ?, quiet_from = ?, quiet_to = ?, quiet_zone = ? WHERE id = ?',
+      )
+      .bind(c.kind, c.name, c.config, c.quiet_from, c.quiet_to, c.quiet_zone, c.id)
       .run()
   } else {
     await db
-      .prepare('INSERT INTO channels (kind, name, config, quiet_from, quiet_to, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(c.kind, c.name, c.config, c.quiet_from, c.quiet_to, now)
+      .prepare(
+        'INSERT INTO channels (kind, name, config, quiet_from, quiet_to, quiet_zone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+      .bind(c.kind, c.name, c.config, c.quiet_from, c.quiet_to, c.quiet_zone, now)
       .run()
   }
 }

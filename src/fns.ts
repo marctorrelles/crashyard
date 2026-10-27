@@ -613,6 +613,13 @@ export const saveChannel = createServerFn({ method: 'POST' })
       config: json(o.config),
       quiet_from: minuteOfDay(o.quiet_from) ?? null,
       quiet_to: minuteOfDay(o.quiet_to) ?? null,
+      quiet_zone:
+        optional((v) => {
+          const zone = text(v, 64)
+          if (!ZONES.has(zone))
+            throw new Error('That time zone for quiet hours isn’t known. Pick one in Settings, Date and time.')
+          return zone
+        })(o.quiet_zone) ?? null,
     }
   })
   .handler(({ data }) => notifications.saveChannel(env.DB, data, Date.now()))

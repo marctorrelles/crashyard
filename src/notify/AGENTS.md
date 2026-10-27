@@ -49,7 +49,8 @@ environment, each with its own thresholds, and send them to channels.
   `text` for the notification; `discord`: an embed coloured by level or kind, its title linking to the page,
   `allowed_mentions` empty so a title's `@everyone` pings no one; a refusal says the answer's first 200 characters),
   email; `isQuiet` for a channel's quiet hours
-  (minutes after midnight UTC, across midnight too). No ntfy: ntfy.sh limits by IP unless the sender pays, and a Worker
+  (minutes after midnight in `quiet_zone` by `Intl`, so daylight saving doesn't move them, a formatter cached per zone;
+  UTC for a channel from before 0020, or a zone `Intl` doesn't know; across midnight too). No ntfy: ntfy.sh limits by IP unless the sender pays, and a Worker
   sends from IPs Cloudflare shares, so others spend its daily quota. No Bark: iPhone only. Migration 0011 took both
   channels out.
 - `email.ts`: a plain-text MIME message for Cloudflare Email Routing's `send_email` binding (`EMAIL`, from

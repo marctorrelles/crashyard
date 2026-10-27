@@ -131,7 +131,9 @@ server, the build, or `tsr generate`): never edit it.
   Errors during this job, each opening its event; incidents; pause, edit, delete.
 - `notifications.tsx`: channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, or what to set up first
-  while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours in the browser's time), routes, each with a
+  while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours, entered and kept in the channel's
+  `quiet_zone`, else the viewer's zone from `useTimePrefs`, and saved in it; one from before 0020, in UTC, shows in
+  the viewer's zone at today's offset; the row names the zone when it isn't the viewer's), routes, each with a
   test send (with Frequency reached, "Only when an issue gets" N events or users in a window, its hint saying it
   alerts again only after that long and, for users, that they count from the events kept; releases as globs; tags
   through `SearchBar`, checked on save by `tagFilterError`; "Wait before alerting again"; the row sums them up), and
@@ -149,7 +151,7 @@ server, the build, or `tsr generate`): never edit it.
   checks them.
 - Times on a page are relative to the `now` its loader returns, so the server and the browser render the same text;
   dates and times go through `<Time>` or `formatTime` (`src/components/time.tsx`), in the viewer's zone and clock,
-  the same on both sides. Quiet hours on Notifications are still entered and shown in the browser's own zone.
+  the same on both sides.
 - Pages are behind Access (`src/server.ts`); `/api/*` never reaches Start (see `src/api/`).
 - Data for a page comes from a server function (`src/fns.ts`) called in the loader; after a change,
   `router.invalidate()`.

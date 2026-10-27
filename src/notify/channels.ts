@@ -8,6 +8,7 @@ export type Channel = {
   config: string // JSON
   quiet_from: number | null
   quiet_to: number | null
+  quiet_zone: string | null // IANA; null: quiet hours in UTC, as rows before 0020
 }
 
 // A bot's token (from @BotFather), the chat it writes to and that chat's name; `server`, a local Bot API server
@@ -17,11 +18,35 @@ type WebhookConfig = { url: string; format?: 'json' | 'slack' | 'discord' }
 
 export type Mailer = { send(from: string, to: string, subject: string, text: string): Promise<void> }
 
-/** Whether a channel's quiet hours (minutes after midnight UTC, wrapping past midnight) cover a moment */
-export function isQuiet(channel: Pick<Channel, 'quiet_from' | 'quiet_to'>, at: number): boolean {
+const clocks = new Map<string, Intl.DateTimeFormat>()
+/** Minutes after midnight in a time zone, by `Intl`, so daylight saving is right; UTC for none or an unknown one */
+function minuteIn(zone: string | null | undefined, at: number) {
+  if (!zone) return Math.floor((at % 86_400_000) / 60_000)
+  let clock = clocks.get(zone)
+  if (!clock) {
+    try {
+      clock = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+    } catch {
+      return Math.floor((at % 86_400_000) / 60_000)
+    }
+    clocks.set(zone, clock)
+  }
+  const parts = clock.formatToParts(at)
+  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0)
+  return part('hour') * 60 + part('minute')
+}
+
+/**
+ * Whether a channel's quiet hours (minutes after midnight in `quiet_zone`, UTC without one, wrapping past midnight)
+ * cover a moment
+ */
+export function isQuiet(
+  channel: Pick<Channel, 'quiet_from' | 'quiet_to'> & { quiet_zone?: string | null },
+  at: number,
+): boolean {
   const { quiet_from: from, quiet_to: to } = channel
   if (from === null || to === null || from === to) return false
-  const minute = Math.floor((at % 86_400_000) / 60_000)
+  const minute = minuteIn(channel.quiet_zone, at)
   return from < to ? minute >= from && minute < to : minute >= from || minute < to
 }
 
