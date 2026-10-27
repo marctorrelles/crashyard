@@ -143,7 +143,7 @@ server, the build, or `tsr generate`): never edit it.
   through `SearchBar`, checked on save by `tagFilterError`; "Wait before alerting again"; the row sums them up), and
   metric alerts: each with its state, its value and when it changed; Create metric alert opens a form, its footer with Save
   sticky at the dialog's foot while the fields scroll, with name,
-  project, metric, filter, window of 1, 6 or 24 hours, direction and the warning and critical values, in percent or
+  project, metric, filter, window of 1, 6 or 24 hours (it says it counts whole hours, so up to an hour more), direction and the warning and critical values, in percent or
   milliseconds by the metric, each metric starting from its own defaults. `?metric=` (with `query` and `project`, a slug)
   opens Create metric alert filled in, the logs page's Create metric alert; closing it clears them from the URL.
 - `logs_.export.ts`: `/logs/export`, a server route (no page, not nested in `logs.tsx`): the search of `query`,

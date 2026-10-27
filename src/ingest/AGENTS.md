@@ -89,7 +89,10 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   in a release (`fixed_in_release`), on that release's or a newer one's but not an older one's nor one naming none
   (`olderThan`: one read, only for such an issue and another release, comparing `releases.created_at`, else the
   release's first event, else now for a release seen nowhere yet); an ignore ends by
-  count or date. Spike protection: past 60 events a minute an issue only counts, it stores no more events. A tag keeps
+  count or date. Spike protection: past 60 events a minute an issue only counts, it stores no more events. Such an
+  event has no `events` row to dedupe on, so if its item fails after the batch and is retried, it counts again in the
+  issue, `project_days`, `event_hours` and `issue_minutes`: at most that minute's overflow, accepted rather than an
+  idempotence key per counted event. A tag keeps
   100 values per issue (`TAG_VALUES`); a new one past them counts under `other` (reading at most the value's row or the
   first 100), so a search for such a value doesn't find the issue. An issue
   found with a count of 0 was made by a try whose batch then failed: the event is still its first (`isNew`, a "New

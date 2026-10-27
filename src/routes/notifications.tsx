@@ -1106,6 +1106,9 @@ function MetricDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Counts whole hours, so a window can take in up to an hour more.
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="metric-direction">Alert when it goes</Label>
