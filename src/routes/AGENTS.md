@@ -81,18 +81,17 @@ server, the build, or `tsr generate`): never edit it.
   the title and the page centred beside it, up to `max-w-4xl`; with less room the title, the list as selects, the
   page. It goes by the room it has, not the window: the frame is `@container/settings` (the list beside from
   `@3xl/settings`) and the page column a `@container`, so settings pages lay out with container variants (`@xl:`
-  where a page elsewhere says `sm:`, `@3xl:` for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. The deployment's pages, the group "crashyard": `people` (owners only, and only listed for them with crashyard's own
-  sign-in: everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove
+  where a page elsewhere says `sm:`, `@3xl:` for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. The deployment's pages, the group "crashyard": `people` (owners only, and only listed for them:
+  everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove
   after a confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the
   invites waiting, each with Withdraw invite; Sign in with GitHub: an optional organization and Add Sign in with
   GitHub, which posts the app's manifest to GitHub, back with `?github=added|stale|failed` as a toast; once on, the
   app linked on GitHub and Remove Sign in with GitHub), `general`
-  (public URL, and how people sign in or Access's values, read-only, each saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
+  (public URL, read-only, saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
   and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
   `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload
   tokens with their project or All projects, who made them, when last used, Delete; Create token with a name and a
-  project, the token shown once; Agents: the MCP URL, and with Access Let agents change issues, `agents.can_change`,
-  else where agent tokens are made), `usage` (30
+  project, the token shown once; Agents: the MCP URL and where agent tokens are made), `usage` (30
   UTC days of events with rate-limited, filtered and failed, logs and transactions, each a chart and totals,
   `?project=`), `health` (the database against 10 GB, warning from 80%; stored files; the cron, late after 3 minutes; failed
   notifications, each by its kind's label from `KINDS`, "Metric alert" for any metric kind; envelopes pending and failed; the pruning backlog) and `about` (the version, a newer release,
@@ -115,8 +114,7 @@ server, the build, or `tsr generate`): never edit it.
   files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;
   the newest 10 source map bundles) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
   recovery codes left and Make new codes, shown once; where they're signed in, This browser, Sign out each and Sign
-  out everywhere else; with Access, who it signed in, and while no one is set up, Create passkey to become the
-  owner before switching), `agent-tokens` (crashyard's own sign-in only: a person's `cyp_` tokens for MCP with a
+  out everywhere else), `agent-tokens` (a person's `cyp_` tokens for MCP with a
   name, Read only or Read and change issues, and an expiry; the token and the `claude mcp add` command shown once;
   Delete), then, each saved at once through `savePreference` and read from the root's loader: `appearance` (the theme, `STYLES` in `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to
   preview it, and System, Light, Dark, both applied at once), `date-and-time`

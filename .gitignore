@@ -23,5 +23,5 @@ tmp/
 src/routeTree.gen.ts
 symcache/target/
 
-# A deployment's own domain and Access values (vite.config.ts)
+# A deployment's own domain and values (vite.config.ts)
 wrangler.local.json

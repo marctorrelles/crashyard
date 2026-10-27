@@ -5,7 +5,7 @@ import viteReact from '@vitejs/plugin-react'
 import { existsSync, readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 
-// Your deployment's own values (domain, Access, PUBLIC_URL), git-ignored, over wrangler.jsonc's: `vars` merged, the rest
+// Your deployment's own values (domain, PUBLIC_URL), git-ignored, over wrangler.jsonc's: `vars` merged, the rest
 // replaced
 const local = existsSync('wrangler.local.json') ? JSON.parse(readFileSync('wrangler.local.json', 'utf8')) : null
 

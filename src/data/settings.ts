@@ -1,5 +1,5 @@
 // The deployment's settings (one JSON value per key, who changed it and when) and each viewer's preferences (by their
-// Access email). Pages read both through src/fns.ts; ingest and the cron read settings directly.
+// email). Pages read both through src/fns.ts; ingest and the cron read settings directly.
 
 /** A setting, or `fallback` when it's unset or no longer JSON */
 export async function getSetting<T>(db: D1Database, key: string, fallback: T): Promise<T> {
@@ -28,8 +28,6 @@ const DEFAULTS_KEY = 'defaults.project'
 export const SCRUB_KEY = 'privacy.scrub_fields'
 /** When the cron last ran, in ms: written each minute, late on Settings, Health after 3 minutes */
 export const CRON_KEY = 'cron.last_run'
-/** Whether agents, signed in with an Access service token, may change issues through MCP: off unless turned on */
-export const AGENTS_KEY = 'agents.can_change'
 
 /** What a new project starts with: the columns' own defaults until changed on Settings, New-project defaults */
 export type ProjectDefaults = {

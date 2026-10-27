@@ -108,56 +108,6 @@ pnpm run recovery-code them@example.com
 Passkeys belong to the dashboard's domain. If you move crashyard to another domain, everyone signs in with a recovery
 code once and adds a new passkey.
 
-### Already use Cloudflare Zero Trust?
-
-crashyard can leave sign-in to Cloudflare Access instead. Its policies then decide who gets in, everyone signed in is
-an owner, and agents use Access service tokens. Set `"AUTH": "access"` in the `vars` of `wrangler.local.json`, then
-follow the steps below. Open [one.dash.cloudflare.com](https://one.dash.cloudflare.com), which Cloudflare calls
-Cloudflare One or Zero Trust.
-
-1. **Choose a plan.** The first time, Cloudflare asks for a plan. Choose **Free**, which costs nothing for up to 50
-   users. It may still ask for a payment method. The total stays at $0, and if it shows more, you've picked the wrong
-   plan.
-2. **Add the dashboard application.** Go to Access, then Applications, then **Add an application**, and choose
-   **Self-hosted**.
-   - Name: `crashyard`.
-   - Public hostname: your subdomain, such as `crashyard` on `example.com`, with no path.
-   - Policy: create one with the action **Allow**. Under Include, choose **Emails** and list the people who may sign
-     in, or choose **Emails ending in** and enter `@example.com` to allow a whole domain.
-   - Login methods: keep the default, which accepts every available identity provider. One-time PIN, a code sent by
-     email, is on for every team. You can add Google or GitHub under Settings, then Authentication.
-   - Save.
-3. **Let apps through.** Apps send their crashes to `/api/…` and can't sign in, so that path has to skip Access.
-   crashyard checks each project's key there itself. Choose **Add an application** and **Self-hosted** again.
-   - Name: `crashyard api`.
-   - Public hostname: the same subdomain, with the **path `api/`**.
-   - Policy: create one with the action **Bypass**. Under Include, choose **Everyone**, with no value.
-   - Save.
-4. **Copy the two values crashyard checks.** crashyard verifies the Access token on every dashboard request, so a route
-   accidentally left outside Access stays closed. It needs two values:
-   - **The application audience.** Open the `crashyard` application, not the api one, and copy its **Application
-     Audience (AUD) Tag**.
-   - **Your team domain.** It has the form `<team>.cloudflareaccess.com` and appears under Settings, then Custom pages,
-     as the team domain. It isn't always the same as your team's display name. The surest way to find it is to open your
-     crashyard subdomain in a private window and read the address of the sign-in page.
-
-   Add both to the `vars` in `wrangler.local.json` and deploy again:
-
-   ```json
-   "vars": {
-     "AUTH": "access",
-     "ACCESS_TEAM_DOMAIN": "yourteam.cloudflareaccess.com",
-     "ACCESS_AUD": "<the AUD tag>",
-     "PUBLIC_URL": "https://crashyard.example.com"
-   }
-   ```
-
-   ```sh
-   pnpm run deploy
-   ```
-
-Open your subdomain again. Cloudflare's sign-in page comes first, then the crashyard dashboard.
-
 ## 4. Clean up stored files
 
 This step is optional but recommended. crashyard keeps every envelope in R2 exactly as it arrived, so it can be
@@ -187,23 +137,8 @@ there.
 To check it, open Settings, then Email, and choose **Send test email** with the address you verified. Then add an
 email channel under Notifications in the dashboard. Telegram, Slack, Discord and webhook channels need no setup here.
 A Telegram channel's Resolve, Ignore and Assign to me buttons work once `PUBLIC_URL` is set: saving the channel tells
-Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, outside Access, with a secret only crashyard and
+Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, which needs no sign-in, with a secret only crashyard and
 Telegram know.
-
-### Move from Access to passkeys
-
-A crashyard set up with Access keeps using it after an upgrade. To switch without a gap:
-
-1. Deploy the new version, still with Access.
-2. Open Settings, then Sign-in, and choose **Create passkey**. While crashyard has no one of its own yet, this makes
-   you its owner. Save your recovery codes.
-3. If an agent uses an Access service token, create an agent token for it in Settings, then Agent tokens, once you've
-   switched, and change its MCP configuration as [docs/mcp.md](mcp.md) says.
-4. Set `"AUTH": "crashyard"` in the `vars` of `wrangler.local.json` and deploy again. Sign in with your passkey and
-   invite your team.
-5. In Cloudflare One, delete the `crashyard` and `crashyard api` Access applications.
-
-To go back, set `"AUTH": "access"` and deploy again.
 
 ## Upload tokens
 
@@ -213,7 +148,7 @@ each app its own.
 
 ## Check that it works
 
-- Open your subdomain in a private window. You should see crashyard's sign-in page, or Cloudflare's with Access.
+- Open your subdomain in a private window. You should see crashyard's sign-in page.
 - Sign in. You should see the crashyard dashboard.
 - Run `curl -X POST https://crashyard.example.com/api/1/envelope/`. The answer should come from crashyard, not from a
   sign-in page.
@@ -226,11 +161,8 @@ each app its own.
   then reload the page.
 - **The browser says the passkey can't be used here.** Open crashyard at the address in `PUBLIC_URL`. Passkeys only
   work on the domain they were created for.
-- **"Sign in through Cloudflare Access to open crashyard" appears after signing in.** `ACCESS_TEAM_DOMAIN` or
-  `ACCESS_AUD` doesn't match. Compare the team domain with the sign-in page's address, and make sure the AUD tag is the
-  `crashyard` application's, not the api one's.
-- **Crashes from apps don't arrive, and `curl` to `/api/` returns Cloudflare's sign-in page.** The bypass application
-  is missing, or its path isn't `api/`.
+- **Crashes from apps don't arrive, and `curl` to `/api/` returns Cloudflare's sign-in page.** A Cloudflare Access
+  application covers the subdomain. crashyard signs people in itself, so delete it in Cloudflare One.
 - **Emails don't arrive.** The destination address isn't verified in Email Routing, or `EMAIL_FROM` isn't on your
   domain.
 - **The deploy can't create the custom domain.** The domain has to be on the same Cloudflare account.

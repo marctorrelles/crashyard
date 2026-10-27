@@ -10,7 +10,7 @@ You need Node.js at the version in `.nvmrc`, and pnpm. Running `corepack enable`
 
 ```sh
 pnpm install   # also installs the git hooks, which lint and format what you stage
-pnpm dev       # http://localhost:3000, with local D1 and R2. Cloudflare Access is off locally
+pnpm dev       # http://localhost:3000, with local D1 and R2, signed in as dev@localhost
 ```
 
 ## Before you open a pull request

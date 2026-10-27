@@ -51,7 +51,7 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 - **MCP server.** Lets an AI agent search issues and logs, read a stack trace, resolve issues and add notes. See
   [docs/mcp.md](docs/mcp.md).
 - **People and sign-in.** Passkeys, invites and four roles, from owner to viewer, with recovery codes and an optional
-  Sign in with GitHub. Cloudflare Access works instead, for teams that already use it.
+  Sign in with GitHub.
 
 ## Supported SDKs
 

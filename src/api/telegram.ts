@@ -1,4 +1,4 @@
-// POST /api/telegram/<bot id>: Telegram's webhook for a bot's buttons (src/notify/channels.ts), outside Access, so
+// POST /api/telegram/<bot id>: Telegram's webhook for a bot's buttons (src/notify/channels.ts), outside sign-in, so
 // the secret Telegram sends back with every update is what lets it in. A tap acts on the issue as the channel's owner,
 // answers with a toast and turns the buttons into what happened.
 import { assignIssue, changeIssues } from '../data/issues'

@@ -1,6 +1,8 @@
 // The crashyard worker: the dashboard (TanStack Start), the ingest and Sentry APIs, and the cron (see AGENTS.md).
-// Deploying your own: the Deploy to Cloudflare button, or `pnpm run deploy` (docs/deploying.md). Your domain and Access
-// values go in a git-ignored wrangler.local.json, which the build lays over this file (vite.config.ts).
+// Deploying your own: the Deploy to Cloudflare button, or `pnpm run deploy` (docs/deploying.md). Your domain and
+// values go in a git-ignored wrangler.local.json, which the build lays over this file (vite.config.ts). The first owner
+// is made at /setup with the code in the secret SETUP_CODE (pnpm run setup sets it, or add it under the worker's
+// Variables and Secrets).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crashyard",
@@ -20,16 +22,8 @@
   // Email notifications through Cloudflare Email Routing (to verified addresses); EMAIL_FROM below turns them on
   "send_email": [{ "name": "EMAIL" }],
   "vars": {
-    // How people sign in: "crashyard" (passkeys, crashyard's own) or "access" (Cloudflare Access). Empty: Access when
-    // ACCESS_AUD is set, else crashyard's own. Its first owner is made at /setup with the code in the secret
-    // SETUP_CODE (pnpm run setup sets it, or add it under the worker's Variables and Secrets)
-    "AUTH": "",
-    // Cloudflare Access in front of the dashboard: your team's domain and the application's audience tag.
-    // Empty means every dashboard request is refused (fail closed), except on a local dev server.
-    "ACCESS_TEAM_DOMAIN": "",
     // The address email notifications come from, on a domain with Email Routing on; empty: no email
     "EMAIL_FROM": "",
-    "ACCESS_AUD": "",
     // Where the dashboard is, for links in notifications that the cron sends (monitors)
     "PUBLIC_URL": "",
   },

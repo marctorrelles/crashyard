@@ -187,7 +187,7 @@ const SignedIn = ({ name, email }: { name: string | null; email: string | null }
 )
 
 function AppSidebar() {
-  const { viewer, name, auth } = root.useLoaderData()
+  const { viewer, name } = root.useLoaderData()
   const { page, projects, project, keep } = useCurrentProject()
   const { setOpenMobile } = useSidebar()
   const close = () => setOpenMobile(false)
@@ -285,23 +285,13 @@ function AppSidebar() {
             )}
           </Item>
           <SidebarMenuItem>
-            {auth === 'crashyard' ? (
-              // Ends this session only: Settings, Sign-in signs out other devices
-              <form method="post" action="/auth/signout">
-                <SidebarMenuButton type="submit" tooltip="Sign out" className="h-auto">
-                  <IconLogout />
-                  <SignedIn name={name} email={viewer} />
-                </SidebarMenuButton>
-              </form>
-            ) : (
-              <SidebarMenuButton asChild tooltip="Sign out" className="h-auto">
-                {/* Cloudflare Access signs out of every app behind it on this domain */}
-                <a href="/cdn-cgi/access/logout">
-                  <IconLogout />
-                  <SignedIn name={name} email={viewer} />
-                </a>
+            {/* Ends this session only: Settings, Sign-in signs out other devices */}
+            <form method="post" action="/auth/signout">
+              <SidebarMenuButton type="submit" tooltip="Sign out" className="h-auto">
+                <IconLogout />
+                <SignedIn name={name} email={viewer} />
               </SidebarMenuButton>
-            )}
+            </form>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

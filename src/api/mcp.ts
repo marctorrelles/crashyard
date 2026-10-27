@@ -1,13 +1,12 @@
 // POST /mcp: an MCP server (Streamable HTTP, answering with JSON), so an agent can search issues and logs, read an
-// issue with its stack, and resolve, ignore or note it. Behind Access like the dashboard: agents sign in with an
-// Access service token (CF-Access-Client-Id and CF-Access-Client-Secret headers), and only read unless the setting
-// "Let agents change issues" is on. See docs/mcp.md.
+// issue with its stack, and resolve, ignore or note it. Agents sign in with their person's agent token
+// (Settings, Agent tokens), as `Authorization: Bearer`, and change issues only when its scope and that person's role
+// allow it. See docs/mcp.md.
 import * as issues from '../data/issues'
 import { suspectCommits } from '../data/suspects'
 import { listLogs, RANGES, type Range } from '../data/logs'
 import { projectBySlug } from '../data/projects'
 import { type Role, reaches } from '../data/people'
-import { AGENTS_KEY, getSetting } from '../data/settings'
 import type { NormalizedEvent } from '../ingest/event'
 
 const VERSION = '2025-06-18'
@@ -274,15 +273,11 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
     case 'tools/call': {
       const tool = TOOLS.find((t) => t.name === rpc.params?.name)
       if (!tool) return failure(rpc.id, -32602, `No tool ${String(rpc.params?.name)}`)
-      // An agent with an Access service token changes issues only once the deployment allows it; one with an agent
-      // token as far as the token's scope and its person's role go
-      const refusal = !tool.changes
-        ? null
-        : ctx.viewer.startsWith('service:')
-          ? !(await getSetting(ctx.db, AGENTS_KEY, false)) &&
-            'Agents can read but not change issues. Turn on Let agents change issues in Settings, Tokens.'
-          : !reaches(ctx.role, 'member') &&
-            'This token can only read. Create one that can change issues in Settings, Agent tokens.'
+      // An agent changes issues as far as its token's scope and its person's role go
+      const refusal =
+        tool.changes &&
+        !reaches(ctx.role, 'member') &&
+        'This token can only read. Create one that can change issues in Settings, Agent tokens.'
       if (refusal) return reply(rpc.id, { content: [{ type: 'text', text: refusal }], isError: true })
       try {
         const text = await tool.run((rpc.params?.arguments ?? {}) as Record<string, unknown>, ctx)

@@ -1,5 +1,5 @@
 // An event's attachments: each with its size and a download, images as a thumbnail that opens full size, and the view
-// hierarchy sentry-cocoa and sentry-android send as an indented tree. Files come from /attachments/<id>, behind Access.
+// hierarchy sentry-cocoa and sentry-android send as an indented tree. Files come from /attachments/<id>, behind sign-in.
 import { IconChevronRight, IconDownload, IconFile } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'

@@ -1,12 +1,10 @@
-// Who a dashboard request is, in either mode, and the session cookie. src/server.ts passes the answer on as headers.
+// Who a dashboard request is, and the session cookie. src/server.ts passes the answer on as headers.
 import { type Role, sessionUser } from '../data/people'
-import { viewerOf } from './access'
-import type { AuthMode } from './mode'
 
 export const COOKIE = 'crashyard_session'
 
-/** Who's asking: their email (activity, assignees and preferences are by email), role, and in crashyard mode their
- * user id and session; `cookie` when the session was renewed and the browser needs it again */
+/** Who's asking: their email (activity, assignees and preferences are by email), role, user id and session (none on a
+ * dev server); `cookie` when the session was renewed and the browser needs it again */
 export type Who = { email: string; role: Role; userId?: number; session?: string; cookie?: string }
 
 export const cookieValue = (request: Request, name: string) =>
@@ -24,22 +22,11 @@ export const clearedCookie = (secure: boolean) =>
   `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`
 
 /**
- * Who a request is. A local dev server is dev@localhost, an owner, unless `AUTH` is `crashyard` (to work on sign-in
- * itself). Access: its token's email, an owner (who may come in is Access's policy), or a service token, a viewer.
- * crashyard: the session cookie's person.
+ * Who a request is: the session cookie's person. A local dev server is dev@localhost, an owner, unless `AUTH` is
+ * `crashyard` (`AUTH=crashyard pnpm dev`, to work on sign-in itself).
  */
-export async function whoIs(
-  request: Request,
-  env: Env,
-  mode: AuthMode,
-  dev: boolean,
-  now: number,
-): Promise<Who | null> {
-  if (dev && (env.AUTH as string) !== 'crashyard') return { email: 'dev@localhost', role: 'owner' }
-  if (mode === 'access') {
-    const viewer = await viewerOf(request, env, dev)
-    return viewer && { email: viewer.email, role: viewer.email.startsWith('service:') ? 'viewer' : 'owner' }
-  }
+export async function whoIs(request: Request, env: Env, dev: boolean, now: number): Promise<Who | null> {
+  if (dev && (env as { AUTH?: string }).AUTH !== 'crashyard') return { email: 'dev@localhost', role: 'owner' }
   const token = cookieValue(request, COOKIE)
   if (!token) return null
   const found = await sessionUser(env.DB, token, now)

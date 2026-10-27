@@ -71,7 +71,7 @@ export const ACTION_LABELS: Record<IssueAction, string> = {
 }
 const issueIdOf = (notice: Notice) => (ISSUE_KINDS.has(notice.kind) ? notice.issue.id : undefined)
 
-/** The issue's page with an action ready to confirm, signed in through Access: links can't act on their own, as
+/** The issue's page with an action ready to confirm, for whoever is signed in: links can't act on their own, as
  *  mail scanners and link previews open them */
 export const actionUrl = (notice: Notice, action: IssueAction) => `${notice.url}?do=${action}`
 

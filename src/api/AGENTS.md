@@ -1,6 +1,6 @@
 # API
 
-What the worker answers itself, ahead of Start. Under `/api/`, outside Access, each checks its own key or
+What the worker answers itself, ahead of Start. Under `/api/`, outside sign-in, each checks its own key or
 signature; `/mcp` comes after sign-in.
 
 - `ingest.ts`: `/api/<project>/envelope/` and `/api/<project>/store/`, what the Sentry SDKs send to, and the two that
@@ -81,9 +81,8 @@ signature; `/mcp` comes after sign-in.
   only its button). `telegram.test.ts` on `test/fakes.ts` with `fetch` stubbed.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   sign-in (routed after it in `src/server.ts`, as the dashboard), `handleMcp(request, db, { email, role })`; JSON only
-  and never cross-site, so a web page can't call it with someone's cookie. With crashyard's own sign-in an agent sends
+  and never cross-site, so a web page can't call it with someone's cookie. An agent sends
   `Authorization: Bearer cyp_…` (Settings, Agent tokens; `userTokenOf`), acting as its person with
   `tokenRole`: a read token is a viewer, a change token at most a member. The tools marked `changes`
-  (`resolve_issue`, `ignore_issue`, `add_note`) answer an `isError` result for a role below member, saying so; for
-  an Access service token (`service:<common name>`) until the setting `agents.can_change` (Settings, Tokens) is on
+  (`resolve_issue`, `ignore_issue`, `add_note`) answer an `isError` result for a role below member, saying so
   (`mcp.test.ts`). See docs/mcp.md. `get_issue` ends with the issue's suspect commits (`suspectCommits`), when there are any.

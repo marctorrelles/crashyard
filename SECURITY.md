@@ -10,5 +10,5 @@ like it.
 
 ## Scope
 
-The worker is in scope: the ingest and Sentry API endpoints, the Access check in front of the dashboard, the dashboard
-itself and the scheduled jobs. Cloudflare's own services, such as Access, D1 and R2, are Cloudflare's responsibility.
+The worker is in scope: the ingest and Sentry API endpoints, sign-in and the dashboard behind it, and the scheduled
+jobs. Cloudflare's own services, such as D1 and R2, are Cloudflare's responsibility.

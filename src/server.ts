@@ -1,6 +1,5 @@
 import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/server'
 import { handleIngest } from './api/ingest'
-import { authMode } from './auth/mode'
 import { whoIs } from './auth/session'
 import type { Notice } from './notify/notice'
 
@@ -58,11 +57,10 @@ export default {
     }
     if (url.pathname.startsWith('/api/')) return Response.json({ detail: 'Not found' }, { status: 404 })
 
-    // Everything else is the dashboard: signed in with a passkey (crashyard's own sign-in), or through Access
-    const mode = authMode(env)
+    // Everything else is the dashboard: signed in with a passkey, or with GitHub
     const now = Date.now()
-    const who = await whoIs(request, env, mode, import.meta.env.DEV, now)
-    const github = mode === 'crashyard' && url.pathname.match(/^\/auth\/github\/(\w+)$/)
+    const who = await whoIs(request, env, import.meta.env.DEV, now)
+    const github = url.pathname.match(/^\/auth\/github\/(\w+)$/)
     if (github && request.method === 'GET') {
       const [{ handleGitHub }, { relyingParty }] = await Promise.all([
         import('./auth/github'),
@@ -78,7 +76,6 @@ export default {
         request,
         env,
         dev: import.meta.env.DEV,
-        mode,
         who,
         now,
       })
@@ -86,7 +83,7 @@ export default {
     }
     // An agent with its person's token (Settings, Agent tokens), on /mcp only
     const bearer = request.headers.get('Authorization')?.match(/^Bearer (cyp_\S+)$/)?.[1]
-    if (url.pathname === '/mcp' && mode === 'crashyard' && bearer) {
+    if (url.pathname === '/mcp' && bearer) {
       const [{ handleMcp }, people] = await Promise.all([import('./api/mcp'), import('./data/people')])
       const token = await people.userTokenOf(env.DB, bearer, now)
       if (!token)
@@ -97,11 +94,9 @@ export default {
       })
     }
     // The sign-in pages are open to anyone, and only to someone signed out
-    const signInPage = mode === 'crashyard' && SIGN_IN_PAGES.test(url.pathname)
+    const signInPage = SIGN_IN_PAGES.test(url.pathname)
     if (signInPage && who) return Response.redirect(new URL('/', url), 303)
     if (!who && !signInPage) {
-      if (mode === 'access')
-        return new Response('Sign in through Cloudflare Access to open crashyard.', { status: 403 })
       if (url.pathname === '/mcp' || url.pathname.startsWith('/_serverFn') || request.method !== 'GET')
         return new Response('Sign in to crashyard first.', { status: 401 })
       const { userCount } = await import('./data/people')
@@ -123,7 +118,6 @@ export default {
       if (who.userId) headers.set('x-crashyard-user', String(who.userId))
       if (who.session) headers.set('x-crashyard-session', who.session)
     }
-    headers.set('x-crashyard-auth', mode)
     const response = await start(new Request(request, { headers }))
     if (!who?.cookie) return response
     const renewed = new Response(response.body, response)

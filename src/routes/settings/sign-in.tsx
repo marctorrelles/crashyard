@@ -7,7 +7,6 @@ import { createPasskey, RecoveryCodes } from '@/components/sign-in'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { deviceName } from '@/data/people'
 import { getSignIn, makeRecoveryCodes, removePasskey, renamePasskey, signOutSession } from '@/fns'
 
@@ -18,65 +17,12 @@ export const Route = createFileRoute('/settings/sign-in')({
 })
 
 function SignInSettings() {
-  const data = Route.useLoaderData()
-  if (data.auth === 'access') return <AccessSignIn canClaim={data.canClaim} email={data.viewer} />
   return (
     <>
       <Passkeys />
       <Recovery />
       <Sessions />
     </>
-  )
-}
-
-// With Access in front: who it let in, and while crashyard has no one yet, the first passkey for the move over
-function AccessSignIn({ canClaim, email }: { canClaim: boolean; email: string }) {
-  const { save, saving } = useSave()
-  const [codes, setCodes] = useState<string[]>()
-  if (codes)
-    return (
-      <SettingsCard
-        title="Save your recovery codes"
-        description="If you ever lose your passkeys, sign in with your email and one of these. Each works once, and they won’t be shown again."
-      >
-        <div className="max-w-sm">
-          <RecoveryCodes codes={codes} />
-        </div>
-      </SettingsCard>
-    )
-  return (
-    <SettingsCard
-      title="Cloudflare Access"
-      description={`You’re signed in as ${email} through Cloudflare Access. Its policy decides who can open crashyard.`}
-    >
-      {canClaim && (
-        <form
-          className="grid gap-3 border-t pt-4 @xl:grid-cols-[1fr_auto] @xl:items-end"
-          onSubmit={(e) => {
-            e.preventDefault()
-            const name = new FormData(e.currentTarget).get('name')
-            void save(async () => {
-              setCodes((await createPasskey<{ codes: string[] }>('claim', { name })).codes)
-            }, 'Passkey created. You’re the owner.')
-          }}
-        >
-          <div className="grid gap-2 @xl:col-span-2">
-            <p className="text-sm">
-              Moving to crashyard’s own sign-in? Create your passkey first. You become its owner, and once AUTH is set
-              to crashyard you sign in with it.
-            </p>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="claim-name">Your name</Label>
-            <Input id="claim-name" name="name" required maxLength={80} autoComplete="name" />
-          </div>
-          <Button type="submit" disabled={saving} className="max-sm:h-10">
-            <IconFingerprint data-icon="inline-start" />
-            Create passkey
-          </Button>
-        </form>
-      )}
-    </SettingsCard>
   )
 }
 

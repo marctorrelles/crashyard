@@ -1,5 +1,5 @@
-// The dashboard's server functions: what pages load and change, behind Access (src/server.ts). Each checks its input
-// here and calls src/data/, which holds the SQL.
+// The dashboard's server functions: what pages load and change, for whoever is signed in (src/server.ts). Each checks
+// its input here and calls src/data/, which holds the SQL.
 import { createMiddleware, createServerFn } from '@tanstack/react-start'
 import { getCookie, getRequest, getRequestHeader, setCookie } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
@@ -142,7 +142,6 @@ export const getHome = createServerFn().handler(async () => {
 // the browser's (a cookie the root's script keeps, `tz`), else UTC on a first visit; server and browser render the same.
 export const getSidebar = createServerFn().handler(async () => {
   const browserZone = getCookie('tz')
-  const auth = getRequestHeader('x-crashyard-auth') === 'crashyard' ? 'crashyard' : 'access'
   // Signed out, on a sign-in page: nothing of the deployment's, the browser's own theme
   if (!role())
     return {
@@ -151,7 +150,6 @@ export const getSidebar = createServerFn().handler(async () => {
       viewer: null,
       name: null,
       role: null,
-      auth,
       sidebarOpen: true,
       preferences: settings.PREFERENCES,
       zone: browserZone && ZONES.has(browserZone) ? browserZone : 'UTC',
@@ -171,7 +169,6 @@ export const getSidebar = createServerFn().handler(async () => {
     viewer: viewer(),
     name: user?.name ?? null,
     role: role(),
-    auth,
     sidebarOpen: getCookie('sidebar_state') !== 'false',
     preferences,
     zone: preferences.timeZone ?? (browserZone && ZONES.has(browserZone) ? browserZone : 'UTC'),
@@ -392,8 +389,8 @@ export const getIssue = createServerFn()
       suspectsData.similarIssues(env.DB, issue.issue, event),
       issues.isBookmarked(env.DB, who, data.id),
       issues.assignees(env.DB, who),
-      // Opened by a person: read until its next event. An agent's read doesn't count
-      who.startsWith('service:') || who === 'unknown' ? undefined : issues.markViewed(env.DB, who, data.id, now),
+      // Opened by a person: read until its next event
+      who === 'unknown' ? undefined : issues.markViewed(env.DB, who, data.id, now),
     ])
     return {
       ...issue,
@@ -1301,20 +1298,17 @@ export const deleteDebugFile = createServerFn({ method: 'POST' })
   .handler(({ data }) => tokens.deleteDebugFile(env.DB, env.FILES, data.project, data.id))
 
 export const getInstanceSettings = createServerFn().handler(async () => {
-  const [defaults, scrubFields, agentsCanChange, update] = await Promise.all([
+  const [defaults, scrubFields, update] = await Promise.all([
     settings.projectDefaults(env.DB),
     settings.getSetting<string[]>(env.DB, settings.SCRUB_KEY, []),
-    settings.getSetting(env.DB, settings.AGENTS_KEY, false),
     updates.update(),
   ])
   return {
     origin: origin(),
     publicUrl: env.PUBLIC_URL || null,
-    access: { team: env.ACCESS_TEAM_DOMAIN || null, audience: !!env.ACCESS_AUD },
     emailFrom: env.EMAIL_FROM || null,
     defaults,
     scrubFields,
-    agentsCanChange,
     version,
     update,
   }
@@ -1342,11 +1336,6 @@ export const saveScrubFields = createServerFn({ method: 'POST' })
     return { fields: [...new Set(list.map((f) => text(f, 80, 'A field name').trim()).filter(Boolean))] }
   })
   .handler(({ data }) => settings.setSetting(env.DB, settings.SCRUB_KEY, data.fields, viewer()).then(() => undefined))
-
-export const saveAgentsCanChange = createServerFn({ method: 'POST' })
-  .middleware([admin])
-  .validator((d: unknown) => ({ on: object(d).on === true }))
-  .handler(({ data }) => settings.setSetting(env.DB, settings.AGENTS_KEY, data.on, viewer()).then(() => undefined))
 
 export const sendTestEmail = createServerFn({ method: 'POST' })
   .middleware([admin])
@@ -1376,7 +1365,6 @@ export const sendTestEmail = createServerFn({ method: 'POST' })
 export const getTokens = createServerFn().handler(async () => ({
   tokens: await tokens.listTokens(env.DB),
   projects: await projects.allProjects(env.DB),
-  agentsCanChange: await settings.getSetting(env.DB, settings.AGENTS_KEY, false),
   origin: origin(),
   now: Date.now(),
 }))
@@ -1456,12 +1444,12 @@ export const deleteSearch = createServerFn({ method: 'POST' })
   .handler(({ data }) => searches.deleteSearch(env.DB, viewer(), data.id))
 
 // Sign-in (src/auth/AGENTS.md): the signed-in person's passkeys, sessions and recovery codes, Settings, Sign-in; and
-// People, the owners' page. All of it is crashyard's own sign-in: with Access, only claiming the first passkey
+// People, the owners' page
 
-/** The signed-in person's id, only with crashyard's own sign-in */
+/** The signed-in person's id; none on a dev server signed in as dev@localhost */
 const me = () => {
   const id = Number(getRequestHeader('x-crashyard-user'))
-  if (!id) throw new Error('This crashyard signs in through Cloudflare Access.')
+  if (!id) throw new Error('Sign in with a passkey first. A dev server does with AUTH=crashyard pnpm dev.')
   return id
 }
 
@@ -1470,17 +1458,8 @@ export const getSignIn = createServerFn()
   .handler(async () => {
     const id = Number(getRequestHeader('x-crashyard-user'))
     const now = Date.now()
-    if (!id)
-      return {
-        auth: 'access' as const,
-        // Moving over from Access: whoever it lets in makes the first passkey, and becomes the owner
-        canClaim: !viewer().startsWith('service:') && !(await people.userCount(env.DB)),
-        viewer: viewer(),
-        passkeys: [],
-        sessions: [],
-        codesLeft: 0,
-        now,
-      }
+    // A dev server's dev@localhost has none of these
+    if (!id) return { viewer: viewer(), passkeys: [], sessions: [], codesLeft: 0, now }
     const current = getRequestHeader('x-crashyard-session')
     const [passkeys, sessions, codesLeft] = await Promise.all([
       people.passkeysOf(env.DB, id),
@@ -1488,8 +1467,6 @@ export const getSignIn = createServerFn()
       people.recoveryCodesLeft(env.DB, id),
     ])
     return {
-      auth: 'crashyard' as const,
-      canClaim: false,
       viewer: viewer(),
       passkeys,
       sessions: sessions.map((s) => ({ ...s, current: s.hash === current })),

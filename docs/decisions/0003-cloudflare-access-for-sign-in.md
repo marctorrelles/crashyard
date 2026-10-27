@@ -1,6 +1,6 @@
 # 3. Cloudflare Access for sign-in
 
-Superseded by [0005](0005-own-sign-in.md): crashyard signs people in by itself, and Access is a mode it keeps.
+Superseded by [0005](0005-own-sign-in.md): crashyard signs people in by itself, and no longer works with Access.
 
 **Context.** The dashboard holds every app's crashes and logs, so it needs sign-in. Building accounts, passwords and
 roles is a project of its own, and getting it wrong leaks data.

@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 const root = getRouteApi('__root__')
 
-type Page = { label: string; path: string; owners?: boolean; ownSignIn?: boolean }
+type Page = { label: string; path: string; owners?: boolean }
 type Group = { label: string; pages: Page[]; project?: boolean }
 
 const INSTANCE: Page[] = [
@@ -48,7 +48,7 @@ const PROJECT: Page[] = [
 ]
 const PERSONAL: Page[] = [
   { label: 'Sign-in', path: '/settings/sign-in' },
-  { label: 'Agent tokens', path: '/settings/agent-tokens', ownSignIn: true },
+  { label: 'Agent tokens', path: '/settings/agent-tokens' },
   { label: 'Appearance', path: '/settings/appearance' },
   { label: 'Date and time', path: '/settings/date-and-time' },
   { label: 'Stack traces', path: '/settings/stack-traces' },
@@ -56,7 +56,7 @@ const PERSONAL: Page[] = [
 ]
 
 /** The groups, the project's for `slug` (the page's, else the one picked last, else the first) */
-function groupsFor(project: { slug: string; name: string } | undefined, owner: boolean, own: boolean): Group[] {
+function groupsFor(project: { slug: string; name: string } | undefined, owner: boolean): Group[] {
   return [
     { label: 'crashyard', pages: INSTANCE.filter((p) => owner || !p.owners) },
     ...(project
@@ -68,7 +68,7 @@ function groupsFor(project: { slug: string; name: string } | undefined, owner: b
           },
         ]
       : []),
-    { label: 'You', pages: PERSONAL.filter((p) => own || !p.ownSignIn) },
+    { label: 'You', pages: PERSONAL },
   ]
 }
 
@@ -81,10 +81,9 @@ export function SettingsNav({ lastProject }: { lastProject: string | null }) {
   const slug = path.match(/^\/settings\/projects\/([^/]+)/)?.[1]
   const project =
     projects.find((p) => p.slug === (slug ? decodeURIComponent(slug) : lastProject)) ?? (slug ? undefined : projects[0])
-  // People only for owners of a crashyard signing in by itself (with Access, its policy says who comes in), and agent
-  // tokens only there too (with Access, agents use its service tokens)
-  const { auth, role } = root.useLoaderData()
-  const groups = groupsFor(project, auth === 'crashyard' && role === 'owner', auth === 'crashyard')
+  // People only for owners
+  const { role } = root.useLoaderData()
+  const groups = groupsFor(project, role === 'owner')
   // Another project opens the same page of it, or its General from a page that isn't a project's
   const pickProject = (other: string) => {
     const page = path.match(/^\/settings\/projects\/[^/]+\/([^/]+)/)?.[1] ?? 'general'

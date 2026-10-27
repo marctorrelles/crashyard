@@ -10,7 +10,6 @@ import {
 } from '@simplewebauthn/server'
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
 import * as people from '../data/people'
-import type { AuthMode } from './mode'
 import { clearedCookie, cookieValue, COOKIE, sessionCookie, type Who } from './session'
 
 /** Where passkeys belong: the dashboard's origin, `PUBLIC_URL` when it's set (not on a dev server), else the request's */
@@ -72,7 +71,7 @@ async function verifyRegistration(
 
 const STALE = 'That took too long. Start again.'
 
-type Context = { request: Request; env: Env; dev: boolean; mode: AuthMode; who: Who | null; now: number }
+type Context = { request: Request; env: Env; dev: boolean; who: Who | null; now: number }
 
 /** Answers a POST to /auth/<path>; null for a path it doesn't know */
 export async function handleAuth(path: string, ctx: Context): Promise<Response | null> {
@@ -105,7 +104,6 @@ export async function handleAuth(path: string, ctx: Context): Promise<Response |
     switch (path) {
       // The first owner, with the setup code from the deployment (`SETUP_CODE`), while there's no one
       case 'setup/options': {
-        if (ctx.mode !== 'crashyard') refuse('This crashyard signs in through Cloudflare Access.')
         if (await people.userCount(db)) refuse('crashyard is already set up. Sign in instead.')
         if (!env.SETUP_CODE) refuse('Add a secret named SETUP_CODE to the worker first. pnpm run setup makes one.')
         const code = typeof body.code === 'string' ? body.code : ''
@@ -116,17 +114,7 @@ export async function handleAuth(path: string, ctx: Context): Promise<Response |
         const id = await people.saveChallenge(db, options.challenge, 'setup', user, now)
         return Response.json({ id, options })
       }
-      // While moving over from Access: the person Access let in becomes the first owner, no setup code needed
-      case 'claim/options': {
-        if (ctx.mode !== 'access' || !ctx.who || ctx.who.email.startsWith('service:')) refuse('Sign in first.')
-        if (await people.userCount(db)) refuse('crashyard already has an owner.')
-        const user = { email: ctx.who!.email, name: person({ ...body, email: ctx.who!.email }).name }
-        const options = await registration(db, rp, user)
-        const id = await people.saveChallenge(db, options.challenge, 'setup', user, now)
-        return Response.json({ id, options })
-      }
-      case 'setup/verify':
-      case 'claim/verify': {
+      case 'setup/verify': {
         const taken = await people.takeChallenge<{ email: string; name: string }>(db, String(body.id), 'setup', now)
         if (!taken) refuse(STALE)
         const { challenge, data } = taken!
@@ -135,8 +123,7 @@ export async function handleAuth(path: string, ctx: Context): Promise<Response |
         const user = await people.createUser(db, { ...data, role: 'owner', createdBy: null }, now)
         await people.addPasskey(db, passkeyOf(credential, user.id, passkeyName), now).run()
         const codes = await people.newRecoveryCodes(db, user.id)
-        // Claiming keeps Access's session: the passkey is for after the switch
-        return path === 'claim/verify' ? Response.json({ ok: true, codes }) : signIn(user.id, { codes })
+        return signIn(user.id, { codes })
       }
 
       // Signing in: any passkey of this crashyard, picked by the browser, so there's no email to type

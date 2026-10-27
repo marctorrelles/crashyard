@@ -1,6 +1,6 @@
 # 5. crashyard's own sign-in, with passkeys
 
-Supersedes [0003](0003-cloudflare-access-for-sign-in.md) as the default. Access stays as a mode.
+Supersedes [0003](0003-cloudflare-access-for-sign-in.md).
 
 **Context.** Cloudflare Access worked, but it made crashyard harder to start and to use. Deploying meant creating a
 Zero Trust team, two Access applications and copying two values back. Signing in meant a one-time PIN by email on
@@ -11,8 +11,8 @@ had a role, so everyone who could sign in could change everything.
 code from the deployment, and everyone else joins with an invite link. Sessions last 90 days from the last visit.
 People have a role: owner, admin, member or viewer. Agents use tokens each person creates, which act as that person.
 Recovery codes, and a command for whoever holds the Cloudflare account, cover lost devices. Sign in with GitHub is
-optional and set up in one click, as a private GitHub App only that deployment uses. `AUTH=access` keeps Cloudflare
-Access for teams that already use Zero Trust, and a deployment with Access configured keeps using it until it switches.
+optional and set up in one click, as a private GitHub App only that deployment uses. Cloudflare Access was kept as a
+mode for a while, so a deployment could move over without a gap, and then removed: one way in is less to keep safe.
 
 **What it costs.** crashyard now holds sessions, passkeys, invites and tokens, so a mistake in it can let someone in.
 It keeps only digests of every secret, checks WebAuthn with `@simplewebauthn/server` rather than by hand, and fails

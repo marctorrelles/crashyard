@@ -13,8 +13,7 @@
   nothing wider than the screen) and in light and dark.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
   pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications, and at
-  the foot Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout` with
-  crashyard's own sign-in, Access's `/cdn-cgi/access/logout` with Access), `Shell` (a page: the top bar with the
+  the foot Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists, `full` for settings: from the sidebar's edge, not centred), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
   section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). The lists (overview, dashboards, issues, Explore, releases, performance, logs)

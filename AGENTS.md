@@ -17,28 +17,26 @@ pnpm run deploy          # build, apply migrations to the remote D1, deploy
 
 Where things are:
 
-- `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access
+- `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the sign-in
   check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys), `/auth/*` (passkeys, signing out),
-  and sends everything else to Start for whoever is signed in, with a passkey or through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications,
-  each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
+  and sends everything else to Start for whoever is signed in; `scheduled` runs the cron every minute (monitors, held
+  notifications, each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
   slower releases; every 5 minutes at :02, :07…, metric alerts; Mondays at 07:00 UTC, each project's week; hourly at
   :15, retention; hourly at :20, auto-resolve and notification failures past 30 days; hourly at :25, escalation;
   envelopes to try again last. The jobs share one deadline, 40 seconds from the start, `CRON_BUDGET`: each takes
   what's left, and one with under 2 seconds left waits for the next minute). In local dev only, `/__dev/sql` and
   `/__dev/cron` let the end-to-end tests reach the database and run the cron.
-- `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside Access, and the MCP server,
-  inside (see its AGENTS.md).
+- `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside sign-in, and the MCP server, inside (see its
+  AGENTS.md).
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
 - `src/notify/`: routes (frequency, filters, a wait), metric alerts, channels (Telegram, email, webhooks), quiet hours
   (see its AGENTS.md).
-- `src/auth/`: who's signed in: crashyard's own passkeys and sessions, or Cloudflare Access (see its AGENTS.md).
+- `src/auth/`: who's signed in: passkeys, Sign in with GitHub and sessions (see its AGENTS.md).
 - `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`. Each one that
   changes something names the least role it needs (`.middleware([member])`, `src/auth/AGENTS.md`). A field a
   person types passes its label to `int` or `text`, so a refusal names it and what fits ("Event retention in days is
   a whole number from 1 to 3,650."), and its input carries the same `min`, `max` or `maxLength`; ids and other
-  fields only a page sets keep the short "expected …".
-  `src/start.ts` limits them to same-origin calls (CSRF), and refuses any but a GET from an agent (a viewer
-  `service:…`, an Access service token; `agentRefused`, tested in `start.test.ts`): agents change issues only through MCP, when Settings, Tokens lets them.
+  fields only a page sets keep the short "expected …". `src/start.ts` limits them to same-origin calls (CSRF).
 - `src/data/`: the dashboard's SQL (see its AGENTS.md).
 - `src/search/`: Sentry's search syntax, as SQL (see its AGENTS.md).
 - `src/symbols/`: uploads and readable stacks (see its AGENTS.md).
@@ -53,7 +51,7 @@ Where things are:
 - `docs/`: decisions, deploying, linking an app (see its AGENTS.md).
 - `scripts/`: `pnpm seed` for a local database with data in it (see its AGENTS.md).
 - `wrangler.jsonc`: the worker, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and empty `vars`, generic so
-  anyone can deploy it; a deployment's own domain and Access values are in the git-ignored `wrangler.local.json`,
+  anyone can deploy it; a deployment's own domain and values are in the git-ignored `wrangler.local.json`,
   which `vite.config.ts` lays over it.
 - `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
   three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root), issue
@@ -63,8 +61,7 @@ Where things are:
 ## Rules
 
 - **Fail closed.** Signed out, the dashboard opens only its sign-in pages; with no one set up yet, only `/setup` and
-  its setup code. With `AUTH` as `access`, the worker checks Access's token itself, and without Access configured it
-  refuses every dashboard request. Anything that reads data checks who's asking, anything that changes it their role.
+  its setup code. Anything that reads data checks who's asking, anything that changes it their role.
 - **Be what the Sentry SDKs and sentry-cli expect.** When in doubt about a wire format, check what the real SDK sends
   and what Sentry answers; record what was checked, and against which version, in the part's AGENTS.md.
 - **Commits:** one subject per commit, Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`). No commit or

@@ -7,14 +7,14 @@ describe('settings', () => {
     const db = sqliteD1()
     expect(await getSetting(db, 'privacy.scrub_fields', ['none'])).toEqual(['none'])
     await setSetting(db, 'privacy.scrub_fields', ['iban', 'pin'], 'marc@example.com', 5)
-    await setSetting(db, 'agents.can_change', true, null)
+    await setSetting(db, 'example.flag', true, null)
     expect(await getSetting(db, 'privacy.scrub_fields', [])).toEqual(['iban', 'pin'])
-    expect(await getSetting(db, 'agents.can_change', false)).toBe(true)
+    expect(await getSetting(db, 'example.flag', false)).toBe(true)
     expect(
       db.sqlite.prepare("SELECT updated_by, updated_at FROM settings WHERE key = 'privacy.scrub_fields'").get(),
     ).toEqual({ updated_by: 'marc@example.com', updated_at: 5 })
-    db.sqlite.exec("UPDATE settings SET value = 'not json' WHERE key = 'agents.can_change'")
-    expect(await getSetting(db, 'agents.can_change', false)).toBe(false)
+    db.sqlite.exec("UPDATE settings SET value = 'not json' WHERE key = 'example.flag'")
+    expect(await getSetting(db, 'example.flag', false)).toBe(false)
   })
 
   it('lays new-project defaults over the columns’ own', async () => {

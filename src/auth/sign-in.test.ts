@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
 import * as people from '../data/people'
-import { authMode } from './mode'
 import { handleAuth } from './passkeys'
 import { whoIs } from './session'
 
@@ -14,40 +13,31 @@ const env = (db: D1Database, vars: Record<string, string> = {}) =>
 const owner = (db: D1Database, email = 'ada@example.com', role: people.Role = 'owner') =>
   people.createUser(db, { email, name: 'Ada', role, createdBy: null }, NOW)
 
-describe('authMode', () => {
-  it('takes AUTH, else Access when its audience is set, else crashyard’s own', () => {
-    expect(authMode({ AUTH: 'access' })).toBe('access')
-    expect(authMode({ AUTH: 'crashyard', ACCESS_AUD: 'aud' })).toBe('crashyard')
-    expect(authMode({ AUTH: '', ACCESS_AUD: 'aud' })).toBe('access')
-    expect(authMode({ AUTH: '' })).toBe('crashyard')
-  })
-})
-
 describe('whoIs', () => {
   const request = (cookie?: string) => new Request(`${URL_}/`, { headers: cookie ? { Cookie: cookie } : {} })
 
   it('lets a dev server in as dev@localhost unless AUTH is crashyard', async () => {
     const db = sqliteD1()
-    expect(await whoIs(request(), env(db, { AUTH: '' }), 'crashyard', true, NOW)).toEqual({
+    expect(await whoIs(request(), env(db, { AUTH: '' }), true, NOW)).toEqual({
       email: 'dev@localhost',
       role: 'owner',
     })
-    expect(await whoIs(request(), env(db), 'crashyard', true, NOW)).toBeNull()
+    expect(await whoIs(request(), env(db), true, NOW)).toBeNull()
   })
 
   it('knows a session, and not one that ended, expired or whose person was removed', async () => {
     const db = sqliteD1()
     const user = await owner(db)
     const { token } = await people.startSession(db, user.id, 'Safari', NOW)
-    const who = await whoIs(request(`a=b; crashyard_session=${token}`), env(db), 'crashyard', false, NOW + 1000)
+    const who = await whoIs(request(`a=b; crashyard_session=${token}`), env(db), false, NOW + 1000)
     expect(who).toMatchObject({ email: 'ada@example.com', role: 'owner', userId: user.id, cookie: undefined })
-    expect(await whoIs(request('crashyard_session=nope'), env(db), 'crashyard', false, NOW)).toBeNull()
+    expect(await whoIs(request('crashyard_session=nope'), env(db), false, NOW)).toBeNull()
     expect(
-      await whoIs(request(`crashyard_session=${token}`), env(db), 'crashyard', false, NOW + people.SESSION_DAYS * DAY),
+      await whoIs(request(`crashyard_session=${token}`), env(db), false, NOW + people.SESSION_DAYS * DAY),
     ).toBeNull()
     await people.createUser(db, { email: 'bo@example.com', name: 'Bo', role: 'owner', createdBy: null }, NOW)
     await people.removeUser(db, user.id)
-    expect(await whoIs(request(`crashyard_session=${token}`), env(db), 'crashyard', false, NOW + 1000)).toBeNull()
+    expect(await whoIs(request(`crashyard_session=${token}`), env(db), false, NOW + 1000)).toBeNull()
   })
 
   it('renews a session under 60 days left, at most once a day, as an HttpOnly, Secure, Lax cookie', async () => {
@@ -55,9 +45,9 @@ describe('whoIs', () => {
     const user = await owner(db)
     const { token } = await people.startSession(db, user.id, null, NOW)
     const later = NOW + 31 * DAY
-    const who = await whoIs(request(`crashyard_session=${token}`), env(db), 'crashyard', false, later)
+    const who = await whoIs(request(`crashyard_session=${token}`), env(db), false, later)
     expect(who?.cookie).toMatch(/^crashyard_session=.+; Path=\/; HttpOnly; SameSite=Lax; Expires=.+; Secure$/)
-    const again = await whoIs(request(`crashyard_session=${token}`), env(db), 'crashyard', false, later + 1000)
+    const again = await whoIs(request(`crashyard_session=${token}`), env(db), false, later + 1000)
     expect(again?.cookie).toBeUndefined()
   })
 })
@@ -72,7 +62,6 @@ describe('/auth', () => {
       }),
       env: env(db, vars),
       dev: false,
-      mode: 'crashyard',
       who: null,
       now: NOW,
     })
@@ -146,7 +135,6 @@ describe('/auth', () => {
       }),
       env: env(db),
       dev: false,
-      mode: 'crashyard',
       who: null,
       now: NOW,
     })

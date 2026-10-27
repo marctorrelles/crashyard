@@ -1,6 +1,6 @@
-// Sets up a deployment from a clone (docs/deploying.md): asks for its domain and how people sign in (crashyard's own
-// passkeys, with a setup code made here, or Cloudflare Access), writes them to wrangler.local.json (git-ignored), then
-// offers to deploy and add the R2 cleanup rules.
+// Sets up a deployment from a clone (docs/deploying.md): asks for its domain and email sender, writes them to
+// wrangler.local.json (git-ignored), then offers to deploy, makes the setup code for the first owner's passkey and
+// adds the R2 cleanup rules.
 // Run again to change a value: what's there is the default. Needs `pnpm wrangler login` first.
 //   pnpm run setup
 import { execFileSync } from 'node:child_process'
@@ -29,18 +29,6 @@ if (host) {
   local.workers_dev = false
   vars.PUBLIC_URL = `https://${host}`
 }
-const access = /^a/i.test(
-  await ask(
-    'How people sign in: crashyard (passkeys) or access (Cloudflare Access)',
-    vars.AUTH ?? (vars.ACCESS_AUD ? 'access' : 'crashyard'),
-  ),
-)
-vars.AUTH = access ? 'access' : 'crashyard'
-if (access) {
-  console.log('Cloudflare Access (docs/deploying.md): leave empty until you have them, and run this again.')
-  vars.ACCESS_TEAM_DOMAIN = await ask('Team domain (<team>.cloudflareaccess.com)', vars.ACCESS_TEAM_DOMAIN)
-  vars.ACCESS_AUD = await ask('The crashyard application’s audience (AUD) tag', vars.ACCESS_AUD)
-}
 vars.EMAIL_FROM = await ask(
   'Email notifications from (an address on a domain with Email Routing; empty: none)',
   vars.EMAIL_FROM,
@@ -51,17 +39,15 @@ console.log(`Wrote ${file}.`)
 
 if (await yes('Deploy now (build, migrate the D1 database, deploy)?')) {
   run(['run', 'deploy'])
-  if (!access) {
-    // A secret, so no file or deploy holds it. Readable: no 0, O, 1, I or L. It only works at /setup while there's
-    // no one, so it's harmless once used
-    const letters = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
-    const group = () => Array.from({ length: 5 }, () => letters[randomInt(letters.length)]).join('')
-    const code = [group(), group(), group()].join('-')
-    run(['-s', 'wrangler', 'secret', 'put', 'SETUP_CODE'], code)
-    console.log(
-      `\nOpen ${vars.PUBLIC_URL ?? 'your crashyard'}/setup and enter the setup code ${code} to create your owner passkey.\n`,
-    )
-  }
+  // A secret, so no file or deploy holds it. Readable: no 0, O, 1, I or L. It only works at /setup while there's
+  // no one, so it's harmless once used
+  const letters = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+  const group = () => Array.from({ length: 5 }, () => letters[randomInt(letters.length)]).join('')
+  const code = [group(), group(), group()].join('-')
+  run(['-s', 'wrangler', 'secret', 'put', 'SETUP_CODE'], code)
+  console.log(
+    `\nOpen ${vars.PUBLIC_URL ?? 'your crashyard'}/setup and enter the setup code ${code} to create your owner passkey.\n`,
+  )
   if (await yes('Have R2 delete raw envelopes after 30 days, attachments after 90 and unfinished uploads after one?')) {
     run([
       'wrangler',

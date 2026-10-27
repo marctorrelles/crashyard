@@ -71,7 +71,7 @@ function passkeyError(error: unknown, creating: boolean): Error {
   return error instanceof Error ? error : new Error('Something went wrong with the passkey. Try again.')
 }
 
-/** Creates a passkey: `setup`, `invite`, `claim` or `passkeys` (another for whoever is signed in) */
+/** Creates a passkey: `setup`, `invite` or `passkeys` (another for whoever is signed in) */
 export async function createPasskey<T = Record<string, unknown>>(kind: string, body: unknown = {}) {
   const { id, options } = await auth<{ id: string; options: Parameters<typeof startRegistration>[0]['optionsJSON'] }>(
     `${kind}/options`,
