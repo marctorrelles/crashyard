@@ -30,7 +30,8 @@
 - `performance.tsx`: `ms` (a duration), `vitalValue`, `VitalRows` (a "Web vitals" and a "Mobile vitals" row of
   cards, each vital's p75, its rating as a dot and words, Not rated for those Sentry doesn't rate, and "Up 12% on the
   release before", or "Same as the release before" under 1%; a row only with a vital in it), `Period` and `Waterfall` (spans as
-  bars, indented by depth; on a phone the bar goes under its name).
+  bars, indented by depth; on a phone the bar goes under its name; each duration after its bar when it ends by 80%,
+  else before it when it starts from 20%, else inside its end in white, never wrapped).
 - `search-bar.tsx`: `SearchBar` (scope issues, logs or events, Explore's, with `EVENT_KEYS` and the issues' tags): every `key:value` of the query is a pill (key, operator
   menu, value, × with a hairline between, the key and operator grey, the value bold; on a phone each reaches to a 44 px
   tap; `is:` has no key; the key or value turns it back into text with the value selected), free words stay in the

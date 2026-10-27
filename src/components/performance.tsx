@@ -59,20 +59,32 @@ export function Waterfall({ spans, duration }: { spans: Span[]; duration: number
               )}
               style={{ left: `${(s.start / duration) * 100}%`, width: `${(s.duration / duration) * 100}%` }}
             />
-            <span
-              className="absolute top-0 text-[10px] leading-4 text-muted-foreground tabular-nums"
-              style={
-                s.start / duration > 0.7
-                  ? { right: `${100 - (s.start / duration) * 100}%`, marginRight: 4 }
-                  : { left: `calc(${((s.start + s.duration) / duration) * 100}% + 4px)` }
-              }
-            >
-              {ms(s.duration)}
-            </span>
+            <SpanDuration start={s.start / duration} end={(s.start + s.duration) / duration} ms={s.duration} />
           </div>
         </li>
       ))}
     </ul>
+  )
+}
+
+/** A span's duration beside its bar: after it when there's room, else before it, else inside its end */
+function SpanDuration({ start, end, ms: value }: { start: number; end: number; ms: number }) {
+  const [style, inside] =
+    end <= 0.8
+      ? [{ left: `calc(${end * 100}% + 4px)` }, false]
+      : start >= 0.2
+        ? [{ right: `calc(${100 - start * 100}% + 4px)` }, false]
+        : [{ right: `calc(${100 - end * 100}% + 4px)` }, true]
+  return (
+    <span
+      className={cn(
+        'absolute top-0 text-[10px] leading-4 whitespace-nowrap tabular-nums',
+        inside ? 'font-medium text-white' : 'text-muted-foreground',
+      )}
+      style={style}
+    >
+      {ms(value)}
+    </span>
   )
 }
 
