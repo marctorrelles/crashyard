@@ -68,10 +68,11 @@ signature; `/mcp` comes after the Access check.
   (`storeDeploy`): those named, checked by `allowed` as other uploads, else every project with the release (in
   `releases`, events or sessions), a project's token only its own; answered in Sentry's Deploy shape (`id`,
   `environment`, `name`, `url`, `dateStarted`, `dateFinished`), 201. `deploys list` (GET) lists them.
-  `sentry.test.ts` calls it on `test/fakes.ts`: deploy links and a scoped token.
+  `sentry.test.ts` calls it on `test/fakes.ts`: deploy links, and a project's token refused on another project for
+  artifact bundles, releases POST and PUT, set-commits, deploys and previous-with-commits.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
   web page can't call it with someone's Access cookie. Agents, viewers `service:<common name>` (an Access service
   token), only read: the tools marked `changes` (`resolve_issue`, `ignore_issue`, `add_note`) answer an `isError`
   result saying where to allow them until the setting `agents.can_change` (Settings, Tokens) is on; people signed in
-  always can. See docs/mcp.md. `get_issue` ends with the issue's suspect commits (`suspectCommits`), when there are any.
+  always can (`mcp.test.ts`). See docs/mcp.md. `get_issue` ends with the issue's suspect commits (`suspectCommits`), when there are any.

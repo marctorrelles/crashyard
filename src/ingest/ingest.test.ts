@@ -534,6 +534,19 @@ describe('what a pass that fails costs', () => {
     ])
   })
 
+  it('answers a second send of the same event 200, stores it once, and never fails it', async () => {
+    const env = setup()
+    const lines = [{}, { type: 'event' }, { event_id: 'd'.repeat(32), message: 'twice', timestamp: NOW / 1000 }]
+    for (let i = 0; i < 2; i++) {
+      const response = await send(env, lines)
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({ id: 'd'.repeat(32) })
+    }
+    expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM events').get()).toEqual({ n: 1 })
+    expect(env.DB.sqlite.prepare('SELECT count FROM issues').get()).toEqual({ count: 1 })
+    expect([...env.FILES.objects.keys()].filter((k) => !k.startsWith('envelopes/'))).toEqual([])
+  })
+
   it('holds no envelope of sessions alone', async () => {
     const env = setup()
     const at = new Date(NOW).toISOString()

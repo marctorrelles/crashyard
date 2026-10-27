@@ -5,10 +5,12 @@ import { createCsrfMiddleware, createMiddleware, createStart } from '@tanstack/r
 
 const serverFn = (request: Request) => new URL(request.url).pathname.startsWith('/_serverFn')
 
+/** A server function call from an agent (a viewer `service:…`) that isn't a GET: refused */
+export const agentRefused = (request: Request) =>
+  serverFn(request) && request.method !== 'GET' && !!request.headers.get('x-crashyard-viewer')?.startsWith('service:')
+
 const agentsRead = createMiddleware().server(({ request, next }) =>
-  serverFn(request) && request.method !== 'GET' && request.headers.get('x-crashyard-viewer')?.startsWith('service:')
-    ? new Response('Agents can read the dashboard but not change it.', { status: 403 })
-    : next(),
+  agentRefused(request) ? new Response('Agents can read the dashboard but not change it.', { status: 403 }) : next(),
 )
 
 export const startInstance = createStart(() => ({

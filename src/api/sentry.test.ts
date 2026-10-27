@@ -57,4 +57,36 @@ describe('the Sentry API', () => {
     expect((await previous(all)).version).toBe('0.9')
     expect((await previous(onlyA)).version).toBe('1.0')
   })
+
+  it('refuses a token of project a everything on project b', async () => {
+    const { env, onlyA, call } = await setup()
+    const refused = { detail: 'You do not have permission to perform this action.' }
+    const expectRefused = async (response: Response) => {
+      expect(response.status).toBe(403)
+      expect(await response.json()).toEqual(refused)
+    }
+    await expectRefused(
+      await call(onlyA, 'POST', 'artifactbundle/assemble/', { checksum: 'c'.repeat(40), chunks: [], projects: ['b'] }),
+    )
+    await expectRefused(await call(onlyA, 'POST', 'releases/', { version: '3.0', projects: ['b'] }))
+    await expectRefused(await call(onlyA, 'PUT', 'releases/3.0/', { projects: ['b'] }))
+    await expectRefused(
+      await call(onlyA, 'POST', 'releases/0.9/deploys/', { environment: 'production', projects: ['b'] }),
+    )
+    // set-commits names no project: project b's 0.9 gets none of them
+    await call(onlyA, 'PUT', 'releases/0.9/', {
+      commits: [{ id: 'ccc', message: 'Fix', author_name: 'me', timestamp: new Date(NOW).toISOString() }],
+    })
+    expect(env.DB.sqlite.prepare("SELECT sha FROM release_commits WHERE version = '0.9'").all()).toEqual([
+      { sha: 'bbb' },
+    ])
+    // A deploy naming no project goes to project b's release only through a token that reaches it
+    await call(onlyA, 'POST', 'releases/0.9/deploys/', { environment: 'production' })
+    expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM deploys').get()).toEqual({ n: 0 })
+    // The release before 2.0 with commits, project b's 0.9, is never named to project a's token
+    expect(await (await call(onlyA, 'GET', 'releases/2.0/previous-with-commits/')).json()).toMatchObject({
+      version: '1.0',
+    })
+    expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM releases WHERE version = ?').get('3.0')).toEqual({ n: 0 })
+  })
 })
