@@ -14,8 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ValueMenu } from '@/components/value-menu'
 import { CHART_DAYS, type ChartDays } from '@/data/charts'
 import { getIssueChart, getIssues, getSavedSearches } from '@/fns'
-import { addValue, NEW_FOR, tokenize, withToken } from '@/search/query'
 import { cn } from '@/lib/utils'
+import { addValue, NEW_FOR, tokenize, withToken } from '@/search/query'
 
 const SORTS = {
   lastSeen: 'Last seen',
@@ -165,18 +165,6 @@ function Issues() {
           </SelectContent>
         </Select>
       </div>
-      {selected.length > 0 && (
-        <div className="sticky top-14 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-xl border bg-background p-2 pl-3 shadow-sm">
-          <span className="text-sm font-medium">{selected.length} selected</span>
-          <IssueActions
-            ids={selected}
-            size="sm"
-            status={status === 'resolved' || status === 'ignored' ? status : undefined}
-            canMerge={selected.length > 1 && oneProject}
-            onDone={() => setSelected([])}
-          />
-        </div>
-      )}
       {issues.length === 0 ? (
         query === DEFAULT_QUERY ? (
           <Empty icon={IconConfetti} title="Nothing unresolved">
@@ -194,16 +182,41 @@ function Issues() {
         )
       ) : (
         <ul className="divide-y rounded-xl border">
-          <li className="flex items-center gap-3 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          {/* The header turns into the selection's actions, always tall enough for them, so picking an issue moves
+              nothing; it stays under the top bar while the list scrolls */}
+          <li
+            className={cn(
+              'flex min-h-12 items-center gap-3 rounded-t-xl px-3 py-1.5 text-xs text-muted-foreground',
+              selected.length > 0 ? 'sticky top-12 z-20 bg-muted' : 'bg-muted/40',
+            )}
+          >
             <Checkbox
               aria-label="Select every issue on this page"
               checked={selected.length === issues.length ? true : selected.length ? 'indeterminate' : false}
               onCheckedChange={(c) => setSelected(c === true ? issues.map((i) => i.id) : [])}
             />
-            <span className="flex-1">Issue</span>
-            <span className="w-24 text-center max-md:hidden">14 days</span>
-            <span className="w-14 text-right">Events</span>
-            <span className="w-12 text-right max-sm:hidden">Users</span>
+            {selected.length > 0 ? (
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="text-sm font-medium text-foreground">{selected.length} selected</span>
+                {/* On a phone, where they'd wrap, a bar fixed at the foot of the screen */}
+                <div className="flex flex-wrap items-center gap-2 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-30 max-sm:border-t max-sm:bg-background max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:shadow-lg">
+                  <IssueActions
+                    ids={selected}
+                    size="sm"
+                    status={status === 'resolved' || status === 'ignored' ? status : undefined}
+                    canMerge={selected.length > 1 && oneProject}
+                    onDone={() => setSelected([])}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <span className="flex-1">Issue</span>
+                <span className="w-24 text-center max-md:hidden">14 days</span>
+                <span className="w-14 text-right">Events</span>
+                <span className="w-12 text-right max-sm:hidden">Users</span>
+              </>
+            )}
           </li>
           {issues.map((i) => (
             <li key={i.id} className="relative flex items-center gap-3 px-3 py-3 hover:bg-muted/40">
@@ -300,6 +313,8 @@ function Issues() {
           </Button>
         </div>
       )}
+      {/* Room for the phone's selection bar, so it never covers the last issue or the pages */}
+      {selected.length > 0 && <div className="h-32 sm:hidden" />}
     </Shell>
   )
 }

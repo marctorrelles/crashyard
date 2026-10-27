@@ -40,7 +40,9 @@ server, the build, or `tsr generate`): never edit it.
   on a phone; sort by priority too; each row has its priority's menu. Saved searches beside the bar (`getSavedSearches`, loaded first): with no
   `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. An unread row's title is bolder with a
   sky dot after it, a bookmarked one has a star, and its assignee shows beside the culprit. Bulk resolve,
-  ignore, merge and delete.
+  ignore, merge and delete: picking issues turns the list's header into "N selected" and the actions, sticky under
+  the top bar, `min-h-12` so nothing moves; on a phone the actions are a bar fixed at the screen's foot instead,
+  with room after the list for it.
 - `issues/$issueId.tsx`: one issue (opening it marks it read for the viewer; its events under "The latest 50 events",
   or "12 matching events" after a search): Unmerge beside the actions when
   fingerprints were merged into it, under the title a star (bookmark), Assign to and Track issue (`issue-triage.tsx`), its
