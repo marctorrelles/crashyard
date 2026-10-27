@@ -59,19 +59,22 @@
     reads red, less green, the other way with `higherIsBetter`, none as rounded muted), `tone` amber or red past a
     widget's thresholds, on the overview and dashboards.
 - `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset and group-by unless the title says just that,
-  queries; Open in view mode; draggable in edit mode, native HTML drag and drop onto another card), `WidgetView` (numbers
-  with their change, in their unit, `formatValue`, the first one amber or red past its thresholds; a chart, a query in
+  queries, each aggregate in words, `aggregateName`: "Unique users", "p95 of duration"; Open in view mode; draggable in edit mode, native HTML drag and drop onto another card), `WidgetView` (numbers
+  with their change, in their unit, `formatValue`, the first one amber or red past its thresholds; unique users as a
+  dash reading Not reported when the window's events name no user; a chart, a query in
   another unit on a second axis, averages and percentiles as unstacked lines; a table with a column per group field
   and per query, Change and share for one query; issues; markdown; what went wrong; a series or the first field's value
   opens the logs or issues with it added, for logs and events), `Markdown` (no library: paragraphs, line breaks,
   `**bold**`, http and https links, lists of `-`, `*` or `1.`; nothing else, as React elements, no HTML),
   `WidgetActions` (edit mode: a grip, edit, duplicate, up, down, remove; 40 px on a phone), `WidgetViewer` (a widget
-  full width in a dialog, then its numbers as a table sortable by any column and paged by 20: a bucket a row for a
+  full width in a dialog, then its numbers as a table sortable by any column and paged by 20, scrolling sideways
+  inside its border on a phone (`min-w-0` on the dialog's grid items): a bucket a row for a
   chart, a group for a table, an issue for a list; a table or list isn't drawn twice; Open in Issues, Logs,
   Performance, Monitors or Releases by dataset, `listOf`), `WidgetDialog` (the builder: title, dataset, then each query's
   search (`SearchBar` for issues, events and logs, a text field of the fixed keys otherwise), function and field or
   attribute, label when there are several, Add query up to 3; markdown a text area; display; group by and then by; sort
-  and groups or issues shown; thresholds for a number; width; a preview from `previewWidget` with the dashboard's
+  and groups shown only once a group-by is set, issues shown for a list; every input labelled, or with an
+  `aria-label` where a label would crowd, the search bar's through `SearchBar`'s `label`; thresholds for a number; width; a preview from `previewWidget` with the dashboard's
   filters 400 ms after a change, a reply for an older widget never shown) and `GroupBy` (a dataset's fields, logs'
   attributes asked for once; `attributesOnly` for the logs page's Add chart).
 - `value-menu.tsx`: `ValueMenu`, a value on a page as a `DropdownMenu`: show only this, exclude this, copy. Pages pass

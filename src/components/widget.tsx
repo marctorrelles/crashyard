@@ -106,7 +106,14 @@ export function formatValue(unit: Unit, v: number | null) {
 }
 
 /** A query's name in a legend or a column: its label, else its aggregate */
-export const queryName = (q: WidgetQuery) => q.label || q.aggregate
+export const queryName = (q: WidgetQuery) => q.label || aggregateName(q.aggregate)
+
+/** An aggregate in words: "Unique users", "p95 of duration" */
+function aggregateName(aggregate: string) {
+  const { fn, field } = parseAggregate(aggregate)
+  const name = FN_NAMES[fn] ?? fn
+  return field === undefined ? name : `${name} of ${field}`
+}
 
 // Rates where more is good: their change reads green when it goes up
 const higherIsBetter = (q: WidgetQuery) => ['crash_free_rate', 'crash_free_users', 'uptime'].includes(q.aggregate)
@@ -170,7 +177,7 @@ export function WidgetCard({
   const about =
     widget.dataset === 'markdown' || source.toLowerCase() === widget.title.trim().toLowerCase() ? '' : source
   const queries = widget.queries
-    .map((q) => [q.query, q.aggregate === 'count' ? '' : q.aggregate].filter(Boolean).join(' · '))
+    .map((q) => [q.query, q.aggregate === 'count' ? '' : aggregateName(q.aggregate)].filter(Boolean).join(' · '))
     .filter(Boolean)
     .join(', ')
   return (
@@ -401,7 +408,14 @@ export function WidgetView({
             <BigNumber
               key={i}
               value={v.value}
-              label={w.queries.length > 1 && q ? `${queryName(q)} · ${what}` : what}
+              label={
+                // Users read from the events kept: none of them naming one isn't the same as nobody
+                v.value === null && q?.aggregate === 'count_unique(user)'
+                  ? 'Not reported'
+                  : w.queries.length > 1 && q
+                    ? `${queryName(q)} · ${what}`
+                    : what
+              }
               change={v.value === null || v.previous === null ? null : change(v.value, v.previous)}
               format={(n) => formatValue(v.unit, n)}
               tone={i === 0 ? toneOf(w, v.value) : undefined}
@@ -457,7 +471,7 @@ export function WidgetView({
     const total = one ? data.rows.reduce((a, r) => a + (r.values[0] ?? 0), 0) : 0
     const share = one && data.units[0] === 'count'
     return (
-      <div className="overflow-x-auto">
+      <div className="min-w-0 overflow-x-auto">
         <table className="w-full text-xs tabular-nums">
           <thead className="text-muted-foreground">
             <tr className="border-b">
@@ -650,8 +664,9 @@ export function WidgetViewer({
           <WidgetView widget={widget} data={data} project={project} range={range} height={320} />
         )}
         {columns.length > 0 && rows.length > 0 && (
-          <div className="grid gap-2">
-            <div className="overflow-x-auto rounded-xl border">
+          // min-w-0, so on a phone the table scrolls sideways inside its border instead of widening the dialog
+          <div className="grid min-w-0 gap-2">
+            <div className="min-w-0 overflow-x-auto rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -768,7 +783,7 @@ function normalized(w: Widget): Widget {
 const DEBOUNCE = 400
 const FN_NAMES: Record<string, string> = {
   count: 'Count',
-  'count_unique(user)': 'Users',
+  'count_unique(user)': 'Unique users',
   failure_rate: 'Failure rate',
   crash_free_rate: 'Crash-free rate',
   uptime: 'Uptime',
@@ -996,6 +1011,7 @@ export function WidgetDialog({
               variant="outline"
               size="sm"
               value={w.display}
+              aria-label="Show as"
               onValueChange={(v) => v && set({ display: v as Display })}
               className="flex-wrap"
             >
@@ -1038,7 +1054,8 @@ export function WidgetDialog({
               )}
             </div>
           )}
-          {(grouped || w.dataset === 'releases' || w.display === 'list') && (
+          {/* Sorting and a number of groups mean something only once there are groups */}
+          {((grouped && !!groupBy[0]) || w.dataset === 'releases' || w.display === 'list') && (
             <div className="grid gap-4 sm:grid-cols-3">
               {w.display !== 'list' && (
                 <>
@@ -1090,6 +1107,7 @@ export function WidgetDialog({
               variant="outline"
               size="sm"
               value={String(w.width)}
+              aria-label="Width"
               onValueChange={(v) => v && set({ width: Number(v) as Widget['width'] })}
             >
               <ToggleGroupItem value="1" className="max-sm:h-10 max-sm:px-3">
@@ -1167,6 +1185,7 @@ function QueryRow({
               project={project}
               range={range}
               placeholder={scope === 'logs' ? 'level:error release:1.0' : 'is:unresolved level:fatal'}
+              label={`Filter of query ${index + 1}`}
               onSearch={(query) => {
                 onChange({ query })
                 onTyped(query)

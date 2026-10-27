@@ -112,7 +112,7 @@ server, the build, or `tsr generate`): never edit it.
   (`addValue`: a second value of a key makes `key:[a,b]`; none for a key the grammar can't write, `isSearchableKey`);
   click a line for every field and attribute, each a menu to show only, exclude or copy it (`logAttributeKey`: none for
   the SDK's `sentry.*`, but `sentry.release` and `sentry.environment` search their columns), and Open trace, its trace's
-  page. Live (polls every 2 s for newer; off with an exact span), Older. Group by (`?groupBy=`: level, release,
+  page. Live (polls every 2 s for newer; off with an exact span), Older. Group by, None by default, then Then by, shown once the first is set (`?groupBy=`: level, release,
   environment, project, or an attribute, the stored keys asked for when the menu first opens; `getLogGroups` loaded
   instead of `getLogChart`): the chart's series are the 8 biggest groups and the rest, and over the list a table of them
   with their logs, the change since the span before ("new" when there were none), their share, + and − (a click on the

@@ -31,7 +31,8 @@ environment, each with its own thresholds, and send them to channels.
   upsert on `route_fires` that records the alert only when the wait has passed (`RETURNING`), so two at once can't both
   pass; per route and issue, whatever the kind.
 - `metrics.ts`: metric alerts (`metric_alerts`). `METRICS`: `errors` (`event_hours`), `users` (distinct
-  `events.user_hash`, exact to the window; events before 0014 have none), `crash_free_sessions` (`sessions_daily`,
+  `events.user_hash`, exact to the window; events before 0014 have none; errors none of which name a user are
+  nothing to read, so the state stays and the row says users aren't reported), `crash_free_sessions` (`sessions_daily`,
   every UTC day the window touches), `p95` (`transaction_buckets` through `percentile`), `failure_rate`
   (`transaction_hours`), `log_count` (`log_hours` when the filter is only `level`, else the logs through `logFilter`).
   Hourly tables read the window's hours and the current one, so a 1-hour window reads up to 2 hours, never less.

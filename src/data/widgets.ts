@@ -570,7 +570,8 @@ function aggregateSql(aggregate: string): string {
     case 'count':
       return 'SUM(n)'
     case 'count_unique(user)':
-      return 'COUNT(DISTINCT u)'
+      // None when there were events and none named a user: not reported, which isn't nobody
+      return 'CASE WHEN COUNT(u) = 0 AND SUM(n) > 0 THEN NULL ELSE COUNT(DISTINCT u) END'
     case 'sum':
       return 'SUM(s)'
     case 'avg':

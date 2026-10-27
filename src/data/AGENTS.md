@@ -151,7 +151,7 @@ helpers (`change`).
   attribute, only ever bound), a sort (by value or name, up or down), a limit of groups or issues shown (1 to 50, 8
   unset), thresholds for a number (warning, critical, above or below), or markdown text (4000), and a width.
   `aggregateError` refuses what a dataset can't compute with a sentence naming what it can: issues count; events count
-  and `count_unique(user)`; logs count and avg, sum, min, max, p50, p75, p95, p99 of a numeric attribute; transactions
+  and `count_unique(user)` (null, not reported, when a bucket's events name no user, so it never reads 0 users); logs count and avg, sum, min, max, p50, p75, p95, p99 of a numeric attribute; transactions
   count, `failure_rate` and avg or a percentile of `duration`; sessions count and `crash_free_rate`; monitors count,
   `uptime`, `failure_rate` and any function of `duration`; releases count, users and crash-free rate. Transactions
   also take p50 to p99 of a vital (`p75(lcp)`, `vital_buckets` through `percentile`, divided by the vital's scale,

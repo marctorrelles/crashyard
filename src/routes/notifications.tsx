@@ -908,7 +908,7 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
 }
 
 const STATES: Record<MetricState, { label: string; variant: 'outline' | 'secondary' | 'destructive' }> = {
-  ok: { label: 'OK', variant: 'outline' },
+  ok: { label: 'Resolved', variant: 'outline' },
   warning: { label: 'Warning', variant: 'secondary' },
   critical: { label: 'Critical', variant: 'destructive' },
 }
@@ -930,7 +930,9 @@ function MetricRow({ alert: a, d, onEdit }: { alert: MetricAlert; d: Data; onEdi
         <p className="text-xs text-muted-foreground">
           {project} · {m.label} {a.direction} {metricText(a.metric, a.critical)} over {hoursText(a.window_hours)}
           {a.query && ` · ${a.query}`}
-          {a.value !== null && ` · now ${metricText(a.metric, a.value)}`}
+          {a.value !== null
+            ? ` · now ${metricText(a.metric, a.value)}`
+            : a.metric === 'users' && ' · users not reported'}
           {a.changed_at !== null && (
             <>
               {' · changed '}

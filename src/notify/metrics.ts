@@ -106,13 +106,15 @@ export async function metricValue(
       return row?.v ?? 0
     }
     case 'users': {
-      // `events` is exact to the window; events stored before 0014 have no user
+      // `events` is exact to the window; events stored before 0014 have no user. Errors and none naming a user is
+      // nothing to read, not none, so it keeps the state
       const row = await one(
-        `SELECT COUNT(DISTINCT user_hash) AS v FROM events WHERE project_id = ? AND received > ? AND user_hash IS NOT NULL${f.sql}`,
+        `SELECT COUNT(DISTINCT user_hash) AS v, COUNT(*) AS n, COUNT(user_hash) AS named FROM events
+         WHERE project_id = ? AND received > ?${f.sql}`,
         alert.project_id,
         from,
       )
-      return row?.v ?? 0
+      return row?.n && !row.named ? null : (row?.v ?? 0)
     }
     case 'crash_free_sessions': {
       // Sessions are counted per UTC day: every day the window touches

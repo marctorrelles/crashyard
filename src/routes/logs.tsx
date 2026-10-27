@@ -267,7 +267,7 @@ function Logs() {
           </Button>
         )}
         <GroupBy
-          prefix="By"
+          prefix="Group by"
           value={groupBy[0]}
           project={search.project}
           range={search.range}
@@ -275,7 +275,7 @@ function Logs() {
         />
         {groupBy[0] && (
           <GroupBy
-            prefix="Then"
+            prefix="Then by"
             value={groupBy[1]}
             exclude={groupBy[0]}
             project={search.project}
@@ -722,7 +722,7 @@ function GroupBy({
   )
   return (
     <Select value={value ?? 'none'} onValueChange={(v) => onChange(v === 'none' ? undefined : v)} onOpenChange={load}>
-      <SelectTrigger className="w-40" aria-label={prefix === 'By' ? 'Group by' : 'Then group by'}>
+      <SelectTrigger className="w-48" aria-label={prefix}>
         <span className="flex min-w-0 gap-1.5">
           <span className="text-muted-foreground">{prefix}</span>
           <SelectValue />
@@ -730,7 +730,7 @@ function GroupBy({
       </SelectTrigger>
       <SelectContent align="end">
         <SelectGroup>
-          <SelectItem value="none">Nothing</SelectItem>
+          <SelectItem value="none">None</SelectItem>
           {columns.map((c) => (
             <SelectItem key={c} value={c}>
               {c}

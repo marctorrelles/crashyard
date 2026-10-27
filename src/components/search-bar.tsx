@@ -86,6 +86,7 @@ export function SearchBar({
   project,
   range,
   placeholder,
+  label,
   onSearch,
   onChange,
 }: {
@@ -94,6 +95,8 @@ export function SearchBar({
   project?: string
   range?: string
   placeholder: string
+  /** What the input is, for a screen reader, where no label names it; the placeholder otherwise */
+  label?: string
   onSearch: (query: string) => void
   // The whole query as it stands in the bar, pills and typed text, each time it changes (searched or not)
   onChange?: (query: string) => void
@@ -323,7 +326,7 @@ export function SearchBar({
             ref={input}
             value={text}
             placeholder={pills.length ? undefined : placeholder}
-            aria-label={placeholder}
+            aria-label={label ?? placeholder}
             role="combobox"
             aria-expanded={shown}
             aria-autocomplete="list"
