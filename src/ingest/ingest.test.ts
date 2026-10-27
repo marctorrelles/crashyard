@@ -461,12 +461,13 @@ describe('what a pass that fails costs', () => {
     return env
   }
   const send = async (env: ReturnType<typeof setup>, lines: unknown[]) => {
+    // Strings are raw payloads, as an attachment's
     const waits: Promise<unknown>[] = []
     const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) } as unknown as ExecutionContext
     const response = await handleIngest(
       new Request('https://x/api/6/envelope/?sentry_key=rk6', {
         method: 'POST',
-        body: lines.map((l) => JSON.stringify(l)).join('\n'),
+        body: lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n'),
       }),
       env,
       ctx,
@@ -509,6 +510,24 @@ describe('what a pass that fails costs', () => {
     expect(pending(env)).toEqual([])
     expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM logs').get()).toEqual({ n: 1 })
     expect(env.DB.sqlite.prepare('SELECT events, logs FROM project_days').get()).toEqual({ events: 1, logs: 1 })
+  })
+
+  it('keeps two attachments of the same name, and writes no second row when the envelope comes again', async () => {
+    const env = setup()
+    const lines = [
+      { event_id: 'c'.repeat(32) },
+      { type: 'event' },
+      { event_id: 'c'.repeat(32), message: 'boom', timestamp: NOW / 1000 },
+      { type: 'attachment', filename: 'log.txt', content_type: 'text/plain' },
+      'first',
+      { type: 'attachment', filename: 'log.txt', content_type: 'text/plain' },
+      'second',
+    ]
+    for (let i = 0; i < 2; i++) expect((await send(env, lines)).status).toBe(200)
+    expect(env.DB.sqlite.prepare('SELECT filename, r2_key FROM attachments ORDER BY id').all()).toEqual([
+      { filename: 'log.txt', r2_key: `attachments/6/${'c'.repeat(32)}/1-log.txt` },
+      { filename: 'log.txt', r2_key: `attachments/6/${'c'.repeat(32)}/2-log.txt` },
+    ])
   })
 
   it('holds no envelope of sessions alone', async () => {

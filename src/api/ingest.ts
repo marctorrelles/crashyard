@@ -471,7 +471,7 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
   const eventId = c.envelopeId ?? firstEventId ?? firstEventIdOf(items, c.held)
   for (const [index, item] of attachments) {
     try {
-      if (eventId) await storeAttachment(env, project, eventId, item, now)
+      if (eventId) await storeAttachment(env, project, eventId, index, item, now)
     } catch (error) {
       console.error(`ingest: attachment ${index} of project ${project.id} failed`, error)
       failed.push(String(index))
@@ -662,17 +662,29 @@ async function storeFeedback(
     .run()
 }
 
-async function storeAttachment(env: IngestEnv, project: Project, eventId: string, item: EnvelopeItem, now: number) {
+/**
+ * Keyed by its event and its place in the envelope, so two files of the same name both stay, and a retry of the whole
+ * envelope writes the same object and no second row
+ */
+async function storeAttachment(
+  env: IngestEnv,
+  project: Project,
+  eventId: string,
+  index: number,
+  item: EnvelopeItem,
+  now: number,
+) {
   if (item.payload.byteLength > MAX_ATTACHMENT) return
   const filename = String(item.header.filename ?? 'attachment')
     .replace(/[^\w.-]+/g, '_')
     .slice(0, 100)
-  const key = `attachments/${project.id}/${eventId}/${filename}`
+  const key = `attachments/${project.id}/${eventId}/${index}-${filename}`
   await env.FILES.put(key, item.payload, {
     httpMetadata: { contentType: String(item.header.content_type ?? 'application/octet-stream') },
   })
   await env.DB.prepare(
-    'INSERT INTO attachments (event_id, project_id, filename, content_type, size, r2_key, received) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    `INSERT INTO attachments (event_id, project_id, filename, content_type, size, r2_key, received) VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (event_id, r2_key) DO NOTHING`,
   )
     .bind(eventId, project.id, filename, String(item.header.content_type ?? ''), item.payload.byteLength, key, now)
     .run()

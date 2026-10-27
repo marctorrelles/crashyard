@@ -56,3 +56,7 @@ in `pnpm run deploy`).
   `minute` as the table holds about a day; no backfill, so windows open just after it count from then) and
   `route_fires.frequency_at` (when the route's frequency last fired for the issue). A worker from before 0018 writes no
   `issue_minutes` and fires as it did.
+- 0019: `attachments_event_key`, unique on `(event_id, r2_key)`, after deleting the rows a whole-envelope retry had
+  copied (the oldest of each kept; they shared one R2 object), the one delete in a migration. Attachments are keyed
+  by their item index from then on. A worker from before 0019 that retries a whole envelope with an attachment hits
+  the index on that item, which then fails each try and ends in `failed/`; its event and other items are stored.
