@@ -190,7 +190,8 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
   // The release before with commits, so set-commits sends only the commits since its head (404: none, the first)
   m = path.match(/^\/api\/0\/organizations\/([^/]+)\/releases\/([^/]+)\/previous-with-commits\/$/)
   if (m) {
-    const previous = await previousWithCommits(env.DB, decodeURIComponent(m[2]))
+    // A project's token sees only its own project's releases, as releases do
+    const previous = await previousWithCommits(env.DB, decodeURIComponent(m[2]), token.project_id)
     return previous
       ? json({
           version: previous.version,
@@ -251,6 +252,8 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
 const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString())
 const time = (v: unknown) => (typeof v === 'string' && Number.isFinite(Date.parse(v)) ? Date.parse(v) : undefined)
 const short = (v: unknown, max: number) => (typeof v === 'string' && v ? v.slice(0, max) : undefined)
+/** A deploy's link only when it's http or https, as the release page opens it */
+const webUrl = (v: string | undefined) => (v && /^https?:\/\//i.test(v) && URL.canParse(v) ? v : undefined)
 
 /**
  * `deploys new` (POST: environment, name, url, dateStarted, dateFinished, projects) and `deploys list` (GET), in
@@ -311,7 +314,7 @@ async function deploys(
   const deploy = {
     environment,
     name: short(body.name, 200),
-    url: short(body.url, 500),
+    url: webUrl(short(body.url, 500)),
     started: time(body.dateStarted),
     finished: time(body.dateFinished) ?? now,
   }

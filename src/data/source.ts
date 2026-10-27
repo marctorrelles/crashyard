@@ -99,18 +99,21 @@ export const fixedIssues = (message: string) => [
   ...new Set([...message.matchAll(/\bfixes\s+crashyard(?:-|#)(\d+)\b/gi)].map((m) => Number(m[1]))),
 ]
 
-/** The newest release before this one, of the same projects, that has commits */
-export const previousWithCommits = (db: D1Database, version: string) =>
+/**
+ * The newest release before this one, of the same projects, that has commits; only `projectId`'s for a token scoped
+ * to it (null: every project)
+ */
+export const previousWithCommits = (db: D1Database, version: string, projectId: number | null = null) =>
   db
     .prepare(
       `SELECT r.version, r.created_at, r.ref FROM releases r
        WHERE r.version != ?1 AND r.ref IS NOT NULL
-         AND r.project_id IN (SELECT project_id FROM releases WHERE version = ?1)
-         AND r.created_at <= (SELECT MIN(created_at) FROM releases WHERE version = ?1)
+         AND r.project_id IN (SELECT project_id FROM releases WHERE version = ?1 AND (?2 IS NULL OR project_id = ?2))
+         AND r.created_at <= (SELECT MIN(created_at) FROM releases WHERE version = ?1 AND (?2 IS NULL OR project_id = ?2))
          AND EXISTS (SELECT 1 FROM release_commits c WHERE c.project_id = r.project_id AND c.version = r.version)
        ORDER BY r.created_at DESC LIMIT 1`,
     )
-    .bind(version)
+    .bind(version, projectId)
     .first<{ version: string; created_at: number; ref: string }>()
 
 export type Commit = { sha: string; message: string; author: string | null; at: number | null; url: string | null }

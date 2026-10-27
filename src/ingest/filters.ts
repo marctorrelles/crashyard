@@ -175,7 +175,8 @@ const anyException = (e: NormalizedEvent, pairs: [RegExp | null, RegExp][]) =>
 
 const header = (e: NormalizedEvent, name: string) => e.request?.headers?.find(([k]) => k.toLowerCase() === name)?.[1]
 
-// relay-filter/src/localhost.rs: the URL's host, file:, or a Host or X-Forwarded-Host header; also server_name
+// relay-filter/src/localhost.rs: the URL's host, file:, or a Host or X-Forwarded-Host header, only what Relay checks:
+// not server_name, which a phone app may well call localhost
 const LOCAL = new Set(['127.0.0.1', 'localhost'])
 const isLocalHost = (host: string) => [...LOCAL].some((d) => host === d || host.endsWith(`.${d}`))
 function isLocal(e: NormalizedEvent) {
@@ -188,7 +189,7 @@ function isLocal(e: NormalizedEvent) {
     const value = header(e, name)
     if (value && LOCAL.has(value.split(':')[0])) return true
   }
-  return !!e.serverName && (LOCAL.has(e.serverName) || e.serverName === '::1')
+  return false
 }
 
 /** A browser's family and major version, for the families Relay's legacy filter knows, as uap-core names them */

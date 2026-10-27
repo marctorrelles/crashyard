@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { NormalizedEvent } from './event'
+import { type NormalizedEvent, normalizeEvent } from './event'
 import { browserOf, filterReason, type Filters, originAllowed, parseFilters, transactionFilterReason } from './filters'
 
 const event = (over: Partial<NormalizedEvent> = {}): NormalizedEvent => ({
@@ -56,11 +56,12 @@ describe('inbound filters', () => {
     expect(filterReason(exception('Error', 'Extension context invalidated.'), {})).toBeNull()
   })
 
-  it('catch localhost by URL, Host header or server_name', () => {
+  it('catch localhost by URL or Host header, as Relay, and not by server_name', async () => {
     expect(filterReason(event({ request: { url: 'http://localhost:5173/' } }), ALL)).toBe('localhost')
     expect(filterReason(event({ request: { url: 'http://127.0.0.1/x' } }), ALL)).toBe('localhost')
     expect(filterReason(event({ request: { headers: [['Host', 'localhost:3000']] } }), ALL)).toBe('localhost')
-    expect(filterReason(event({ request: undefined, serverName: '127.0.0.1' }), ALL)).toBe('localhost')
+    // A phone app's server_name may well be localhost: Relay doesn't read it
+    expect(filterReason(await normalizeEvent({ message: 'x', server_name: 'localhost' }), ALL)).toBeNull()
     expect(filterReason(event({ request: { url: 'https://notlocalhost.com/' } }), ALL)).toBeNull()
   })
 

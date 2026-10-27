@@ -66,7 +66,6 @@ export type NormalizedEvent = {
   sdk?: { name?: string; version?: string }
   debugImages: DebugImage[]
   request?: RequestInfo
-  serverName?: string // the host the SDK ran on, as it sent it: the localhost filter reads it
   extra?: Record<string, unknown> // the SDK's extra data, scrubbed, 16 KB of JSON at most
   /** What was cut to keep the event within its limits: `extra`, `request body`, or what `trimEvent` names */
   _trimmed?: string[]
@@ -191,11 +190,15 @@ const IP_HEADERS = new Set([
   'forwarded',
   'x-original-forwarded-for',
 ])
+// And any header named like one: `fly-client-ip`, `x-vercel-forwarded-for`, `x-appengine-user-ip`…
+const IP_HEADER =
+  /(^|-)(client|real|true|forwarded|connecting|original)-?ip(v6)?$|forwarded-for$|^forwarded$|^x-envoy-external-address$|^x-appengine-user-ip$/i
+const isIpHeader = (name: string) => IP_HEADERS.has(name.toLowerCase()) || IP_HEADER.test(name)
 
 function requestOf(raw: unknown, trimmed: string[]): RequestInfo | undefined {
   const r = obj(raw)
   // Headers and query keys that name a secret are filtered, as in contexts; the rest is masked as tags are
-  const kept = pairsOf(r.headers).filter(([k]) => !IP_HEADERS.has(k.toLowerCase()))
+  const kept = pairsOf(r.headers).filter(([k]) => !isIpHeader(k))
   const headers = Object.entries(obj(scrub(Object.fromEntries(kept.slice(0, 100)))))
     .map(([k, v]): [string, string] => [cut(k, 200), cut(str(v) ?? '', 2000)])
     .filter(([, v]) => v)
@@ -394,7 +397,6 @@ export async function normalizeEvent(
       .filter((s): s is string => !!s),
     transaction,
     request,
-    serverName: str(event.server_name),
     extra,
     _trimmed: trimmed.length ? trimmed : undefined,
     traceId: str(obj(contexts.trace).trace_id),

@@ -61,12 +61,14 @@ signature; `/mcp` comes after the Access check.
   `--local` or not) reads the local git and PUTs the release with `commits` (id, message, author, time and each one's
   files, `patch_set`, A/M/D), newest first, which go to every project with that release (`src/data/source.ts`);
   before that it asks `previous-with-commits/` (the newest earlier release of those projects with commits, its head
-  as `lastCommit`; 404 when none, so the first sends `--initial-depth` commits, 20 by default) and sends only the
+  as `lastCommit`, only the token's project for a project's token, as releases; 404 when none, so the first sends `--initial-depth` commits, 20 by default) and sends only the
   commits since. `releases/<version>/deploys/`: `deploys new` (sentry-cli 3.8 POSTs `environment`, `name`, `url`,
-  `dateStarted`, `dateFinished`, `-t` as both, and `projects` when `-p` is given) stores one row per project
+  `dateStarted`, `dateFinished`, `-t` as both, and `projects` when `-p` is given; a `url` only when it's http or
+  https, else none) stores one row per project
   (`storeDeploy`): those named, checked by `allowed` as other uploads, else every project with the release (in
   `releases`, events or sessions), a project's token only its own; answered in Sentry's Deploy shape (`id`,
   `environment`, `name`, `url`, `dateStarted`, `dateFinished`), 201. `deploys list` (GET) lists them.
+  `sentry.test.ts` calls it on `test/fakes.ts`: deploy links and a scoped token.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
   web page can't call it with someone's Access cookie. Agents, viewers `service:<common name>` (an Access service

@@ -209,7 +209,7 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   `searches.test.ts` on `test/fakes.ts`.
 - `source.ts`: stacks linked to the code. `storeCommits` (a release's commits from set-commits, its head as the
   release's `ref`, and `source_files`, every path the commits sent so far left: added or changed, not deleted since);
-  `previousWithCommits`; `releaseCommits` (each linked to the project's `repo_url`); `frameLinks`, each in-app frame of
+  `previousWithCommits` (only a project's, for a token scoped to it); `releaseCommits` (each linked to the project's `repo_url`); `frameLinks`, each in-app frame of
   an event matched to a file (`matchFile`: the file whose path ends with the most of the frame's, from its absolute
   path, its file, or for Java and Kotlin its package's folders and file; none on a tie) at the release's commit, else
   `HEAD`; `codeUrl` and `commitUrl` for GitHub and GitLab (by host); `repoUrl` checks what's typed. `storeCommits` also

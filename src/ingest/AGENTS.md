@@ -19,11 +19,12 @@ order.
   frames (from the crashed thread when the exception has none), `threads` (every one of `threads.values`, 32 at most
   of 100 frames each, the innermost; crashed, then current, first; the thread an exception matches, by `thread_id` or
   `crashed`, keeps no frames, as its stack is the exception's; grouping reads only the exceptions; events stored
-  before have none), `serverName` (`server_name`, for the localhost filter), tags (pairs or object, plus derived: level, release,
+  before have none), tags (pairs or object, plus derived: level, release,
   os, device, browser, runtime, handled, mechanism, `monitor.slug` from `contexts.monitor.slug`), `request` (method, URL, query string, headers as pairs, body as
   text of 8 KB at most; header and query keys that name a secret are filtered as in `scrub`, query values in the URL
   too, the rest masked as tags; headers that carry the client's IP, `x-forwarded-for`, `cf-connecting-ip`,
-  `forwarded` and the like (`IP_HEADERS`), are dropped and `request.env` with `REMOTE_ADDR` isn't kept, as crashyard
+  `forwarded` and the like (`IP_HEADERS`, and any name matching `IP_HEADER`, such as `fly-client-ip`,
+  `x-vercel-forwarded-for`, `x-appengine-user-ip` or `x-envoy-external-address`), are dropped and `request.env` with `REMOTE_ADDR` isn't kept, as crashyard
   stores no IPs), `extra` (scrubbed, keys in order while they fit in 16 KB of JSON) and `_trimmed`
   (what was cut: `request body`, `extra`). A `captureMessage` sends a made-up exception: `synthetic`, titled
   by its message, `type` `message`.
@@ -65,7 +66,7 @@ order.
   exception's value against `EXTENSION_EXC_VALUES`, or the abs_path of its frame nearest the crash, skipping
   `<anonymous>` and `[native code]`, stopping at one without, against `EXTENSION_EXC_SOURCES`), `localhost` (the
   request URL's host is localhost or 127.0.0.1 or under them, a `file:` URL, a `Host` or `X-Forwarded-Host` header of
-  either; and, beyond Relay, `server_name` of either or `::1`: `NormalizedEvent.serverName`; Relay's user IP check is
+  either; only what Relay checks, so not `server_name`, which a phone app may call localhost; Relay's user IP check is
   left out as no IP is kept), `web-crawlers` (the event's `User-Agent` header, as Relay's `Event::user_agent`,
   against `WEB_CRAWLERS` and not `ALLOWED_WEB_CRAWLERS`), `legacy-browsers` (the same header; `browserOf`, a small
   parser naming families as uap-core does for these, so Mobile Safari, Chrome Mobile and Chrome on iOS aren't
