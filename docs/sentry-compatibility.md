@@ -6,6 +6,12 @@ lists what works, what works in part and what is ignored.
 It was checked against @sentry/node and @sentry/browser 11.9, sentry-cocoa 9.31, sentry-android 8.61 and sentry-cli
 3.8. The end-to-end tests in `test/` send through the real Node.js SDK and the real CLI.
 
+On October 27, 2026, each server and cross-platform SDK sent the same things to crashyard: an error from two nested
+functions, a message, a transaction with nested spans and a log, all inside a trace continued from a `sentry-trace`
+header. Every one arrived, grouped, with its stack trace, and in its trace. The versions were sentry-python 2.73,
+sentry-ruby 7.1, sentry-php 4.34, sentry-go 0.50, sentry-java 8.62, sentry-dotnet 6.12, sentry-elixir 14.0,
+sentry-rust 0.49 and sentry-dart 10.2.
+
 ## SDKs
 
 | SDK                                                                   | Status                                                   | Stack traces                                                                       |
@@ -14,24 +20,36 @@ It was checked against @sentry/node and @sentry/browser 11.9, sentry-cocoa 9.31,
 | Android, sentry-android with its NDK support                          | Expected to work. Uploads are tested, a real crash isn't | Kotlin through an uploaded ProGuard or R8 mapping, native code through `.so` files |
 | JavaScript in the browser, @sentry/browser and SDKs built on it       | Works, tested                                            | Through uploaded source maps                                                       |
 | Node.js, @sentry/node                                                 | Works, tested                                            | Readable as sent                                                                   |
-| Python, Ruby, PHP, Go, Java, .NET, Elixir, Rust…                      | Expected to work, as every SDK sends the same envelopes  | Readable as sent, or symbolicated from debug files for Rust, C and C++             |
+| Python, Ruby, PHP, Go, Java, .NET, Elixir, Rust and Dart              | Works, tested with errors, transactions, logs and traces | Readable as sent, or symbolicated from debug files for Rust, C and C++             |
 | React Native with Hermes, Flutter with obfuscation, Unity with IL2CPP | Events arrive and are grouped                            | Raw frames, as their mappings aren't read yet                                      |
 
 Set the SDK's DSN to the one a crashyard project gives you. Nothing else changes.
 
+A few SDKs behave in ways worth knowing, and Sentry sees the same:
+
+- sentry-dart 10 sends spans as they finish. It can't yet continue a trace from an incoming header, and
+  `Sentry.close` can return before its last spans and logs are sent.
+- sentry-elixir sends transactions through OpenTelemetry. Add `opentelemetry`, `opentelemetry_api`,
+  `opentelemetry_exporter` and `opentelemetry_semantic_conventions`, and set Sentry's span processor and sampler. Its
+  logs carry a trace of their own rather than the active span's.
+- sentry-rust shows a panic's stack from its own panic handler down, and an error sent with `capture_error` has no
+  stack trace.
+- sentry-java and sentry-ruby mark frames as your code only when their in-app options name your packages or project
+  root.
+
 ## Envelope items
 
-| Item                                                                   | What crashyard does                                                                                                                   |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `event`                                                                | An error, crash or message. Scrubbed, symbolicated and grouped into an issue                                                          |
-| `attachment`                                                           | Stored in R2, up to 1 MB each, and shown on its event with a download                                                                 |
-| `feedback`, `user_report`                                              | User feedback, shown on its issue                                                                                                     |
-| `log`                                                                  | Sentry logs. Stored, searchable and linked to their trace                                                                             |
-| `check_in`                                                             | Cron monitors. A check-in with a schedule creates the monitor                                                                         |
-| `transaction`                                                          | Summarized as counts, percentiles and the slowest few with their spans, not kept whole. Its `measurements` give web and mobile vitals |
-| `span`, the streamed span v2 format                                    | Treated as transactions, one per segment span. JavaScript SDKs send these since v11                                                   |
-| `session`, `sessions`                                                  | Counted per release and day for crash-free rates, adoption and users                                                                  |
-| `profile`, `replay`, `replay_recording`, `client_report` and any other | Accepted with a 200 and dropped                                                                                                       |
+| Item                                                                   | What crashyard does                                                                                                                                                              |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `event`                                                                | An error, crash or message. Scrubbed, symbolicated and grouped into an issue                                                                                                     |
+| `attachment`                                                           | Stored in R2, up to 1 MB each, and shown on its event with a download                                                                                                            |
+| `feedback`, `user_report`                                              | User feedback, shown on its issue                                                                                                                                                |
+| `log`                                                                  | Sentry logs. Stored, searchable and linked to their trace                                                                                                                        |
+| `check_in`                                                             | Cron monitors. A check-in with a schedule creates the monitor                                                                                                                    |
+| `transaction`                                                          | Summarized as counts, percentiles and the slowest few with their spans, not kept whole. Its `measurements` give web and mobile vitals                                            |
+| `span`, the streamed span v2 format                                    | Treated as transactions, one per segment span. JavaScript SDKs send these since v11, sentry-dart since 10. Spans that come before their segment are held for a day until it does |
+| `session`, `sessions`                                                  | Counted per release and day for crash-free rates, adoption and users                                                                                                             |
+| `profile`, `replay`, `replay_recording`, `client_report` and any other | Accepted with a 200 and dropped                                                                                                                                                  |
 
 An event keeps its `request`, meaning the method, URL, query string, headers and up to 8 KB of body, and up to 16 KB of
 its `extra` data. Both are scrubbed like the rest of the event, and headers such as `Authorization` and `Cookie` are

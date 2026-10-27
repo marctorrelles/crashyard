@@ -55,13 +55,14 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 
 ## Supported SDKs
 
-| SDK                                      | Status           | Stack traces                             |
-| ---------------------------------------- | ---------------- | ---------------------------------------- |
-| Apple, sentry-cocoa                      | Works            | Symbolicated from dSYMs                  |
-| Android, sentry-android with NDK         | Expected to work | From the R8 mapping and native libraries |
-| JavaScript in the browser                | Works            | From source maps                         |
-| Node.js                                  | Works            | As sent                                  |
-| Python, Ruby, PHP, Go, Java, .NET, Rust… | Expected to work | As sent, or from debug files             |
+| SDK                               | Status           | Stack traces                             |
+| --------------------------------- | ---------------- | ---------------------------------------- |
+| Apple, sentry-cocoa               | Works            | Symbolicated from dSYMs                  |
+| Android, sentry-android with NDK  | Expected to work | From the R8 mapping and native libraries |
+| JavaScript in the browser         | Works            | From source maps                         |
+| Node.js                           | Works            | As sent                                  |
+| Python, Ruby, PHP, Go, Java, .NET | Works            | As sent                                  |
+| Elixir, Rust, Dart                | Works            | As sent, or from debug files             |
 
 To connect an app, see [docs/linking.md](docs/linking.md). For exactly which parts of Sentry's protocol and API work,
 see [docs/sentry-compatibility.md](docs/sentry-compatibility.md).
