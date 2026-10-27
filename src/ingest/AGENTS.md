@@ -135,6 +135,20 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   pass, so every item in it is tried again: events dedupe by id, check-ins find their row again, logs, transactions
   and filtered events already counted count again.
 
+- `import.ts`: Import from Sentry (Settings, a project's Import from Sentry; `importFromSentry` in `fns.ts`, admin).
+  `importPage`: one page of 10 (`PAGE`) of the Sentry project's issues, every status (`/api/0/projects/<org>/<project>/issues/?query=`,
+  deprecated by Sentry for the organization's, which only lists a time window), then per issue not in `sentry_imports`
+  (0026): `events/latest/` for its id, then `projects/<org>/<project>/events/<id>/json/` (`EventJsonEndpoint`,
+  `event.as_dict()`, the stored event in the SDKs' shape, read in getsentry/sentry master 2026-10-27;
+  `ApiPublishStatus.EXPERIMENTAL`, the JSON link of Sentry's event page), its comments only when `numComments`.
+  At most 1 + 3 an issue, 31 subrequests a page, under the free plan's 50. The event goes through `normalizeEvent`,
+  `groupingFor` (the project's rules) and `storeEvent`, not symbolication (Sentry's frames are already symbolicated)
+  and not filters or notices; then the issue takes Sentry's count (less the event just counted), first and last seen
+  (min and max), users (max), resolved or ignored (`for_good`), unresolved as `ongoing`, and comments as notes by
+  "<email> on Sentry". `nextCursor` reads the Link header. The browser asks for each page (`settings/projects/$slug/import.tsx`),
+  so it can continue from where it stopped; the token comes with each call and is never stored. Sentry's errors as
+  sentences: 401/403 the token's scopes, 404 the slugs, 429 wait. `import.test.ts`: fetch stubbed, GlitchTip fixtures;
+  the SDK's next event of an imported error joins its issue.
 - `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).
   `storeLogs` writes each log, then its own (not `sentry.*`) attributes, up to 16, into `log_attributes` with

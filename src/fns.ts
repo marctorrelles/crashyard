@@ -1292,6 +1292,44 @@ export const pauseMonitor = createServerFn({ method: 'POST' })
   })
   .handler(({ data }) => monitors.setPaused(env.DB, data.id, data.paused, Date.now()))
 
+// A page of a Sentry project's issues into a crashyard project (src/ingest/import.ts). The token comes with each call
+// and is used for it only, never stored
+export const importFromSentry = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const base = text(o.base, 200, 'The Sentry address').trim().replace(/\/+$/, '')
+    let url: URL
+    try {
+      url = new URL(base)
+    } catch {
+      throw new Error('The Sentry address is a web address, such as https://sentry.io.')
+    }
+    if (url.protocol !== 'https:') throw new Error('The Sentry address starts with https://.')
+    const slug = (v: unknown, label: string) => {
+      const s = text(v, 100, label).trim()
+      if (!/^[\w.-]+$/.test(s))
+        throw new Error(`${label} is letters, numbers, dashes, dots and underscores, as in Sentry.`)
+      return s
+    }
+    const token = text(o.token, 500, 'The auth token').trim()
+    if (!token) throw new Error('Paste a Sentry auth token.')
+    return {
+      project_id: int(o.project_id),
+      source: {
+        base: url.origin,
+        token,
+        org: slug(o.org, 'The organization slug'),
+        project: slug(o.project, 'The project slug'),
+      },
+      cursor: optional((v) => text(v, 500))(o.cursor) ?? null,
+    }
+  })
+  .handler(async ({ data }) => {
+    const { importPage } = await import('./ingest/import')
+    return importPage(env.DB, data.project_id, data.source, data.cursor)
+  })
+
 export const setMonitorPublic = createServerFn({ method: 'POST' })
   .middleware([admin])
   .validator((d: unknown) => {

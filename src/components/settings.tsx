@@ -44,6 +44,7 @@ const PROJECT: Page[] = [
   { label: 'Source code', path: 'source' },
   { label: 'Connect an app', path: 'connect' },
   { label: 'Debug files', path: 'debug-files' },
+  { label: 'Import from Sentry', path: 'import' },
   { label: 'Delete project', path: 'delete' },
 ]
 const PERSONAL: Page[] = [

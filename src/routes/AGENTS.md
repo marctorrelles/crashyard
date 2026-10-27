@@ -117,9 +117,12 @@ server, the build, or `tsr generate`): never edit it.
   DSN, name, daily event limit, empty for none, events today, and an on switch that asks before turning a key off;
   the existing keys first, then Create key),
   `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
-  send commits), `connect` (the DSN and `Linking`), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug
+  send commits), `connect` (the DSN and `Linking`; then Cloudflare Workers: the `tail_consumers` line, the Workers
+  sending runs, `workersSeen`, each with Watch Worker, the list to watch and uncaught exceptions too), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug
   files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;
-  the newest 10 source map bundles) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
+  the newest 10 source map bundles), `import` (Import from Sentry: address, organization and project slugs, a token
+  kept only in the form; asks `importFromSentry` page after page with a count, Continue import from the page it
+  stopped at) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
   recovery codes left and Make new codes, shown once; where they're signed in, This browser, Sign out each and Sign
   out everywhere else), `agent-tokens` (a person's `cyp_` tokens for MCP with a
   name, Read only or Read and change issues, and an expiry; the token and the `claude mcp add` command shown once;

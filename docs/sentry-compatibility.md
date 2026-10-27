@@ -119,6 +119,18 @@ A project can have several client keys. A key that's turned off answers `403` wi
 | `POST /api/<project>/security/`                             | Browsers' CSP `report-uri` and `report-to`               | Works for CSP violations, in both the `csp-report` and the Reporting API shapes. Other report types are dropped                                                                                                                                                                             |
 | Anything else under `/api/0/`                               | Sentry's web API                                         | Returns 404                                                                                                                                                                                                                                                                                 |
 
+## Importing from Sentry
+
+A project's settings can import its issues from a Sentry project, on sentry.io or your own Sentry. It needs an auth
+token with the `event:read` and `project:read` scopes, used for that import only and never stored.
+
+Each issue comes with its latest event, its event and user counts, when it was first and last seen, whether it's
+resolved or ignored, and its comments as notes. crashyard groups the event itself, so the next events the SDK sends of
+the same error join the imported issue. Older events, attachments and the charts of past days aren't imported, and
+issues past the project's event retention are pruned as usual. Importing again skips the issues already imported.
+
+The import runs while its page is open, 10 issues at a time. If it stops, it continues from where it was.
+
 ## sentry-cli and the build plugins
 
 Set `SENTRY_URL` to your crashyard, `SENTRY_AUTH_TOKEN` to a token created in a project's settings, and `SENTRY_ORG` to

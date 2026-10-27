@@ -72,3 +72,5 @@ in `pnpm run deploy`).
 - 0024: `projects.workers` (JSON, Cloudflare Workers by script name, for `src/api/tail.ts`; null for none) and
   `worker_exceptions` (0). A worker from before has no `tail()` handler: runs sent to it are dropped.
 - 0025: `monitors.public` (0), an uptime check on its project's status page. A worker from before has no status page.
+- 0026: `sentry_imports`, each Sentry issue imported into a project and the issue it became, so importing again
+  skips it. A new table: a worker from before ignores it.
