@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { deviceName, RECOVERY_CODES } from '@/data/people'
+import { deviceName } from '@/data/people'
 import { getSignIn, makeRecoveryCodes, removePasskey, renamePasskey, signOutSession } from '@/fns'
 
 export const Route = createFileRoute('/settings/sign-in')({
@@ -206,7 +206,11 @@ function Recovery() {
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={codesLeft <= 2 ? 'text-sm font-medium text-destructive' : 'text-sm'}>
-            {codesLeft === 0 ? 'You have no recovery codes left.' : `${codesLeft} of ${RECOVERY_CODES} codes left.`}
+            {codesLeft === 0
+              ? 'You have no recovery codes left.'
+              : codesLeft === 1
+                ? '1 code left.'
+                : `${codesLeft} codes left.`}
           </p>
           <Button
             variant="outline"

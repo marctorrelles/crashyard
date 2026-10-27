@@ -107,7 +107,7 @@ export async function handleAuth(path: string, ctx: Context): Promise<Response |
       case 'setup/options': {
         if (ctx.mode !== 'crashyard') refuse('This crashyard signs in through Cloudflare Access.')
         if (await people.userCount(db)) refuse('crashyard is already set up. Sign in instead.')
-        if (!env.SETUP_CODE) refuse('Set SETUP_CODE in the deployment’s settings first, then deploy again.')
+        if (!env.SETUP_CODE) refuse('Add a secret named SETUP_CODE to the worker first. pnpm run setup makes one.')
         const code = typeof body.code === 'string' ? body.code : ''
         if (!(await sameCode(code, env.SETUP_CODE ?? '')))
           refuse('That setup code isn’t right. Check it and try again.')

@@ -17,7 +17,8 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
 - `passkeys.ts`: `handleAuth(path, ctx)`, `/auth/*`, plain JSON POSTs ahead of Start, refused unless `Origin` is the
   request's own. Each ceremony is `<kind>/options` (a challenge in `challenges`, five minutes, one use: `takeChallenge`
   deletes it) then `<kind>/verify` (`@simplewebauthn/server`; resident keys required, user verification preferred,
-  attestation none). `setup` (only while there's no one, with `SETUP_CODE` compared as digests of the code without
+  attestation none). `setup` (only while there's no one, with the worker secret `SETUP_CODE`, declared in
+  `src/secrets.d.ts` as `wrangler types` can't see secrets, compared as digests of the code without
   dashes or spaces; the first owner, signed in, ten recovery codes), `claim` (Access mode, no one yet: the person Access
   let in becomes the owner, for moving over; their Access session stays), `signin` (any of this crashyard's passkeys,
   picked by the browser: no email to type; the counter written back), `passkeys` (another for whoever is signed in,

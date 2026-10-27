@@ -26,7 +26,7 @@ function Setup() {
     return (
       <SignInFrame
         title="Set up crashyard"
-        description="Run pnpm run setup to make a setup code, or set SETUP_CODE in the worker’s variables. Then deploy again and reload this page."
+        description="Run pnpm run setup to make a setup code, or add a secret named SETUP_CODE under the worker’s Variables and Secrets in Cloudflare. Then reload this page."
       >
         <Button variant="outline" className="h-10" onClick={() => window.location.reload()}>
           Reload

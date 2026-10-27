@@ -27,7 +27,8 @@
     "cf-typegen": "wrangler types",
     "prepare": "lefthook install",
     "seed": "node scripts/seed.mjs",
-    "setup": "node scripts/setup.mjs"
+    "setup": "node scripts/setup.mjs",
+    "recovery-code": "node scripts/recovery-code.mjs"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^14.0.0",
