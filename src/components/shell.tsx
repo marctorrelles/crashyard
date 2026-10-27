@@ -405,13 +405,13 @@ function ProjectSwitcher({
 }
 
 // The c of crashyard with its upper end cracked off and lifted clear (the large-size drawing is docs/images/logo.svg;
-// this one's crack is wider, so it still shows at 20 px)
+// this one's crack is wider, so it still shows at 24 px). In the sidebar's colour, which isn't always the page's
 const RING = 'M20.29,17.59A10 10 0 1 1 20.29,6.41L16.06,9.26A4.9 4.9 0 1 0 16.06,14.74Z'
 
 function Logo() {
   const id = useId()
   return (
-    <svg viewBox="0 0 24 24" className="size-5 shrink-0 fill-foreground" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-6 shrink-0 fill-sidebar-foreground" aria-hidden="true">
       <clipPath id={`${id}n`}>
         <polygon points="12,12 24,12 24,24 0,24 -6.02,-0.62 0.49,4.9 3.39,5.82 3.89,7.89 5.78,7.98 6.55,9.5 8.28,10.34" />
       </clipPath>
