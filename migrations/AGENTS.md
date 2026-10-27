@@ -62,3 +62,5 @@ in `pnpm run deploy`).
   the index on that item, which then fails each try and ends in `failed/`; its event and other items are stored.
 - 0020: `channels.quiet_zone` (the IANA zone of a channel's quiet hours; null for the rows there were, which stay in
   UTC). A worker from before 0020 reads a zoned channel's quiet hours as UTC.
+- 0021: `events.user_keys` (a hash per user field, `src/search/user.ts`; null for the events there were, still found by
+  `user_hash`). No new rows per event: a column of the row already written.

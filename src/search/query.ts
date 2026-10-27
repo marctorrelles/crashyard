@@ -180,6 +180,14 @@ export type KeyInfo = {
 
 const WITHIN = ['-1h', '-24h', '-7d', '-30d']
 
+// Sentry's keys for one user field each; `user` is any of them
+const USER_KEYS: KeyInfo[] = [
+  { key: 'user.id', description: "User's ID", kind: 'text' },
+  { key: 'user.email', description: "User's email", kind: 'text' },
+  { key: 'user.username', description: "User's username", kind: 'text' },
+  { key: 'user.name', description: "User's name", kind: 'text' },
+]
+
 export const ISSUE_KEYS: KeyInfo[] = [
   {
     key: 'is',
@@ -213,7 +221,8 @@ export const ISSUE_KEYS: KeyInfo[] = [
   { key: 'firstSeen', description: 'Time of the first event, such as -24h', kind: 'time', values: WITHIN },
   { key: 'trace', description: 'Has an event in this trace', kind: 'text' },
   { key: 'assigned', description: 'Assigned to, such as me or an email', kind: 'text' },
-  { key: 'user', description: 'Had an event from this user ID, or email when the app sends no ID', kind: 'text' },
+  { key: 'user', description: 'Had an event from this user: their ID, email, username or name', kind: 'text' },
+  ...USER_KEYS,
 ]
 
 export const LOG_KEYS: KeyInfo[] = [
@@ -237,7 +246,8 @@ export const EVENT_KEYS: KeyInfo[] = [
   { key: 'issue', description: 'Issue ID', kind: 'number' },
   { key: 'project', description: 'Project', kind: 'text' },
   { key: 'trace', description: 'Trace ID', kind: 'text' },
-  { key: 'user', description: 'User ID, or email when the app sends no ID', kind: 'text' },
+  { key: 'user', description: 'User: their ID, email, username or name', kind: 'text' },
+  ...USER_KEYS,
   { key: 'timestamp', description: 'Time it was received, such as -1h', kind: 'time', values: WITHIN },
   { key: 'has', description: 'Has a tag', kind: 'enum' },
 ]
@@ -321,12 +331,29 @@ export type Filter = { where: string[]; params: unknown[]; projectSlugs: string[
 export const UNREAD =
   'NOT EXISTS (SELECT 1 FROM issue_views v WHERE v.email = ? AND v.issue_id = i.id AND v.at >= i.last_seen)'
 
-/** A user's hash for `user:` (src/search/user.ts, server only); without one, as in the browser, no user matches */
-type HashUser = (text: string) => string
-const NO_USER: HashUser = () => ''
+/** What `user:` and `user.<field>:` match, as hashes (`userMatch`, src/search/user.ts, server only); without it, as in
+ *  the browser, no user matches */
+type UserMatch = (key: string, value: string) => { legacy: string; keys: string[] }
+const NO_USER: UserMatch = () => ({ legacy: 'none', keys: [] }) // never a hash, which is hex
+const isUserKey = (key: string) => key === 'user' || /^user\.(id|email|username|name)$/.test(key)
+
+/** Events of any of a key's values: the hash kept before 0021 (`user_hash`) or one of its fields' (`user_keys`) */
+function eventUsers(key: string, values: string[], userMatch: UserMatch): [string, unknown[]] {
+  const matches = values.map((v) => userMatch(key, v))
+  const keys = matches.flatMap((m) => m.keys)
+  // coalesce: an event with no user is a plain no, not null, so a negated search keeps it
+  const [legacySql, legacy] = matchAny(
+    "coalesce(e.user_hash, '')",
+    matches.map((m) => m.legacy),
+  )
+  return [
+    [legacySql, ...keys.map(() => "instr(' ' || coalesce(e.user_keys, '') || ' ', ?) > 0")].join(' OR '),
+    [...legacy, ...keys.map((k) => ` ${k} `)],
+  ]
+}
 
 /** SQL conditions over `issues i` for a query. Unknown keys are tags (issue_tag_values): "had an event with it" */
-export function issueFilter(query: string, now: number, viewer?: string, hashUser: HashUser = NO_USER): Filter {
+export function issueFilter(query: string, now: number, viewer?: string, userMatch: UserMatch = NO_USER): Filter {
   const where: string[] = []
   const params: unknown[] = []
   const projectSlugs: string[] = []
@@ -389,10 +416,21 @@ export function issueFilter(query: string, now: number, viewer?: string, hashUse
       add(`EXISTS (SELECT 1 FROM events e WHERE e.issue_id = i.id AND ${sql})`, t.negate, ...ids)
       continue
     }
-    if (key === 'user') {
-      // Only hashes are kept: the typed id is hashed as ingest hashed it, exactly, so no globs
-      const [sql, hashes] = matchAny('u.user_hash', values.map(hashUser))
-      add(`EXISTS (SELECT 1 FROM issue_users u WHERE u.issue_id = i.id AND ${sql})`, t.negate, ...hashes)
+    if (isUserKey(key)) {
+      // Only hashes are kept: the typed value is hashed as ingest hashed it, exactly, so no globs. `issue_users` keeps
+      // the old hash past the events' retention; the fields are in the events
+      const matches = values.map((v) => userMatch(key, v))
+      const [legacySql, legacy] = matchAny(
+        'u.user_hash',
+        matches.map((m) => m.legacy),
+      )
+      const [eventsSql, hashes] = eventUsers(key, values, userMatch)
+      add(
+        `(EXISTS (SELECT 1 FROM issue_users u WHERE u.issue_id = i.id AND ${legacySql}) OR i.id IN (SELECT e.issue_id FROM events e WHERE ${eventsSql}))`,
+        t.negate,
+        ...legacy,
+        ...hashes,
+      )
       continue
     }
     if (COLUMNS[key]) {
@@ -501,7 +539,7 @@ const EVENT_COLUMNS: Record<string, string> = {
  * SQL conditions over `events e`, for Explore and an issue's event search. Unknown keys are the event's own tags
  * (`event_tags`); words are text in its title and message, case-insensitive. Every value is a bound parameter
  */
-export function eventFilter(query: string, now: number, hashUser: HashUser = NO_USER): Filter {
+export function eventFilter(query: string, now: number, userMatch: UserMatch = NO_USER): Filter {
   const where: string[] = []
   const params: unknown[] = []
   const projectSlugs: string[] = []
@@ -532,9 +570,9 @@ export function eventFilter(query: string, now: number, hashUser: HashUser = NO_
       }
       continue
     }
-    if (key === 'user') {
-      const [sql, hashes] = matchAny('e.user_hash', values.map(hashUser))
-      add(sql, t.negate, ...hashes)
+    if (isUserKey(key)) {
+      const [sql, hashes] = eventUsers(key, values, userMatch)
+      add(`(${sql})`, t.negate, ...hashes)
       continue
     }
     if (key === 'issue' || key === 'issue.id') {

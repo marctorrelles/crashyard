@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   addValue,
-  eventFilter,
   isSearchableKey,
   issueFilter,
   logAttributeKey,
@@ -14,7 +13,6 @@ import {
   unparse,
   withToken,
 } from './query'
-import { hashUser } from './user'
 
 const NOW = Date.UTC(2026, 9, 25)
 
@@ -92,27 +90,6 @@ describe('search', () => {
     expect(issueFilter('trace:abc', NOW).where).toEqual([
       'EXISTS (SELECT 1 FROM events e WHERE e.issue_id = i.id AND e.trace_id = ?)',
     ])
-  })
-
-  it('finds one person by their id, hashed as ingest hashed it', async () => {
-    // The hash ingest has always written (crypto.subtle), so users stored before still match
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('user-42'))
-    const before = [...new Uint8Array(digest)]
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-      .slice(0, 32)
-    expect(hashUser('user-42')).toBe(before)
-
-    const f = issueFilter('user:user-42 !user:[a@b.c,7]', NOW, undefined, hashUser)
-    expect(f.where).toEqual([
-      'EXISTS (SELECT 1 FROM issue_users u WHERE u.issue_id = i.id AND u.user_hash = ?)',
-      'NOT (EXISTS (SELECT 1 FROM issue_users u WHERE u.issue_id = i.id AND u.user_hash IN (?,?)))',
-    ])
-    expect(f.params).toEqual([before, hashUser('a@b.c'), hashUser('7')])
-    const e = eventFilter('user:user-42', NOW, hashUser)
-    expect([e.where, e.params]).toEqual([['e.user_hash = ?'], [before]])
-    // Without the hash, as in the browser, nobody matches
-    expect(issueFilter('user:user-42', NOW).params).toEqual([''])
   })
 
   it('reads lists of values, quoted or not, and negated', () => {

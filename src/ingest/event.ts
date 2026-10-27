@@ -2,7 +2,7 @@
 // shape crashyard stores: its exceptions and their frames, the title and culprit, tags, contexts and breadcrumbs,
 // with secrets scrubbed and the user reduced to a hash.
 import { scrub, scrubText } from './scrub'
-import { hashUser } from '../search/user'
+import { hashUser, userKeysOf } from '../search/user'
 
 export type Frame = {
   function?: string
@@ -60,6 +60,7 @@ export type NormalizedEvent = {
   contexts: Record<string, unknown>
   breadcrumbs: Breadcrumb[]
   userHash?: string
+  userKeys?: string // a hash per user field, src/search/user.ts
   fingerprint?: string[]
   transaction?: string
   traceId?: string
@@ -385,6 +386,7 @@ export async function normalizeEvent(
         }
       }),
     userHash: userKey ? hashUser(userKey) : undefined,
+    userKeys: userKeysOf(user),
     fingerprint: arr(event.fingerprint)
       .map(str)
       .filter((s): s is string => !!s),

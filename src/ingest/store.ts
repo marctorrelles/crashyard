@@ -288,8 +288,8 @@ export async function storeEvent(
     statements.push(
       db
         .prepare(
-          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key, trace_id, user_hash, fingerprint, grouping_version)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, release, environment, message, data, envelope_key, trace_id, user_hash, user_keys, fingerprint, grouping_version)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           event.id,
@@ -306,6 +306,7 @@ export async function storeEvent(
           envelopeKey ?? null,
           event.traceId ?? null,
           event.userHash ?? null,
+          event.userKeys ?? null,
           fingerprint,
           groupingVersion,
         ),

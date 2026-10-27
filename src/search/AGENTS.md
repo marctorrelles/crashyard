@@ -36,10 +36,15 @@ filter errors.
   reused for routes' tag filters (`src/notify/rules.ts`), matched against one event in JS.
 - Words are prefixes, all of them, in the title or culprit (FTS5 `issues_fts`).
 - `trace:<id>` finds the issues with an event in that trace.
-- `user:<id>` finds the issues (`issue_users`) or events (`e.user_hash`) of one user: only hashes are stored, so the
-  filters take `hashUser` (`user.ts`, server only, `node:crypto`; ingest hashes with it too) as a parameter and hash
-  each value, exactly, no globs. `query.ts` stays importable in the browser, where no user matches. Every server
-  caller passes it: `src/data/issues.ts`, `explore.ts`, `widgets.ts`, `getIssueChart`.
+- `user:<value>` (any field) and `user.id:`, `user.email:`, `user.username:`, `user.name:` find one user's issues
+  or events. Only hashes are stored (`user.ts`, server only, `node:crypto`): `events.user_keys`, a hash of each field
+  as `field:value` (email trimmed and lowercased) space-separated, from `userKeysOf` at ingest; and the one hash from
+  before 0021, `events.user_hash` and `issue_users`, of the id else email else username. The filters take `userMatch`
+  as a parameter, which hashes a value both ways: an event matches either (`eventUsers`, `coalesce`d so a negated
+  search keeps events without a user), an issue matches `issue_users` or any of its events. Exact, no globs.
+  `query.ts` stays importable in the browser, where no user matches (`NO_USER`, `none`, never a hash). Every server
+  caller passes it: `src/data/issues.ts`, `explore.ts`, `widgets.ts`, `getIssueChart`. No IP address: none is kept,
+  and an IPv4 hash is undone by trying them all.
 - `logFilter`: the same syntax over logs: `level` (`warning` reads as `warn`), `release`, `environment`, `trace`,
   `timestamp`, `has:`, free text in the body (FTS5 `logs_fts`); any other key is an attribute (`log_attributes`).
 - `eventFilter`: the same syntax over events one by one (`events e`), for Explore and an issue's event search:
