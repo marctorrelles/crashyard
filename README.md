@@ -46,7 +46,8 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 - **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs.
 - **Performance.** Transactions by p95, how each release changed them, and the slowest ones with their spans.
 - **Notifications.** Alerts through Telegram, Slack, Discord, email or a JSON webhook, routed by alert type, project,
-  level and environment, with quiet hours and a weekly summary.
+  level and environment, with quiet hours and a weekly summary. Resolve, ignore or assign an issue right from its
+  alert: in the chat on Telegram, in one tap on crashyard from the others.
 - **MCP server.** Lets an AI agent search issues and logs, read a stack trace, resolve issues and add notes. See
   [docs/mcp.md](docs/mcp.md).
 

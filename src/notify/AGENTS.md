@@ -44,13 +44,22 @@ environment, each with its own thresholds, and send them to channels.
   sessions, no transactions) keeps the state; the title is the alert's name, the line `metricLine`: "pocketband ·
   Crash-free sessions 97.1%, below 98% · Critical", "… 99.2% · Resolved"; crash-free is floored to a tenth.
 - `channels.ts`: Telegram (`telegramRequest`: the bot's `sendMessage` to its chat, as HTML, the title in bold and
-  escaped, a button opening the notice's page, the week's summary without a sound; `telegramChats`, the chats that
-  wrote to the bot lately, from `getUpdates`, for the settings' Find; `server` for a local Bot API server; `telegramToken` picks
+  escaped, a button opening the notice's page, the week's summary without a sound; for `ISSUE_KINDS`,
+  `telegramKeyboard` adds Resolve, Ignore and Assign to me (only with an `owner`) as `callback_data` `r:<id>`, `i:`,
+  `a:` (`CALLBACK`), once the channel has a `secret`, which saving it sets when `PUBLIC_URL` is https: `saveChannel`
+  in `src/fns.ts` reuses the secret of any channel of the same bot (`botIdOf`; one webhook a bot), sets `owner` to
+  whoever saved, then `setWebhook` to `/api/telegram/<bot id>` with `secret_token` and only `callback_query`;
+  deleting the bot's last channel deletes the webhook; `telegramCall` for any method; `telegramChats`, the chats that
+  wrote to the bot lately, from `getUpdates`, for the settings' Find (a bot with a webhook gets 409 there: it deletes
+  the webhook and asks again, and saving sets it back); `server` for a local Bot API server; `telegramToken` picks
   `<bot id>:<secret>` out of what's pasted, @BotFather's whole message too; `telegramError` says what a refusal means:
   404 a token Telegram has no bot for, 401 a revoked one, 409 a bot with a webhook, a chat not found or blocked), webhooks (`json`; `slack`: Block Kit, the title in bold over its line and a button,
   `text` for the notification; `discord`: an embed coloured by level or kind, its title linking to the page,
   `allowed_mentions` empty so a title's `@everyone` pings no one; a refusal says the answer's first 200 characters),
-  email; `isQuiet` for a channel's quiet hours
+  email. Slack, Discord, email and JSON carry an issue's actions as links (`actionUrl`, the issue's page with
+  `?do=resolve|ignore|assign`: confirmed there, signed in, as mail scanners and link previews open links; Slack's as
+  buttons, Discord's in the embed, email's as lines, JSON's under `actions`): an incoming webhook can't take a tap
+  back, which would need a Slack or Discord app; `isQuiet` for a channel's quiet hours
   (minutes after midnight in `quiet_zone` by `Intl`, so daylight saving doesn't move them, a formatter cached per zone;
   UTC for a channel from before 0020, or a zone `Intl` doesn't know; across midnight too). No ntfy: ntfy.sh limits by IP unless the sender pays, and a Worker
   sends from IPs Cloudflare shares, so others spend its daily quota. No Bark: iPhone only. Migration 0011 took both

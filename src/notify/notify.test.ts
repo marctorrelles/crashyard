@@ -108,13 +108,49 @@ describe('channels', () => {
           type: 'section',
           text: { type: 'mrkdwn', text: expect.stringMatching(/^\*@everyone &lt;b&gt; &amp; co\*\n/) },
         },
-        { type: 'actions', elements: [{ type: 'button', url: n.url }] },
+        {
+          type: 'actions',
+          elements: [
+            { type: 'button', url: n.url },
+            { type: 'button', text: { text: 'Resolve' }, url: `${n.url}?do=resolve` },
+            { type: 'button', text: { text: 'Ignore' }, url: `${n.url}?do=ignore` },
+            { type: 'button', text: { text: 'Assign to me' }, url: `${n.url}?do=assign` },
+          ],
+        },
       ],
     })
     expect(webhookBody('discord', n)).toEqual({
       embeds: [{ title: '@everyone <b> & co', url: n.url, description: expect.any(String), color: 0xdc2626 }],
       allowed_mentions: { parse: [] },
     })
+  })
+
+  it('offer an issue’s actions: Telegram’s act in the chat once its webhook is set, the rest link to the page', async () => {
+    const keyboard = async (config: { secret?: string; owner?: string }, n = notice()) =>
+      (
+        (await telegramRequest({ token: '1:abc', chat: '42', ...config }, n).json()) as {
+          reply_markup: { inline_keyboard: { text: string; callback_data?: string }[][] }
+        }
+      ).reply_markup.inline_keyboard
+    expect(await keyboard({ secret: 's', owner: 'me@example.com' })).toEqual([
+      [
+        { text: 'Resolve', callback_data: 'r:7' },
+        { text: 'Ignore', callback_data: 'i:7' },
+        { text: 'Assign to me', callback_data: 'a:7' },
+      ],
+      [{ text: 'Open in crashyard', url: notice().url }],
+    ])
+    // No owner, no Assign to me; no webhook or no issue, only Open
+    expect((await keyboard({ secret: 's' }))[0].map((b) => b.text)).toEqual(['Resolve', 'Ignore'])
+    expect(await keyboard({})).toHaveLength(1)
+    expect(await keyboard({ secret: 's' }, notice({ kind: 'monitor_down' }))).toHaveLength(1)
+
+    const discord = webhookBody('discord', notice()) as { embeds: { description: string }[] }
+    expect(discord.embeds[0].description).toContain(`[Resolve](${notice().url}?do=resolve) · [Ignore](`)
+    expect(webhookBody('json', notice())).toMatchObject({
+      actions: { resolve: `${notice().url}?do=resolve`, assign: `${notice().url}?do=assign` },
+    })
+    expect(webhookBody('json', notice({ kind: 'weekly' }))).not.toHaveProperty('actions.resolve')
   })
 
   it('keep quiet hours, across midnight too', () => {

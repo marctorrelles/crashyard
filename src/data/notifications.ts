@@ -1,5 +1,5 @@
 // Notification settings: channels (where to), routes (what goes where), and a test send through a route.
-import { type Channel, send } from '../notify/channels'
+import { type Channel, send, type TelegramConfig } from '../notify/channels'
 import { mailerOf } from '../notify/email'
 import type { MetricAlert } from '../notify/metrics'
 import { channelIds, type Notice, type Route } from '../notify/notice'
@@ -70,6 +70,14 @@ export async function saveChannel(db: D1Database, c: ChannelInput, now: number) 
 
 export const deleteChannel = (db: D1Database, id: number) =>
   db.prepare('DELETE FROM channels WHERE id = ?').bind(id).run()
+
+/** Every Telegram channel's id and settings: a bot's channels share its one webhook and its secret */
+export async function telegramChannels(db: D1Database) {
+  const { results } = await db
+    .prepare("SELECT id, config FROM channels WHERE kind = 'telegram'")
+    .all<{ id: number; config: string }>()
+  return results.map((r) => ({ id: r.id, ...(JSON.parse(r.config) as TelegramConfig) }))
+}
 
 export async function saveRoute(db: D1Database, r: RouteInput, now: number) {
   const values = [

@@ -429,3 +429,65 @@ export function IssueMoreMenu({
     </>
   )
 }
+
+/** What a notification's link asks for (`?do=` on the issue page) */
+export type PromptAction = 'resolve' | 'ignore' | 'assign'
+
+/** A notification's Resolve, Ignore or Assign to me, opened from Slack, Discord or email: asked once more here, signed
+ *  in, as mail scanners and link previews open links on their own */
+export function ActionPrompt({
+  issue,
+  status,
+  viewer,
+  action,
+  onClose,
+}: {
+  issue: Issue
+  status: string
+  viewer: string
+  action: PromptAction
+  onClose: () => void
+}) {
+  const run = useRun()
+  const change = useIssueChange([issue.id])
+  const already =
+    action === 'resolve' && status === 'resolved'
+      ? 'It’s already resolved.'
+      : action === 'ignore' && status === 'ignored'
+        ? 'It’s already ignored.'
+        : action === 'assign' && issue.assignee === viewer
+          ? 'It’s already assigned to you.'
+          : null
+  const ask = {
+    resolve: { title: 'Resolve this issue?', button: 'Resolve' },
+    ignore: { title: 'Ignore this issue until it escalates?', button: 'Ignore' },
+    assign: { title: 'Assign this issue to you?', button: 'Assign to me' },
+  }[action]
+  const confirm = async () => {
+    if (action === 'resolve') await change({ action: 'resolve' }, 'Resolved')
+    else if (action === 'ignore')
+      await change({ action: 'ignore', untilEscalating: true }, 'Ignored until it escalates')
+    else await run(() => assignIssue({ data: { id: issue.id, assignee: viewer } }), 'Assigned to you')
+    onClose()
+  }
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="pr-6 break-words">{already ? issue.title : ask.title}</DialogTitle>
+          <DialogDescription className="break-words">{already ?? issue.title}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" className="max-sm:h-10" onClick={onClose}>
+            {already ? 'Close' : 'Cancel'}
+          </Button>
+          {!already && (
+            <Button className="max-sm:h-10" onClick={confirm}>
+              {ask.button}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

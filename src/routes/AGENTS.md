@@ -44,7 +44,8 @@ server, the build, or `tsr generate`): never edit it.
   the top bar, `min-h-12` so nothing moves; on a phone the actions are a bar fixed at the screen's foot instead,
   with room after the list for it.
 - `issues/$issueId.tsx`: one issue (opening it marks it read for the viewer; its events under "The latest 50 events",
-  or "12 matching events" after a search): Unmerge beside the actions when
+  or "12 matching events" after a search; `?do=resolve|ignore|assign`, a notification's link, opens `ActionPrompt`,
+  and closing it drops `do` from the URL): Unmerge beside the actions when
   fingerprints were merged into it, under the title a star (bookmark), Assign to and Track issue (`issue-triage.tsx`), its
   priority (a menu), status (Escalating, ignored until it escalates or N
   users, resolved in a release), actions (on a phone, Resolve and Ignore, then More, `IssueMoreMenu`, with the

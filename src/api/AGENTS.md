@@ -71,6 +71,14 @@ signature; `/mcp` comes after the Access check.
   `environment`, `name`, `url`, `dateStarted`, `dateFinished`), 201. `deploys list` (GET) lists them.
   `sentry.test.ts` calls it on `test/fakes.ts`: a project by slug or number, deploy links, and a project's token refused on another project for
   artifact bundles, releases POST and PUT, set-commits, deploys and previous-with-commits.
+- `telegram.ts`: `POST /api/telegram/<bot id>`, a bot's webhook (set by saving a Telegram channel,
+  `src/notify/AGENTS.md`). Let in only with `X-Telegram-Bot-Api-Secret-Token` equal to a secret of that bot's
+  channels (compared as SHA-256 digests), else 403; then always 200, or Telegram sends the update again. A
+  `callback_query` from a channel's own chat acts on the issue as the channel's `owner` (else "@name on Telegram"):
+  `r` resolves, `i` ignores until it escalates, `a` assigns to the owner, through `changeIssues` and `assignIssue`,
+  so the activity names who; `answerCallbackQuery` with a toast ("Resolved", "That issue no longer exists"), and
+  `editMessageReplyMarkup` turns the button into "✓ Resolved" (resolving or ignoring takes the whole row; assigning
+  only its button). `telegram.test.ts` on `test/fakes.ts` with `fetch` stubbed.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   Access (routed after the Access check in `src/server.ts`, as the dashboard); JSON only and never cross-site, so a
   web page can't call it with someone's Access cookie. Agents, viewers `service:<common name>` (an Access service

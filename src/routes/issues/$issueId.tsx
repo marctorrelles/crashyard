@@ -7,7 +7,14 @@ import { Time } from '@/components/time'
 import { BarList, LEVEL_COLORS, TimeChart } from '@/components/charts'
 import { EventView } from '@/components/event-view'
 import { IssueActions, UnmergeButton } from '@/components/issue-actions'
-import { AssignMenu, BookmarkButton, IssueMoreMenu, TrackerMenu } from '@/components/issue-triage'
+import {
+  ActionPrompt,
+  AssignMenu,
+  BookmarkButton,
+  IssueMoreMenu,
+  type PromptAction,
+  TrackerMenu,
+} from '@/components/issue-triage'
 import { PRIORITY_LABELS, PriorityBadge } from '@/components/priority'
 import { Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
@@ -19,8 +26,10 @@ import type { NormalizedEvent } from '@/ingest/event'
 import { addValue, isSearchableKey, NEW_FOR } from '@/search/query'
 
 export const Route = createFileRoute('/issues/$issueId')({
-  validateSearch: (s: Record<string, unknown>): { event?: string } => ({
+  // `do`: a notification's link, asked once more on the page (`ActionPrompt`)
+  validateSearch: (s: Record<string, unknown>): { event?: string; do?: PromptAction } => ({
     event: typeof s.event === 'string' && /^[0-9a-f]{32}$/.test(s.event) ? s.event : undefined,
+    do: s.do === 'resolve' || s.do === 'ignore' || s.do === 'assign' ? s.do : undefined,
   }),
   loaderDeps: ({ search }) => ({ event: search.event }),
   loader: async ({ params, deps }) => {
@@ -42,6 +51,8 @@ export const Route = createFileRoute('/issues/$issueId')({
 function IssuePage() {
   const d = Route.useLoaderData()
   const { issue, now } = d
+  const prompt = Route.useSearch({ select: (s) => s.do })
+  const navigate = useNavigate()
   const event = useMemo(() => (d.eventJson ? (JSON.parse(d.eventJson) as NormalizedEvent) : null), [d.eventJson])
   const current = d.events.find((e) => e.id === event?.id)
   return (
@@ -55,6 +66,15 @@ function IssuePage() {
         issue.title,
       ]}
     >
+      {prompt && (
+        <ActionPrompt
+          issue={issue}
+          status={issue.status}
+          viewer={d.viewer}
+          action={prompt}
+          onClose={() => void navigate({ to: '.', search: (s) => ({ ...s, do: undefined }), replace: true })}
+        />
+      )}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight break-words">

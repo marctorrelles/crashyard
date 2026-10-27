@@ -131,6 +131,9 @@ there.
 
 To check it, open Settings, then Email, and choose **Send test email** with the address you verified. Then add an
 email channel under Notifications in the dashboard. Telegram, Slack, Discord and webhook channels need no setup here.
+A Telegram channel's Resolve, Ignore and Assign to me buttons work once `PUBLIC_URL` is set: saving the channel tells
+Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, outside Access, with a secret only crashyard and
+Telegram know.
 
 ## Upload tokens
 

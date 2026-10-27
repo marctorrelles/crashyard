@@ -98,7 +98,9 @@
   for a github.com `repo_url`, `<repo>/issues/new` with title and body; Create Linear issue,
   `https://linear.app/new` with title and description; Link issue…, a dialog for the address; Unlink issue; a linked one is a button before it, named by its
   host) and `trackerText` (the title, then the culprit, the crashyard link and the top 5 frames, newest first).
-  `LinkIssueDialog` is Link issue's, for Track and More. `IssueMoreMenu`, on a phone only: everything in the header
+  `LinkIssueDialog` is Link issue's, for Track and More. `ActionPrompt`: a notification link's Resolve, Ignore
+  (until it escalates) or Assign to me (`?do=` on the issue page), asked once more in a dialog, or "It's already
+  resolved." with Close; the dashboard's toasts. `IssueMoreMenu`, on a phone only: everything in the header
   but Resolve and Ignore, Priority and Assign to as submenus, the bookmark, the tracker's items, Unmerge… and both
   deletes.
 - `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a

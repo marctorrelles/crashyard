@@ -47,6 +47,12 @@ export default {
         reprocess: (projectId, debugIds) => reprocess(env, sharedSymbolic, projectId, debugIds),
       })
     }
+    // A Telegram bot's buttons, checked by the secret saving its channel gave Telegram (src/api/telegram.ts)
+    const telegram = url.pathname.match(/^\/api\/telegram\/(\d+)\/?$/)
+    if (telegram) {
+      const { handleTelegram } = await import('./api/telegram')
+      return handleTelegram(request, env.DB, telegram[1])
+    }
     if (url.pathname.startsWith('/api/')) return Response.json({ detail: 'Not found' }, { status: 404 })
 
     // Everything else is the dashboard, behind Access

@@ -25,7 +25,7 @@ import * as widgets from './data/widgets'
 import { PRIORITIES, type Priority } from './ingest/priority'
 import { FILTER_LISTS, FILTER_SWITCHES, type Filters } from './ingest/filters'
 import { parseGroupingRules } from './ingest/rules'
-import { telegramChats, telegramToken } from './notify/channels'
+import { botIdOf, telegramCall, telegramChats, telegramToken, type TelegramConfig } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
 import { LEVELS } from './notify/notice'
 import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
@@ -638,7 +638,28 @@ export const saveChannel = createServerFn({ method: 'POST' })
         })(o.quiet_zone) ?? null,
     }
   })
-  .handler(({ data }) => notifications.saveChannel(env.DB, data, Date.now()))
+  .handler(async ({ data }) => {
+    if (data.kind !== 'telegram') return notifications.saveChannel(env.DB, data, Date.now())
+    // A Telegram channel's buttons act through the bot's webhook, which Telegram calls with the bot's secret; it needs
+    // a public https address, so a local crashyard sends them without
+    const config = JSON.parse(data.config) as TelegramConfig
+    const bot = botIdOf(config.token)
+    const base = env.PUBLIC_URL?.replace(/\/$/, '')
+    const secret = base?.startsWith('https://')
+      ? ((await notifications.telegramChannels(env.DB)).find((c) => botIdOf(c.token) === bot && c.secret)?.secret ??
+        crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, ''))
+      : undefined
+    const saved: TelegramConfig = { ...config, secret, owner: viewer() }
+    await notifications.saveChannel(env.DB, { ...data, config: JSON.stringify(saved) }, Date.now())
+    if (secret)
+      await telegramCall(saved, 'setWebhook', {
+        url: `${base}/api/telegram/${bot}`,
+        secret_token: secret,
+        allowed_updates: ['callback_query'],
+      }).catch((error: Error) => {
+        throw new Error(`Saved, but its Resolve and Ignore buttons won’t work yet. ${error.message}`)
+      })
+  })
 
 /** The chats that wrote to a Telegram bot lately, for its channel's chat */
 export const findTelegramChats = createServerFn({ method: 'POST' })
@@ -651,7 +672,14 @@ export const findTelegramChats = createServerFn({ method: 'POST' })
 
 export const deleteChannel = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
-  .handler(({ data }) => notifications.deleteChannel(env.DB, data.id).then(() => undefined))
+  .handler(async ({ data }) => {
+    const telegram = await notifications.telegramChannels(env.DB)
+    const gone = telegram.find((c) => c.id === data.id)
+    await notifications.deleteChannel(env.DB, data.id)
+    // The bot's last channel takes its webhook with it; Telegram's refusal changes nothing here
+    if (gone?.secret && !telegram.some((c) => c.id !== gone.id && botIdOf(c.token) === botIdOf(gone.token)))
+      await telegramCall(gone, 'deleteWebhook', {}).catch(() => {})
+  })
 
 export const saveRoute = createServerFn({ method: 'POST' })
   .validator((d: unknown): notifications.RouteInput => {

@@ -1,5 +1,5 @@
 // Sending a notice through a channel: Telegram, email (Cloudflare Email Routing) or a webhook.
-import { type Notice, noticeLine } from './notice'
+import { ISSUE_KINDS, type Notice, noticeLine } from './notice'
 
 export type Channel = {
   id: number
@@ -11,8 +11,17 @@ export type Channel = {
   quiet_zone: string | null // IANA; null: quiet hours in UTC, as rows before 0020
 }
 
-// A bot's token (from @BotFather), the chat it writes to and that chat's name; `server`, a local Bot API server
-type TelegramConfig = { token: string; chat: string; name?: string; server?: string }
+// A bot's token (from @BotFather), the chat it writes to and that chat's name; `server`, a local Bot API server.
+// `secret`: the webhook's, set when saving registered it, so the bot's buttons act; `owner`: who saved it, "me" in
+// Assign to me
+export type TelegramConfig = {
+  token: string
+  chat: string
+  name?: string
+  server?: string
+  secret?: string
+  owner?: string
+}
 type EmailConfig = { to: string }
 type WebhookConfig = { url: string; format?: 'json' | 'slack' | 'discord' }
 
@@ -53,7 +62,33 @@ export function isQuiet(
 const TELEGRAM = 'https://api.telegram.org'
 const html = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-/** A message from the channel's bot: the title in bold, the line under it, and a button opening it in crashyard */
+/** What a notice about an issue can do from where it arrives */
+export type IssueAction = 'resolve' | 'ignore' | 'assign'
+export const ACTION_LABELS: Record<IssueAction, string> = {
+  resolve: 'Resolve',
+  ignore: 'Ignore',
+  assign: 'Assign to me',
+}
+const issueIdOf = (notice: Notice) => (ISSUE_KINDS.has(notice.kind) ? notice.issue.id : undefined)
+
+/** The issue's page with an action ready to confirm, signed in through Access: links can't act on their own, as
+ *  mail scanners and link previews open them */
+export const actionUrl = (notice: Notice, action: IssueAction) => `${notice.url}?do=${action}`
+
+/** A Telegram button's data, `r:12`, which the webhook reads back (src/api/telegram.ts); 64 bytes at most */
+export const CALLBACK = { resolve: 'r', ignore: 'i', assign: 'a' } as const satisfies Record<IssueAction, string>
+
+/** The buttons under an issue's message: its actions, acting in the chat once the webhook is set, then Open */
+export function telegramKeyboard(config: TelegramConfig, notice: Notice) {
+  const id = issueIdOf(notice)
+  const actions = (['resolve', 'ignore', ...(config.owner ? ['assign' as const] : [])] as IssueAction[]).map((a) => ({
+    text: ACTION_LABELS[a],
+    callback_data: `${CALLBACK[a]}:${id}`,
+  }))
+  return [...(id !== undefined && config.secret ? [actions] : []), [{ text: 'Open in crashyard', url: notice.url }]]
+}
+
+/** A message from the channel's bot: the title in bold, the line under it, its actions and a button opening it */
 export function telegramRequest(config: TelegramConfig, notice: Notice): Request {
   return new Request(`${(config.server || TELEGRAM).replace(/\/$/, '')}/bot${config.token}/sendMessage`, {
     method: 'POST',
@@ -65,7 +100,7 @@ export function telegramRequest(config: TelegramConfig, notice: Notice): Request
       link_preview_options: { is_disabled: true },
       // The week's summary arrives without a sound
       disable_notification: notice.kind === 'weekly',
-      reply_markup: { inline_keyboard: [[{ text: 'Open in crashyard', url: notice.url }]] },
+      reply_markup: { inline_keyboard: telegramKeyboard(config, notice) },
     }),
   })
 }
@@ -86,9 +121,29 @@ export function telegramError(status: number, description = '') {
   return `Telegram answered ${status}${description ? `: ${description}` : ''}`
 }
 
-/** Who wrote to the bot lately (Telegram keeps a day of updates): the chats it can write to, newest first */
+/** One Bot API method; throws Telegram's refusal in words */
+export async function telegramCall(config: Pick<TelegramConfig, 'token' | 'server'>, method: string, body: unknown) {
+  const response = await fetch(`${(config.server || TELEGRAM).replace(/\/$/, '')}/bot${config.token}/${method}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const answer = (await response.json().catch(() => ({ ok: false }))) as TelegramAnswer<unknown>
+  if (!answer.ok) throw new Error(telegramError(response.status, answer.description))
+  return answer.result
+}
+
+/** A bot's id, the part of its token before the colon: one webhook a bot, whichever of its channels set it */
+export const botIdOf = (token: string) => token.split(':')[0]
+
+/** Who wrote to the bot lately (Telegram keeps a day of updates): the chats it can write to, newest first. A bot
+ *  whose buttons act has a webhook, which getUpdates refuses: it's taken off, and saving the channel sets it again */
 export async function telegramChats(token: string): Promise<{ id: string; name: string }[]> {
-  const response = await fetch(`${TELEGRAM}/bot${token}/getUpdates`)
+  let response = await fetch(`${TELEGRAM}/bot${token}/getUpdates`)
+  if (response.status === 409) {
+    await telegramCall({ token }, 'deleteWebhook', {})
+    response = await fetch(`${TELEGRAM}/bot${token}/getUpdates`)
+  }
   const answer = (await response.json().catch(() => ({ ok: false }))) as TelegramAnswer<
     { message?: { chat: { id: number; title?: string; first_name?: string; username?: string } } }[]
   >
@@ -114,6 +169,12 @@ const colorOf = (notice: Notice) =>
           ? COLORS.orange
           : COLORS.amber
 
+// The action links of a notice about an issue, none for the rest
+const links = (notice: Notice): [IssueAction, string][] =>
+  issueIdOf(notice) === undefined
+    ? []
+    : (['resolve', 'ignore', 'assign'] as const).map((a) => [a, actionUrl(notice, a)])
+
 /** Slack's mrkdwn and Discord's markdown take `&`, `<` and `>` as markup */
 const slackText = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -128,14 +189,35 @@ export function webhookBody(format: WebhookConfig['format'], notice: Notice): un
         { type: 'section', text: { type: 'mrkdwn', text: `*${slackText(title)}*\n${slackText(line)}` } },
         {
           type: 'actions',
-          elements: [{ type: 'button', text: { type: 'plain_text', text: 'Open in crashyard' }, url: notice.url }],
+          elements: [
+            { type: 'button', text: { type: 'plain_text', text: 'Open in crashyard' }, url: notice.url },
+            ...links(notice).map(([a, url]) => ({
+              type: 'button',
+              text: { type: 'plain_text', text: ACTION_LABELS[a] },
+              url,
+            })),
+          ],
         },
       ],
     }
   // Discord: an embed coloured by what it is, its title linking to the page; no mention in a title pings anyone
   if (format === 'discord')
     return {
-      embeds: [{ title, url: notice.url, description: line, color: colorOf(notice) }],
+      embeds: [
+        {
+          title,
+          url: notice.url,
+          description: [
+            line,
+            links(notice)
+              .map(([a, url]) => `[${ACTION_LABELS[a]}](${url})`)
+              .join(' · '),
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          color: colorOf(notice),
+        },
+      ],
       allowed_mentions: { parse: [] },
     }
   return {
@@ -145,6 +227,7 @@ export function webhookBody(format: WebhookConfig['format'], notice: Notice): un
     issue: notice.issue,
     event: notice.event,
     url: notice.url,
+    actions: links(notice).length ? Object.fromEntries(links(notice)) : undefined,
   }
 }
 
@@ -174,7 +257,14 @@ export async function send(channel: Channel, notice: Notice, mailer?: Mailer, fr
       from,
       (config as EmailConfig).to,
       subject,
-      `${notice.issue.title}\n${noticeLine(notice)}\n\n${notice.url}\n`,
+      [
+        notice.issue.title,
+        noticeLine(notice),
+        '',
+        notice.url,
+        ...links(notice).map(([a, url]) => `${ACTION_LABELS[a]}: ${url}`),
+        '',
+      ].join('\n'),
     )
   }
 }
