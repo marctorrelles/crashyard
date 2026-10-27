@@ -90,10 +90,12 @@ export function Shell({
   children,
   crumbs,
   wide,
+  full,
 }: {
   children: React.ReactNode
   crumbs: React.ReactNode[]
   wide?: boolean
+  full?: boolean // the whole width, from the sidebar's edge: settings, with its list on the left
 }) {
   return (
     <>
@@ -124,8 +126,8 @@ export function Shell({
       </header>
       <main
         className={cn(
-          'mx-auto w-full flex-1 px-[max(1rem,env(safe-area-inset-left))] pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]',
-          wide ? 'max-w-7xl' : 'max-w-5xl',
+          'w-full flex-1 px-[max(1rem,env(safe-area-inset-left))] pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]',
+          !full && (wide ? 'mx-auto max-w-7xl' : 'mx-auto max-w-5xl'),
         )}
       >
         {children}

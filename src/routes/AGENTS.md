@@ -64,9 +64,9 @@ server, the build, or `tsr generate`): never edit it.
   with vitals and no transactions too); `projects/$slug/performance/transaction.tsx` (`?name=`): its own vitals, p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and Open trace.
-- `settings/`: the settings area. `route.tsx` is its frame: `Shell` with Settings, the project when it's a project's
-  page, then the page; the page's name as the title; `SettingsNav` (`src/components/settings.tsx`) beside the page
-  (a select over it on a phone). `index.tsx` goes to General. The deployment's pages, the group "crashyard": `general`
+- `settings/`: the settings area. `route.tsx` is its frame: `Shell` (`full`) with Settings, the project when it's a
+  project's page, then the page; `SettingsNav` (`src/components/settings.tsx`) at the left edge, the page's name as
+  the title and the page beside it, up to `max-w-4xl` (on a phone the title, the list as selects, the page). `index.tsx` goes to General. The deployment's pages, the group "crashyard": `general`
   (public URL and Access, read-only, each saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
   and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
   `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload
