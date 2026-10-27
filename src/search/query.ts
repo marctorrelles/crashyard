@@ -213,6 +213,7 @@ export const ISSUE_KEYS: KeyInfo[] = [
   { key: 'firstSeen', description: 'Time of the first event, such as -24h', kind: 'time', values: WITHIN },
   { key: 'trace', description: 'Has an event in this trace', kind: 'text' },
   { key: 'assigned', description: 'Assigned to, such as me or an email', kind: 'text' },
+  { key: 'user', description: 'Had an event from this user ID, or email when the app sends no ID', kind: 'text' },
 ]
 
 export const LOG_KEYS: KeyInfo[] = [
@@ -236,6 +237,7 @@ export const EVENT_KEYS: KeyInfo[] = [
   { key: 'issue', description: 'Issue ID', kind: 'number' },
   { key: 'project', description: 'Project', kind: 'text' },
   { key: 'trace', description: 'Trace ID', kind: 'text' },
+  { key: 'user', description: 'User ID, or email when the app sends no ID', kind: 'text' },
   { key: 'timestamp', description: 'Time it was received, such as -1h', kind: 'time', values: WITHIN },
   { key: 'has', description: 'Has a tag', kind: 'enum' },
 ]
@@ -319,8 +321,12 @@ export type Filter = { where: string[]; params: unknown[]; projectSlugs: string[
 export const UNREAD =
   'NOT EXISTS (SELECT 1 FROM issue_views v WHERE v.email = ? AND v.issue_id = i.id AND v.at >= i.last_seen)'
 
+/** A user's hash for `user:` (src/search/user.ts, server only); without one, as in the browser, no user matches */
+type HashUser = (text: string) => string
+const NO_USER: HashUser = () => ''
+
 /** SQL conditions over `issues i` for a query. Unknown keys are tags (issue_tag_values): "had an event with it" */
-export function issueFilter(query: string, now: number, viewer?: string): Filter {
+export function issueFilter(query: string, now: number, viewer?: string, hashUser: HashUser = NO_USER): Filter {
   const where: string[] = []
   const params: unknown[] = []
   const projectSlugs: string[] = []
@@ -381,6 +387,12 @@ export function issueFilter(query: string, now: number, viewer?: string): Filter
     if (key === 'trace') {
       const [sql, ids] = matchAny('e.trace_id', values)
       add(`EXISTS (SELECT 1 FROM events e WHERE e.issue_id = i.id AND ${sql})`, t.negate, ...ids)
+      continue
+    }
+    if (key === 'user') {
+      // Only hashes are kept: the typed id is hashed as ingest hashed it, exactly, so no globs
+      const [sql, hashes] = matchAny('u.user_hash', values.map(hashUser))
+      add(`EXISTS (SELECT 1 FROM issue_users u WHERE u.issue_id = i.id AND ${sql})`, t.negate, ...hashes)
       continue
     }
     if (COLUMNS[key]) {
@@ -489,7 +501,7 @@ const EVENT_COLUMNS: Record<string, string> = {
  * SQL conditions over `events e`, for Explore and an issue's event search. Unknown keys are the event's own tags
  * (`event_tags`); words are text in its title and message, case-insensitive. Every value is a bound parameter
  */
-export function eventFilter(query: string, now: number): Filter {
+export function eventFilter(query: string, now: number, hashUser: HashUser = NO_USER): Filter {
   const where: string[] = []
   const params: unknown[] = []
   const projectSlugs: string[] = []
@@ -518,6 +530,11 @@ export function eventFilter(query: string, now: number): Filter {
         const [sql, statuses] = matchAny('i.status', known)
         add(`EXISTS (SELECT 1 FROM issues i WHERE i.id = e.issue_id AND ${sql})`, t.negate, ...statuses)
       }
+      continue
+    }
+    if (key === 'user') {
+      const [sql, hashes] = matchAny('e.user_hash', values.map(hashUser))
+      add(sql, t.negate, ...hashes)
       continue
     }
     if (key === 'issue' || key === 'issue.id') {

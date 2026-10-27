@@ -10,7 +10,8 @@ order.
   envelope header's `dsn`.
 - `scrub.ts`: before anything is stored. Values under secret-looking keys become `[Filtered]`; emails, card numbers
   and bearer tokens in text are masked (an email's domain ends in letters, so a release like `app@1.2.0` stays).
-  `user.id` is kept only as a hash. The deployment's own field names (Settings, Data privacy, setting
+  `user.id` is kept only as a hash (`hashUser`, `src/search/user.ts`: of the id, else email, else username), which
+  `user:` searches hash the same way. The deployment's own field names (Settings, Data privacy, setting
   `privacy.scrub_fields`) are filtered too, in any key containing one, any case, as Sentry's additional sensitive
   fields: `loadExtraFields`, at the start of every pass (`processItems`), reads them at most once a minute per isolate,
   so a change takes up to a minute to apply; a read that fails is logged and keeps the last list (the built-ins only

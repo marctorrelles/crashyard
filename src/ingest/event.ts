@@ -2,6 +2,7 @@
 // shape crashyard stores: its exceptions and their frames, the title and culprit, tags, contexts and breadcrumbs,
 // with secrets scrubbed and the user reduced to a hash.
 import { scrub, scrubText } from './scrub'
+import { hashUser } from '../search/user'
 
 export type Frame = {
   function?: string
@@ -285,14 +286,6 @@ function tagsOf(event: Json): Record<string, string> {
   return tags
 }
 
-async function hash(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 32)
-}
-
 export async function normalizeEvent(
   raw: unknown,
   received = Date.now(),
@@ -391,7 +384,7 @@ export async function normalizeEvent(
           data: c.data,
         }
       }),
-    userHash: userKey ? await hash(userKey) : undefined,
+    userHash: userKey ? hashUser(userKey) : undefined,
     fingerprint: arr(event.fingerprint)
       .map(str)
       .filter((s): s is string => !!s),

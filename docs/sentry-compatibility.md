@@ -77,6 +77,11 @@ retries.
 A session's `did`, the distinct ID the SDK sends, counts users per release and day for crash-free users and active
 users. Only a hash of it is stored. A session without one counts no user.
 
+An event's user is kept the same way: a hash of its `id`, or of its `email` when there's no `id`, or of its
+`username`. Search for one person's issues or events with `user:` and the value the app sent, such as
+`user:8f3a2c` on Issues or in Explore. crashyard hashes what you type and compares the hashes. It matches the whole
+value exactly, so there are no wildcards, and an email finds nothing when the app sent an `id` too.
+
 A project can have several client keys. A key that's turned off answers `403` with Relay's body for a disabled key.
 
 ## Endpoints

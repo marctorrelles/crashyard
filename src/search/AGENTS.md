@@ -36,6 +36,10 @@ filter errors.
   reused for routes' tag filters (`src/notify/rules.ts`), matched against one event in JS.
 - Words are prefixes, all of them, in the title or culprit (FTS5 `issues_fts`).
 - `trace:<id>` finds the issues with an event in that trace.
+- `user:<id>` finds the issues (`issue_users`) or events (`e.user_hash`) of one user: only hashes are stored, so the
+  filters take `hashUser` (`user.ts`, server only, `node:crypto`; ingest hashes with it too) as a parameter and hash
+  each value, exactly, no globs. `query.ts` stays importable in the browser, where no user matches. Every server
+  caller passes it: `src/data/issues.ts`, `explore.ts`, `widgets.ts`, `getIssueChart`.
 - `logFilter`: the same syntax over logs: `level` (`warning` reads as `warn`), `release`, `environment`, `trace`,
   `timestamp`, `has:`, free text in the body (FTS5 `logs_fts`); any other key is an attribute (`log_attributes`).
 - `eventFilter`: the same syntax over events one by one (`events e`), for Explore and an issue's event search:

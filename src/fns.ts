@@ -33,6 +33,7 @@ import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { mailerOf } from './notify/email'
 import { version } from '../package.json'
 import { EVENT_KEYS, ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
+import { hashUser } from './search/user'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
 const ZONES = new Set([...Intl.supportedValuesOf('timeZone'), 'UTC'])
@@ -311,7 +312,7 @@ export const getIssueChart = createServerFn()
     const before = projects.lastDays(data.days, now - data.days * 864e5)
     const rows = await charts.issueEventsByDay(
       env.DB,
-      issueFilter(data.query, now, viewer()),
+      issueFilter(data.query, now, viewer(), hashUser),
       project?.id ?? (data.project ? -1 : undefined),
       [...before, ...days],
     )
