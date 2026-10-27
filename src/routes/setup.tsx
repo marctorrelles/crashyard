@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { PaidNote } from '@/components/plan'
 import { NewPerson, SignInFrame } from '@/components/sign-in'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +14,7 @@ export const Route = createFileRoute('/setup')({
 
 // The first owner: the setup code from the deployment, their name and email, then their passkey
 function Setup() {
-  const { ready, done } = Route.useLoaderData()
+  const { ready, done, plan } = Route.useLoaderData()
   if (done)
     return (
       <SignInFrame title="crashyard is set up" description="Sign in with your passkey, or ask an owner for an invite.">
@@ -40,19 +41,28 @@ function Setup() {
       description="You’ll be its owner. Then you can invite everyone else."
       extra={{
         fields: (
-          <div className="grid gap-2">
-            <Label htmlFor="code">Setup code</Label>
-            <Input
-              id="code"
-              name="code"
-              required
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              placeholder="ABCDE-FGHJK-MNPQR"
-              className="h-10 font-mono uppercase placeholder:normal-case"
-            />
-          </div>
+          <>
+            {plan?.paid === false && (
+              <PaidNote>
+                This Cloudflare account is on Workers Free. crashyard runs on it, but uploading symbols and source maps
+                and catching Cloudflare Workers runs need Workers Paid. Without them, crashes from iOS, Android and
+                minified web apps keep the stack traces the app sent.
+              </PaidNote>
+            )}
+            <div className="grid gap-2">
+              <Label htmlFor="code">Setup code</Label>
+              <Input
+                id="code"
+                name="code"
+                required
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                placeholder="ABCDE-FGHJK-MNPQR"
+                className="h-10 font-mono uppercase placeholder:normal-case"
+              />
+            </div>
+          </>
         ),
         body: (form) => ({ code: form.get('code') }),
       }}

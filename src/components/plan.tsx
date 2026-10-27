@@ -16,7 +16,11 @@ export function usePlan() {
 /** A warning shown only on Workers Free, saying what doesn't work there */
 export function NeedsPaid({ children }: { children: React.ReactNode }) {
   const { plan } = usePlan()
-  if (plan?.paid !== false) return null
+  return plan?.paid === false && <PaidNote>{children}</PaidNote>
+}
+
+/** The amber note itself, for a page that knows the plan already */
+export function PaidNote({ children }: { children: React.ReactNode }) {
   return (
     <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm" role="note">
       {children}

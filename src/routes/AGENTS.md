@@ -19,7 +19,8 @@ server, the build, or `tsr generate`): never edit it.
   nothing of the deployment's without one). Their loaders (`getSetupPage`, `getInvitePage`) need no role and run
   only in the server render, as every move from them is a whole page load. `/signin` (`getSignInPage`): Sign in with a passkey, Sign in with GitHub when it's set up, and Lost
   your passkey? Use a recovery code (email and code); `?next=` is where it goes after. `/setup`: the setup code, name
-  and email, while there's no one (else Sign in; without `SETUP_CODE`, how to set it). `/invite/<token>`: who invited
+  and email, while there's no one (else Sign in; without `SETUP_CODE`, how to set it), with `PaidNote` on Workers Free
+  (`getSetupPage` checks the plan only then). `/invite/<token>`: who invited
   them and as what, a name and email (the invite's, when it names one), Join with GitHub when it's set up, or that it
   can't be used and who to ask. `?error=` on `/signin` and an invite says what went wrong with GitHub.
 - `status.$slug.tsx`: a project's public status page, open signed out (`src/server.ts`'s `STATUS_PAGE`, GET only)

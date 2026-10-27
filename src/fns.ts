@@ -1648,10 +1648,15 @@ export const getStatusPage = createServerFn()
   .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
   .handler(({ data }) => monitors.statusPage(env.DB, data.slug, Date.now()))
 
-export const getSetupPage = createServerFn().handler(async () => ({
-  ready: !!env.SETUP_CODE,
-  done: (await people.userCount(env.DB)) > 0,
-}))
+// Before anyone is set up, the Workers plan too, so the owner knows from the start what needs Paid
+export const getSetupPage = createServerFn().handler(async () => {
+  const done = (await people.userCount(env.DB)) > 0
+  return {
+    ready: !!env.SETUP_CODE,
+    done,
+    plan: done ? null : await (await import('./data/plan')).planOf(env.DB, Date.now()),
+  }
+})
 
 export const getInvitePage = createServerFn()
   .validator((d: unknown) => ({ token: text(object(d).token, 100) }))
