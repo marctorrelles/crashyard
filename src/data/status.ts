@@ -1,6 +1,18 @@
 // A project's status page: the uptime checks chosen for it, and what the team posts there, incidents, notices and
-// maintenance, each a post with its updates (0027)
+// maintenance, each a post with its updates and the checks it affects (0027, 0028); the page's look and its own domain
 const DAY = 86_400_000
+
+/** The page's own look (`projects.status_page`), each part optional */
+export type Branding = { title?: string; description?: string; logo?: string; color?: string; website?: string }
+
+export function parseBranding(json: string | null): Branding {
+  try {
+    const b = JSON.parse(json ?? '{}')
+    return b && typeof b === 'object' && !Array.isArray(b) ? b : {}
+  } catch {
+    return {}
+  }
+}
 
 export type Impact = 'notice' | 'minor' | 'major' | 'maintenance'
 export type PostState = 'investigating' | 'identified' | 'monitoring' | 'update' | 'resolved'
@@ -78,6 +90,16 @@ async function readPosts(db: D1Database, projectId: number, now: number) {
           .all<UpdateRow>()
       ).results
     : []
+  const affected = posts.length
+    ? (
+        await db
+          .prepare(
+            'SELECT post_id, monitor_id FROM status_post_monitors WHERE post_id IN (SELECT value FROM json_each(?))',
+          )
+          .bind(JSON.stringify(posts.map((p) => p.id)))
+          .all<{ post_id: number; monitor_id: number }>()
+      ).results
+    : []
   return posts.map((p) => ({
     id: p.id,
     title: p.title,
@@ -86,6 +108,7 @@ async function readPosts(db: D1Database, projectId: number, now: number) {
     ends: p.ends_at,
     ended: ended(p),
     phase: phaseOf(p, now),
+    affects: affected.filter((a) => a.post_id === p.id).map((a) => a.monitor_id),
     updates: updates
       .filter((u) => u.post_id === p.id)
       .map(({ state, message, by, at }) => ({ state, message, by, at })),
@@ -106,6 +129,7 @@ export async function createPost(
     message: string
     starts: number | null
     ends: number | null
+    monitors: number[]
   },
   by: string,
   now: number,
@@ -117,10 +141,12 @@ export async function createPost(
     )
     .bind(projectId, post.title, post.impact, post.starts, post.ends, post.state === 'resolved' ? now : null, now)
     .first<{ id: number }>()
-  await db
-    .prepare('INSERT INTO status_updates (post_id, state, message, by, at) VALUES (?, ?, ?, ?, ?)')
-    .bind(row!.id, post.state, post.message, by, now)
-    .run()
+  await db.batch([
+    db
+      .prepare('INSERT INTO status_updates (post_id, state, message, by, at) VALUES (?, ?, ?, ?, ?)')
+      .bind(row!.id, post.state, post.message, by, now),
+    affects(db, row!.id, post.monitors),
+  ])
   return row!.id
 }
 
@@ -132,7 +158,17 @@ export const postOf = (db: D1Database, id: number) =>
     .bind(id)
     .first<{ id: number; impact: Impact; project_id: number; slug: string }>()
 
-/** An update to a post: Resolved closes it, any other state opens it again */
+// The post's affected checks: only uptime checks of its own project
+const affects = (db: D1Database, postId: number, monitors: number[]) =>
+  db
+    .prepare(
+      `INSERT INTO status_post_monitors (post_id, monitor_id)
+       SELECT p.id, m.id FROM status_posts p JOIN monitors m ON m.project_id = p.project_id AND m.kind = 'uptime'
+       WHERE p.id = ? AND m.id IN (SELECT value FROM json_each(?))`,
+    )
+    .bind(postId, JSON.stringify(monitors))
+
+/** An update to a post: Resolved closes it, any other state opens it again; `monitors`, when given, are what it affects now */
 export async function addUpdate(
   db: D1Database,
   postId: number,
@@ -140,8 +176,12 @@ export async function addUpdate(
   message: string,
   by: string,
   now: number,
+  monitors?: number[],
 ) {
   await db.batch([
+    ...(monitors
+      ? [db.prepare('DELETE FROM status_post_monitors WHERE post_id = ?').bind(postId), affects(db, postId, monitors)]
+      : []),
     db
       .prepare('INSERT INTO status_updates (post_id, state, message, by, at) VALUES (?, ?, ?, ?, ?)')
       .bind(postId, state, message, by, now),
@@ -169,9 +209,9 @@ export const deletePost = (db: D1Database, id: number) =>
  */
 export async function statusPage(db: D1Database, slug: string, now: number) {
   const project = await db
-    .prepare('SELECT id, name FROM projects WHERE slug = ?')
+    .prepare('SELECT id, name, status_page FROM projects WHERE slug = ?')
     .bind(slug)
-    .first<{ id: number; name: string }>()
+    .first<{ id: number; name: string; status_page: string | null }>()
   if (!project) return null
   const since = Math.floor(now / DAY) * DAY - 29 * DAY
   const [[checks, days, incidents], posts] = await Promise.all([
@@ -200,8 +240,14 @@ export async function statusPage(db: D1Database, slug: string, now: number) {
   ])
   if (!checks.results.length && !posts.length) return null
   const nameOf = new Map(checks.results.map((c) => [c.id as number, c.name as string]))
+  // A check's worst open post: an outage, then some services affected, then maintenance going on; notices change nothing
+  const affectedBy = (id: number) =>
+    (['major', 'minor', 'maintenance'] as const).find((impact) =>
+      posts.some((p) => p.impact === impact && (p.phase === 'open' || p.phase === 'ongoing') && p.affects.includes(id)),
+    ) ?? null
   return {
     name: project.name,
+    branding: parseBranding(project.status_page),
     now,
     checks: checks.results.map((c) => {
       const mine = days.results.filter((d) => d.monitor_id === c.id)
@@ -210,6 +256,7 @@ export async function statusPage(db: D1Database, slug: string, now: number) {
       return {
         name: c.name as string,
         status: c.status as 'pending' | 'ok' | 'failing' | 'paused',
+        affected: affectedBy(c.id as number),
         uptime: all ? up / all : null,
         // The last 30 UTC days, oldest first: the share of checks that passed, null for a day without any
         days: Array.from({ length: 30 }, (_, i) => {
@@ -223,6 +270,26 @@ export async function statusPage(db: D1Database, slug: string, now: number) {
       opened: i.opened_at as number,
       closed: i.closed_at as number | null,
     })),
-    posts: posts.map(({ updates, ...p }) => ({ ...p, updates: updates.map(({ by: _, ...u }) => u) })),
+    // Only checks on the page are named; who posted never leaves
+    posts: posts.map(({ updates, affects, ...p }) => ({
+      ...p,
+      affects: affects.flatMap((id) => nameOf.get(id) ?? []),
+      updates: updates.map(({ by: _, ...u }) => u),
+    })),
   }
+}
+
+let domains: { at: number; slugs: Map<string, string> } | undefined
+
+/** The project whose status page a hostname opens, read at most once a minute per isolate */
+export async function slugOfDomain(db: D1Database, host: string, now: number) {
+  if (!domains || now - domains.at > 60_000) {
+    const rows = (
+      await db
+        .prepare('SELECT status_domain, slug FROM projects WHERE status_domain IS NOT NULL')
+        .all<{ status_domain: string; slug: string }>()
+    ).results
+    domains = { at: now, slugs: new Map(rows.map((r) => [r.status_domain, r.slug])) }
+  }
+  return domains.slugs.get(host.toLowerCase())
 }

@@ -16,7 +16,7 @@ export const Route = createFileRoute('/status/$slug')({
   },
   head: ({ loaderData }) => ({
     meta: [
-      { title: `${loaderData?.name ?? 'Status'} status` },
+      { title: loaderData?.branding.title || `${loaderData?.name ?? 'Status'} status` },
       // Fresh without a script: the page loads again each minute
       { httpEquiv: 'refresh', content: '60' },
     ],
@@ -26,6 +26,13 @@ export const Route = createFileRoute('/status/$slug')({
 
 type Page = Awaited<ReturnType<typeof getStatusPage>> & {}
 type Post = Page['posts'][number]
+
+// A check's state while an open post affects it, unless it's down
+const AFFECTED = {
+  major: { label: 'Major outage', dot: 'bg-red-500' },
+  minor: { label: 'Degraded', dot: 'bg-amber-500' },
+  maintenance: { label: 'Under maintenance', dot: 'bg-sky-500' },
+} as const
 
 const RANK: Post['impact'][] = ['major', 'minor', 'maintenance', 'notice']
 
@@ -47,6 +54,7 @@ function PostCard({ post }: { post: Post }) {
             {post.phase === 'upcoming' ? 'Scheduled for' : 'From'} <Time at={post.starts} /> to <Time at={post.ends} />
           </p>
         )}
+        {post.affects.length > 0 && <p className="text-sm text-muted-foreground">Affects {post.affects.join(', ')}</p>}
       </div>
       <ol className="grid gap-3">
         {post.updates.map((u, i) => (
@@ -128,6 +136,7 @@ function Days({ days }: { days: Page['checks'][number]['days'] }) {
 
 function StatusPage() {
   const page = Route.useLoaderData()
+  const b = page.branding
   // Open first by how much they affect, an outage before maintenance before a notice
   const current = page.posts
     .filter((p) => p.phase === 'open' || p.phase === 'ongoing')
@@ -136,8 +145,24 @@ function StatusPage() {
   const past = page.posts.filter((p) => p.phase === 'past')
   return (
     <main className="min-h-dvh bg-muted/40 px-4 py-10">
+      {b.color && <div className="fixed inset-x-0 top-0 h-1" style={{ background: b.color }} />}
       <div className="mx-auto grid max-w-2xl gap-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{page.name} status</h1>
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {b.logo && <img src={b.logo} alt="" className="size-10 shrink-0 rounded-lg object-contain" />}
+          <div className="grid min-w-0 flex-1 gap-1">
+            <h1 className="text-2xl font-semibold tracking-tight">{b.title || `${page.name} status`}</h1>
+            {b.description && <p className="text-sm text-muted-foreground">{b.description}</p>}
+          </div>
+          {b.website && (
+            <a
+              href={b.website}
+              className="shrink-0 text-sm font-medium underline underline-offset-2 max-sm:basis-full max-sm:py-2.5"
+              style={b.color ? { textDecorationColor: b.color } : undefined}
+            >
+              Go to {new URL(b.website).host}
+            </a>
+          )}
+        </header>
         <Summary checks={page.checks} posts={page.posts} />
         {current.map((p) => (
           <PostCard key={p.id} post={p} />
@@ -156,10 +181,15 @@ function StatusPage() {
               <div key={c.name} className="grid gap-3 bg-card p-4">
                 <div className="flex items-center gap-3">
                   <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className={cn('size-2 rounded-full', STATES[c.status].dot)} />
-                    {STATES[c.status].label}
-                  </span>
+                  {(() => {
+                    const state = c.status !== 'failing' && c.affected ? AFFECTED[c.affected] : STATES[c.status]
+                    return (
+                      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className={cn('size-2 rounded-full', state.dot)} />
+                        {state.label}
+                      </span>
+                    )
+                  })()}
                 </div>
                 <Days days={c.days} />
                 <div className="flex justify-between text-xs text-muted-foreground">

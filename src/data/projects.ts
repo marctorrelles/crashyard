@@ -27,6 +27,8 @@ export type ProjectRow = {
   release_new_issues_max: number | null // release health: at most this many new issues; null is none
   workers: string | null // JSON, Cloudflare Workers whose failed runs come in through tail() (src/api/tail.ts)
   worker_exceptions: number // 1: their uncaught exceptions too, for Workers without the Sentry SDK
+  status_page: string | null // JSON, the status page's look (src/data/status.ts Branding)
+  status_domain: string | null // a hostname that opens only its status page (src/server.ts)
   created_at: number
 }
 
@@ -274,6 +276,8 @@ export const PROJECT_FIELDS = [
   'filters',
   'workers',
   'worker_exceptions',
+  'status_page',
+  'status_domain',
 ] as const
 export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>
 
@@ -284,6 +288,13 @@ export async function updateProject(db: D1Database, id: number, change: ProjectC
   if (change.slug !== undefined) {
     const taken = await db.prepare('SELECT 1 FROM projects WHERE slug = ? AND id != ?').bind(change.slug, id).first()
     if (taken) throw new Error('Another project has that slug. Pick a different one.')
+  }
+  if (change.status_domain) {
+    const taken = await db
+      .prepare('SELECT 1 FROM projects WHERE status_domain = ? AND id != ?')
+      .bind(change.status_domain, id)
+      .first()
+    if (taken) throw new Error('Another project’s status page has that domain. Use a different one.')
   }
   await db
     .prepare(`UPDATE projects SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`)

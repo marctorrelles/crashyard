@@ -271,6 +271,41 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
     return names.length ? JSON.stringify(names) : null
   },
   worker_exceptions: (v) => (v === true ? 1 : 0),
+  // The status page's look: each part optional, addresses only https, a colour as #rrggbb
+  status_page: (v) => {
+    const o = object(v)
+    const https = (x: unknown, name: string) => {
+      const s = text(x ?? '', 500, name).trim()
+      if (s && !/^https:\/\/[^\s"'<>]+$/.test(s)) throw new Error(`${name} starts with https://.`)
+      return s
+    }
+    const b = {
+      title: text(o.title ?? '', 80, 'The page title').trim(),
+      description: text(o.description ?? '', 500, 'The description').trim(),
+      logo: https(o.logo, 'The logo address'),
+      color: text(o.color ?? '', 7, 'The brand colour')
+        .trim()
+        .toLowerCase(),
+      website: https(o.website, 'The website address'),
+    }
+    if (b.color && !/^#[0-9a-f]{6}$/.test(b.color))
+      throw new Error('The brand colour is a hex colour, such as #f97316.')
+    const set = Object.fromEntries(Object.entries(b).filter(([, x]) => x))
+    return Object.keys(set).length ? JSON.stringify(set) : null
+  },
+  // A hostname of the deployment's Cloudflare account, never the dashboard's own
+  status_domain: (v) => {
+    const host = text(v ?? '', 253, 'The domain')
+      .trim()
+      .toLowerCase()
+      .replace(/\.$/, '')
+    if (!host) return null
+    if (!/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host))
+      throw new Error('The domain is a hostname such as status.example.com, without https:// or a path.')
+    if (env.PUBLIC_URL && host === new URL(env.PUBLIC_URL).hostname)
+      throw new Error('That’s crashyard’s own address. Use a different hostname for the status page.')
+    return host
+  },
   // Rules that don't parse are refused with the line and why, so ingest only ever reads good ones
   grouping_rules: (v) => {
     const rules = text(v ?? '', 20_000, 'The grouping rules')
@@ -1689,6 +1724,7 @@ export const createStatusPost = createServerFn({ method: 'POST' })
       message: statusMessage(o.message),
       starts,
       ends,
+      monitors: ints(o.monitors ?? [], 100),
     }
   })
   .handler(async ({ data: { slug, ...post } }) => {
@@ -1701,13 +1737,18 @@ export const addStatusUpdate = createServerFn({ method: 'POST' })
   .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
-    return { id: int(o.id), state: text(o.state, 20), message: statusMessage(o.message) }
+    return {
+      id: int(o.id),
+      state: text(o.state, 20),
+      message: statusMessage(o.message),
+      monitors: o.monitors === undefined ? undefined : ints(o.monitors, 100),
+    }
   })
   .handler(async ({ data }) => {
     const post = await status.postOf(env.DB, data.id)
     if (!post) throw new Error('That post was deleted.')
     const state = oneOf(status.STATES_FOR[post.impact])(data.state)
-    await status.addUpdate(env.DB, post.id, state, data.message, viewer(), Date.now())
+    await status.addUpdate(env.DB, post.id, state, data.message, viewer(), Date.now(), data.monitors)
   })
 
 export const deleteStatusPost = createServerFn({ method: 'POST' })

@@ -12,6 +12,13 @@ const SIGN_IN_PAGES = /^\/(signin|setup|invite\/[^/]+)\/?$/
 // A project's public status page, open to anyone (src/routes/status.$slug.tsx): a GET only, its data read in the render
 const STATUS_PAGE = /^\/status\/[a-z0-9][a-z0-9-]*\/?$/
 
+/** A request's headers without the `x-crashyard-` ones, which only this file sets */
+function outsideHeaders(request: Request) {
+  const headers = new Headers()
+  for (const [name, value] of request.headers) if (!name.startsWith('x-crashyard-')) headers.append(name, value)
+  return headers
+}
+
 const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
 
 export default {
@@ -63,6 +70,19 @@ export default {
       return handleTelegram(request, env.DB, telegram[1])
     }
     if (url.pathname.startsWith('/api/')) return Response.json({ detail: 'Not found' }, { status: 404 })
+
+    // A project's own domain for its status page (Settings, Status page): that page alone, as to someone signed out
+    if (!env.PUBLIC_URL || url.hostname !== new URL(env.PUBLIC_URL).hostname) {
+      const { slugOfDomain } = await import('./data/status')
+      const slug = await slugOfDomain(env.DB, url.hostname, Date.now())
+      if (slug) {
+        const page = `/status/${slug}`
+        if (request.method === 'GET' && url.pathname === '/') return Response.redirect(new URL(page, url), 302)
+        if (request.method !== 'GET' || url.pathname.replace(/\/$/, '') !== page)
+          return new Response('Not found', { status: 404 })
+        return start(new Request(request, { headers: outsideHeaders(request) }))
+      }
+    }
 
     // Everything else is the dashboard: signed in with a passkey, or with GitHub
     const now = Date.now()
@@ -118,8 +138,7 @@ export default {
       return handleMcp(request, env.DB, who)
     }
     // The dashboard reads who's signed in from these headers only; any sent from outside are dropped
-    const headers = new Headers()
-    for (const [name, value] of request.headers) if (!name.startsWith('x-crashyard-')) headers.append(name, value)
+    const headers = outsideHeaders(request)
     if (who) {
       headers.set('x-crashyard-viewer', who.email)
       headers.set('x-crashyard-role', who.role)

@@ -195,6 +195,14 @@ to it: an incident, which some or all services feel, a notice, or planned mainte
 updates as things change, such as Identified, Monitoring and Resolved. Messages can have bold text, links and lists.
 The page names no one who posted. Resolved posts and ended maintenance stay on the page for 30 days.
 
+A post can name the checks it affects. While it's open, they show as Degraded, Major outage or Under maintenance.
+
+Under Look and address you can give the page its own title, description, logo, brand colour and a link to your
+website. It can also have its own domain, such as `status.example.com`. Add that hostname to crashyard's Worker in
+Cloudflare first, under Workers and Pages, crashyard, Settings, Domains and Routes, Add, Custom domain. Its domain must
+be on the same Cloudflare account. Then type it in crashyard. That address opens only the status page, never the
+rest of crashyard.
+
 Errors the job raises inside `Sentry.withMonitor` share its check-ins' trace, and are listed on the monitor under
 "Errors during this job". A monitor that keeps failing for 14 days is muted until it recovers.
 

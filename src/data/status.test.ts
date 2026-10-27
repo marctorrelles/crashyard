@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
-import { addUpdate, createPost, statusPage } from './status'
+import { addUpdate, createPost, slugOfDomain, statusPage } from './status'
 
 const DAY = 86_400_000
 const now = Date.UTC(2026, 9, 27, 12)
@@ -46,6 +46,7 @@ describe('statusPage', () => {
           message: `About ${title}`,
           starts: window?.[0] ?? null,
           ends: window?.[1] ?? null,
+          monitors: [],
         },
         'ana@example.com',
         at,
@@ -77,5 +78,53 @@ describe('statusPage', () => {
     expect((await statusPage(db, 'quiet', now + 3))?.posts.find((p) => p.title === 'Slow checkouts')?.phase).toBe(
       'open',
     )
+  })
+
+  it('marks the checks a post affects, names only those on the page, and finds a project by its domain', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`
+      INSERT INTO projects (id, slug, name, public_key, created_at, status_domain, status_page) VALUES
+        (1, 'shop', 'Shop', 'k1', 0, 'status.shop.example', '{"title":"Shop status","color":"#f97316"}'),
+        (2, 'other', 'Other', 'k2', 0, NULL, NULL);
+      INSERT INTO monitors (id, project_id, slug, name, kind, config, status, public, created_at) VALUES
+        (1, 1, 'api', 'API', 'uptime', '{}', 'ok', 1, 0),
+        (2, 1, 'admin', 'Admin', 'uptime', '{}', 'ok', 0, 0),
+        (3, 1, 'web', 'Web', 'uptime', '{}', 'ok', 1, 0),
+        (4, 2, 'theirs', 'Theirs', 'uptime', '{}', 'ok', 1, 0);
+    `)
+    const id = await createPost(
+      db,
+      1,
+      {
+        title: 'Slow API',
+        impact: 'minor',
+        state: 'investigating',
+        message: 'Looking',
+        starts: null,
+        ends: null,
+        monitors: [1, 2, 4],
+      },
+      'ana@example.com',
+      now - 1000,
+    )
+    let page = await statusPage(db, 'shop', now)
+    expect(page?.branding).toEqual({ title: 'Shop status', color: '#f97316' })
+    // Another project's check is never linked; one off the page isn't named
+    expect(page?.posts[0].affects).toEqual(['API'])
+    expect(page?.checks.map((c) => [c.name, c.affected])).toEqual([
+      ['API', 'minor'],
+      ['Web', null],
+    ])
+    // An update can move what it affects; resolved, nothing is affected
+    await addUpdate(db, id, 'identified', 'Found it', 'ana@example.com', now - 500, [3])
+    page = await statusPage(db, 'shop', now)
+    expect(page?.checks.map((c) => c.affected)).toEqual([null, 'minor'])
+    await addUpdate(db, id, 'resolved', 'Fixed', 'ana@example.com', now - 100)
+    page = await statusPage(db, 'shop', now)
+    expect(page?.checks.map((c) => c.affected)).toEqual([null, null])
+    expect(page?.posts[0].affects).toEqual(['Web'])
+
+    expect(await slugOfDomain(db, 'Status.Shop.Example', now)).toBe('shop')
+    expect(await slugOfDomain(db, 'crashyard.example', now)).toBeUndefined()
   })
 })

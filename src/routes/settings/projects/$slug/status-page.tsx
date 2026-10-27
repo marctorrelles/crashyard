@@ -5,13 +5,21 @@ import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { Time } from '@/components/time'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { type Impact, IMPACTS, type PostState, STATES_FOR, stateLabel } from '@/data/status'
-import { addStatusUpdate, createStatusPost, deleteStatusPost, getStatusPosts, setMonitorPublic } from '@/fns'
+import { type Impact, IMPACTS, parseBranding, type PostState, STATES_FOR, stateLabel } from '@/data/status'
+import {
+  addStatusUpdate,
+  createStatusPost,
+  deleteStatusPost,
+  getStatusPosts,
+  setMonitorPublic,
+  updateProject,
+} from '@/fns'
 
 export const Route = createFileRoute('/settings/projects/$slug/status-page')({
   loader: ({ params }) => getStatusPosts({ data: { slug: params.slug } }),
@@ -21,6 +29,7 @@ export const Route = createFileRoute('/settings/projects/$slug/status-page')({
 const parent = getRouteApi('/settings/projects/$slug')
 
 type Post = Awaited<ReturnType<typeof getStatusPosts>>['posts'][number]
+type Check = Awaited<ReturnType<typeof getStatusPosts>>['checks'][number]
 
 const PHASES = { open: 'Open', upcoming: 'Scheduled', ongoing: 'In progress', past: 'Ended' } as const
 
@@ -31,6 +40,8 @@ function StatusPageSettings() {
   const { save } = useSave()
   const current = posts.filter((p) => p.phase !== 'past')
   const past = posts.filter((p) => p.phase === 'past')
+  // Only the checks on the page can be named as affected
+  const shown = checks.filter((c) => c.public === 1)
   return (
     <div className="grid gap-4">
       <SettingsCard
@@ -67,17 +78,18 @@ function StatusPageSettings() {
           <Hint>No uptime checks yet. Add one under Monitors to show it here.</Hint>
         )}
       </SettingsCard>
-      <NewPost slug={project.slug} />
+      <NewPost slug={project.slug} checks={shown} />
       {current.length > 0 && (
         <SettingsCard title="Now on the page">
-          <Posts posts={current} />
+          <Posts posts={current} checks={checks} />
         </SettingsCard>
       )}
       {past.length > 0 && (
         <SettingsCard title="Ended in the last 30 days">
-          <Posts posts={past} />
+          <Posts posts={past} checks={checks} />
         </SettingsCard>
       )}
+      <Branding />
     </div>
   )
 }
@@ -85,7 +97,35 @@ function StatusPageSettings() {
 /** A time typed in the viewer's own zone, as milliseconds */
 const fromLocal = (v: FormDataEntryValue | null) => (v ? new Date(String(v)).getTime() : null)
 
-function NewPost({ slug }: { slug: string }) {
+/** The checks on the page a post affects, as checkboxes named `monitors` */
+function Affects({ id, checks, chosen = [] }: { id: string; checks: Check[]; chosen?: number[] }) {
+  if (!checks.length) return null
+  return (
+    <fieldset className="grid gap-2 @xl:col-span-2">
+      <legend className="mb-2 text-sm font-medium">Affects</legend>
+      <div className="flex flex-wrap gap-x-5 gap-y-3">
+        {checks.map((c) => (
+          <div key={c.id} className="flex items-center gap-2 max-sm:min-h-10">
+            <Checkbox
+              id={`${id}-${c.id}`}
+              name="monitors"
+              value={String(c.id)}
+              defaultChecked={chosen.includes(c.id)}
+            />
+            <Label htmlFor={`${id}-${c.id}`} className="font-normal">
+              {c.name}
+            </Label>
+          </div>
+        ))}
+      </div>
+      <Hint>These checks show as affected on the page while it’s open.</Hint>
+    </fieldset>
+  )
+}
+
+const chosenChecks = (f: FormData) => f.getAll('monitors').map(Number)
+
+function NewPost({ slug, checks }: { slug: string; checks: Check[] }) {
   const { save, saving } = useSave()
   const [impact, setImpact] = useState<Impact>('minor')
   const [state, setState] = useState<PostState>('investigating')
@@ -116,6 +156,7 @@ function NewPost({ slug }: { slug: string }) {
                   message: f.get('message'),
                   starts: fromLocal(f.get('starts')),
                   ends: fromLocal(f.get('ends')),
+                  monitors: chosenChecks(f),
                 },
               }),
             'Posted',
@@ -165,6 +206,7 @@ function NewPost({ slug }: { slug: string }) {
             </div>
           </>
         )}
+        {impact !== 'notice' && <Affects id="affects" checks={checks} />}
         <Message id="message" />
         <div>
           <SaveButton saving={saving}>Post</SaveButton>
@@ -214,17 +256,17 @@ function Message({ id }: { id: string }) {
   )
 }
 
-function Posts({ posts }: { posts: Post[] }) {
+function Posts({ posts, checks }: { posts: Post[]; checks: Check[] }) {
   return (
     <ul className="grid gap-px overflow-hidden rounded-lg border bg-border">
       {posts.map((p) => (
-        <PostItem key={p.id} post={p} />
+        <PostItem key={p.id} post={p} checks={checks} />
       ))}
     </ul>
   )
 }
 
-function PostItem({ post }: { post: Post }) {
+function PostItem({ post, checks }: { post: Post; checks: Check[] }) {
   const { save, saving } = useSave()
   const [updating, setUpdating] = useState(false)
   const [state, setState] = useState<PostState>(post.updates[0]?.state ?? STATES_FOR[post.impact][0])
@@ -238,6 +280,15 @@ function PostItem({ post }: { post: Post }) {
       {post.starts !== null && post.ends !== null && (
         <p className="text-sm text-muted-foreground">
           <Time at={post.starts} /> to <Time at={post.ends} />
+        </p>
+      )}
+      {post.affects.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Affects{' '}
+          {checks
+            .filter((c) => post.affects.includes(c.id))
+            .map((c) => c.name)
+            .join(', ')}
         </p>
       )}
       <ol className="grid gap-3">
@@ -259,12 +310,20 @@ function PostItem({ post }: { post: Post }) {
           className="grid gap-4 @xl:grid-cols-2"
           onSubmit={async (e) => {
             e.preventDefault()
-            const message = new FormData(e.currentTarget).get('message')
-            if (await save(() => addStatusUpdate({ data: { id: post.id, state, message } }), 'Update posted'))
-              setUpdating(false)
+            const f = new FormData(e.currentTarget)
+            const monitors = post.impact === 'notice' ? undefined : chosenChecks(f)
+            const data = { id: post.id, state, message: f.get('message'), monitors }
+            if (await save(() => addStatusUpdate({ data }), 'Update posted')) setUpdating(false)
           }}
         >
           <StateSelect id={`state-${post.id}`} impact={post.impact} value={state} onChange={setState} />
+          {post.impact !== 'notice' && (
+            <Affects
+              id={`affects-${post.id}`}
+              checks={checks.filter((c) => c.public === 1 || post.affects.includes(c.id))}
+              chosen={post.affects}
+            />
+          )}
           <Message id={`message-${post.id}`} />
           <div className="flex gap-2">
             <SaveButton saving={saving}>Post update</SaveButton>
@@ -292,5 +351,140 @@ function PostItem({ post }: { post: Post }) {
         </div>
       )}
     </li>
+  )
+}
+
+// The page's own look and address, saved with the project
+function Branding() {
+  const { project } = parent.useLoaderData()
+  const { save, saving } = useSave()
+  const b = parseBranding(project.status_page)
+  const [color, setColor] = useState(b.color ?? '')
+  return (
+    <SettingsCard title="Look and address" description="Make the page yours. Everything here is optional.">
+      <form
+        className="grid gap-4 @xl:grid-cols-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          const f = new FormData(e.currentTarget)
+          void save(() =>
+            updateProject({
+              data: {
+                id: project.id,
+                status_page: {
+                  title: f.get('page-title'),
+                  description: f.get('description'),
+                  logo: f.get('logo'),
+                  color,
+                  website: f.get('website'),
+                },
+                status_domain: f.get('domain'),
+              },
+            }),
+          )
+        }}
+      >
+        <div className="grid gap-2">
+          <Label htmlFor="page-title">Page title</Label>
+          <Input
+            id="page-title"
+            name="page-title"
+            maxLength={80}
+            defaultValue={b.title}
+            placeholder={`${project.name} status`}
+            className="max-sm:h-10"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="color">Brand colour</Label>
+          <div className="flex gap-2">
+            <input
+              type="color"
+              aria-label="Pick the brand colour"
+              value={color || '#000000'}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-9 w-12 shrink-0 cursor-pointer rounded-md border bg-transparent p-1 max-sm:h-10"
+            />
+            <Input
+              id="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              maxLength={7}
+              placeholder="#f97316"
+              className="font-mono max-sm:h-10"
+            />
+          </div>
+        </div>
+        <div className="grid gap-2 @xl:col-span-2">
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            name="description"
+            maxLength={500}
+            rows={2}
+            defaultValue={b.description}
+            placeholder="Live status of our apps and services."
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="logo">Logo address</Label>
+          <Input
+            id="logo"
+            name="logo"
+            type="url"
+            maxLength={500}
+            defaultValue={b.logo}
+            placeholder="https://example.com/logo.svg"
+            className="max-sm:h-10"
+          />
+          <Hint>A square image works best. It shows beside the title.</Hint>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="website">Website</Label>
+          <Input
+            id="website"
+            name="website"
+            type="url"
+            maxLength={500}
+            defaultValue={b.website}
+            placeholder="https://example.com"
+            className="max-sm:h-10"
+          />
+          <Hint>The page links back to it.</Hint>
+        </div>
+        <div className="grid gap-2 @xl:col-span-2">
+          <Label htmlFor="domain">Custom domain</Label>
+          <Input
+            id="domain"
+            name="domain"
+            maxLength={253}
+            defaultValue={project.status_domain ?? ''}
+            placeholder="status.example.com"
+            autoCapitalize="none"
+            spellCheck={false}
+            className="max-sm:h-10"
+          />
+          <Hint>
+            First add it to crashyard’s Worker in Cloudflare, under Workers and Pages, crashyard, Settings, Domains and
+            Routes, Add, Custom domain. Its domain must be on the same Cloudflare account. The address then opens this
+            page and nothing else of crashyard.
+            {project.status_domain && (
+              <>
+                {' '}
+                <a
+                  href={`https://${project.status_domain}`}
+                  className="font-medium text-foreground underline underline-offset-2"
+                >
+                  Open {project.status_domain}
+                </a>
+              </>
+            )}
+          </Hint>
+        </div>
+        <div>
+          <SaveButton saving={saving} />
+        </div>
+      </form>
+    </SettingsCard>
   )
 }

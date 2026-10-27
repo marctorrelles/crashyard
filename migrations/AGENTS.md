@@ -77,3 +77,5 @@ in `pnpm run deploy`).
 - 0027: `status_posts` (a project's incidents, notices and maintenance, `impact`; maintenance has its window) and
   `status_updates` (each post's updates, `state`, the markdown message and who posted it). New tables: a worker from
   before shows no posts.
+- 0028: `status_post_monitors` (the uptime checks a post affects), `projects.status_page` (JSON, the page's look) and
+  `projects.status_domain` (unique when set, `projects_status_domain`). A worker from before ignores them.

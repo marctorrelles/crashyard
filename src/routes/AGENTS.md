@@ -29,10 +29,13 @@ server, the build, or `tsr generate`): never edit it.
   state, 30 UTC days as bars (all passed, at least 99%, less, none), uptime over them and the incidents then; never a
   URL or why a check failed. Over them a summary, the worst of a check down or a major outage (red), some services
   affected (amber), maintenance going on (sky); then the open posts, an outage first, as cards with a coloured edge and
-  their updates, newest first (`Markdown`); Scheduled maintenance; Past updates. A project with no check shown and no
+  their updates, newest first (`Markdown`), and the checks they affect; Scheduled maintenance; Past updates. A check
+  an open post affects reads Major outage, Degraded or Under maintenance unless it's down. The project's branding: a
+  bar of its colour on top, its logo, title and description, Go to its website (under them on a phone). A project with no check shown and no
   post is a 404, as one that doesn't exist. Loads again each minute
   with a meta refresh, no script. Turned on per check on its monitor page, Show on the status page
-  (`setMonitorPublic`, admin), or on the project's settings page `status-page`.
+  (`setMonitorPublic`, admin), or on the project's settings page `status-page`. On a project's status domain
+  (`src/server.ts`) it's the same page, `/` redirecting to it.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
@@ -129,9 +132,12 @@ server, the build, or `tsr generate`): never edit it.
   kept only in the form; asks `importFromSentry` page after page with a count, Continue import from the page it
   stopped at), `status-page` (`getStatusPosts`: the project's uptime checks, each a switch for the status page; Post to
   the status page, a kind, its state, a title, for maintenance its start and end as `datetime-local` in the viewer's
-  zone, and a message, `createStatusPost`, member; then Now on the page and Ended in the last 30 days, each post with
-  its updates and who posted them, Add update, `addStatusUpdate`, and Delete after a confirmation, `deleteStatusPost`,
-  admin) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
+  zone, Affects (a checkbox per check on the page, not for a notice; 40 px on a phone), and a message,
+  `createStatusPost`, member; then Now on the page and Ended in the last 30 days, each post with
+  its updates and who posted them, what it affects, Add update, `addStatusUpdate`, its Affects filled in, and Delete
+  after a confirmation, `deleteStatusPost`, admin; Look and address, `updateProject`: page title, brand colour, a
+  picker and its hex, description, logo and website, https only, and the custom domain with how to add it to the
+  Worker in Cloudflare) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
   recovery codes left and Make new codes, shown once; where they're signed in, This browser, Sign out each and Sign
   out everywhere else), `agent-tokens` (a person's `cyp_` tokens for MCP with a
   name, Read only or Read and change issues, and an expiry; the token and the `claude mcp add` command shown once;

@@ -108,8 +108,14 @@ helpers (`change`).
   incident's investigating, identified, monitoring, resolved; a notice's or maintenance's update, resolved, shown as
   Completed for maintenance, `stateLabel`), `createPost` (the post and its first update), `addUpdate` (resolved
   closes it, any other state opens it again), `deletePost`, `postsOf` (open, or ended in 30 days, newest first, each
-  with `phase`: open, upcoming, ongoing, past; maintenance ends at `ends_at` unless resolved first), `checksOf`.
-  `status.test.ts`: only chosen checks, nothing of their URLs or errors, the posts' phases, no poster's email.
+  with `phase`: open, upcoming, ongoing, past; maintenance ends at `ends_at` unless resolved first, and `affects`, the
+  checks it names, 0028), `checksOf`. A post's checks are only uptime checks of its project (an `INSERT … SELECT`);
+  an update with `monitors` replaces them. `statusPage` names only the checks on the page, gives each check
+  `affected` (the worst open post naming it: major, minor, then ongoing maintenance) and the project's `branding`
+  (`parseBranding` of `projects.status_page`: title, description, logo, color, website). `slugOfDomain`: the project
+  whose `status_domain` a hostname is, all of them read at most once a minute per isolate, for `src/server.ts`.
+  `status.test.ts`: only chosen checks, nothing of their URLs or errors, the posts' phases, no poster's email,
+  affected checks, branding, domains.
 - `monitors.ts`: `setPublic`, the monitors page (each with its last 30 results), one monitor's history and incidents (with
   `uptime`, the share of results that passed, or of finished runs that were ok, over 24 hours, 7 and 30 days, null
   with none; `p95`, `p95Series` nearest rank, per hour over 24 hours for an uptime check's response times, per day

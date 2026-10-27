@@ -18,7 +18,8 @@ pnpm run deploy          # build, apply migrations to the remote D1, deploy
 Where things are:
 
 - `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the sign-in
-  check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys), `/auth/*` (passkeys, signing out),
+  check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys), a project's status domain (`/`
+  sent to `/status/<slug>` and that page alone, signed out; anything else a 404), `/auth/*` (passkeys, signing out),
   and sends everything else to Start for whoever is signed in; `tail` takes the runs of Workers naming crashyard in
   their `tail_consumers` (`src/api/tail.ts`); `scheduled` runs the cron every minute (monitors, held
   notifications, each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
@@ -62,7 +63,7 @@ Where things are:
 ## Rules
 
 - **Fail closed.** Signed out, the dashboard opens only its sign-in pages, and a project's status page with the uptime
-  checks someone chose to show and what the team posted; with no one set up yet, only `/setup`, its setup code and
+  checks someone chose to show and what the team posted, also on its own domain, which opens nothing else; with no one set up yet, only `/setup`, its setup code and
   the Workers plan. Anything that reads data checks who's asking, anything that changes it their role.
 - **Be what the Sentry SDKs and sentry-cli expect.** When in doubt about a wire format, check what the real SDK sends
   and what Sentry answers; record what was checked, and against which version, in the part's AGENTS.md.
