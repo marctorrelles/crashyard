@@ -100,7 +100,8 @@ server, the build, or `tsr generate`): never edit it.
   tokens with their project or All projects, who made them, when last used, Delete; Create token with a name and a
   project, the token shown once; Agents: the MCP URL and where agent tokens are made), `usage` (30
   UTC days of events with rate-limited, filtered and failed, logs and transactions, each a chart and totals,
-  `?project=`), `health` (the database against 10 GB, warning from 80%; stored files; the cron, late after 3 minutes; failed
+  `?project=`), `health` (the Cloudflare plan, `CloudflarePlan` with `usePlan`: Workers Paid or Free, when checked, Check
+  again, and what needs Paid, `PAID_FEATURES`; the database against 10 GB, warning from 80%; stored files; the cron, late after 3 minutes; failed
   notifications, each by its kind's label from `KINDS`, "Metric alert" for any metric kind; envelopes pending and failed; the pruning backlog) and `about` (the version, a newer release,
   the docs). Each loads its own server function (`getInstanceSettings`, `getTokens`, `getUsage`, `getHealth`).
   `projects/$slug/route.tsx` loads the project's settings once (`getProjectSettings`: the project, its keys with their
@@ -118,9 +119,9 @@ server, the build, or `tsr generate`): never edit it.
   the existing keys first, then Create key),
   `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
   send commits), `connect` (the DSN and `Linking`; then Cloudflare Workers: the `tail_consumers` line, the Workers
-  sending runs, `workersSeen`, each with Watch Worker, the list to watch and uncaught exceptions too), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug
+  sending runs, `workersSeen`, `NeedsPaid`, each with Watch Worker, the list to watch and uncaught exceptions too), `debug-files` (`NeedsPaid`, then how to upload, `UploadSteps`; the newest 500 debug
   files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;
-  the newest 10 source map bundles), `import` (Import from Sentry: address, organization and project slugs, a token
+  the newest 10 source map bundles), `import` (Import from Sentry: `NeedsPaid` saying it goes slower; address, organization and project slugs, a token
   kept only in the form; asks `importFromSentry` page after page with a count, Continue import from the page it
   stopped at) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
   recovery codes left and Make new codes, shown once; where they're signed in, This browser, Sign out each and Sign

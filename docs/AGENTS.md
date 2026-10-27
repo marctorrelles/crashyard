@@ -4,7 +4,7 @@ What people deploying or contributing read. Plain Markdown, true to the code: a 
 updates it in the same commit.
 
 - `deploying.md` (and the README, which says it too): native crashes and source maps need Workers Paid, as
-  symbolication takes more CPU than the free plan's 10 ms a request (`src/symbols/AGENTS.md`).
+  symbolication takes more CPU than the free plan's 10 ms a request (`src/symbols/AGENTS.md`). The app finds the plan itself (`src/data/plan.ts`) and says so on Health and the pages that need Paid.
 - `deploying.md`: a fresh Cloudflare account to a running crashyard: the owner from the setup code, invites and roles,
   Sign in with GitHub and lost passkeys. Keep it true to `wrangler.jsonc` (and `wrangler.local.json`, its overlay),
   `src/server.ts` and `src/auth/`: someone deploying follows it to the letter.

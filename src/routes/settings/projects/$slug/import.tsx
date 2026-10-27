@@ -1,5 +1,6 @@
 import { createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
+import { NeedsPaid } from '@/components/plan'
 import { Hint, SettingsCard } from '@/components/settings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,6 +66,12 @@ function Import() {
           void run(e.currentTarget, null)
         }}
       >
+        <div className="@xl:col-span-2 empty:hidden">
+          <NeedsPaid>
+            Your Cloudflare account is on Workers Free, so the import goes 2 issues at a time to stay within its limits.
+            It takes longer and brings the same.
+          </NeedsPaid>
+        </div>
         <div className="grid gap-2 @xl:col-span-2">
           <Label htmlFor="base">Sentry address</Label>
           <Input id="base" name="base" defaultValue="https://sentry.io" required className="@xl:max-w-sm" />

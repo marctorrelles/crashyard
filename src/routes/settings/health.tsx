@@ -1,7 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react'
+import { useState } from 'react'
 import { Ago, count } from '@/components/bits'
+import { usePlan } from '@/components/plan'
 import { SettingsCard } from '@/components/settings'
+import { Time } from '@/components/time'
+import { Button } from '@/components/ui/button'
 import { size } from '@/components/uploads'
 import { getHealth } from '@/fns'
 import { cn } from '@/lib/utils'
@@ -30,11 +34,72 @@ function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
 
 const capped = (n: { count: number; more: boolean }) => (n.more ? `${count(n.count)} or more` : count(n.count))
 
+// What needs Workers Paid, and what happens on Free
+const PAID_FEATURES = [
+  ['Debug file and source map uploads', 'Uploads fail on Free, so stack traces stay as the app sent them.'],
+  ['Cloudflare Workers runs', 'Tail Workers need Paid, so no Worker can send its runs on Free.'],
+  ['Import from Sentry', 'Goes 2 issues at a time on Free instead of 10.'],
+] as const
+
+function CloudflarePlan() {
+  const { plan, recheck } = usePlan()
+  const [checking, setChecking] = useState(false)
+  return (
+    <SettingsCard
+      title="Cloudflare plan"
+      description="Found by trying a limit that differs between Workers Free and Workers Paid, once a day."
+    >
+      <div className="grid gap-3">
+        <p className="text-sm">
+          {plan === undefined ? (
+            'Checking…'
+          ) : plan === null ? (
+            'The plan couldn’t be found. Try again in a minute.'
+          ) : (
+            <>
+              <span className="font-medium">{plan.paid ? 'Workers Paid' : 'Workers Free'}</span>
+              <span className="text-muted-foreground">
+                {' '}
+                · checked <Time at={plan.checked} />
+              </span>
+            </>
+          )}
+        </p>
+        {plan && (
+          <div className="grid gap-1.5">
+            {PAID_FEATURES.map(([feature, onFree]) => (
+              <Status key={feature} ok={plan.paid}>
+                {feature}
+                {plan.paid ? ' work.' : `. ${onFree}`}
+              </Status>
+            ))}
+          </div>
+        )}
+        <div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={checking || plan === undefined}
+            onClick={async () => {
+              setChecking(true)
+              await recheck()
+              setChecking(false)
+            }}
+          >
+            Check again
+          </Button>
+        </div>
+      </div>
+    </SettingsCard>
+  )
+}
+
 function Health() {
   const h = Route.useLoaderData()
   const share = h.database.bytes === null ? null : h.database.bytes / h.database.limit
   return (
     <>
+      <CloudflarePlan />
       <SettingsCard title="Database" description="D1 holds up to 10 GB in one database.">
         {share === null ? (
           <p className="text-sm text-muted-foreground">

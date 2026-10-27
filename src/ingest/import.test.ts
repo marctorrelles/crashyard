@@ -69,6 +69,8 @@ describe('importPage', () => {
     db.sqlite.exec("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'shop', 'Shop', 'k', 0)")
     const calls = stubSentry()
     expect(await importPage(db, 1, source, null)).toEqual({ imported: 2, skipped: 0, next: 'c2' })
+    // A plan not known yet asks for Workers Free's page
+    expect(calls[0]).toMatch(/limit=2$/)
     // An issue without comments isn't asked for them
     expect(calls.filter((c) => c.includes('/comments/'))).toEqual(['/api/0/organizations/acme/issues/11/comments/'])
     const issues = db.sqlite
@@ -90,8 +92,10 @@ describe('importPage', () => {
     ])
     expect(await importPage(db, 1, source, 'c2')).toEqual({ imported: 0, skipped: 0, next: null })
 
-    // Again from the start: nothing twice
+    // Again from the start, on Workers Paid: ten a page, and nothing twice
+    db.sqlite.exec(`INSERT INTO settings (key, value) VALUES ('cloudflare.plan', '{"paid":true,"checked":0}')`)
     expect(await importPage(db, 1, source, null)).toEqual({ imported: 0, skipped: 2, next: 'c2' })
+    expect(calls.find((c) => c.includes('limit=10'))).toMatch(/limit=10$/)
     expect(db.sqlite.prepare('SELECT SUM(count) AS n FROM issues').get()).toEqual({ n: 125 })
 
     // The SDK's next event of the same error comes to the imported issue

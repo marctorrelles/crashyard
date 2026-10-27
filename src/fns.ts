@@ -1436,6 +1436,13 @@ export const getUsage = createServerFn()
   .validator((d: unknown) => ({ project: optional((v) => text(v, 60))(object(d).project) }))
   .handler(async ({ data }) => health.usage(env.DB, await projectIdOf(data.project), 30, Date.now()))
 
+// The Cloudflare plan, for the pages whose features need Workers Paid: probed in this request, its own invocation, at
+// most once a day unless asked again (src/data/plan.ts)
+export const getPlan = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => ({ fresh: object(d ?? {}).fresh === true }))
+  .handler(async ({ data }) => (await import('./data/plan')).planOf(env.DB, Date.now(), data.fresh))
+
 export const getHealth = createServerFn().handler(async () => {
   const now = Date.now()
   return { ...(await health.health(env, now)), now }

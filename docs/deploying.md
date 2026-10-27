@@ -6,7 +6,7 @@ Cloudflare's free plans.
 Apps with native crashes, such as iOS and Android apps, or with source maps, need the Workers Paid plan. Turning their
 stack traces back into code, and processing the files you upload for it, takes more processing time than the free
 plan's 10 ms a request. Apps whose stack traces are readable as sent, such as Node.js and Python, work on the free
-plan.
+plan. Settings, Health shows which plan crashyard found, and the pages that need Paid say so on the free plan.
 
 ## Deploy with the button
 

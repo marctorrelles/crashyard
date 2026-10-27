@@ -1,6 +1,7 @@
 import { createFileRoute, getRouteApi, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Code, Linking } from '@/components/linking'
+import { NeedsPaid } from '@/components/plan'
 import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { Time } from '@/components/time'
 import { Button } from '@/components/ui/button'
@@ -80,6 +81,10 @@ function Workers() {
           void save(() => updateProject({ data: { id: project.id, workers, worker_exceptions: exceptions } }))
         }}
       >
+        <NeedsPaid>
+          Your Cloudflare account is on Workers Free. Tail Workers need Workers Paid, so no Worker can send its runs
+          here until you move to it.
+        </NeedsPaid>
         <div className="grid min-w-0 gap-2">
           <Label>In each Worker's wrangler file</Label>
           <Code text={'"tail_consumers": [{ "service": "crashyard" }]'} />

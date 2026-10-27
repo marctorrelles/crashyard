@@ -133,6 +133,9 @@
   group), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also New-project defaults), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
+- `plan.tsx`: `usePlan` (the Workers plan from `getPlan` after the page loads, undefined meanwhile, null when it
+  couldn't be found; `recheck`) and `NeedsPaid`, an amber note shown only on Workers Free saying what doesn't work
+  there (Debug files, Connect an app's Workers card, Import from Sentry).
 - `release.tsx`: `AdoptionStage` (Adopted, Low adoption, Replaced) and `HealthBadge` (Healthy, or Unhealthy with the
   thresholds it crossed in its title).
 - `monitor-form.tsx`: `MonitorForm`, adding or editing a monitor. An uptime check has its method (`UPTIME_METHODS`),

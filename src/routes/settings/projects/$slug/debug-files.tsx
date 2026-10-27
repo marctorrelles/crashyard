@@ -6,6 +6,7 @@ import { SettingsCard, useSave } from '@/components/settings'
 import { Empty } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { NeedsPaid } from '@/components/plan'
 import { size, UploadSteps } from '@/components/uploads'
 import { deleteDebugFile, getProjectPage } from '@/fns'
 
@@ -38,7 +39,14 @@ function DebugFiles() {
         title="Upload symbols and source maps"
         description="Crashes then show function names, files and line numbers."
       >
-        <UploadSteps slug={project.slug} platform={project.platform} origin={origin} />
+        <div className="grid gap-4">
+          <NeedsPaid>
+            Your Cloudflare account is on Workers Free, so uploads here fail. Reading a debug file or source map takes
+            more than the 10 ms a request gets on Free. Until you move to Workers Paid, stack traces stay as the app
+            sent them.
+          </NeedsPaid>
+          <UploadSteps slug={project.slug} platform={project.platform} origin={origin} />
+        </div>
       </SettingsCard>
 
       <SettingsCard title="Debug files" description="dSYMs, ProGuard mappings and other symbol files, newest first.">

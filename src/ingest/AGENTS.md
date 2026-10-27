@@ -136,12 +136,13 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   and filtered events already counted count again.
 
 - `import.ts`: Import from Sentry (Settings, a project's Import from Sentry; `importFromSentry` in `fns.ts`, admin).
-  `importPage`: one page of 10 (`PAGE`) of the Sentry project's issues, every status (`/api/0/projects/<org>/<project>/issues/?query=`,
+  `importPage`: one page of 10 (`PAGE`) on Workers Paid, 2 on Free or a plan not known yet (`cloudflare.plan`,
+  `src/data/plan.ts`), of the Sentry project's issues, every status (`/api/0/projects/<org>/<project>/issues/?query=`,
   deprecated by Sentry for the organization's, which only lists a time window), then per issue not in `sentry_imports`
   (0026): `events/latest/` for its id, then `projects/<org>/<project>/events/<id>/json/` (`EventJsonEndpoint`,
   `event.as_dict()`, the stored event in the SDKs' shape, read in getsentry/sentry master 2026-10-27;
   `ApiPublishStatus.EXPERIMENTAL`, the JSON link of Sentry's event page), its comments only when `numComments`.
-  At most 1 + 3 an issue, 31 subrequests a page, under the free plan's 50. The event goes through `normalizeEvent`,
+  Each issue costs 3 calls to Sentry and about ten D1 queries, so 10 a page only within Paid's limit. The event goes through `normalizeEvent`,
   `groupingFor` (the project's rules) and `storeEvent`, not symbolication (Sentry's frames are already symbolicated)
   and not filters or notices; then the issue takes Sentry's count (less the event just counted), first and last seen
   (min and max), users (max), resolved or ignored (`for_good`), unresolved as `ongoing`, and comments as notes by

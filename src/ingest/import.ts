@@ -2,12 +2,16 @@
 // one the SDK sends (normalised, grouped by this project's rules, stored), so the SDK's next events of it come to the
 // same issue; then the issue takes Sentry's count, first and last seen, users and resolved or ignored state, and its
 // comments as notes. No notices: an import isn't news. A page of issues at a time, the browser asking for the next,
-// so each request stays within a Worker's subrequests (50 on the free plan: 1 + 3 an issue at most).
+// as each issue costs about a dozen subrequests (3 to Sentry, the rest D1): 10 a page on Workers Paid, 2 on Free or
+// a plan not known yet, within Free's 50 (src/data/plan.ts).
+import { type Plan, PLAN_KEY } from '../data/plan'
+import { getSetting } from '../data/settings'
 import { normalizeEvent } from './event'
 import { loadExtraFields } from './scrub'
 import { groupingFor, type Project, storeEvent } from './store'
 
 export const PAGE = 10
+const FREE_PAGE = 2
 
 export type SentrySource = { base: string; token: string; org: string; project: string }
 
@@ -56,10 +60,11 @@ export async function importPage(db: D1Database, projectId: number, source: Sent
   const project = await db.prepare('SELECT * FROM projects WHERE id = ?').bind(projectId).first<Project>()
   if (!project) throw new Error('That project no longer exists.')
   await loadExtraFields(db)
+  const size = (await getSetting<Plan | null>(db, PLAN_KEY, null))?.paid === true ? PAGE : FREE_PAGE
   const { org, project: slug } = source
   const list = await sentry<SentryIssue[]>(
     source,
-    `/api/0/projects/${seg(org)}/${seg(slug)}/issues/?query=&statsPeriod=&limit=${PAGE}${cursor ? `&cursor=${seg(cursor)}` : ''}`,
+    `/api/0/projects/${seg(org)}/${seg(slug)}/issues/?query=&statsPeriod=&limit=${size}${cursor ? `&cursor=${seg(cursor)}` : ''}`,
   )
   const known = new Set(
     (

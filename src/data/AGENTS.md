@@ -253,6 +253,10 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   `takeChallenge` deletes as it reads, so one use, five minutes); invites (7 days, `useInvite` only while unused and
   unexpired); recovery codes (ten, `readableCode` groups of five without 0, O, 1, I or L, `normalCode` before
   hashing so case, spaces and dashes don't matter); user tokens (`cyp_`); `userByGitHub` and `linkGitHub`. Secrets are compared by their digests.
+- `plan.ts`: the account's Workers plan with no API token: `probePlan` makes 55 `SELECT 1` in one request, and "Too
+  many" past the 50th means Workers Free (Paid allows 10,000 subrequests); any other failure is no answer. `planOf`
+  keeps it a day in `cloudflare.plan` (`PLAN_KEY`), `fresh` checks again; a failed check returns the last known.
+  `getPlan` in `fns.ts`, asked after a page loads (`src/components/plan.tsx`). `plan.test.ts`.
 - `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `WORKERS_KEY`, `tail.workers`: the Workers sending runs to `tail()`, written by

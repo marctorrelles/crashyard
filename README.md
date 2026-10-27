@@ -9,7 +9,8 @@ traces back into readable code, and tells you when something new breaks. It is a
 R2, so most apps stay within Cloudflare's free plan.
 
 Apps with native crashes or source maps need the Workers Paid plan. Turning their stack traces back into code takes
-more processing time than the free plan's 10 ms a request.
+more processing time than the free plan's 10 ms a request. crashyard finds which plan your account is on by itself, and
+warns on the pages that need Paid.
 
 crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 
