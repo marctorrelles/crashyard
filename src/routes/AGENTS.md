@@ -43,7 +43,9 @@ server, the build, or `tsr generate`): never edit it.
 - `issues/$issueId.tsx`: one issue (opening it marks it read for the viewer): Unmerge beside the actions when
   fingerprints were merged into it, under the title a star (bookmark), Assign to and Track (`issue-triage.tsx`), its
   priority (a menu), status (Escalating, ignored until it escalates or N
-  users, resolved in a release), actions, counts and a 90-day chart, the event (`?event=` to pick one, older and
+  users, resolved in a release), actions (on a phone, Resolve and Ignore, then More, `IssueMoreMenu`, with the
+  priority, assignee, bookmark, tracker links, Unmerge and Delete; the triage row and those hidden there), counts
+  and a 90-day chart, the event (`?event=` to pick one, older and
   newer), Suspect commits under the stack (sha linked through `commitUrl`, message, author, when, the files), Similar
   issues, each with Merge into this issue (a confirmation, then `mergeIssues` with this one first), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events (the latest, and a `SearchBar` of scope `events` that searches this
@@ -99,7 +101,8 @@ server, the build, or `tsr generate`): never edit it.
   pinned one opens with no `query`), a time range; Columns (a text field of tag names, applied on Enter or blur),
   Group by (nothing, the built-ins or a chosen column), Count events or users; the count over time (stacked by group,
   with a legend), the groups with their counts (a click searches that value), then the events (received, issue
-  title, the columns, on a phone the received time under the title and only the first column, and Open issue on its event) with Show older events (`before`).
+  title, the columns, narrower than md the received time and each column as a label and value pair under the title, and
+  Open issue on its event) with Show older events (`before`).
   `getExplore`, one call.
 - `traces/$traceId.tsx`: `/traces/<id>`, what's kept of a trace (`getTrace`): its stored transactions with their span
   waterfall, its events with their issues, its logs, and a line saying only the slowest transactions keep their spans.
@@ -137,7 +140,8 @@ server, the build, or `tsr generate`): never edit it.
   test send (with Frequency reached, "Only when an issue gets" N events or users in a window, its hint saying it
   alerts again only after that long and, for users, that they count from the events kept; releases as globs; tags
   through `SearchBar`, checked on save by `tagFilterError`; "Wait before alerting again"; the row sums them up), and
-  metric alerts: each with its state, its value and when it changed; Create metric alert opens a form with name,
+  metric alerts: each with its state, its value and when it changed; Create metric alert opens a form, its footer with Save
+  sticky at the dialog's foot while the fields scroll, with name,
   project, metric, filter, window of 1, 6 or 24 hours, direction and the warning and critical values, in percent or
   milliseconds by the metric, each metric starting from its own defaults. `?metric=` (with `query` and `project`, a slug)
   opens Create metric alert filled in, the logs page's Create alert; closing it clears them from the URL.

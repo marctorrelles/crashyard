@@ -7,7 +7,7 @@ import { Time } from '@/components/time'
 import { BarList, LEVEL_COLORS, TimeChart } from '@/components/charts'
 import { EventView } from '@/components/event-view'
 import { IssueActions, UnmergeButton } from '@/components/issue-actions'
-import { AssignMenu, BookmarkButton, TrackerMenu } from '@/components/issue-triage'
+import { AssignMenu, BookmarkButton, IssueMoreMenu, TrackerMenu } from '@/components/issue-triage'
 import { PRIORITY_LABELS, PriorityBadge } from '@/components/priority'
 import { Shell } from '@/components/shell'
 import { Badge } from '@/components/ui/badge'
@@ -64,18 +64,37 @@ function IssuePage() {
             {issue.title}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <PriorityBadge id={issue.id} priority={issue.priority} />
+            <PriorityBadge id={issue.id} priority={issue.priority} className="max-sm:hidden" />
             <StatusBadge issue={issue} now={now} />
             {issue.culprit && <span className="font-mono text-xs break-all">{issue.culprit}</span>}
           </p>
         </div>
+        {/* On a phone, Resolve and Ignore, and the rest in More */}
         <div className="flex flex-wrap items-center gap-2">
-          {d.merged > 0 && <UnmergeButton id={issue.id} now={now} />}
-          <IssueActions ids={[issue.id]} status={issue.status} lastRelease={issue.last_release} releases={d.releases} />
+          {d.merged > 0 && <UnmergeButton id={issue.id} now={now} className="max-sm:hidden" />}
+          <IssueActions
+            ids={[issue.id]}
+            status={issue.status}
+            lastRelease={issue.last_release}
+            releases={d.releases}
+            deleteOnPhone={false}
+          />
+          <IssueMoreMenu
+            className="sm:hidden"
+            issue={issue}
+            bookmarked={d.bookmarked}
+            people={d.assignees}
+            viewer={d.viewer}
+            event={event}
+            repo={d.repoUrl}
+            url={`${d.origin}/issues/${issue.id}`}
+            merged={d.merged > 0}
+            now={now}
+          />
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2 max-sm:hidden">
         <BookmarkButton id={issue.id} on={d.bookmarked} />
         <AssignMenu issue={issue} people={d.assignees} viewer={d.viewer} />
         <TrackerMenu issue={issue} event={event} repo={d.repoUrl} url={`${d.origin}/issues/${issue.id}`} />

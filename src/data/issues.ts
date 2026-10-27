@@ -479,25 +479,55 @@ async function backfillBatch(
   if (statements.length) await db.batch(statements)
 }
 
-export type MergedFingerprint = { fingerprint: string; events: number; last: number | null; title: string | null }
+export type MergedFingerprint = {
+  fingerprint: string
+  events: number
+  first: number | null
+  last: number | null
+  title: string | null
+  /** Its newest event's top in-app frame, nearest the crash: `function (file:line)` */
+  frame: string | null
+}
 
-/** The fingerprints merged into an issue, with their kept events, newest first, for Unmerge */
+/** The frame nearest the crash that's the app's own, else the nearest, from an event's `exceptions` JSON */
+function topFrame(exceptions: string | null): string | null {
+  try {
+    const frames = ((JSON.parse(exceptions ?? '[]') as NormalizedEvent['exceptions']).at(-1)?.frames ?? []).toReversed()
+    const f = frames.find((x) => x.inApp) ?? frames[0]
+    if (!f) return null
+    const where = [f.filename ?? f.module, f.lineno].filter((x) => x !== undefined && x !== null).join(':')
+    return `${f.function ?? f.instructionAddr ?? '?'}${where ? ` (${where})` : ''}`
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The fingerprints merged into an issue, with their kept events, first and last seen, and what tells them apart
+ * (the newest event's message and top in-app frame), newest first, for Unmerge
+ */
 export async function mergedFingerprints(db: D1Database, issueId: number): Promise<MergedFingerprint[]> {
   // Bounded: what's left is hashed when the unmerge is sent
   await backfillFingerprints(db, issueId, Date.now() + 5_000)
   const rows = (
     await db
       .prepare(
-        `SELECT f.fingerprint, COUNT(e.id) AS events, MAX(e.received) AS last,
+        `SELECT f.fingerprint, COUNT(e.id) AS events, MIN(e.received) AS first, MAX(e.received) AS last,
            (SELECT message FROM events WHERE issue_id = f.issue_id AND fingerprint = f.fingerprint
-            ORDER BY received DESC LIMIT 1) AS title
+            ORDER BY received DESC LIMIT 1) AS title,
+           (SELECT json_extract(data, '$.exceptions') FROM events WHERE issue_id = f.issue_id AND fingerprint = f.fingerprint
+            ORDER BY received DESC LIMIT 1) AS exceptions
          FROM issue_fingerprints f LEFT JOIN events e ON e.issue_id = f.issue_id AND e.fingerprint = f.fingerprint
          WHERE f.issue_id = ? GROUP BY f.fingerprint ORDER BY last DESC`,
       )
       .bind(issueId)
-      .all<MergedFingerprint>()
+      .all<Omit<MergedFingerprint, 'frame'> & { exceptions: string | null }>()
   ).results
-  return rows.map((r) => ({ ...r, title: r.title?.split('\n')[0] ?? null }))
+  return rows.map(({ exceptions, ...r }) => ({
+    ...r,
+    title: r.title?.split('\n')[0] ?? null,
+    frame: topFrame(exceptions),
+  }))
 }
 
 /**

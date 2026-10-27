@@ -9,7 +9,7 @@ import {
   IconRotate,
   IconTrash,
 } from '@tabler/icons-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -35,6 +34,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { changeIssues, getMergedFingerprints, mergeIssues, unmergeIssue } from '@/fns'
 import type { MergedFingerprint } from '@/data/issues'
+import { cn } from '@/lib/utils'
 
 type Change =
   | { action: 'resolve'; inRelease?: boolean; current?: boolean; release?: string }
@@ -44,36 +44,18 @@ type Change =
 
 const HOUR = 3_600_000
 
-export function IssueActions({
-  ids,
-  status,
-  canMerge,
-  onDone,
-  size = 'default',
-  lastRelease,
-  releases,
-}: {
-  ids: number[]
-  status?: 'unresolved' | 'resolved' | 'ignored'
-  canMerge?: boolean
-  /** One issue's latest release, named in "Resolve in current release" */
-  lastRelease?: string | null
-  /** The project's releases, for "Resolve in a release…" on one issue */
-  releases?: string[]
-  onDone?: (change: Change['action'] | 'merge') => void
-  size?: 'default' | 'sm'
-}) {
+/** A change to issues, asking first before a delete, then a toast; the header's More menu on a phone uses it too */
+export function useIssueChange(ids: number[], onDone?: (action: Change['action']) => void) {
   const router = useRouter()
-  const [picking, setPicking] = useState(false)
-  const [release, setRelease] = useState('')
-  const many = ids.length > 1 ? ` ${ids.length} issues` : ''
-  const run = async (change: Change, done: string) => {
+  return async (change: Change, done: string) => {
+    const what = ids.length > 1 ? `${ids.length} issues` : 'this issue'
+    const theirs = ids.length > 1 ? 'their' : 'its'
     if (
       change.action === 'delete' &&
       !confirm(
         change.discard
-          ? `Delete${many || ' this issue'} and all its events, and drop every future event like them? This can’t be undone.`
-          : `Delete${many || ' this issue'} and all its events? This can’t be undone.`,
+          ? `Delete ${what} and discard ${theirs} future events? This can’t be undone.`
+          : `Delete ${what} and all ${theirs} events? This can’t be undone.`,
       )
     )
       return
@@ -86,6 +68,35 @@ export function IssueActions({
       toast.error(error instanceof Error ? error.message : 'Something went wrong. Try again.')
     }
   }
+}
+
+export function IssueActions({
+  ids,
+  status,
+  canMerge,
+  onDone,
+  size = 'default',
+  lastRelease,
+  releases,
+  deleteOnPhone = true,
+}: {
+  ids: number[]
+  status?: 'unresolved' | 'resolved' | 'ignored'
+  canMerge?: boolean
+  /** One issue's latest release, named in "Resolve in current release" */
+  lastRelease?: string | null
+  /** The project's releases, for "Resolve in a release…" on one issue */
+  releases?: string[]
+  onDone?: (change: Change['action'] | 'merge') => void
+  size?: 'default' | 'sm'
+  /** False on the issue's page, where a phone has Delete in the header's More menu */
+  deleteOnPhone?: boolean
+}) {
+  const router = useRouter()
+  const [picking, setPicking] = useState(false)
+  const [release, setRelease] = useState('')
+  const many = ids.length > 1 ? ` ${ids.length} issues` : ''
+  const run = useIssueChange(ids, onDone)
   const merge = async () => {
     if (!confirm(`Merge ${ids.length} issues into the first one? Their events, and any future ones, move to it.`))
       return
@@ -269,7 +280,12 @@ export function IssueActions({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size={size === 'sm' ? 'icon-sm' : 'icon'} variant="ghost" aria-label={`Delete${many}`}>
+          <Button
+            size={size === 'sm' ? 'icon-sm' : 'icon'}
+            variant="ghost"
+            aria-label={`Delete${many}`}
+            className={cn(!deleteOnPhone && 'max-sm:hidden')}
+          >
             <IconTrash />
           </Button>
         </DropdownMenuTrigger>
@@ -289,27 +305,63 @@ export function IssueActions({
   )
 }
 
-/** Unmerge on a merged issue: its merged fingerprints with their events, one moved back out to an issue of its own */
-export function UnmergeButton({ id, now }: { id: number; now: number }) {
+/** Unmerge on a merged issue: its button, opening `UnmergeDialog` */
+export function UnmergeButton({ id, now, className }: { id: number; now: number; className?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button variant="outline" className={className} onClick={() => setOpen(true)}>
+        <IconArrowsSplit data-icon="inline-start" />
+        Unmerge
+      </Button>
+      <UnmergeDialog id={id} now={now} open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
+
+/**
+ * The fingerprints merged into an issue, each with what tells it apart (its events, first and last seen, its top
+ * in-app frame or message), one moved back out to an issue of its own
+ */
+export function UnmergeDialog({
+  id,
+  now,
+  open,
+  onOpenChange,
+}: {
+  id: number
+  now: number
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const router = useRouter()
   const navigate = useNavigate()
-  const [open, setOpen] = useState(false)
   const [list, setList] = useState<MergedFingerprint[] | null>(null)
   const [chosen, setChosen] = useState('')
   const [busy, setBusy] = useState(false)
-  const load = async (next: boolean) => {
-    setOpen(next)
-    if (!next) return
-    setList(null)
-    const fingerprints = await getMergedFingerprints({ data: { id } })
-    setList(fingerprints)
-    setChosen(fingerprints[0]?.fingerprint ?? '')
+  // Read again each time it opens
+  const [was, setWas] = useState(false)
+  if (open !== was) {
+    setWas(open)
+    if (open) setList(null)
   }
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    void getMergedFingerprints({ data: { id } }).then((fingerprints) => {
+      if (!live) return
+      setList(fingerprints)
+      setChosen(fingerprints[0]?.fingerprint ?? '')
+    })
+    return () => {
+      live = false
+    }
+  }, [open, id])
   const unmerge = async () => {
     setBusy(true)
     try {
       const made = await unmergeIssue({ data: { id, fingerprint: chosen } })
-      setOpen(false)
+      onOpenChange(false)
       toast.success(made ? 'Unmerged into a new issue' : 'Unmerged. Its next event opens a new issue')
       await router.invalidate()
       if (made) await navigate({ to: '/issues/$issueId', params: { issueId: String(made) } })
@@ -320,13 +372,7 @@ export function UnmergeButton({ id, now }: { id: number; now: number }) {
     }
   }
   return (
-    <Dialog open={open} onOpenChange={(next) => void load(next)}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <IconArrowsSplit data-icon="inline-start" />
-          Unmerge
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Unmerge</DialogTitle>
@@ -347,16 +393,21 @@ export function UnmergeButton({ id, now }: { id: number; now: number }) {
                 <RadioGroupItem value={f.fingerprint} className="mt-0.5" />
                 <span className="grid min-w-0 gap-0.5">
                   <span className="truncate text-sm">{f.title ?? 'No events kept'}</span>
+                  {f.frame && <span className="truncate font-mono text-xs">{f.frame}</span>}
                   <span className="text-xs text-muted-foreground">
                     {f.events === 1 ? '1 event' : `${count(f.events)} events`}
+                    {f.first ? (
+                      <>
+                        {' · first '}
+                        <Ago at={f.first} now={now} />
+                      </>
+                    ) : null}
                     {f.last ? (
                       <>
                         {' · last '}
                         <Ago at={f.last} now={now} />
                       </>
                     ) : null}
-                    {' · '}
-                    <span className="font-mono">{f.fingerprint.slice(0, 12)}</span>
                   </span>
                 </span>
               </Label>

@@ -44,7 +44,8 @@ helpers (`change`).
   email), `markViewed` (`issue_views`, an upsert, from `getIssue`'s server function for a person, not an agent),
   `linkIssue` (`external_url`, http or https as `fns.ts` checks, with a `linked` entry `{ url }`). `getIssue`'s
   `merged` counts its `issue_fingerprints`. `mergedFingerprints` lists them with their kept events
-  (by `events.fingerprint`, `events_issue_fingerprint`), the newest's first line as a title; `unmergeIssue` moves one
+  (by `events.fingerprint`, `events_issue_fingerprint`), the newest's first line as a title and its top in-app frame (`topFrame`, nearest the crash, else the nearest,
+  `function (file:line)`), first and last seen; `unmergeIssue` moves one
   out: a new issue with that fingerprint (title, culprit and level from its newest event, the source's priority,
   `ongoing`), its events and their feedback, then days, `event_hours`, tags and users rebuilt from the moved events
   and taken off the source (rows at 0 deleted; a user stays on the source while it has events of theirs), both

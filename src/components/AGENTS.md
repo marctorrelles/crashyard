@@ -83,15 +83,21 @@
 - `issue-actions.tsx`: resolve, ignore, reopen, merge, delete, for one issue or a selection. Ignore is a split
   button: its click ignores until it escalates; the menu has that first, then forever, N more times, N more users and
   for a time. Resolve's menu: now, in next release, in current release (naming one issue's latest; hidden when it
-  has none), and on one issue Resolve in a release…, a dialog with a `Select` of `releases`. Delete is a menu: Delete, and Delete and discard future events (`discard`), each confirmed.
-- `issue-actions.tsx`'s `UnmergeButton`: a dialog that loads the merged fingerprints when it opens
-  (`getMergedFingerprints`), a `RadioGroup` of them with their events and when last seen, and Unmerge, which opens
-  the new issue.
+  has none), and on one issue Resolve in a release…, a dialog with a `Select` of `releases`. Delete is a menu: Delete, and Delete and discard future events (`discard`), each confirmed
+  by `useIssueChange` ("Delete 3 issues and discard their future events? This can't be undone."), which the phone's
+  More menu calls too; `deleteOnPhone={false}` hides the menu on a phone, where More has it.
+- `issue-actions.tsx`'s `UnmergeButton` opens `UnmergeDialog` (controlled, so More opens it too), which loads the
+  merged fingerprints each time it opens (`getMergedFingerprints`), a `RadioGroup` of them, each with what tells it
+  apart: its newest message, its top in-app frame, its events, first and last seen; and Unmerge, which opens the new
+  issue.
 - `issue-triage.tsx`: an issue's header triage. `BookmarkButton` (a star, filled amber when on), `AssignMenu`
   (Assign to: the viewer, marked "you", then `assignees`; Unassign), `TrackerMenu` (Track: Create GitHub issue, only
   for a github.com `repo_url`, `<repo>/issues/new` with title and body; Create Linear issue,
   `https://linear.app/new` with title and description; Link issue…, a dialog for the address; Unlink issue; a linked one is a button before it, named by its
   host) and `trackerText` (the title, then the culprit, the crashyard link and the top 5 frames, newest first).
+  `LinkIssueDialog` is Link issue's, for Track and More. `IssueMoreMenu`, on a phone only: everything in the header
+  but Resolve and Ignore, Priority and Assign to as submenus, the bookmark, the tracker's items, Unmerge… and both
+  deletes.
 - `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a
   menu to change it, above a list row's link, 40 px on a phone; `PRIORITY_LABELS`.
 - `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's

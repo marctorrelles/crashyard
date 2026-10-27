@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
 import { IconArrowRight, IconCompass } from '@tabler/icons-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { count } from '@/components/bits'
 import { PALETTE, TimeChart } from '@/components/charts'
 import { SavedSearches, SearchBar } from '@/components/search-bar'
@@ -222,8 +222,9 @@ function Explore() {
               <TableRow>
                 <TableHead className="w-28 max-sm:hidden">Received</TableHead>
                 <TableHead>Issue</TableHead>
-                {d.columns.map((c, i) => (
-                  <TableHead key={c} className={i > 0 ? 'max-md:hidden' : undefined}>
+                {/* Narrower than md, the columns are pairs under each row's issue */}
+                {d.columns.map((c) => (
+                  <TableHead key={c} className="max-md:hidden">
                     {c}
                   </TableHead>
                 ))}
@@ -241,12 +242,17 @@ function Explore() {
                   <TableCell className="max-w-0 min-w-40">
                     <p className="truncate">{r.title}</p>
                     <Time at={r.received} className="text-xs text-muted-foreground sm:hidden" />
+                    <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 text-xs md:hidden">
+                      {r.values.map((v, i) => (
+                        <Fragment key={d.columns[i]}>
+                          <dt className="text-muted-foreground">{d.columns[i]}</dt>
+                          <dd className="truncate font-mono">{v ?? '–'}</dd>
+                        </Fragment>
+                      ))}
+                    </dl>
                   </TableCell>
                   {r.values.map((v, i) => (
-                    <TableCell
-                      key={d.columns[i]}
-                      className={`max-w-48 truncate font-mono text-xs${i > 0 ? ' max-md:hidden' : ''}`}
-                    >
+                    <TableCell key={d.columns[i]} className="max-w-48 truncate font-mono text-xs max-md:hidden">
                       {v ?? <span className="text-muted-foreground">–</span>}
                     </TableCell>
                   ))}

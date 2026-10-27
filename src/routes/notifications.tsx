@@ -1132,7 +1132,8 @@ function MetricDialog({
               />
             </div>
           </div>
-          <DialogFooter className="sm:justify-between">
+          {/* Stays in view at the foot while the fields scroll, on a phone above all */}
+          <DialogFooter className="sticky -bottom-4 z-10 bg-popover sm:justify-between">
             {alert ? (
               <Button
                 type="button"
