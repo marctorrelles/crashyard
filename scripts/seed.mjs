@@ -563,6 +563,7 @@ for (const [p, name, op, typical, parts] of TRANSACTIONS) {
         timestamp: at,
         duration,
         spans,
+        vitals: [],
       },
       at,
     )
