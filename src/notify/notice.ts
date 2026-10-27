@@ -55,6 +55,7 @@ export type Notice = {
   threshold?: number // set per route, from the thresholds it names that the count passed
   countBefore?: number // threshold notices: the issue's count before this event
   routeId?: number // frequency notices: the route whose limit was reached, the only one that takes it
+  heldMore?: number // after quiet hours: how many more the channel held, sent with this, the newest
   // frequency: what reached the route's limit in its window; escalating: the events of the hour just ended
   rate?: { count: number; what: 'events' | 'users'; minutes: number }
   project: { id: number; slug: string; name: string }
@@ -128,19 +129,22 @@ const MINUTES: Record<number, string> = { 60: 'an hour', 1440: 'a day' }
 /** A window in words: 10 minutes, an hour, a day */
 export const minutesText = (minutes: number) => MINUTES[minutes] ?? `${minutes} minutes`
 
+/** A count and its noun, singular for 1: "1 event", "50 events", "10 users" */
+export const counted = (n: number, noun: 'event' | 'user') => `${n} ${n === 1 ? noun : `${noun}s`}`
+
 /** What happened, in a few words */
 function whatOf(notice: Notice): string {
   switch (notice.kind) {
     case 'new':
       return 'New issue'
     case 'threshold':
-      return `Reached ${notice.threshold} events`
+      return `Reached ${counted(notice.threshold ?? notice.issue.count, 'event')}`
     case 'frequency':
       return notice.rate
-        ? `${notice.rate.count} ${notice.rate.what} in ${minutesText(notice.rate.minutes)}`
+        ? `${counted(notice.rate.count, notice.rate.what === 'users' ? 'user' : 'event')} in ${minutesText(notice.rate.minutes)}`
         : 'Frequency reached'
     case 'escalating':
-      return `Escalating with ${notice.rate?.count ?? notice.issue.count} events in the last hour`
+      return `Escalating with ${counted(notice.rate?.count ?? notice.issue.count, 'event')} in the last hour`
     case 'regression':
       return `Regressed${notice.event.release ? ` in ${notice.event.release}` : ''}`
     case 'ignore_expired':
@@ -157,7 +161,13 @@ function whatOf(notice: Notice): string {
 
 /** The line under the title: where and what */
 export function noticeLine(notice: Notice): string {
-  return [notice.project.name, notice.event.release, notice.event.device ?? notice.event.os, whatOf(notice)]
+  return [
+    notice.project.name,
+    notice.event.release,
+    notice.event.device ?? notice.event.os,
+    whatOf(notice),
+    notice.heldMore && `${notice.heldMore} more arrived during quiet hours`,
+  ]
     .filter(Boolean)
     .join(' · ')
 }

@@ -550,3 +550,16 @@ export function eventFilter(query: string, now: number): Filter {
   }
   return { where, params, projectSlugs }
 }
+
+// A value that fits each key, for the examples in a filter's errors: never `monitor:1.0`
+const EXAMPLES: Record<string, string> = {
+  release: '1.0',
+  environment: 'production',
+  level: 'error',
+  monitor: 'nightly-export',
+  kind: 'uptime',
+  status: 'error',
+  transaction: '"GET /api/users"',
+}
+/** `key:value` with a value that fits the key, as an example */
+export const filterExample = (key: string) => `${key}:${EXAMPLES[key] ?? 'value'}`

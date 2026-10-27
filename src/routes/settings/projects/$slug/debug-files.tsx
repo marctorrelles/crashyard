@@ -82,7 +82,7 @@ function DebugFiles() {
                       onClick={() => {
                         if (
                           !confirm(
-                            `Delete ${f.name} (${kindOf(f)})? New crashes that need it show addresses until it’s uploaded again. This can’t be undone.`,
+                            `Delete ${f.name}, ${kindOf(f)}? New crashes that need it show addresses until it’s uploaded again. This can’t be undone.`,
                           )
                         )
                           return

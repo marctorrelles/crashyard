@@ -216,7 +216,7 @@ function Board() {
                   Cancel
                 </Button>
                 <Button onClick={save} disabled={busy || !draft.name.trim()}>
-                  Save
+                  Save dashboard
                 </Button>
               </>
             ) : (
@@ -245,7 +245,7 @@ function Board() {
                   onClick={() => setDraft({ name: dashboard.name, widgets: dashboard.widgets })}
                 >
                   <IconPencil data-icon="inline-start" />
-                  Edit
+                  Edit dashboard
                 </Button>
               </>
             )}
@@ -473,12 +473,12 @@ function History({ id, now, onClose }: { id: number; now: number; onClose: () =>
                   className="max-sm:h-10"
                   disabled={busy || r.widgets === null}
                   onClick={async () => {
-                    if (!confirm('Restore these widgets? The ones there now are kept in the history.')) return
+                    if (!confirm('Restore this version? The widgets there now are kept in the history.')) return
                     setBusy(true)
                     try {
                       await restoreDashboard({ data: { id, index: r.index } })
                       await router.invalidate()
-                      toast.success('Restored')
+                      toast.success('Version restored')
                       onClose()
                     } catch (error) {
                       toast.error(error instanceof Error ? error.message : 'The widgets couldn’t be restored')
@@ -486,7 +486,7 @@ function History({ id, now, onClose }: { id: number; now: number; onClose: () =>
                     }
                   }}
                 >
-                  Restore
+                  Restore version
                 </Button>
               </li>
             ))}

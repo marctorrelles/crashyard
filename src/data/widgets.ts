@@ -3,7 +3,7 @@
 // are upgraded when they're read. What the browser sends is checked field by field before it's stored.
 import { percentile } from '../performance/histogram'
 import { isVital, VITALS } from '../performance/vitals'
-import { issueFilter, matchAny, tokenize, unparse } from '../search/query'
+import { filterExample, issueFilter, matchAny, tokenize, unparse } from '../search/query'
 import { buckets, intervalFor, LEVELS, scoped, SIZE, slugsOf } from './charts'
 import { listIssues } from './issues'
 import { conditions as logConditions, GROUP_COLUMNS, logGroups, logsByBucket, spanOf, type Window } from './logs'
@@ -182,7 +182,7 @@ function filterError(dataset: Dataset, query: string): string | null {
   if (!keys) return null
   for (const t of tokenize(query))
     if (!t.key || !keys.includes(t.key) || t.op !== ':')
-      return `${NAMES[dataset]} can be filtered by ${keys.slice(0, -1).join(', ')} and ${keys.at(-1)}, such as ${keys[0]}:1.0.`
+      return `${NAMES[dataset]} can be filtered by ${keys.slice(0, -1).join(', ')} and ${keys.at(-1)}, such as ${filterExample(keys[0])}.`
   return null
 }
 

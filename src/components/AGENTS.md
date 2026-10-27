@@ -91,7 +91,7 @@
   apart: its newest message, its top in-app frame, its events, first and last seen; and Unmerge, which opens the new
   issue.
 - `issue-triage.tsx`: an issue's header triage. `BookmarkButton` (a star, filled amber when on), `AssignMenu`
-  (Assign to: the viewer, marked "you", then `assignees`; Unassign), `TrackerMenu` (Track: Create GitHub issue, only
+  (Assign to: the viewer, marked "you", then `assignees`; Unassign), `TrackerMenu` (Track issue: Create GitHub issue, only
   for a github.com `repo_url`, `<repo>/issues/new` with title and body; Create Linear issue,
   `https://linear.app/new` with title and description; Link issue…, a dialog for the address; Unlink issue; a linked one is a button before it, named by its
   host) and `trackerText` (the title, then the culprit, the crashyard link and the top 5 frames, newest first).

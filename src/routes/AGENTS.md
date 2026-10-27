@@ -20,17 +20,17 @@ server, the build, or `tsr generate`): never edit it.
   overview, narrowed by `?project=`); failing monitors, new issues. Opening `/` as a page load with neither (not a
   click on All projects, which is a client navigation) redirects to the viewer's Settings, Home (`getHome`, in
   `beforeLoad` on the server only).
-- `dashboards/index.tsx`: the dashboards (name, widgets or that they can't be read, when saved and by whom), New
+- `dashboards/index.tsx`: the dashboards (name, widgets or that they can't be read, when saved and by whom), Create
   dashboard (a template picker, `RadioGroup`: Blank, which opens in edit mode, `?edit=true`, or one of `TEMPLATES`,
   named after it unless a name is typed), and with none, Use the Crashes template (`STARTER`).
   `dashboards/$dashboardId.tsx`: one dashboard over a range (`?range=`, the logs page's), narrowed by `?project=` and
   the filter bar (`?environment=`, `?release=`, from `filterOptions`, and `?filter=`, a `SearchBar` of the issues'
   grammar; each widget takes the keys its dataset knows) (`getDashboard`, every widget's data in one call); its widgets
   in a grid of thirds (one column on a phone). Open shows a widget in `WidgetViewer`. History lists the revisions with
-  Restore (`restoreDashboard`, after a confirmation; the widgets there now become a revision). Duplicate dashboard
-  saves "Copy of <name>" and opens it. Edit keeps a draft (name, widgets added, changed, duplicated, moved by drag or
+  Restore version (`restoreDashboard`, after a confirmation; the widgets there now become a revision). Duplicate
+  dashboard saves "Copy of <name>" and opens it. Edit dashboard keeps a draft (name, widgets added, changed, duplicated, moved by drag or
   the arrows, removed; the range and filters are fixed meanwhile and the filter bar is hidden, a changed widget shows
-  its preview) until Save writes the whole dashboard; Cancel drops it; Delete asks first. A chart's series or a table's
+  its preview) until Save dashboard writes the whole dashboard; Cancel drops it; Delete asks first. A chart's series or a table's
   value opens the logs or issues with the widget's query and that value.
 - `issues/index.tsx`: the issues list. The search lives in the URL (`project`, `query`, `sort`, `page`, `days`); the
   search bar (`SearchBar`) and the status tabs rewrite the query. Over the list, events per day and level of the
@@ -40,8 +40,9 @@ server, the build, or `tsr generate`): never edit it.
   `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. An unread row's title is bolder with a
   sky dot after it, a bookmarked one has a star, and its assignee shows beside the culprit. Bulk resolve,
   ignore, merge and delete.
-- `issues/$issueId.tsx`: one issue (opening it marks it read for the viewer): Unmerge beside the actions when
-  fingerprints were merged into it, under the title a star (bookmark), Assign to and Track (`issue-triage.tsx`), its
+- `issues/$issueId.tsx`: one issue (opening it marks it read for the viewer; its events under "The latest 50 events",
+  or "12 matching events" after a search): Unmerge beside the actions when
+  fingerprints were merged into it, under the title a star (bookmark), Assign to and Track issue (`issue-triage.tsx`), its
   priority (a menu), status (Escalating, ignored until it escalates or N
   users, resolved in a release), actions (on a phone, Resolve and Ignore, then More, `IssueMoreMenu`, with the
   priority, assignee, bookmark, tracker links, Unmerge and Delete; the triage row and those hidden there), counts
@@ -73,7 +74,7 @@ server, the build, or `tsr generate`): never edit it.
   project, the token shown once; Agents: the MCP URL and Let agents change issues, `agents.can_change`), `usage` (30
   UTC days of events with rate-limited, filtered and failed, logs and transactions, each a chart and totals,
   `?project=`), `health` (the database against 10 GB, warning from 80%; stored files; the cron, late after 3 minutes; failed
-  notifications; envelopes pending and failed; the pruning backlog) and `about` (the version, a newer release,
+  notifications, each by its kind's label from `KINDS`, "Metric alert" for any metric kind; envelopes pending and failed; the pruning backlog) and `about` (the version, a newer release,
   the docs). Each loads its own server function (`getInstanceSettings`, `getTokens`, `getUsage`, `getHealth`).
   `projects/$slug/route.tsx` loads the project's settings once (`getProjectSettings`: the project, its keys with their
   DSNs, the DSN of the first key that's on, uploads) for its pages, the group named by the project: `general` (name,
@@ -125,7 +126,7 @@ server, the build, or `tsr generate`): never edit it.
   above, the rest charts through `getLogMaths` (a logs widget each, `WidgetView`). `?groupBy=` takes 2 fields,
   comma-separated (By, Then); with two, or with more functions than a count, the table is a row per group and a column
   per function (`getLogMaths`' table) instead of the groups table. Each chart's menu: Add to dashboard (a dashboard
-  and a title, `addWidget`), Create alert for a count (`/notifications?metric=log_count&query=…&project=…`), Remove
+  and a title, `addWidget`), Create metric alert for a count (`/notifications?metric=log_count&query=…&project=…`), Remove
   chart. Export: CSV or JSON Lines of the current search, through `logs_.export.ts`. Saved searches beside the bar: with no `query` in the
   URL the viewer's pinned one opens, so a search cleared while one is pinned stays in the URL as `query=`.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
@@ -144,7 +145,7 @@ server, the build, or `tsr generate`): never edit it.
   sticky at the dialog's foot while the fields scroll, with name,
   project, metric, filter, window of 1, 6 or 24 hours, direction and the warning and critical values, in percent or
   milliseconds by the metric, each metric starting from its own defaults. `?metric=` (with `query` and `project`, a slug)
-  opens Create metric alert filled in, the logs page's Create alert; closing it clears them from the URL.
+  opens Create metric alert filled in, the logs page's Create metric alert; closing it clears them from the URL.
 - `logs_.export.ts`: `/logs/export`, a server route (no page, not nested in `logs.tsx`): the search of `query`,
   `project`, `range` or `from` and `to`, as `format` csv or jsonl, the newest 10,000, as an attachment with `nosniff`
   and a sandbox CSP, for a signed-in viewer (403 without `x-crashyard-viewer`).

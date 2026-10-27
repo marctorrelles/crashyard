@@ -79,13 +79,7 @@ export async function flushHeld(env: NotifyEnv, now = Date.now()): Promise<void>
     if (channel && isQuiet(channel, now)) continue
     if (channel) {
       const last = JSON.parse(rows.at(-1)!.payload) as Notice
-      const notice =
-        rows.length > 1
-          ? {
-              ...last,
-              issue: { ...last.issue, title: `${last.issue.title} (and ${rows.length - 1} more while quiet)` },
-            }
-          : last
+      const notice = rows.length > 1 ? { ...last, heldMore: rows.length - 1 } : last
       try {
         await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
       } catch (error) {

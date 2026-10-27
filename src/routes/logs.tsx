@@ -456,7 +456,7 @@ function ChartMenu({
         {onAlert && (
           <DropdownMenuItem onSelect={onAlert}>
             <IconBell />
-            Create alert
+            Create metric alert
           </DropdownMenuItem>
         )}
         {onRemove && (
@@ -646,7 +646,7 @@ function AddToDashboard({ widget, onClose }: { widget: Widget; onClose: () => vo
               Cancel
             </Button>
             <Button type="submit" disabled={busy || !id}>
-              Add widget
+              Add to dashboard
             </Button>
           </DialogFooter>
         </form>

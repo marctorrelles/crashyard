@@ -7,8 +7,9 @@ environment, each with its own thresholds, and send them to channels.
   `monitor_up`, `slower_release`, `weekly`: a project's week, `frequency`, `escalating`, `metric_warning`,
   `metric_critical`, `metric_resolved`), `RouteKind` (a route picks the three metric kinds as one, `metric`, "Metric
   alert"), `routeTakes`, `thresholdFor` (a threshold notice passes a route only if one of that route's thresholds was
-  crossed), `noticeLine` ("50 events in 10 minutes", "Escalating with 40 events in the last hour"; metric alerts say
-  it in their culprit). A route's levels and environments don't filter `weekly` nor the metric kinds (of no one
+  crossed), `noticeLine` ("50 events in 10 minutes", "1 event in 10 minutes", `counted` for singular
+  and plural, also in Notifications' route rows; "Escalating with 40 events in the last hour"; metric alerts say it in
+  their culprit; a notice sent after quiet hours with `heldMore` ends "3 more arrived during quiet hours"). A route's levels and environments don't filter `weekly` nor the metric kinds (of no one
   event). `ISSUE_KINDS`, the kinds about one issue's event: a route's releases and tag filter apply to these only
   (`matchesFilters`), and its wait. A `frequency` notice carries the `routeId` whose limit it reached: only that route
   takes it. A notice's `event.tags` are the event's, for tag filters; an escalation has no one event, so it carries the
@@ -57,7 +58,8 @@ environment, each with its own thresholds, and send them to channels.
 - `email.ts`: a plain-text MIME message for Cloudflare Email Routing's `send_email` binding (`EMAIL`, from
   `EMAIL_FROM`; the address it sends to must be a verified destination).
 - `dispatch.ts`: `dispatch` sends each notice to its routes' channels, or holds it in `held_notifications` in quiet
-  hours, after each route's wait (`throttled`) for the kinds about an issue; `flushHeld` (the cron, every minute) sends what was held as one message once they end. A failing channel
+  hours, after each route's wait (`throttled`) for the kinds about an issue; `flushHeld` (the cron, every minute) sends what was held as one message once they end, the newest with
+  `heldMore`, the others' count. A failing channel
   is logged, written to `notification_failures` (channel, the notice's kind, the error's first 500 characters; for
   Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them after 30 days.
 

@@ -393,12 +393,11 @@ function Events({ d, current }: { d: Data; current?: string }) {
   return (
     <section className="mt-8">
       <h2 className="mb-2 text-sm font-medium">
-        Events{' '}
-        <span className="font-normal text-muted-foreground">
-          {found === null
-            ? `(latest ${d.events.length})`
-            : `(${found.length === 50 ? 'newest 50' : found.length} matching)`}
-        </span>
+        {found === null
+          ? `The latest ${d.events.length} events`
+          : found.length === 50
+            ? 'The newest 50 matching events'
+            : `${found.length} matching ${found.length === 1 ? 'event' : 'events'}`}
       </h2>
       <div className="mb-2">
         <SearchBar

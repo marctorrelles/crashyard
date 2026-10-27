@@ -106,7 +106,7 @@ function Dashboards() {
   )
 }
 
-/** "New dashboard": a name and a template to start from, or a blank one that opens in edit mode */
+/** "Create dashboard": a name and a template to start from, or a blank one that opens in edit mode */
 function NewDashboard({
   variant = 'default',
   busy,
@@ -125,7 +125,7 @@ function NewDashboard({
       <DialogTrigger asChild>
         <Button variant={variant}>
           <IconPlus data-icon="inline-start" />
-          New dashboard
+          Create dashboard
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
@@ -137,7 +137,7 @@ function NewDashboard({
           }}
         >
           <DialogHeader>
-            <DialogTitle>New dashboard</DialogTitle>
+            <DialogTitle>Create dashboard</DialogTitle>
             <DialogDescription>Start from a template or from nothing. You can change all of it.</DialogDescription>
           </DialogHeader>
           <RadioGroup value={template} onValueChange={setTemplate} aria-label="Template" className="gap-2">

@@ -1,7 +1,7 @@
 // Metric alerts: a number over a window, read every 5 minutes, alerting when it crosses its warning or critical value
 // and when it comes back. Only a change of state makes a notice.
 import { percentile } from '../performance/histogram'
-import { logFilter, matchAny, tokenize } from '../search/query'
+import { filterExample, logFilter, matchAny, tokenize } from '../search/query'
 import type { Notice } from './notice'
 
 const HOUR = 3_600_000
@@ -55,7 +55,7 @@ export function metricQueryError(metric: Metric, query: string): string | null {
     if (!keys) continue // logs: the logs search, attributes too
     if (!t.key || !keys[t.key] || t.op !== ':') {
       const names = Object.keys(keys)
-      return `${METRICS[metric].label} can be filtered by ${names.slice(0, -1).join(', ')} and ${names.at(-1)}, such as ${names[0]}:production.`
+      return `${METRICS[metric].label} can be filtered by ${names.slice(0, -1).join(', ')} and ${names.at(-1)}, such as ${filterExample(names[0])}.`
     }
   }
   return null

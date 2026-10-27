@@ -47,6 +47,10 @@ describe('routes', () => {
     expect(routeTakes(r, { ...reached, routeId: 4 })).toBe(false)
     expect(noticeLine(reached)).toBe('pocketband · 1.0 (10) · iPad13,1 · 50 events in 10 minutes')
     expect(noticeLine({ ...reached, rate: { count: 10, what: 'users', minutes: 60 } })).toMatch(/10 users in an hour$/)
+    expect(noticeLine({ ...reached, rate: { count: 1, what: 'events', minutes: 10 } })).toMatch(
+      /· 1 event in 10 minutes$/,
+    )
+    expect(noticeLine({ ...reached, heldMore: 3 })).toMatch(/minutes · 3 more arrived during quiet hours$/)
   })
 
   it('filter issue alerts by release and tags, and not a monitor’s', () => {

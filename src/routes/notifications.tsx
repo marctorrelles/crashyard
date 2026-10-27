@@ -55,11 +55,11 @@ import {
   type MetricState,
   WINDOW_HOURS,
 } from '@/notify/metrics'
-import { KINDS, LEVELS, minutesText, type Route as NotifyRoute } from '@/notify/notice'
+import { counted, KINDS, LEVELS, minutesText, type Route as NotifyRoute } from '@/notify/notice'
 import { frequencyOf, type Frequency, INTERVALS, WINDOWS } from '@/notify/rules'
 
 // `?metric=` opens Create metric alert with that metric, `query` as its filter and `project` (a slug) picked: the
-// logs page's Create alert
+// logs page's Create metric alert
 type Search = { metric?: Metric; query?: string; project?: string }
 
 export const Route = createFileRoute('/notifications')({
@@ -267,7 +267,7 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
   const f = frequencyOf(r.frequency)
   const frequency =
     f && list<string>(r.kinds).includes('frequency')
-      ? `${f.events ? `${f.events} events` : `${f.users} users`} in ${minutesText(f.minutes)}`
+      ? `${f.events ? counted(f.events, 'event') : counted(f.users ?? 0, 'user')} in ${minutesText(f.minutes)}`
       : undefined
   const releases = list<string>(r.releases ?? null)
   const extra = [
@@ -518,13 +518,13 @@ function ChannelDialog({
                 }}
               >
                 <IconTrash data-icon="inline-start" />
-                Delete
+                Delete channel
               </Button>
             ) : (
               <span />
             )}
             <Button type="submit" disabled={blocked}>
-              Save
+              Save channel
             </Button>
           </DialogFooter>
         </form>
@@ -901,12 +901,12 @@ function RouteDialog({ route, d, onClose }: { route?: NotifyRoute; d: Data; onCl
                 }}
               >
                 <IconTrash data-icon="inline-start" />
-                Delete
+                Delete route
               </Button>
             ) : (
               <span />
             )}
-            <Button type="submit">Save</Button>
+            <Button type="submit">Save route</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1164,12 +1164,12 @@ function MetricDialog({
                 }}
               >
                 <IconTrash data-icon="inline-start" />
-                Delete
+                Delete metric alert
               </Button>
             ) : (
               <span />
             )}
-            <Button type="submit">Save</Button>
+            <Button type="submit">Save metric alert</Button>
           </DialogFooter>
         </form>
       </DialogContent>

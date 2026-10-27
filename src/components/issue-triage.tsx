@@ -174,9 +174,9 @@ export function TrackerMenu({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" aria-label="Issue tracker">
+          <Button variant="outline">
             <IconLink data-icon="inline-start" />
-            Track
+            Track issue
             <IconChevronDown data-icon="inline-end" />
           </Button>
         </DropdownMenuTrigger>

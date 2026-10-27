@@ -1,7 +1,9 @@
 # Search
 
 Sentry's search syntax for issues, as SQL (`query.ts`, pure, tested in `query.test.ts`), and what the search bar
-proposes as you type (`suggest.ts`, pure, tested in `suggest.test.ts`).
+proposes as you type (`suggest.ts`, pure, tested in `suggest.test.ts`). `filterExample(key)` is `key:value` with
+a value that fits the key (`monitor:nightly-export`, `release:1.0`), for the examples in widgets' and metric alerts'
+filter errors.
 
 - Tokens: `key:value`, `!key:value`, `key:>value` (also `<`, `>=`, `<=`), `key:[a,"b c"]` (any of; `!key:[…]` none of),
   `"quoted text"`, words. A list's token has `values` (and `value`, them joined by commas); a list needs a key, a bare

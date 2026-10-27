@@ -5,6 +5,7 @@ import { SettingsCard } from '@/components/settings'
 import { size } from '@/components/uploads'
 import { getHealth } from '@/fns'
 import { cn } from '@/lib/utils'
+import { KINDS, type NoticeKind, routeKindOf } from '@/notify/notice'
 
 export const Route = createFileRoute('/settings/health')({
   loader: () => getHealth(),
@@ -95,7 +96,7 @@ function Health() {
         </Status>
       </SettingsCard>
 
-      <SettingsCard title="Notifications" description="Sends a channel refused in the last 7 days.">
+      <SettingsCard title="Notifications" description="Notifications a channel refused in the last 7 days.">
         {h.notifications.failed === 0 ? (
           <Status ok>Every notification went through.</Status>
         ) : (
@@ -109,7 +110,7 @@ function Health() {
                   <p className="font-medium">
                     {f.channel ?? 'A deleted channel'}{' '}
                     <span className="font-normal text-muted-foreground">
-                      · {f.kind} · <Ago at={f.at} now={h.now} />
+                      · {kindLabel(f.kind)} · <Ago at={f.at} now={h.now} />
                     </span>
                   </p>
                   <p className="text-xs break-words text-muted-foreground">{f.error}</p>
@@ -148,3 +149,6 @@ function Health() {
     </>
   )
 }
+
+/** A notice's kind as Notifications names it: "Metric alert", never `metric_critical` */
+const kindLabel = (kind: string) => KINDS.find((k) => k.kind === routeKindOf(kind as NoticeKind))?.label ?? kind
