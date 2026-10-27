@@ -97,12 +97,13 @@ export function Linking({
 export function Code({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   return (
-    <div className="relative min-w-0">
-      <pre className="overflow-x-auto rounded-xl border bg-muted/40 p-3 pr-11 font-mono text-xs leading-5">{text}</pre>
+    // The button has its own column, so long text scrolls beside it and never under it
+    <div className="flex min-w-0 items-start rounded-xl border bg-muted/40">
+      <pre className="min-w-0 flex-1 overflow-x-auto p-3 pr-1 font-mono text-xs leading-5">{text}</pre>
       <Button
         variant="ghost"
         size="icon-sm"
-        className="absolute top-1.5 right-1.5"
+        className="m-1.5 shrink-0"
         aria-label="Copy"
         onClick={async () => {
           await navigator.clipboard.writeText(text)

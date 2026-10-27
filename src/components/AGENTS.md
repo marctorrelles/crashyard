@@ -119,4 +119,6 @@
   dialog is wider for it. A cron monitor its slug, schedule, grace period and runtime.
 - `uploads.tsx`: `UploadSteps`, the variables sentry-cli reads and each platform's upload steps, on Debug files; `size`.
 - `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
-  same, keep them in step).
+  same, keep them in step). `Code`, its copyable block, is every DSN and snippet's (Client keys, Connect an app, Debug
+  files, Source code, tokens): the copy button sits in its own column beside the text, which scrolls sideways, never
+  under it.

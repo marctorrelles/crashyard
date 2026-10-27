@@ -4,7 +4,8 @@ TanStack Start's file-based routes: the dashboard's pages. `routeTree.gen.ts` is
 server, the build, or `tsr generate`): never edit it.
 
 - `__root.tsx`: the document. Light or dark as the viewer chose on Settings, Appearance (the `theme` cookie
-  `savePreference` sets), else as the system is: a script sets `.dark` before paint and when the system changes. The
+  `savePreference` sets, and `getSidebar`, the root's loader, sets from the saved preference when they differ, so a
+  new browser has it from its second page), else as the system is: a script sets `.dark` before paint and when the system changes. The
   same script keeps the browser's time zone in the `tz` cookie, so the server writes times in it. The viewport covers the notch (`viewport-fit=cover`). It also has the error and not-found
   pages. Its loader is the sidebar's (projects, the one last picked, folded or not, who's signed in, their
   `preferences` and `zone`: the chosen time zone, else the `tz` cookie's, else UTC on a first visit) and its component
@@ -82,8 +83,9 @@ server, the build, or `tsr generate`): never edit it.
   refused the same way by `updateProject`), `filters` (a switch per inbound filter with what it catches, text areas
   of error message globs, release globs and allowed domains, one a line, and what was filtered in 30 days,
   `getProjectSettings`' `filtered`; saved as `filters` through `updateProject`, which keeps the switches that are on
-  and the lists' lines, 100 of 200 characters at most), `keys` (Create key; per key its
-  DSN, name, daily event limit, empty for none, events today, and an on switch that asks before turning a key off),
+  and the lists' lines, 100 of 200 characters at most), `keys` (per key its
+  DSN, name, daily event limit, empty for none, events today, and an on switch that asks before turning a key off;
+  the existing keys first, then Create key),
   `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
   send commits), `connect` (the DSN and `Linking`), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug
   files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;

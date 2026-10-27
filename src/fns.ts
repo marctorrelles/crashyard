@@ -110,6 +110,8 @@ export const getSidebar = createServerFn().handler(async () => {
     settings.getPreferences(env.DB, viewer()),
   ])
   const browserZone = getCookie('tz')
+  // The theme is the viewer's, the cookie the browser's: a browser that hasn't seen it yet gets it, from its next page
+  if ((getCookie('theme') ?? 'system') !== preferences.theme) setThemeCookie(preferences.theme)
   return {
     projects: list,
     lastProject: getCookie('crashyard_project') ?? null,
@@ -1255,9 +1257,11 @@ export const savePreference = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }) => {
     await settings.setPreference(env.DB, viewer(), data.key, data.value)
-    if (data.key === 'theme')
-      setCookie('theme', String(data.value), { path: '/', maxAge: 31_536_000, sameSite: 'lax', secure: true })
+    if (data.key === 'theme') setThemeCookie(String(data.value))
   })
+
+const setThemeCookie = (theme: string) =>
+  setCookie('theme', theme, { path: '/', maxAge: 31_536_000, sameSite: 'lax', secure: true })
 
 // Saved searches of a page: the viewer's own and everyone's shared ones, the viewer's pinned one first
 export const getSavedSearches = createServerFn()

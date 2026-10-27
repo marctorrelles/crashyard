@@ -20,6 +20,10 @@ function Keys() {
   const [label, setLabel] = useState('')
   return (
     <>
+      {/* The keys there are first, then a new one */}
+      {keys.map((k) => (
+        <KeyCard key={k.id} projectId={project.id} k={k} />
+      ))}
       <SettingsCard
         title="Create key"
         description="A key per app or build lets you limit or turn off one without touching the others."
@@ -45,9 +49,6 @@ function Keys() {
           </Button>
         </form>
       </SettingsCard>
-      {keys.map((k) => (
-        <KeyCard key={k.id} projectId={project.id} k={k} />
-      ))}
     </>
   )
 }
