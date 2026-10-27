@@ -13,7 +13,7 @@ pnpm check               # optional, runs the tests and the build
 pnpm run deploy          # builds, applies new migrations to your D1 database and deploys
 ```
 
-Git ignores `wrangler.local.json`, which holds your domain and Access values, so pulling never changes it.
+Git ignores `wrangler.local.json`, which holds your domain and sign-in values, so pulling never changes it.
 
 ## Upgrade a deployment made with the button
 

@@ -24,7 +24,7 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 
    [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard)
 
-2. Put Cloudflare Access in front of the dashboard, so only your team can sign in.
+2. Open it, create your owner passkey with the setup code, and invite your team.
 3. Create a project for each app and give its Sentry SDK the project's DSN.
 
 [docs/deploying.md](docs/deploying.md) walks through every step, including deploying from a clone.
@@ -50,6 +50,8 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
   alert: in the chat on Telegram, in one tap on crashyard from the others.
 - **MCP server.** Lets an AI agent search issues and logs, read a stack trace, resolve issues and add notes. See
   [docs/mcp.md](docs/mcp.md).
+- **People and sign-in.** Passkeys, invites and four roles, from owner to viewer, with recovery codes and an optional
+  Sign in with GitHub. Cloudflare Access works instead, for teams that already use it.
 
 ## Supported SDKs
 

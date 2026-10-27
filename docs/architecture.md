@@ -8,8 +8,8 @@ listed. R2 holds files.
 flowchart LR
   apps["Apps with Sentry SDKs"] -- "POST /api/&lt;project&gt;/envelope/<br/>DSN key" --> ingest
   cli["sentry-cli and build plugins"] -- "/api/0/ uploads and releases<br/>auth token" --> upload
-  you["You, in a browser"] -- "Cloudflare Access" --> dashboard
-  agent["An agent"] -- "/mcp, Access service token" --> mcp
+  you["You, in a browser"] -- "passkey or Cloudflare Access" --> dashboard
+  agent["An agent"] -- "/mcp, agent token" --> mcp
 
   subgraph worker["The worker (src/server.ts)"]
     ingest["Ingest<br/>src/api/ingest.ts"]
@@ -43,8 +43,8 @@ flowchart LR
   compiled to WebAssembly and runs in the worker. Uploads are turned into SymCaches and SourceMapCaches in R2, and each
   upload reprocesses the recent events that needed it.
 - **The dashboard**, in `src/routes/`, `src/fns.ts` and `src/data/`. React is rendered on the server, with data from
-  server functions that query D1. The worker verifies the Access token on every request, so a dashboard route that
-  Access misses stays closed.
+  server functions that query D1. The worker checks who's signed in on every request, by their session or by the
+  Access token, and each change by their role, in `src/auth/`. Signed out, only the sign-in pages open.
 - **The scheduled task**, `scheduled` in `src/server.ts`. Every minute it runs uptime checks and looks for missed
   check-ins, in `src/monitors/`, sends alerts held through quiet hours, and tries again the envelopes that failed. Every 5 minutes it checks metric alerts, and every hour
   it looks for slower releases and deletes data past its retention. On Mondays at 07:00 UTC it sends the weekly

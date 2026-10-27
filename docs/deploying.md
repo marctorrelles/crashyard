@@ -13,8 +13,10 @@ plan.
 The README's **Deploy to Cloudflare** button copies this repository to your GitHub account, creates the D1 database and
 the R2 bucket, and deploys to `crashyard.<your account>.workers.dev`. It redeploys whenever your copy changes.
 
-After that, follow steps 3 to 5 below. Put the values they mention in your copy's `wrangler.jsonc`, under `routes` and
-`vars`, instead of in `wrangler.local.json`. Commit them and it deploys again.
+After that, follow steps 3 to 5 below. For step 3, add the setup code as a secret in the Cloudflare dashboard: open
+Workers & Pages, then `crashyard`, then Settings, then Variables and Secrets, and add a **Secret** named `SETUP_CODE`
+with a code of your own, such as three groups of five letters. Put any other values in your copy's `wrangler.jsonc`,
+under `routes` and `vars`, instead of in `wrangler.local.json`. Commit them and it deploys again.
 
 ## What you need
 
@@ -24,7 +26,7 @@ After that, follow steps 3 to 5 below. Put the values they mention in your copy'
 
 ## 1. Point it at your domain
 
-`pnpm run setup` asks for the values in this step and in step 3, writes the file for you and offers to run steps 2 and 4. Run it again whenever you want to change a value. To do it by hand instead, read on.
+`pnpm run setup` asks for the values in this step, writes the file for you and offers to run steps 2, 3 and 4. Run it again whenever you want to change a value. To do it by hand instead, read on.
 
 Your deployment's own values live in `wrangler.local.json` at the root of the repository. Git ignores it, and the build
 lays it over `wrangler.jsonc`: its `vars` are merged in, and any other key replaces the one in `wrangler.jsonc`. Create
@@ -53,13 +55,65 @@ pnpm run deploy
 The first deploy creates the D1 database, `crashyard`, and the R2 bucket, `crashyard-files`, in your account. Their IDs
 aren't in `wrangler.jsonc`, so Wrangler creates them. The deploy also applies the database migrations.
 
-Open your subdomain. It says "Sign in through Cloudflare Access to open crashyard". That means crashyard is refusing
-every visitor because Access isn't set up yet, which is exactly what should happen at this point.
+Open your subdomain. It shows **Set up crashyard**. Until the first owner exists, that page is all anyone can open.
 
-## 3. Put Cloudflare Access in front
+## 3. Create the owner
 
-Cloudflare Access handles sign-in, so crashyard has no accounts of its own. Open
-[one.dash.cloudflare.com](https://one.dash.cloudflare.com), which Cloudflare calls Cloudflare One or Zero Trust.
+crashyard signs people in with passkeys, kept by their phone, laptop or password manager. There are no passwords.
+
+1. **Make a setup code.** It proves that whoever creates the owner also controls the deployment, and it stops working
+   once the owner exists. `pnpm run setup` makes one and prints it. To make your own, run this and type a code, such
+   as three groups of five letters:
+
+   ```sh
+   pnpm wrangler secret put SETUP_CODE
+   ```
+
+2. **Create your passkey.** Open `https://crashyard.example.com/setup`, enter the setup code, your name and your email,
+   and choose **Create passkey**. Your device asks to save it.
+3. **Save your recovery codes.** crashyard shows ten codes once. Each signs you in once, with your email, if you lose
+   your passkeys. Keep them in your password manager.
+
+Then invite your team from Settings, then People. An invite is a link that works once, for 7 days, with the role you
+choose:
+
+- **Owner**: everything, including people and sign-in.
+- **Admin**: settings, projects, notifications and tokens.
+- **Member**: resolve, ignore, assign and note issues, and edit dashboards.
+- **Viewer**: read everything, change nothing.
+
+Each person can add a passkey on every device they use in Settings, then Sign-in, and sign out other devices there.
+
+### Sign in with GitHub
+
+This is optional. In Settings, then People, choose **Add Sign in with GitHub**, with an organization if the app should
+belong to one. GitHub asks you to confirm a private GitHub App for your crashyard, which can only read who someone is,
+and sends you back. From then on:
+
+- People already in crashyard can sign in with GitHub, matched by a verified email on their GitHub account.
+- An invite can be used with GitHub instead of a passkey.
+- Anyone else is turned away, whatever their GitHub account.
+
+To turn it off, choose **Remove Sign in with GitHub** there, then delete the app on GitHub.
+
+### If someone loses every passkey
+
+They can sign in with their email and a recovery code, from **Lost your passkey?** on the sign-in page, then add a new
+passkey. If their recovery codes are gone too, anyone with access to the Cloudflare account can make them a new one:
+
+```sh
+pnpm run recovery-code them@example.com
+```
+
+Passkeys belong to the dashboard's domain. If you move crashyard to another domain, everyone signs in with a recovery
+code once and adds a new passkey.
+
+### Already use Cloudflare Zero Trust?
+
+crashyard can leave sign-in to Cloudflare Access instead. Its policies then decide who gets in, everyone signed in is
+an owner, and agents use Access service tokens. Set `"AUTH": "access"` in the `vars` of `wrangler.local.json`, then
+follow the steps below. Open [one.dash.cloudflare.com](https://one.dash.cloudflare.com), which Cloudflare calls
+Cloudflare One or Zero Trust.
 
 1. **Choose a plan.** The first time, Cloudflare asks for a plan. Choose **Free**, which costs nothing for up to 50
    users. It may still ask for a payment method. The total stays at $0, and if it shows more, you've picked the wrong
@@ -91,6 +145,7 @@ Cloudflare Access handles sign-in, so crashyard has no accounts of its own. Open
 
    ```json
    "vars": {
+     "AUTH": "access",
      "ACCESS_TEAM_DOMAIN": "yourteam.cloudflareaccess.com",
      "ACCESS_AUD": "<the AUD tag>",
      "PUBLIC_URL": "https://crashyard.example.com"
@@ -135,6 +190,21 @@ A Telegram channel's Resolve, Ignore and Assign to me buttons work once `PUBLIC_
 Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, outside Access, with a secret only crashyard and
 Telegram know.
 
+### Move from Access to passkeys
+
+A crashyard set up with Access keeps using it after an upgrade. To switch without a gap:
+
+1. Deploy the new version, still with Access.
+2. Open Settings, then Sign-in, and choose **Create passkey**. While crashyard has no one of its own yet, this makes
+   you its owner. Save your recovery codes.
+3. If an agent uses an Access service token, create an agent token for it in Settings, then Agent tokens, once you've
+   switched, and change its MCP configuration as [docs/mcp.md](mcp.md) says.
+4. Set `"AUTH": "crashyard"` in the `vars` of `wrangler.local.json` and deploy again. Sign in with your passkey and
+   invite your team.
+5. In Cloudflare One, delete the `crashyard` and `crashyard api` Access applications.
+
+To go back, set `"AUTH": "access"` and deploy again.
+
 ## Upload tokens
 
 sentry-cli and the build plugins need a token to upload debug files and source maps. Create one in Settings, then
@@ -143,15 +213,19 @@ each app its own.
 
 ## Check that it works
 
-- Open your subdomain in a private window. You should see Cloudflare's sign-in page.
+- Open your subdomain in a private window. You should see crashyard's sign-in page, or Cloudflare's with Access.
 - Sign in. You should see the crashyard dashboard.
-- Run `curl -X POST https://crashyard.example.com/api/1/envelope/`. The answer should come from crashyard, not from
-  Cloudflare's sign-in page, which shows the bypass works.
-- Open Settings, then General. It shows the public URL and whether Access is set up. Settings, then Health, says
-  whether the schedule runs every minute.
+- Run `curl -X POST https://crashyard.example.com/api/1/envelope/`. The answer should come from crashyard, not from a
+  sign-in page.
+- Open Settings, then General. It shows the public URL. Settings, then Health, says whether the schedule runs every
+  minute.
 
 ## Troubleshooting
 
+- **The setup page says to add a setup code.** The worker has no `SETUP_CODE` secret yet. Add it as step 3 says,
+  then reload the page.
+- **The browser says the passkey can't be used here.** Open crashyard at the address in `PUBLIC_URL`. Passkeys only
+  work on the domain they were created for.
 - **"Sign in through Cloudflare Access to open crashyard" appears after signing in.** `ACCESS_TEAM_DOMAIN` or
   `ACCESS_AUD` doesn't match. Compare the team domain with the sign-in page's address, and make sure the AUD tag is the
   `crashyard` application's, not the api one's.
