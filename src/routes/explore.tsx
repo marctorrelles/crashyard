@@ -246,7 +246,7 @@ function Explore() {
                       {r.values.map((v, i) => (
                         <Fragment key={d.columns[i]}>
                           <dt className="text-muted-foreground">{d.columns[i]}</dt>
-                          <dd className="truncate font-mono">{v ?? '–'}</dd>
+                          <dd className="truncate font-mono">{v || '–'}</dd>
                         </Fragment>
                       ))}
                     </dl>
