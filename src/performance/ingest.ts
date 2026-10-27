@@ -27,18 +27,39 @@ export function summarize(raw: Json, received: number) {
   const parents = new Map(spans.map((s) => [str(s.span_id), str(s.parent_span_id)]))
   const depthOf = (id: string | undefined, n = 0): number =>
     !id || id === rootId || n > 20 ? n : depthOf(parents.get(id), n + 1)
-  const list: Span[] = spans
+  const rows = spans
     .map((s) => ({
-      op: str(s.op) ?? 'span',
-      description: (str(s.description) ?? '').slice(0, 300),
-      start: Math.round(secs(s.start_timestamp) - start),
-      duration: Math.round(secs(s.timestamp) - secs(s.start_timestamp)),
-      status: str(s.status),
-      depth: depthOf(str(s.parent_span_id)),
+      id: str(s.span_id),
+      parent: str(s.parent_span_id),
+      at: secs(s.start_timestamp),
+      span: {
+        op: str(s.op) ?? 'span',
+        description: (str(s.description) ?? '').slice(0, 300),
+        start: Math.round(secs(s.start_timestamp) - start),
+        duration: Math.round(secs(s.timestamp) - secs(s.start_timestamp)),
+        status: str(s.status),
+        depth: depthOf(str(s.parent_span_id)),
+      } as Span,
     }))
-    .filter((s) => Number.isFinite(s.start) && Number.isFinite(s.duration))
-    .sort((a, b) => a.start - b.start)
-    .slice(0, MAX_SPANS)
+    .filter((r) => Number.isFinite(r.span.start) && Number.isFinite(r.span.duration))
+    // By the start as sent, finer than the millisecond kept, so spans a few microseconds apart keep their order
+    .sort((a, b) => a.at - b.at)
+  // In tree order, siblings by start: a child stays under its parent when both started in the same millisecond
+  const ids = new Set(rows.map((r) => r.id))
+  const children = Map.groupBy(rows, (r) => (r.parent && ids.has(r.parent) ? r.parent : undefined))
+  const ordered: typeof rows = []
+  const seen = new Set<(typeof rows)[number]>()
+  const walk = (parent: string | undefined) => {
+    for (const r of children.get(parent) ?? []) {
+      if (seen.has(r)) continue
+      seen.add(r)
+      ordered.push(r)
+      if (r.id) walk(r.id)
+    }
+  }
+  walk(undefined)
+  // Spans in a cycle of parents have no way down from the root: kept, after the rest
+  const list = [...ordered, ...rows.filter((r) => !seen.has(r))].map((r) => r.span).slice(0, MAX_SPANS)
   const status = str(trace.status)
   return {
     id: str(raw.event_id)?.replace(/-/g, '') ?? crypto.randomUUID().replace(/-/g, ''),
@@ -60,14 +81,13 @@ export type Summary = NonNullable<ReturnType<typeof summarize>>
 
 /**
  * Streamed spans (an envelope's `span` item, `application/vnd.sentry.items.span.v2+json`: what the JavaScript SDKs send
- * since v11, instead of transactions) as transactions: one per segment span in the item, with its children from the
- * same item.
- * ponytail: children flushed in an earlier envelope than their segment miss its waterfall; buffer by segment id if that shows.
+ * since v11, and sentry-dart since 10, instead of transactions) as transactions: one per segment span in the item,
+ * with its children from the same item and those that came before it (`earlier`, from `pending_spans`).
  */
-export function fromSpans(raw: Json): Json[] {
+export function fromSpans(raw: Json, earlier: Json[] = []): Json[] {
   const items = (Array.isArray(raw.items) ? raw.items : []).map(obj)
-  const attr = (s: Json, key: string) => obj(obj(s.attributes)[key]).value
-  const segmentOf = (s: Json) => str(attr(s, 'sentry.segment.id')) ?? str(s.span_id)
+  // A span sent twice, held and again, counts once
+  const all = [...new Map([...earlier, ...items].map((s, i) => [str(s.span_id) ?? i, s])).values()]
   return items
     .filter((s) => s.is_segment === true)
     .map((root) => ({
@@ -80,10 +100,57 @@ export function fromSpans(raw: Json): Json[] {
       contexts: {
         trace: { span_id: root.span_id, trace_id: root.trace_id, op: attr(root, 'sentry.op'), status: root.status },
       },
-      spans: items
+      spans: all
         .filter((s) => s !== root && segmentOf(s) === str(root.span_id))
         .map((s) => ({ ...s, op: attr(s, 'sentry.op'), description: s.name, timestamp: s.end_timestamp })),
     }))
+}
+
+const attr = (s: Json, key: string) => obj(obj(s.attributes)[key]).value
+const segmentOf = (s: Json) => str(attr(s, 'sentry.segment.id')) ?? str(s.span_id)
+
+/**
+ * A `span` item's transactions. An SDK sends spans as they finish, a batch every few seconds, so a segment longer
+ * than that comes after its children: they're held in `pending_spans` until it does. `release` drops the held spans
+ * its segments read, once their transactions are stored, so a retry before that reads them again.
+ * ponytail: a child that ends after its segment stays held until pruned; Sentry shows it apart too.
+ */
+export async function spanTransactions(db: D1Database, projectId: number, raw: Json, received: number) {
+  const items = (Array.isArray(raw.items) ? raw.items : []).map(obj)
+  const roots = new Set(items.filter((s) => s.is_segment === true).map((s) => str(s.span_id)))
+  const segments = JSON.stringify([...roots])
+  const waiting = items
+    .filter((s) => s.is_segment !== true && str(s.span_id) && !roots.has(segmentOf(s)))
+    .map((s) => [str(s.span_id), segmentOf(s), JSON.stringify(s)])
+  if (waiting.length)
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO pending_spans (project_id, span_id, segment_id, received, span)
+         SELECT ?, json_extract(value, '$[0]'), json_extract(value, '$[1]'), ?, json_extract(value, '$[2]') FROM json_each(?)`,
+      )
+      .bind(projectId, received, JSON.stringify(waiting))
+      .run()
+  const held =
+    roots.size === 0
+      ? []
+      : (
+          await db
+            .prepare(
+              'SELECT span FROM pending_spans WHERE project_id = ? AND segment_id IN (SELECT value FROM json_each(?))',
+            )
+            .bind(projectId, segments)
+            .all<{ span: string }>()
+        ).results.map((r) => obj(JSON.parse(r.span)))
+  return {
+    transactions: fromSpans(raw, held),
+    release: async () => {
+      if (held.length)
+        await db
+          .prepare('DELETE FROM pending_spans WHERE project_id = ? AND segment_id IN (SELECT value FROM json_each(?))')
+          .bind(projectId, segments)
+          .run()
+    },
+  }
 }
 
 export async function storeTransaction(db: D1Database, projectId: number, t: Summary, received: number) {

@@ -10,7 +10,7 @@ import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { filterReason, originAllowed, parseFilters, transactionFilterReason } from '../ingest/filters'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
-import { fromSpans, sessionCounts, storeSessions, storeTransaction, summarize } from '../performance/ingest'
+import { sessionCounts, spanTransactions, storeSessions, storeTransaction, summarize } from '../performance/ingest'
 import {
   type Endpoint,
   type Held,
@@ -417,11 +417,12 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
     let done = from
     try {
       if (type === 'span') {
-        const spans = fromSpans(payloadJson(item))
+        const { transactions: spans, release } = await spanTransactions(env.DB, project.id, payloadJson(item), now)
         for (; done < spans.length; done++) {
           const summary = summarize(spans[done], now)
           if (summary && keepTransaction(summary)) await storeTransaction(env.DB, project.id, summary, now)
         }
+        await release()
       } else if (type === 'transaction') {
         const summary = summarize(payloadJson(item), now)
         if (summary && keepTransaction(summary)) await storeTransaction(env.DB, project.id, summary, now)

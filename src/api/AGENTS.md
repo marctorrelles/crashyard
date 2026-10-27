@@ -37,7 +37,7 @@ signature; `/mcp` comes after sign-in.
   envelope that couldn't be held answers 500. An envelope of sessions alone isn't held (docs/decisions/0004). The items:
   `event`, `attachment`, `feedback`, `user_report`, `log`, `check_in` and `session`/`sessions` (no quota: few, and
   they say something's alive), `transaction` and `span` (streamed spans, `span.v2`: what @sentry/node 11 sends instead
-  of transactions, checked against 11.9.0; see `src/performance/`); other item types are accepted and dropped. An event without an id gets one from the held key and its index
+  of transactions, checked against 11.9.0, and sentry-dart 10 by default; see `src/performance/`); other item types are accepted and dropped. An event without an id gets one from the held key and its index
   (`stableEventId`), the same on every try. An event goes through the project's inbound filters (`filterReason`,
   right after `normalizeEvent`, before symbols, as Relay filters what the SDK sent), then symbols, grouping rules
   (`applyRules`) and `groupingOf`, then `discarded_fingerprints` (one read by key); a transaction or span segment

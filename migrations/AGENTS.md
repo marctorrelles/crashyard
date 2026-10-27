@@ -67,3 +67,5 @@ in `pnpm run deploy`).
 - 0022: crashyard's own sign-in (`src/auth/AGENTS.md`): `users` (email unique, lowercased; role; `github_id`),
   `passkeys`, `sessions` (by the cookie's SHA-256, `sessions_expires` for pruning), `challenges`, `invites`,
   `recovery_codes` and `user_tokens`, every secret as its SHA-256. New tables only: a worker from before ignores them.
+- 0023: `pending_spans`, streamed spans that came before their segment, held until it comes (`src/performance/`) and
+  pruned after a day. A new table: a worker from before ignores it and drops those spans, as it did.

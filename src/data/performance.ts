@@ -251,5 +251,7 @@ export async function prunePerformance(db: D1Database, now: number) {
     db.prepare('DELETE FROM transaction_buckets WHERE hour < ?').bind(now - 90 * 864e5),
     db.prepare('DELETE FROM vital_buckets WHERE hour < ?').bind(now - 90 * 864e5),
     db.prepare('DELETE FROM transaction_examples WHERE timestamp < ?').bind(now - 30 * 864e5),
+    // Spans whose segment never came
+    db.prepare('DELETE FROM pending_spans WHERE received < ?').bind(now - 864e5),
   ])
 }
