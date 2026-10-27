@@ -450,3 +450,88 @@ describe('filtered events', () => {
     expect(keyDay()).toEqual({ n: 2 })
   })
 })
+
+describe('what a pass that fails costs', () => {
+  const NOW = Date.UTC(2026, 9, 26, 12)
+  const setup = () => {
+    const env = { DB: sqliteD1(), FILES: memoryR2() }
+    env.DB.sqlite.exec(
+      `INSERT INTO projects (id, slug, name, public_key, created_at, filters) VALUES (6, 'r', 'r', 'rk6', 0, '{"releases":["bad*"]}')`,
+    )
+    return env
+  }
+  const send = async (env: ReturnType<typeof setup>, lines: unknown[]) => {
+    const waits: Promise<unknown>[] = []
+    const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) } as unknown as ExecutionContext
+    const response = await handleIngest(
+      new Request('https://x/api/6/envelope/?sentry_key=rk6', {
+        method: 'POST',
+        body: lines.map((l) => JSON.stringify(l)).join('\n'),
+      }),
+      env,
+      ctx,
+      6,
+      'envelope',
+    )
+    await Promise.all(waits)
+    return response
+  }
+  const pending = (env: ReturnType<typeof setup>) =>
+    [...env.FILES.objects.keys()].filter((k) => k.startsWith('pending/'))
+
+  it('never fails an envelope over counting what was filtered, so its logs count once', async () => {
+    const env = setup()
+    const prepare = env.DB.prepare.bind(env.DB)
+    let failOnce = true
+    env.DB.prepare = (sql: string) => {
+      if (failOnce && sql.includes('filtered = filtered + excluded.filtered')) {
+        failOnce = false
+        throw new Error('D1 hiccup')
+      }
+      return prepare(sql)
+    }
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
+    try {
+      const response = await send(env, [
+        {},
+        { type: 'event' },
+        { event_id: 'a'.repeat(32), message: 'kept', timestamp: NOW / 1000 },
+        { type: 'event' },
+        { event_id: 'b'.repeat(32), message: 'old', release: 'bad-1', timestamp: NOW / 1000 },
+        { type: 'log' },
+        { items: [{ timestamp: NOW / 1000, level: 'info', body: 'hi', attributes: {} }] },
+      ])
+      expect(response.status).toBe(200)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(failOnce).toBe(false)
+    expect(pending(env)).toEqual([])
+    expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM logs').get()).toEqual({ n: 1 })
+    expect(env.DB.sqlite.prepare('SELECT events, logs FROM project_days').get()).toEqual({ events: 1, logs: 1 })
+  })
+
+  it('holds no envelope of sessions alone', async () => {
+    const env = setup()
+    const at = new Date(NOW).toISOString()
+    const session = { sid: 'a', status: 'exited', started: at, timestamp: at, attrs: { release: '1.0' } }
+    expect((await send(env, [{}, { type: 'session' }, session])).status).toBe(200)
+    expect(env.FILES.objects.size).toBe(0)
+    expect((await send(env, [{}, { type: 'session' }, session, { type: 'event' }, { message: 'boom' }])).status).toBe(
+      200,
+    )
+    expect(env.FILES.objects.size).toBe(1) // the event's envelopes/ copy; the held one went once stored
+    expect(pending(env)).toEqual([])
+  })
+
+  it('answers a check-in whose slug isn’t valid in the address with a 400 and a sentence', async () => {
+    const env = setup()
+    const ctx = { waitUntil: () => {} } as unknown as ExecutionContext
+    const request = new Request('https://x/api/6/cron/%E0%A4%A/rk6/?status=ok')
+    const response = await handleIngest(request, env, ctx, 6, 'cron', ['%E0%A4%A', 'rk6'])
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      detail: 'The monitor slug in the address isn’t valid. Use letters, numbers, dots, dashes and underscores.',
+    })
+  })
+})

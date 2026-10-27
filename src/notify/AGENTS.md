@@ -34,7 +34,7 @@ environment, each with its own thresholds, and send them to channels.
   Hourly tables read the window's hours and the current one, so a 1-hour window reads up to 2 hours, never less.
   Filters (`metricQueryError`): environment, release and level for errors and users; environment and release for
   sessions; release and `transaction` for transactions; the logs search for logs; never `project:`. `stateFor` compares
-  strictly, critical before warning. `evaluateMetricAlerts` (the cron, every 5 minutes, 20 seconds at most): a notice
+  strictly, critical before warning. `evaluateMetricAlerts` (the cron, every 5 minutes at :02, :07…, off the hourly jobs' minutes, within its deadline): a notice
   only on a change of state, written with `WHERE state = <the one read>` so it's sent once; nothing to read (no
   sessions, no transactions) keeps the state; the title is the alert's name, the line `metricLine`: "pocketband ·
   Crash-free sessions 97.1%, below 98% · Critical", "… 99.2% · Resolved"; crash-free is floored to a tenth.

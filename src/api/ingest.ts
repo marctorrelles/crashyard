@@ -114,7 +114,16 @@ function fromDoor(request: Request, url: URL, door: 'security' | 'cron', body: U
   }
   if (!CHECK_IN_STATUSES.has(String(fields.status)))
     return answer({ detail: 'A check-in needs a status of in_progress, ok or error' }, 400)
-  const payload = encoder.encode(JSON.stringify({ ...fields, monitor_slug: decodeURIComponent(slug) }))
+  let monitorSlug: string
+  try {
+    monitorSlug = decodeURIComponent(slug)
+  } catch {
+    return answer(
+      { detail: 'The monitor slug in the address isn’t valid. Use letters, numbers, dots, dashes and underscores.' },
+      400,
+    )
+  }
+  const payload = encoder.encode(JSON.stringify({ ...fields, monitor_slug: monitorSlug }))
   return { item: { header: { type: 'check_in' }, payload }, key: key ?? projectKey(request, url) }
 }
 
@@ -277,9 +286,12 @@ export async function handleIngest(
     const type = item.header.type ?? 'event'
     return KEPT.has(type) && !over(type) ? [String(i)] : []
   })
-  const held = todo.length
-    ? await hold(env.FILES, pendingKey(project.id, now), body, endpoint, todo.length < kept.length ? todo : undefined)
-    : undefined
+  // Sessions alone aren't held: small, frequent and counted as they come, they aren't worth an R2 write each
+  const sessionsOnly = todo.every((i) => ['session', 'sessions'].includes(items[Number(i)].header.type ?? 'event'))
+  const held =
+    todo.length && !sessionsOnly
+      ? await hold(env.FILES, pendingKey(project.id, now), body, endpoint, todo.length < kept.length ? todo : undefined)
+      : undefined
   let result: Awaited<ReturnType<typeof processItems>>
   try {
     result = await processItems(
@@ -298,9 +310,18 @@ export async function handleIngest(
       parseTodo(todo),
     )
   } catch (error) {
-    if (!(error instanceof EnvelopeError)) throw error
-    if (held) ctx.waitUntil(env.FILES.delete(held))
-    return answer({ detail: error.message }, 400)
+    if (error instanceof EnvelopeError) {
+      if (held) ctx.waitUntil(env.FILES.delete(held))
+      return answer({ detail: error.message }, 400)
+    }
+    // Accepted once held, as Relay's: the cron tries the whole envelope again. Not held, it's lost, and the SDK hears so
+    if (!held) throw error
+    console.error(`ingest: a pass over an envelope of project ${project.id} failed, left for the cron`, error)
+    return door === 'cron'
+      ? new Response(null, { status: 202, headers: CORS })
+      : door === 'security'
+        ? new Response(null, { status: 200, headers: CORS })
+        : answer(envelopeId ? { id: envelopeId } : {}, 200)
   }
   // The key's events today, counted once at the request (a retry doesn't count them again), less those a filter
   // dropped: filtered events count towards neither the key's limit nor the project's
@@ -468,13 +489,19 @@ function securityJson(item: EnvelopeItem): unknown {
   }
 }
 
-const countFiltered = (db: D1Database, projectId: number, now: number, n: number) =>
-  db
-    .prepare(
-      'INSERT INTO project_days (project_id, day, filtered) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET filtered = filtered + excluded.filtered',
-    )
-    .bind(projectId, dayOf(now), n)
-    .run()
+/** Best-effort: a stat that fails is logged, never a reason to fail or retry an envelope that's stored */
+async function countFiltered(db: D1Database, projectId: number, now: number, n: number) {
+  try {
+    await db
+      .prepare(
+        'INSERT INTO project_days (project_id, day, filtered) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET filtered = filtered + excluded.filtered',
+      )
+      .bind(projectId, dayOf(now), n)
+      .run()
+  } catch (error) {
+    console.error(`ingest: counting ${n} filtered for project ${projectId} failed`, error)
+  }
+}
 
 /** "Delete and discard future events" stored the issue's fingerprints: one read by the primary key per event */
 const isDiscarded = async (db: D1Database, projectId: number, fingerprint: string) =>

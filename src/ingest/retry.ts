@@ -1,5 +1,6 @@
 // Durable ingest: every envelope is held in R2 under pending/ while it's processed, and what failed is tried again by
-// the minute cron, five tries in all, before it moves to failed/ and counts in project_days.failed. See
+// the minute cron, five tries in all, before it moves to failed/ and counts in project_days.failed. Each try is
+// counted before it starts, so an envelope that stops its worker still runs out of tries. See
 // docs/decisions/0004-r2-and-cron-for-durable-ingest.md.
 
 export type Endpoint = 'envelope' | 'store'
@@ -11,10 +12,11 @@ export type Pass = (held: Held, body: Uint8Array, todo: Todo | undefined) => Pro
 type RetryEnv = { DB: D1Database; FILES: R2Bucket }
 
 export const MAX_ATTEMPTS = 5
-const BATCH = 50
+const BATCH = 25
 const LIST_PAGE = 1000
 const MIN_AGE = 2 * 60_000
-const BUDGET = 20_000
+/** How long a retry holds an envelope for itself, so a cron run that overlaps the last one leaves it alone */
+const LEASE = 90_000
 
 const randomHex = (bytes: number) =>
   [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -46,7 +48,8 @@ export function parseTodo(todo: Todo): Map<number, number> {
 /** Holds the body before it's processed. Undefined when R2 refuses: the envelope is then processed without a net */
 export async function hold(files: R2Bucket, key: string, body: Uint8Array, endpoint: Endpoint, todo?: Todo) {
   try {
-    await files.put(key, body, { customMetadata: meta(endpoint, 0, todo) })
+    // The request is the first try, counted as it starts
+    await files.put(key, body, { customMetadata: meta(endpoint, 1, todo) })
     return key
   } catch (error) {
     console.error('could not hold the envelope in R2', error)
@@ -54,8 +57,12 @@ export async function hold(files: R2Bucket, key: string, body: Uint8Array, endpo
   }
 }
 
-const meta = (endpoint: Endpoint, attempts: number, todo?: Todo): Record<string, string> =>
-  todo ? { endpoint, attempts: String(attempts), items: todo.join(',') } : { endpoint, attempts: String(attempts) }
+const meta = (endpoint: Endpoint, attempts: number, todo?: Todo, leasedUntil?: number): Record<string, string> => ({
+  endpoint,
+  attempts: String(attempts),
+  ...(todo ? { items: todo.join(',') } : {}),
+  ...(leasedUntil ? { leased_until: String(leasedUntil) } : {}),
+})
 
 /**
  * After a pass: nothing failed and the held copy goes; something did, and it's kept with what's left to do and the
@@ -90,31 +97,43 @@ export async function settle(
   return 'failed'
 }
 
-/** The minute cron: up to 50 held envelopes older than two minutes, within 20 seconds, each tried again */
+/**
+ * The minute cron: up to 25 held envelopes older than two minutes, until the deadline, each tried again. A try is
+ * counted, and the envelope leased for 90 seconds, before it starts; one with every try used moves to failed/ untried
+ */
 export async function retryPending(
   env: RetryEnv,
   now: number,
+  deadline: number,
   pass: Pass = async (held, body, todo) => (await import('../api/ingest')).retryEnvelope(env, held, body, todo),
 ): Promise<{ retried: number; failed: number }> {
-  const until = Date.now() + BUDGET
   let retried = 0
   let failed = 0
-  // Paged on, so envelopes still in flight (younger than two minutes) never hide older ones listed after them; at most
-  // 50 retried a minute
+  // Paged on, so envelopes still in flight (younger than two minutes) never hide older ones listed after them
   let cursor: string | undefined
   do {
     const listed = await env.FILES.list({ prefix: 'pending/', limit: LIST_PAGE, cursor })
     cursor = listed.truncated ? listed.cursor : undefined
     for (const { key } of listed.objects) {
-      if (Date.now() > until || retried >= BATCH) return { retried, failed }
+      // Not reached before the deadline: no try counted, it waits for the next minute
+      if (Date.now() >= deadline || retried >= BATCH) return { retried, failed }
       const parsed = parseKey(key)
       if (!parsed || parsed.received > now - MIN_AGE) continue
       const object = await env.FILES.get(key)
       if (!object) continue
       const m = object.customMetadata ?? {}
+      if (Number(m.leased_until) > now) continue
       const held: Held = { ...parsed, endpoint: m.endpoint === 'store' ? 'store' : 'envelope' }
       const todo = m.items ? m.items.split(',') : undefined
       const body = new Uint8Array(await object.arrayBuffer())
+      const tried = Number(m.attempts) || 0
+      if (tried >= MAX_ATTEMPTS) {
+        // Its last try started and never settled, as when it stopped its worker: no more tries
+        if ((await settle(env, held, body, tried, todo ?? 'all', now)) === 'failed') failed++
+        continue
+      }
+      const attempts = tried + 1
+      await env.FILES.put(key, body, { customMetadata: meta(held.endpoint, attempts, todo, now + LEASE) })
       let left: Todo | 'all'
       try {
         left = await pass(held, body, todo)
@@ -123,9 +142,8 @@ export async function retryPending(
         left = todo ?? 'all'
       }
       retried++
-      const attempts = (Number(m.attempts) || 0) + 1
       if ((await settle(env, held, body, attempts, left, now)) === 'failed') failed++
     }
-  } while (cursor && Date.now() <= until)
+  } while (cursor && Date.now() < deadline)
   return { retried, failed }
 }

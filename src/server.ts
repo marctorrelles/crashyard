@@ -67,10 +67,27 @@ export default {
   },
 }
 
-// The cron: its heartbeat, monitors (missed check-ins, uptime checks), held notifications, envelopes to try again,
-// every 5 minutes, metric alerts, and hourly, escalation, retention and auto-resolve. Each job is on its own: one that throws doesn't stop the others
+/** The cron's whole run, shared by its jobs: each takes what's left, and one with under 2 seconds waits a minute */
+const CRON_BUDGET = 40_000
+const MIN_LEFT = 2_000
+
+// The cron: its heartbeat, monitors (missed check-ins, uptime checks), held notifications, every 5 minutes (at :02,
+// :07…), metric alerts, and hourly, escalation, retention and auto-resolve, then envelopes to try again, last. Each
+// job is on its own: one that throws doesn't stop the others. They share one deadline, 40 seconds from the start
 async function everyMinute(env: Env, now: number) {
   const at = new Date(now)
+  const deadline = Date.now() + CRON_BUDGET
+  const job = async (name: string, run: () => Promise<unknown>) => {
+    if (deadline - Date.now() < MIN_LEFT) {
+      console.warn(`cron: ${name} skipped, out of time until the next minute`)
+      return
+    }
+    try {
+      await run()
+    } catch (error) {
+      console.error(`cron: ${name} failed`, error)
+    }
+  }
   const notices: Notice[] = []
   // Settings, Health shows the cron as late when this is over 3 minutes old
   await job('heartbeat', async () => {
@@ -93,50 +110,41 @@ async function everyMinute(env: Env, now: number) {
       const { weeklySummaries } = await import('./data/projects')
       notices.push(...(await weeklySummaries(env.DB, env.PUBLIC_URL ?? '', now)))
     })
-  // Every 5 minutes: metric alerts, a notice only when one changes state
-  if (at.getUTCMinutes() % 5 === 0)
+  // Every 5 minutes, at :02, :07…, off the hourly jobs' minutes: metric alerts, a notice only when one changes state
+  if (at.getUTCMinutes() % 5 === 2)
     await job('metric alerts', async () => {
       const { evaluateMetricAlerts } = await import('./notify/metrics')
-      notices.push(...(await evaluateMetricAlerts(env, now)))
+      notices.push(...(await evaluateMetricAlerts(env, now, deadline)))
     })
-  // Hourly, at :25: issues escalating in the hour just ended, within 20 seconds
+  // Hourly, at :25: issues escalating in the hour just ended
   if (at.getUTCMinutes() === 25)
     await job('escalation', async () => {
       const { checkEscalation } = await import('./data/escalation')
-      notices.push(...(await checkEscalation(env.DB, env.PUBLIC_URL ?? '', now)))
+      notices.push(...(await checkEscalation(env.DB, env.PUBLIC_URL ?? '', now, deadline)))
     })
   const { dispatch, flushHeld, pruneFailures } = await import('./notify/dispatch')
   await job('notifications', () => dispatch(env, notices, now))
   await job('held notifications', () => flushHeld(env, now))
-  // Envelopes that failed in their request, tried again
-  await job('retries', async () => (await import('./ingest/retry')).retryPending(env, now))
-  // Hourly, at :15: events, attachments, issues, logs, transactions, check-ins and uptime results past their retention,
-  // within 20 seconds together; what's left goes the next hour
+  // Hourly, at :15: events, attachments, issues, logs, transactions, check-ins and uptime results past their
+  // retention; what's left goes the next hour
   if (at.getUTCMinutes() === 15) {
-    const [{ pruneEvents, PRUNE_BUDGET }, { pruneLogs }, { pruneMonitors }, { prunePerformance }] = await Promise.all([
+    const [{ pruneEvents }, { pruneLogs }, { pruneMonitors }, { prunePerformance }] = await Promise.all([
       import('./data/projects'),
       import('./data/logs'),
       import('./monitors/monitors'),
       import('./data/performance'),
     ])
-    const deadline = Date.now() + PRUNE_BUDGET
     await job('event retention', () => pruneEvents(env.DB, now, env.FILES, deadline))
     await job('log retention', () => pruneLogs(env.DB, now, deadline))
     await job('performance retention', () => prunePerformance(env.DB, now))
     await job('monitor retention', () => pruneMonitors(env.DB, now))
   }
-  // Hourly, at :20: issues not seen for their project's "Resolve issues not seen for", within 20 seconds; and
-  // notification failures past 30 days
+  // Hourly, at :20: issues not seen for their project's "Resolve issues not seen for", and notification failures past
+  // 30 days
   if (at.getUTCMinutes() === 20) {
-    await job('auto-resolve', async () => (await import('./data/issues')).autoResolve(env.DB, now))
+    await job('auto-resolve', async () => (await import('./data/issues')).autoResolve(env.DB, now, deadline))
     await job('notification failures', () => pruneFailures(env.DB, now))
   }
-}
-
-async function job(name: string, run: () => Promise<unknown>) {
-  try {
-    await run()
-  } catch (error) {
-    console.error(`cron: ${name} failed`, error)
-  }
+  // Last, with what time is left: envelopes that failed in their request, tried again
+  await job('retries', async () => (await import('./ingest/retry')).retryPending(env, now, deadline))
 }

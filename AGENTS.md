@@ -18,11 +18,12 @@ Where things are:
 
 - `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access
   check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys) and sends everything else to Start
-  through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications, envelopes to try again,
+  through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications,
   each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
-  slower releases; every 5 minutes, metric alerts; Mondays at 07:00 UTC, each project's week; hourly at :15,
-  retention, 20 seconds at most; hourly at :20, auto-resolve, 20 seconds at most, and notification failures past 30
-  days; hourly at :25, escalation, 20 seconds at most). In local dev only, `/__dev/sql` and
+  slower releases; every 5 minutes at :02, :07…, metric alerts; Mondays at 07:00 UTC, each project's week; hourly at
+  :15, retention; hourly at :20, auto-resolve and notification failures past 30 days; hourly at :25, escalation;
+  envelopes to try again last. The jobs share one deadline, 40 seconds from the start, `CRON_BUDGET`: each takes
+  what's left, and one with under 2 seconds left waits for the next minute). In local dev only, `/__dev/sql` and
   `/__dev/cron` let the end-to-end tests reach the database and run the cron.
 - `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside Access, and the MCP server,
   inside (see its AGENTS.md).

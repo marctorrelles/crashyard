@@ -152,6 +152,28 @@ describe('cron monitors', () => {
     expect(page.uptime).toEqual({ day: 0.5, week: 0.5, month: 0.5 })
   })
 
+  it('writes the same check-in on a retry of one without an id', async () => {
+    const db = seeded()
+    const env = { DB: db }
+    const count = () => db.sqlite.prepare('SELECT COUNT(*) AS n FROM check_ins').get()
+    await recordCheckIn(
+      env,
+      1,
+      { monitor_slug: 'job', status: 'in_progress', monitor_config: config },
+      NOW,
+      'a'.repeat(32),
+    )
+    // An ok without an id finishes the run in progress; its retry, with the same time, finds that run again
+    for (let i = 0; i < 2; i++)
+      await recordCheckIn(env, 1, { monitor_slug: 'job', status: 'ok' }, NOW + 1000, 'b'.repeat(32))
+    expect(count()).toEqual({ n: 1 })
+    expect(db.sqlite.prepare('SELECT id, status FROM check_ins').get()).toEqual({ id: 'a'.repeat(32), status: 'ok' })
+    // With no run in progress it's a check-in of its own, written once
+    for (let i = 0; i < 2; i++)
+      await recordCheckIn(env, 1, { monitor_slug: 'job', status: 'error' }, NOW + 2000, 'c'.repeat(32))
+    expect(count()).toEqual({ n: 2 })
+  })
+
   it('mutes a monitor failing for 14 days, with no alert until it recovers', async () => {
     const db = seeded()
     const env = { DB: db }

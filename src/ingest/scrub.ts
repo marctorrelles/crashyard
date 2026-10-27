@@ -21,12 +21,19 @@ const secret = (key: string) => {
   return extra.some((name) => k.includes(name))
 }
 
-/** The extra names from settings, read at most once a minute per isolate; ingest calls it before scrubbing */
+/**
+ * The extra names from settings, read at most once a minute per isolate; ingest calls it before scrubbing. A read
+ * that fails keeps the last list loaded (none, the built-ins only, before the first), so it never fails an envelope
+ */
 let loaded = { at: -Infinity }
 export async function loadExtraFields(db: D1Database, now = Date.now()) {
   if (now - loaded.at < 60_000) return
   loaded = { at: now }
-  setExtraFields(await getSetting<string[]>(db, SCRUB_KEY, []))
+  try {
+    setExtraFields(await getSetting<string[]>(db, SCRUB_KEY, []))
+  } catch (error) {
+    console.error('could not read the fields to scrub, keeping the last list', error)
+  }
 }
 
 export function scrubText(text: string): string {

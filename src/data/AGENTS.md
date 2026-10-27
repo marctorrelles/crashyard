@@ -15,7 +15,7 @@ helpers (`change`).
   `updateProject` (only the fields given, of `PROJECT_FIELDS`, `grouping_rules` and the release thresholds among them, checked in `fns.ts`; a slug another project has throws), deleting (foreign keys cascade), `pruneEvents` (the hourly cron, at :15: events past
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
-  a batch deletes nothing or the deadline, `PRUNE_BUDGET`, 20 s for the whole prune with `pruneLogs`; `inBatches`;
+  a batch deletes nothing or the deadline, the cron's shared one (`PRUNE_BUDGET`, 20 s, when called alone); `inBatches`;
   `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
   hour, 1000 a batch), `dsnOf` (a project id and a key), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
   Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
@@ -33,7 +33,7 @@ helpers (`change`).
   activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
   `autoResolve` (the hourly cron, at :20): unresolved issues of a project with `auto_resolve_days`, last seen before
-  that many days, resolved 100 a batch with an `auto_resolved` activity entry (`{ days }`), within 20 seconds; the
+  that many days, resolved 100 a batch with an `auto_resolved` activity entry (`{ days }`), within the cron's deadline; the
   overview's resolved per day counts only `resolved`, what a person did. Ignoring takes `untilEscalating`
   (`until_escalating`, the default in the UI: only escalation opens it) and `forUsers` (`ignore_until_users`, the user
   count that ends it, as `ignore_until_count`); `priority` sets `issues.priority` with a `priority` activity entry;
@@ -56,7 +56,7 @@ helpers (`change`).
   only).
 - `escalation.ts`: `escalating(hours)`: the last of a week of hourly counts plus the hour just ended escalates with 10
   events or more (`MIN_EVENTS`) and more than twice (`FACTOR`) the busiest hour before it, so steady traffic, however
-  busy, and its usual peaks don't. `checkEscalation` (the cron, hourly at :25, 20 seconds): the hour just ended's
+  busy, and its usual peaks don't. `checkEscalation` (the cron, hourly at :25, within its deadline): the hour just ended's
   issues with 10 or more in `event_hours` (by `event_hours_hour`), unresolved and not escalating, or ignored
   `until_escalating`, first seen over a day ago (a younger one is still new), 500 at most, 50 a batch: their 168 hours
   before from `event_hours`; those that escalate get `escalating` (an ignored one opens), an `escalating` activity

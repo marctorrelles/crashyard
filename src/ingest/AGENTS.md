@@ -13,7 +13,8 @@ order.
   `user.id` is kept only as a hash. The deployment's own field names (Settings, Data privacy, setting
   `privacy.scrub_fields`) are filtered too, in any key containing one, any case, as Sentry's additional sensitive
   fields: `loadExtraFields`, at the start of every pass (`processItems`), reads them at most once a minute per isolate,
-  so a change takes up to a minute to apply.
+  so a change takes up to a minute to apply; a read that fails is logged and keeps the last list (the built-ins only
+  before the first), so it never fails an envelope.
 - `event.ts`: `normalizeEvent` turns what any SDK sends into one shape (`NormalizedEvent`): title, culprit, level,
   frames (from the crashed thread when the exception has none), `threads` (every one of `threads.values`, 32 at most
   of 100 frames each, the innermost; crashed, then current, first; the thread an exception matches, by `thread_id` or
@@ -113,14 +114,19 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   200 frames, texts over 4 KB anywhere, then whole parts (other threads, breadcrumb data, contexts, extra, request,
   breadcrumbs, all but 20 frames, threads). `_trimmed` names each, shown under the event.
 - `retry.ts`: durable ingest (docs/decisions/0004). `hold` puts the body at `pending/<project>/<received ms>-<16 hex>`
-  with `customMetadata` `{ endpoint, attempts, items? }` (`items` only when some were left out, by quota or as done);
-  `settle` after a pass: nothing failed deletes it, else it's rewritten with what failed and the attempts so far (the
-  request is the first), and the fifth moves it to `failed/<project>/<…>` and adds 1 to `project_days.failed`.
-  `retryPending` (every minute): pages through `pending/` (1000 keys a page, by `cursor`) so envelopes still in flight
-  never hide older ones listed after them, and retries up to 50 older than two minutes, within 20 seconds, each through
-  `retryEnvelope` (`src/api/ingest.ts`; injectable for `retry.test.ts`, which uses `test/fakes.ts`); a pass that
-  throws counts as everything failing. A worker stopped mid-envelope leaves its first metadata, so every item is tried
-  again: events dedupe by id, logs and transactions already counted count again.
+  with `customMetadata` `{ endpoint, attempts, items?, leased_until? }` (`attempts` 1, the request's try counted as it
+  starts; `items` only when some were left out, by quota or as done); `settle` after a pass: nothing failed deletes
+  it, else it's rewritten with what failed and the attempts so far (and no lease), and the fifth moves it to
+  `failed/<project>/<…>` and adds 1 to `project_days.failed`. `retryPending` (every minute, last of the cron's jobs,
+  until its shared deadline): pages through `pending/` (1000 keys a page, by `cursor`) so envelopes still in flight
+  never hide older ones listed after them, skips one whose `leased_until` hasn't passed, and retries up to 25 older
+  than two minutes. Before each pass it rewrites the copy with `attempts + 1` and `leased_until` the cron's `now` +
+  90 s, so a pass that stops the worker still counts, and a cron run overlapping the last one leaves it alone; one
+  already at five tries moves to `failed/` untried. An envelope not reached before the deadline isn't counted. Each
+  pass goes through `retryEnvelope` (`src/api/ingest.ts`; injectable for `retry.test.ts`, which uses `test/fakes.ts`);
+  a pass that throws counts as everything failing. A worker stopped mid-envelope leaves the metadata from before the
+  pass, so every item in it is tried again: events dedupe by id, check-ins find their row again, logs, transactions
+  and filtered events already counted count again.
 
 - `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).

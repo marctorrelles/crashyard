@@ -186,7 +186,8 @@ const idOf = (v: unknown) => {
 /**
  * A check-in from an SDK or over HTTP. Makes the monitor from its config the first time, as Sentry does. One without
  * an id (HTTP's `?status=ok` after `?status=in_progress`) finishes the monitor's latest run in progress, as Sentry
- * pairs them; else it's a check-in of its own with `fallbackId`, the same on every try of its envelope
+ * pairs them; else it's a check-in of its own with `fallbackId`, the same on every try of its envelope. A retry finds
+ * the row its first try wrote
  */
 export async function recordCheckIn(
   env: Env,
@@ -235,12 +236,15 @@ export async function recordCheckIn(
   const cron = JSON.parse(monitor.config) as CronConfig
   const status = ['in_progress', 'ok', 'error'].includes(payload.status ?? '') ? payload.status! : 'ok'
   const given = idOf(payload.check_in_id)
+  // The run it finishes: the latest in progress. A retry has the same `now` (when its envelope came), so the run its
+  // first try finished, or the check-in of its own it wrote, has `finished = now` and is found again, the id chosen once
   const open =
     !given && status !== 'in_progress'
       ? await env.DB.prepare(
-          "SELECT id FROM check_ins WHERE monitor_id = ? AND status = 'in_progress' ORDER BY started DESC LIMIT 1",
+          `SELECT id FROM check_ins WHERE monitor_id = ? AND started <= ? AND (status = 'in_progress' OR finished = ?)
+           ORDER BY finished = ? DESC, started DESC LIMIT 1`,
         )
-          .bind(monitor.id)
+          .bind(monitor.id, now, now, now)
           .first<{ id: string }>()
       : null
   const id = given ?? open?.id ?? fallbackId ?? crypto.randomUUID().replace(/-/g, '')

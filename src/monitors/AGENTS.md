@@ -10,7 +10,9 @@ Cron monitors (jobs that check in, Sentry's way) and uptime checks (URLs the wor
     `in_progress` only moves when the next one is due; `ok` and `error` are results. A check-in without an id, or
     Relay's nil id (an HTTP one that named none), finishes the monitor's latest run in progress, as Sentry pairs
     them, else it's its own with the caller's `fallbackId`; finishing a run fills its release and environment when it
-    had none. A retry of an HTTP `ok` after it already closed the run in progress writes a check-in of its own.
+    had none. The run it finishes is the latest in progress started by `now`, or one with `finished = now`: a retry
+    comes with the same `now` (its envelope's received time), so it finds the run its first try finished, or the
+    check-in of its own it wrote, and updates it instead of writing another.
     Each check-in keeps its trace (`contexts.trace.trace_id`, which `captureCheckIn` sends from the scope) and sets
     its environment's row in `monitor_environments` (in_progress, ok, or failing for an error; the monitor's own
     environment when it names none).

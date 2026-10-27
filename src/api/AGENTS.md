@@ -15,8 +15,10 @@ signature; `/mcp` comes after the Access check.
   check on both take the envelope's path: quotas (a security report is an error, Relay's `security` category; a
   check-in has none), the held copy and retries. `src/server.ts`'s `INGEST` matches all four. A `raw_security` item
   is `cspReports` (`src/ingest/security.ts`), each an event through `eventOf`, the same steps as an `event` item, its
-  id `stableEventId` of the held key and `index * 256 + j`; a check-in's fallback id is `stableEventId` of its index,
-  so a retry of one without an id writes the same row. In order: CORS
+  id `stableEventId` of the held key and `index * 256 + j`. A check-in without an id gets its id chosen once, as events
+  do: the run in progress it finishes, else `stableEventId` of the held key and its index; a retry, at the same
+  received time, finds that row again (`recordCheckIn`), so it updates it instead of writing a second. A slug with a
+  malformed `%` is 400 with a sentence. In order: CORS
   (`*`, the browser SDK sends from any origin), body, envelope, key, project and key from `project_keys` (cached a
   minute per isolate, by project id and key; `projects.public_key` isn't read), a key that's off answers 403 with
   Relay's `event submission rejected with_reason: ProjectId` (from Relay's source, not seen live), the project's
@@ -30,7 +32,9 @@ signature; `/mcp` comes after the Access check.
   and filtered events count towards neither limit), then the envelope is held in R2 (`pending/`, `src/ingest/retry.ts`) and each item is processed in its own `try`
   (`processItems`, which the cron's `retryEnvelope` calls too): an `EnvelopeError` answers 400 and drops the held copy;
   any other error lists the item (`3`, or `3:2` for a span item from its third segment, so a retry doesn't count the
-  first two again) and the rest goes on; the answer is 200 either way, as Relay's. The items:
+  first two again) and the rest goes on; the answer is 200 either way, as Relay's. Anything else the pass throws, once
+  the envelope is held, is logged and still answers 200 (202 for a check-in), leaving the copy for the cron; only an
+  envelope that couldn't be held answers 500. An envelope of sessions alone isn't held (docs/decisions/0004). The items:
   `event`, `attachment`, `feedback`, `user_report`, `log`, `check_in` and `session`/`sessions` (no quota: few, and
   they say something's alive), `transaction` and `span` (streamed spans, `span.v2`: what @sentry/node 11 sends instead
   of transactions, checked against 11.9.0; see `src/performance/`); other item types are accepted and dropped. An event without an id gets one from the held key and its index
@@ -38,7 +42,7 @@ signature; `/mcp` comes after the Access check.
   right after `normalizeEvent`, before symbols, as Relay filters what the SDK sent), then symbols, grouping rules
   (`applyRules`) and `groupingOf`, then `discarded_fingerprints` (one read by key); a transaction or span segment
   through `transactionFilterReason`. What they drop isn't stored, and the pass adds it to `project_days.filtered`
-  once, at its end (`countFiltered`); `project_days.events` counts only stored events, so the quota never sees them. A
+  once, at its end (`countFiltered`, best-effort: a failure is logged, never a failed envelope); `project_days.events` counts only stored events, so the quota never sees them. A
   worker stopped mid-pass may count a filtered event twice, as logs. A retry reads the project by id alone (a key turned off since doesn't lose
   what was accepted) and skips the quota (what's held was let in). The raw envelope goes
   to R2 (`envelopes/<project>/<day>/<event>`). Notices are dispatched after the response (`ctx.waitUntil`). A crash
