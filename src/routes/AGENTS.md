@@ -5,7 +5,8 @@ server, the build, or `tsr generate`): never edit it.
 
 - `__root.tsx`: the document. Light or dark as the viewer chose on Settings, Appearance (the `theme` cookie
   `savePreference` sets, and `getSidebar`, the root's loader, sets from the saved preference when they differ, so a
-  new browser has it from its second page), else as the system is: a script sets `.dark` before paint and when the system changes. The
+  new browser has it from its second page), else as the system is: a script sets `.dark` before paint and when the system changes. It
+  puts the theme, the `style` cookie (kept the same way), on `<html data-style>`; none is Hazard, `:root`. The
   same script keeps the browser's time zone in the `tz` cookie, so the server writes times in it. The viewport covers the notch (`viewport-fit=cover`). It also has the error and not-found
   pages. Its loader is the sidebar's (projects, the one last picked, folded or not, who's signed in, their
   `preferences` and `zone`: the chosen time zone, else the `tz` cookie's, else UTC on a first visit) and its component
@@ -93,7 +94,8 @@ server, the build, or `tsr generate`): never edit it.
   send commits), `connect` (the DSN and `Linking`), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug
   files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;
   the newest 10 source map bundles) and `delete`. The viewer's own, the group "You", each saved at once through
-  `savePreference` and read from the root's loader: `appearance` (System, Light, Dark, applied at once), `date-and-time`
+  `savePreference` and read from the root's loader: `appearance` (the theme, `STYLES` in `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to
+  preview it, and System, Light, Dark, both applied at once), `date-and-time`
   (a time zone from `Intl.supportedValuesOf`, empty for the browser's, and a 12 or 24-hour clock), `stack-traces`
   (newest or oldest frame first, other frames open or not) and `home` (the overview's project and range). Each page saves only its own fields through `updateProject`, whose
   checks are per field. `projects/$slug/settings.tsx` redirects to the project's General.

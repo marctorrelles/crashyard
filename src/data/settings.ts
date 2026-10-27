@@ -51,8 +51,10 @@ export const projectDefaults = async (db: D1Database) => ({
   ...(await getSetting<Partial<ProjectDefaults>>(db, DEFAULTS_KEY, {})),
 })
 
+export const STYLES = ['hazard', 'classic', 'terminal', 'soft', 'editorial'] as const
 export type Preferences = {
   theme: 'system' | 'light' | 'dark'
+  style: (typeof STYLES)[number] // the theme's look, src/styles.css; `theme` is light or dark
   timeZone?: string // an IANA zone; unset is the browser's
   clock: '24' | '12'
   stackOrder: 'newest' | 'oldest' // newest: the crashing frame on top, as Sentry
@@ -60,7 +62,13 @@ export type Preferences = {
   homeProject?: string // a slug: the overview opens on it
   homeRange?: string // the overview's charts: 14, 30 or 90 days
 }
-export const PREFERENCES: Preferences = { theme: 'system', clock: '24', stackOrder: 'newest', showOtherFrames: false }
+export const PREFERENCES: Preferences = {
+  theme: 'system',
+  style: 'hazard',
+  clock: '24',
+  stackOrder: 'newest',
+  showOtherFrames: false,
+}
 
 /** A viewer's preferences over the defaults; a value that isn't JSON is skipped */
 export async function getPreferences(db: D1Database, email: string): Promise<Preferences> {

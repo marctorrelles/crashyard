@@ -121,8 +121,9 @@ export const getSidebar = createServerFn().handler(async () => {
     settings.getPreferences(env.DB, viewer()),
   ])
   const browserZone = getCookie('tz')
-  // The theme is the viewer's, the cookie the browser's: a browser that hasn't seen it yet gets it, from its next page
-  if ((getCookie('theme') ?? 'system') !== preferences.theme) setThemeCookie(preferences.theme)
+  // The theme is the viewer's, the cookies the browser's: a browser that hasn't seen it yet gets it, from its next page
+  if ((getCookie('theme') ?? 'system') !== preferences.theme) setThemeCookie('theme', preferences.theme)
+  if ((getCookie('style') ?? 'hazard') !== preferences.style) setThemeCookie('style', preferences.style)
   return {
     projects: list,
     lastProject: getCookie('crashyard_project') ?? null,
@@ -1272,6 +1273,7 @@ export const getHealth = createServerFn().handler(async () => {
 const PREFERENCE_CHECKS: { [K in keyof settings.Preferences]-?: (v: unknown) => settings.Preferences[K] | undefined } =
   {
     theme: oneOf(['system', 'light', 'dark'] as const),
+    style: oneOf(settings.STYLES),
     timeZone: optional((v) => {
       const zone = text(v, 64)
       if (!ZONES.has(zone)) throw new Error('That time zone isn’t known. Pick one from the list.')
@@ -1284,7 +1286,7 @@ const PREFERENCE_CHECKS: { [K in keyof settings.Preferences]-?: (v: unknown) => 
     homeRange: optional(oneOf(['14', '30', '90'] as const)),
   }
 
-/** One preference of the viewer's; the theme goes in a cookie too, for the script that sets it before paint */
+/** One preference of the viewer's; the theme and style go in cookies too, for the script that sets them before paint */
 export const savePreference = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
@@ -1293,11 +1295,11 @@ export const savePreference = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }) => {
     await settings.setPreference(env.DB, viewer(), data.key, data.value)
-    if (data.key === 'theme') setThemeCookie(String(data.value))
+    if (data.key === 'theme' || data.key === 'style') setThemeCookie(data.key, String(data.value))
   })
 
-const setThemeCookie = (theme: string) =>
-  setCookie('theme', theme, { path: '/', maxAge: 31_536_000, sameSite: 'lax', secure: true })
+const setThemeCookie = (name: 'theme' | 'style', value: string) =>
+  setCookie(name, value, { path: '/', maxAge: 31_536_000, sameSite: 'lax', secure: true })
 
 // Saved searches of a page: the viewer's own and everyone's shared ones, the viewer's pinned one first
 export const getSavedSearches = createServerFn()

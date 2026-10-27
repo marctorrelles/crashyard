@@ -3,7 +3,10 @@
 - `ui/`: shadcn/ui (`radio-group` for the template picker among them; style `radix-nova`, neutral, `components.json` at the root). Added with
   `yes n | pnpm dlx shadcn@latest add <name>` (the `n` keeps the files it would overwrite); kept as upstream writes
   them, so they can be re-added with `--overwrite`. After adding one, fix its `cn` import to `@/lib/utils` if the CLI
-  wrote `"cn"` (and `pnpm remove cn` if it added that package). The theme's colours are in `src/styles.css`.
+  wrote `"cn"` (and `pnpm remove cn` if it added that package). The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
+  (font, radius, `--spacing`, colours, light and dark) so one can nest in another. A colour in a component is a
+  theme variable, never a fixed shade, except the level and palette colours of `charts.tsx`; in the sidebar, the
+  `sidebar-*` ones, which Hazard makes dark in light mode too.
 - Icons are Tabler's (`@tabler/icons-react`, `IconName`; `components.json`'s `iconLibrary` is `tabler`, so re-added
   shadcn components come with them too), brands included (`IconBrandSlack`, …). No other icon set.
 - Our own components sit beside `ui/`, built from those. Every one works on a phone (touch targets of 40 px or more,

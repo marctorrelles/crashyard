@@ -282,7 +282,7 @@ function AppSidebar() {
                 <IconLogout />
                 <span className="grid min-w-0 leading-tight">
                   <span>Sign out</span>
-                  <span className="truncate text-xs text-muted-foreground">{viewer}</span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">{viewer}</span>
                 </span>
               </a>
             </SidebarMenuButton>
@@ -369,9 +369,9 @@ function ProjectSwitcher({
               </span>
               <span className="grid min-w-0 flex-1 text-left leading-tight">
                 <span className="font-semibold tracking-tight">crashyard</span>
-                <span className="truncate text-xs text-muted-foreground">{current?.name ?? 'All projects'}</span>
+                <span className="truncate text-xs text-sidebar-foreground/70">{current?.name ?? 'All projects'}</span>
               </span>
-              <IconSelector className="ml-auto text-muted-foreground" />
+              <IconSelector className="ml-auto text-sidebar-foreground/70" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-(--radix-dropdown-menu-trigger-width) min-w-56">

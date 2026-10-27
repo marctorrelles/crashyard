@@ -7,9 +7,9 @@ import favicon from '../favicon.svg?url'
 import appCss from '../styles.css?url'
 
 // Before paint, so nothing flashes: light or dark as the viewer chose (the `theme` cookie, Settings, Appearance), else
-// as the system is, and again when it changes. It also keeps the browser's time zone in the `tz` cookie, so the server
+// as the system is, and again when it changes; the theme's look from the `style` cookie, on <html data-style>. It also keeps the browser's time zone in the `tz` cookie, so the server
 // writes times in it (src/components/time.tsx)
-const THEME_SCRIPT = `(function(){var d=document.documentElement,c=document.cookie.match(/(?:^|; )theme=(light|dark)/),m=window.matchMedia('(prefers-color-scheme: dark)');function s(){var k=c?c[1]==='dark':m.matches;d.classList.toggle('dark',k);d.style.colorScheme=k?'dark':'light'}s();m.addEventListener('change',s);try{var z=Intl.DateTimeFormat().resolvedOptions().timeZone;if(z&&document.cookie.indexOf('tz='+encodeURIComponent(z))<0)document.cookie='tz='+encodeURIComponent(z)+'; path=/; max-age=31536000; samesite=lax'}catch(e){}})()`
+const THEME_SCRIPT = `(function(){var d=document.documentElement,c=document.cookie.match(/(?:^|; )theme=(light|dark)/),m=window.matchMedia('(prefers-color-scheme: dark)'),y=document.cookie.match(/(?:^|; )style=([a-z]+)/);if(y)d.dataset.style=y[1];function s(){var k=c?c[1]==='dark':m.matches;d.classList.toggle('dark',k);d.style.colorScheme=k?'dark':'light'}s();m.addEventListener('change',s);try{var z=Intl.DateTimeFormat().resolvedOptions().timeZone;if(z&&document.cookie.indexOf('tz='+encodeURIComponent(z))<0)document.cookie='tz='+encodeURIComponent(z)+'; path=/; max-age=31536000; samesite=lax'}catch(e){}})()`
 
 export const Route = createRootRoute({
   // The sidebar: the projects, the one picked last, folded or not; the viewer's preferences and time zone
