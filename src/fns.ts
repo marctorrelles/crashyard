@@ -44,13 +44,24 @@ const object = (v: unknown): Input => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('expected an object')
   return v as Input
 }
-const int = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER) => {
+// A field a person types names itself, so its refusal says which and what fits: "Event retention in days is a whole
+// number from 1 to 3,650." Fields only the page sets (ids, cursors) keep the short message: no one types them
+const withCommas = (n: number) => n.toLocaleString('en-US')
+const int = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER, name?: string) => {
   const n = typeof v === 'string' ? Number(v) : v
-  if (typeof n !== 'number' || !Number.isInteger(n) || n < min || n > max) throw new Error('expected a whole number')
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < min || n > max)
+    throw new Error(
+      name
+        ? max === Number.MAX_SAFE_INTEGER
+          ? `${name} is a whole number of ${withCommas(min)} or more.`
+          : `${name} is a whole number from ${withCommas(min)} to ${withCommas(max)}.`
+        : 'expected a whole number',
+    )
   return n
 }
-const text = (v: unknown, max = 500) => {
-  if (typeof v !== 'string' || v.length > max) throw new Error('expected text')
+const text = (v: unknown, max = 500, name?: string) => {
+  if (typeof v !== 'string' || v.length > max)
+    throw new Error(name ? `${name} is ${withCommas(max)} characters at most.` : 'expected text')
   return v
 }
 const optional =
@@ -125,7 +136,7 @@ export const getSidebar = createServerFn().handler(async () => {
 export const createProject = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    return { name: text(o.name, 80).trim(), platform: oneOf(projects.PLATFORMS)(o.platform) }
+    return { name: text(o.name, 80, 'The project name').trim(), platform: oneOf(projects.PLATFORMS)(o.platform) }
   })
   .handler(({ data }) => {
     if (!data.name) throw new Error('Give the project a name.')
@@ -158,28 +169,32 @@ export const getProjectSettings = createServerFn()
   })
 
 // A project's settings: each page sends only its own fields, each checked as here
-const limit = (v: unknown) => int(v, 0, 10_000_000)
-const retention = (v: unknown) => int(v, 1, 3650)
+const limit = (name: string) => (v: unknown) => int(v, 0, 10_000_000, name)
+const retention = (name: string) => (v: unknown) => int(v, 1, 3650, name)
+// Their checks, shared with New-project defaults
+const LIMITS = {
+  daily_event_quota: limit('The daily event limit'),
+  event_retention_days: retention('Event retention in days'),
+  daily_log_quota: limit('The daily log limit'),
+  log_retention_days: retention('Log retention in days'),
+  daily_transaction_quota: limit('The daily transaction limit'),
+}
 const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => projects.ProjectChange[K] } = {
   name: (v) => {
-    const name = text(v, 80).trim()
+    const name = text(v, 80, 'The project name').trim()
     if (!name) throw new Error('Give the project a name.')
     return name
   },
   slug: (v) => {
-    const slug = text(v, 40).trim()
+    const slug = text(v, 40, 'The slug').trim()
     if (!/^[a-z0-9][a-z0-9-]*$/.test(slug))
       throw new Error('A slug is lowercase letters, numbers and dashes, and starts with a letter or number.')
     return slug
   },
   platform: oneOf(projects.PLATFORMS),
-  daily_event_quota: limit,
-  event_retention_days: retention,
-  daily_log_quota: limit,
-  log_retention_days: retention,
-  daily_transaction_quota: limit,
-  repo_url: (v) => source.repoUrl(text(v ?? '', 300)),
-  auto_resolve_days: (v) => (v === null || v === '' ? null : int(v, 1, 3650)),
+  ...LIMITS,
+  repo_url: (v) => source.repoUrl(text(v ?? '', 300, 'The repository address')),
+  auto_resolve_days: (v) => (v === null || v === '' ? null : int(v, 1, 3650, 'Days without events')),
   // A priority per level, or null for the built-in ones
   priorities: (v) => {
     if (v === null) return null
@@ -194,10 +209,10 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
       throw new Error('Crash-free sessions is a percentage from 0 to 100.')
     return n
   },
-  release_new_issues_max: (v) => (v === null || v === '' ? null : int(v, 0, 100_000)),
+  release_new_issues_max: (v) => (v === null || v === '' ? null : int(v, 0, 100_000, 'Most new issues')),
   // Rules that don't parse are refused with the line and why, so ingest only ever reads good ones
   grouping_rules: (v) => {
-    const rules = text(v ?? '', 20_000)
+    const rules = text(v ?? '', 20_000, 'The grouping rules')
     const parsed = parseGroupingRules(rules)
     if ('error' in parsed) throw new Error(`Line ${parsed.line}: ${parsed.error}`)
     return rules.trim() ? rules : null
@@ -232,7 +247,7 @@ export const updateProject = createServerFn({ method: 'POST' })
 export const createKey = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    return { project: int(o.project), label: text(o.label ?? '', 80).trim() || 'Untitled' }
+    return { project: int(o.project), label: text(o.label ?? '', 80, 'The key name').trim() || 'Untitled' }
   })
   .handler(({ data }) => projects.createKey(env.DB, data.project, data.label, Date.now()).then(() => undefined))
 
@@ -243,9 +258,9 @@ export const updateKey = createServerFn({ method: 'POST' })
       project: int(o.project),
       id: int(o.id),
       change: {
-        label: text(o.label, 80).trim() || 'Untitled',
+        label: text(o.label, 80, 'The key name').trim() || 'Untitled',
         enabled: o.enabled === true,
-        daily_limit: optional((v) => int(v, 0, 10_000_000))(o.daily_limit) ?? null,
+        daily_limit: optional((v) => int(v, 0, 10_000_000, 'The daily event limit'))(o.daily_limit) ?? null,
       },
     }
   })
@@ -396,7 +411,7 @@ export const bookmarkIssue = createServerFn({ method: 'POST' })
 export const linkIssue = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    const url = optional((v) => text(v, 500).trim())(o.url) ?? null
+    const url = optional((v) => text(v, 500, 'The issue address').trim())(o.url) ?? null
     if (url !== null && !(URL.canParse(url) && /^https?:$/.test(new URL(url).protocol)))
       throw new Error('That isn’t a web address. Paste the issue’s link, starting with https://.')
     return { id: int(o.id), url }
@@ -417,7 +432,7 @@ export const unmergeIssue = createServerFn({ method: 'POST' })
 export const addNote = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    return { id: int(o.id), text: text(o.text, 10_000).trim() }
+    return { id: int(o.id), text: text(o.text, 10_000, 'A note').trim() }
   })
   .handler(async ({ data }) => {
     if (data.text) await issues.addNote(env.DB, data.id, data.text, viewer(), Date.now())
@@ -609,7 +624,7 @@ export const saveChannel = createServerFn({ method: 'POST' })
     return {
       id: optional((v) => int(v))(o.id),
       kind: oneOf(['telegram', 'email', 'webhook'] as const)(o.kind),
-      name: text(o.name, 80).trim() || 'Untitled',
+      name: text(o.name, 80, 'The name').trim() || 'Untitled',
       config: json(o.config),
       quiet_from: minuteOfDay(o.quiet_from) ?? null,
       quiet_to: minuteOfDay(o.quiet_to) ?? null,
@@ -672,12 +687,12 @@ const routeReleases = (v: unknown) => {
   if (v === null || v === undefined) return null
   const list = JSON.parse(json(v, 2000)) as unknown
   if (!Array.isArray(list) || list.some((g) => typeof g !== 'string' || g.length > 200))
-    throw new Error('expected a list of releases')
+    throw new Error('Releases are globs of 200 characters at most.')
   return list.length ? JSON.stringify(list) : null
 }
 // Tag filters, checked as they'll be matched
 const routeQuery = (v: unknown) => {
-  const query = text(v ?? '', 1000).trim()
+  const query = text(v ?? '', 1000, 'The tag filter').trim()
   const error = query && tagFilterError(query)
   if (error) throw new Error(error)
   return query || null
@@ -687,7 +702,7 @@ export const saveMetricAlert = createServerFn({ method: 'POST' })
   .validator((d: unknown): notifications.MetricAlertInput => {
     const o = object(d)
     const metric = oneOf(Object.keys(METRICS) as Metric[])(o.metric)
-    const query = text(o.query ?? '', 1000).trim()
+    const query = text(o.query ?? '', 1000, 'The filter').trim()
     const error = metricQueryError(metric, query)
     if (error) throw new Error(error)
     const number = (v: unknown) => {
@@ -696,7 +711,7 @@ export const saveMetricAlert = createServerFn({ method: 'POST' })
         throw new Error('Give the values as numbers, 0 or more.')
       return n
     }
-    const name = text(o.name, 80).trim()
+    const name = text(o.name, 80, 'The name').trim()
     if (!name) throw new Error('Give the alert a name. It’s the title of every alert it sends.')
     return {
       id: optional((v) => int(v))(o.id),
@@ -747,7 +762,8 @@ const logWindow = (o: Input): logs.Window => {
     return { range: oneOf(Object.keys(logs.RANGES) as logs.Range[])(o.range ?? '24h') }
   const from = int(o.from)
   const to = int(o.to)
-  if (from >= to || to - from > logs.MAX_SPAN) throw new Error('expected from before to, 90 days apart at most')
+  if (from >= to || to - from > logs.MAX_SPAN)
+    throw new Error('The start of the range comes before its end, 90 days apart at most.')
   return { from, to }
 }
 
@@ -970,7 +986,7 @@ export const previewWidget = createServerFn({ method: 'POST' })
 export const saveDashboard = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    const name = text(o.name, 80).trim()
+    const name = text(o.name, 80, 'The dashboard name').trim()
     if (!name) throw new Error('Give the dashboard a name.')
     return { id: optional((v) => int(v))(o.id), name, widgets: widgets.parseWidgets(o.widgets) }
   })
@@ -1012,7 +1028,10 @@ export const deleteDashboard = createServerFn({ method: 'POST' })
 export const createToken = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    return { name: text(o.name, 80).trim() || 'sentry-cli', project: optional((v) => int(v))(o.project) ?? null }
+    return {
+      name: text(o.name, 80, 'The token name').trim() || 'sentry-cli',
+      project: optional((v) => int(v))(o.project) ?? null,
+    }
   })
   .handler(({ data }) => tokens.createToken(env.DB, data.name, viewer(), Date.now(), data.project))
 
@@ -1034,39 +1053,48 @@ export const getMonitor = createServerFn()
   })
 
 const httpUrl = (v: unknown) => {
-  const u = new URL(text(v, 2000))
+  const s = text(v, 2000, 'The URL')
+  if (!URL.canParse(s))
+    throw new Error('That isn’t a URL. It starts with https://, such as https://api.example.com/health.')
+  const u = new URL(s)
   if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('The URL must start with http:// or https://.')
   return u.toString()
 }
 // An uptime check's request headers, 20 at most, names as HTTP allows them
 const uptimeHeaders = (v: unknown): [string, string][] | undefined => {
   if (v === undefined || v === null) return undefined
-  if (!Array.isArray(v) || v.length > 20) throw new Error('expected up to 20 headers')
+  if (!Array.isArray(v) || v.length > 20) throw new Error('Keep it to 20 headers at most.')
   return v.map((pair) => {
     if (!Array.isArray(pair) || pair.length !== 2) throw new Error('expected a header name and value')
-    const name = text(pair[0], 100).trim()
+    const name = text(pair[0], 100, 'A header name').trim()
     if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)) throw new Error(`${name || 'A header'} isn’t a header name.`)
-    return [name, text(pair[1], 2000)]
+    return [name, text(pair[1], 2000, 'A header value')]
   })
 }
 
 // What an uptime check's answer must be, 10 at most
 const assertionsOf = (v: unknown): Assertion[] | undefined => {
   if (v === undefined || v === null) return undefined
-  if (!Array.isArray(v) || v.length > 10) throw new Error('expected up to 10 assertions')
+  if (!Array.isArray(v) || v.length > 10) throw new Error('Keep it to 10 assertions at most.')
   return v.map((raw): Assertion => {
     const a = object(raw)
     if (a.kind === 'status') {
-      const codes = Array.isArray(a.in) ? a.in.map((x) => int(x, 100, 599)) : []
-      if (!codes.length || codes.length > 20) throw new Error('Give the statuses it may answer, such as 200, 204.')
+      const codes = Array.isArray(a.in) ? a.in.map((x) => int(x, 100, 599, 'A status code')) : []
+      if (!codes.length || codes.length > 20)
+        throw new Error('Give the status codes it may answer, separated by commas, such as 200, 204. 20 at most.')
       return { kind: 'status', in: codes }
     }
-    if (a.kind === 'header') return { kind: 'header', name: text(a.name, 100).trim(), contains: text(a.contains, 500) }
+    if (a.kind === 'header')
+      return {
+        kind: 'header',
+        name: text(a.name, 100, 'A header name').trim(),
+        contains: text(a.contains, 500, 'What a header contains'),
+      }
     if (a.kind === 'json') {
-      const path = text(a.path, 200).trim()
+      const path = text(a.path, 200, 'A JSON path').trim()
       if (!/^(\$\.?)?[\w-]+(\.[\w-]+|\[\d+\])*$/.test(path))
         throw new Error('A JSON path reads like $.status or $.checks[0].ok.')
-      return { kind: 'json', path, equals: text(a.equals, 500) }
+      return { kind: 'json', path, equals: text(a.equals, 500, 'What a JSON path equals') }
     }
     throw new Error('expected a status, header or JSON assertion')
   })
@@ -1079,11 +1107,11 @@ export const saveMonitor = createServerFn({ method: 'POST' })
     const base = {
       id: optional((v) => int(v))(o.id),
       project_id: int(o.project_id),
-      name: text(o.name, 100).trim() || 'Untitled',
-      slug: optional((v) => text(v, 100))(o.slug),
-      environment: text(o.environment ?? 'production', 64) || 'production',
-      failure_threshold: int(o.failure_threshold ?? 1, 1, 100),
-      recovery_threshold: int(o.recovery_threshold ?? 1, 1, 100),
+      name: text(o.name, 100, 'The name').trim() || 'Untitled',
+      slug: optional((v) => text(v, 100, 'The slug'))(o.slug),
+      environment: text(o.environment ?? 'production', 64, 'The environment') || 'production',
+      failure_threshold: int(o.failure_threshold ?? 1, 1, 100, 'Failures before an incident'),
+      recovery_threshold: int(o.recovery_threshold ?? 1, 1, 100, 'Successes to recover'),
     }
     if (o.kind === 'uptime') {
       return {
@@ -1093,12 +1121,13 @@ export const saveMonitor = createServerFn({ method: 'POST' })
           url: httpUrl(c.url),
           method: oneOf(UPTIME_METHODS)(c.method ?? 'GET'),
           headers: uptimeHeaders(c.headers),
-          body: optional((v) => text(v, 10_000))(c.body),
+          body: optional((v) => text(v, 10_000, 'The body'))(c.body),
           assertions: assertionsOf(c.assertions),
-          expectedStatus: optional((v) => int(v, 100, 599))(c.expectedStatus),
-          mustContain: optional((v) => text(v, 200))(c.mustContain),
-          intervalMinutes: int(c.intervalMinutes ?? 5, 1, 60),
-          timeoutMs: int(c.timeoutMs ?? 10_000, 1000, 30_000),
+          expectedStatus: optional((v) => int(v, 100, 599, 'The status'))(c.expectedStatus),
+          mustContain: optional((v) => text(v, 200, 'Response must contain'))(c.mustContain),
+          intervalMinutes: int(c.intervalMinutes ?? 5, 1, 60, 'Interval in minutes'),
+          // Sent in ms, typed in seconds
+          timeoutMs: int(Number(c.timeoutMs ?? 10_000) / 1000, 1, 30, 'Timeout in seconds') * 1000,
         },
       }
     }
@@ -1111,13 +1140,13 @@ export const saveMonitor = createServerFn({ method: 'POST' })
           schedule.type === 'interval'
             ? {
                 type: 'interval',
-                value: int(schedule.value, 1, 1000),
+                value: int(schedule.value, 1, 1000, 'Every'),
                 unit: oneOf(['minute', 'hour', 'day', 'week', 'month', 'year'] as const)(schedule.unit),
               }
-            : { type: 'crontab', value: text(schedule.value, 100) },
-        timezone: optional((v) => text(v, 64))(c.timezone),
-        checkinMargin: optional((v) => int(v, 1, 1440))(c.checkinMargin),
-        maxRuntime: optional((v) => int(v, 1, 1440))(c.maxRuntime),
+            : { type: 'crontab', value: text(schedule.value, 100, 'The crontab') },
+        timezone: optional((v) => text(v, 64, 'The time zone'))(c.timezone),
+        checkinMargin: optional((v) => int(v, 1, 1440, 'Grace period in minutes'))(c.checkinMargin),
+        maxRuntime: optional((v) => int(v, 1, 1440, 'Maximum runtime in minutes'))(c.maxRuntime),
       },
     }
   })
@@ -1178,11 +1207,11 @@ export const saveProjectDefaults = createServerFn({ method: 'POST' })
   .validator((d: unknown): settings.ProjectDefaults => {
     const o = object(d)
     return {
-      daily_event_quota: limit(o.daily_event_quota),
-      daily_log_quota: limit(o.daily_log_quota),
-      daily_transaction_quota: limit(o.daily_transaction_quota),
-      event_retention_days: retention(o.event_retention_days),
-      log_retention_days: retention(o.log_retention_days),
+      daily_event_quota: LIMITS.daily_event_quota(o.daily_event_quota),
+      daily_log_quota: LIMITS.daily_log_quota(o.daily_log_quota),
+      daily_transaction_quota: LIMITS.daily_transaction_quota(o.daily_transaction_quota),
+      event_retention_days: LIMITS.event_retention_days(o.event_retention_days),
+      log_retention_days: LIMITS.log_retention_days(o.log_retention_days),
     }
   })
   .handler(({ data }) => settings.setSetting(env.DB, 'defaults.project', data, viewer()).then(() => undefined))
@@ -1190,8 +1219,8 @@ export const saveProjectDefaults = createServerFn({ method: 'POST' })
 export const saveScrubFields = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const list = object(d).fields
-    if (!Array.isArray(list) || list.length > 100) throw new Error('expected a list')
-    return { fields: [...new Set(list.map((f) => text(f, 80).trim()).filter(Boolean))] }
+    if (!Array.isArray(list) || list.length > 100) throw new Error('Keep it to 100 field names at most.')
+    return { fields: [...new Set(list.map((f) => text(f, 80, 'A field name').trim()).filter(Boolean))] }
   })
   .handler(({ data }) => settings.setSetting(env.DB, settings.SCRUB_KEY, data.fields, viewer()).then(() => undefined))
 
@@ -1201,7 +1230,7 @@ export const saveAgentsCanChange = createServerFn({ method: 'POST' })
 
 export const sendTestEmail = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
-    const to = text(object(d).to, 200).trim()
+    const to = text(object(d).to, 200, 'The address').trim()
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error('That isn’t an email address.')
     return { to }
   })
@@ -1245,7 +1274,7 @@ const PREFERENCE_CHECKS: { [K in keyof settings.Preferences]-?: (v: unknown) => 
     theme: oneOf(['system', 'light', 'dark'] as const),
     timeZone: optional((v) => {
       const zone = text(v, 64)
-      if (!ZONES.has(zone)) throw new Error('expected a time zone')
+      if (!ZONES.has(zone)) throw new Error('That time zone isn’t known. Pick one from the list.')
       return zone
     }),
     clock: oneOf(['24', '12'] as const),
@@ -1278,9 +1307,14 @@ export const getSavedSearches = createServerFn()
 export const saveSearch = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     const o = object(d)
-    const name = text(o.name, 80).trim()
+    const name = text(o.name, 80, 'The search name').trim()
     if (!name) throw new Error('Give the search a name.')
-    return { page: oneOf(searches.PAGES)(o.page), name, query: text(o.query ?? '', 1000), shared: o.shared === true }
+    return {
+      page: oneOf(searches.PAGES)(o.page),
+      name,
+      query: text(o.query ?? '', 1000, 'The search'),
+      shared: o.shared === true,
+    }
   })
   .handler(({ data }) => searches.saveSearch(env.DB, viewer(), data, Date.now()))
 

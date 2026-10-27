@@ -229,17 +229,19 @@ const LIMIT_FIELDS = [
     name: 'daily_event_quota',
     label: 'Daily event limit',
     min: 0,
+    max: 10_000_000,
     hint: 'Past it, SDKs hold events until midnight UTC.',
   },
-  { name: 'daily_log_quota', label: 'Daily log limit', min: 0 },
-  { name: 'daily_transaction_quota', label: 'Daily transaction limit', min: 0 },
+  { name: 'daily_log_quota', label: 'Daily log limit', min: 0, max: 10_000_000 },
+  { name: 'daily_transaction_quota', label: 'Daily transaction limit', min: 0, max: 10_000_000 },
   {
     name: 'event_retention_days',
     label: 'Event retention in days',
     min: 1,
+    max: 3650,
     hint: 'Issues are kept as long as their events.',
   },
-  { name: 'log_retention_days', label: 'Log retention in days', min: 1 },
+  { name: 'log_retention_days', label: 'Log retention in days', min: 1, max: 3650 },
 ] as const
 
 /** A project's daily limits and retention, as named form fields */
@@ -247,7 +249,15 @@ export function LimitInputs({ values }: { values: Record<(typeof LIMIT_FIELDS)[n
   return LIMIT_FIELDS.map((f) => (
     <div key={f.name} className="grid content-start gap-2">
       <Label htmlFor={f.name}>{f.label}</Label>
-      <Input id={f.name} name={f.name} type="number" min={f.min} inputMode="numeric" defaultValue={values[f.name]} />
+      <Input
+        id={f.name}
+        name={f.name}
+        type="number"
+        min={f.min}
+        max={f.max}
+        inputMode="numeric"
+        defaultValue={values[f.name]}
+      />
       {'hint' in f && <Hint>{f.hint}</Hint>}
     </div>
   ))

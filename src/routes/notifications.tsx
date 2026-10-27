@@ -421,7 +421,14 @@ function ChannelDialog({
             {blocked ? (
               <EmailSetup />
             ) : (
-              <Field id="name" label="Name" defaultValue={channel?.name} placeholder="My phone" required />
+              <Field
+                id="name"
+                label="Name"
+                defaultValue={channel?.name}
+                placeholder="My phone"
+                required
+                maxLength={80}
+              />
             )}
             {choice === 'telegram' && <TelegramFields config={config} />}
             {choice === 'slack' && (
@@ -1031,7 +1038,14 @@ function MetricDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-5">
-            <Field id="name" label="Name" defaultValue={alert?.name} placeholder="Crash-free sessions" required />
+            <Field
+              id="name"
+              label="Name"
+              defaultValue={alert?.name}
+              placeholder="Crash-free sessions"
+              required
+              maxLength={80}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="metric-project">Project</Label>

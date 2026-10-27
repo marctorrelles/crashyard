@@ -31,7 +31,10 @@ Where things are:
 - `src/notify/`: routes (frequency, filters, a wait), metric alerts, channels (Telegram, email, webhooks), quiet hours
   (see its AGENTS.md).
 - `src/auth/`: the Access check (see its AGENTS.md).
-- `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`.
+- `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`. A field a
+  person types passes its label to `int` or `text`, so a refusal names it and what fits ("Event retention in days is
+  a whole number from 1 to 3,650."), and its input carries the same `min`, `max` or `maxLength`; ids and other
+  fields only a page sets keep the short "expected …".
   `src/start.ts` limits them to same-origin calls (CSRF), and refuses any but a GET from an agent (a viewer
   `service:…`, an Access service token; `agentRefused`, tested in `start.test.ts`): agents change issues only through MCP, when Settings, Tokens lets them.
 - `src/data/`: the dashboard's SQL (see its AGENTS.md).

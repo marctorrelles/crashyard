@@ -186,6 +186,7 @@ export function MonitorForm({
               label="Name"
               defaultValue={editing.name}
               required
+              maxLength={100}
               placeholder={uptime ? 'Sync server' : 'Nightly backup'}
             />
             {uptime ? (
@@ -218,6 +219,8 @@ export function MonitorForm({
                     id="expectedStatus"
                     label="Status"
                     type="number"
+                    min={100}
+                    max={599}
                     inputMode="numeric"
                     defaultValue={c.expectedStatus as number | undefined}
                     placeholder="Any 2xx"
@@ -280,6 +283,7 @@ export function MonitorForm({
                 <Field
                   id="mustContain"
                   label="Response must contain"
+                  maxLength={200}
                   defaultValue={c.mustContain as string | undefined}
                   placeholder="Optional"
                 />
@@ -320,7 +324,9 @@ export function MonitorForm({
                           className={r.kind === 'json' ? 'font-mono max-sm:col-span-2' : 'max-sm:col-span-2'}
                         />
                         {r.kind === 'status' ? (
-                          <span className="max-sm:hidden" />
+                          <p className="self-center text-xs text-muted-foreground max-sm:col-span-2">
+                            Status codes separated by commas, such as 200, 204.
+                          </p>
                         ) : (
                           <Input
                             aria-label={bLabel}
@@ -379,6 +385,7 @@ export function MonitorForm({
                 <Field
                   id="slug"
                   label="Slug"
+                  maxLength={100}
                   defaultValue={editing.slug}
                   disabled={!!editing.id}
                   hint="The monitorSlug the job checks in with. Leave it empty to derive it from the name."
@@ -418,6 +425,7 @@ export function MonitorForm({
                       label="Every"
                       type="number"
                       min={1}
+                      max={1000}
                       defaultValue={schedule.type === 'interval' ? Number(schedule.value) : 1}
                     />
                     <div className="grid gap-2">
@@ -443,6 +451,7 @@ export function MonitorForm({
                     label="Grace period in minutes"
                     type="number"
                     min={1}
+                    max={1440}
                     defaultValue={(c.checkinMargin as number) ?? 1}
                   />
                   <Field
@@ -450,18 +459,25 @@ export function MonitorForm({
                     label="Maximum runtime in minutes"
                     type="number"
                     min={1}
+                    max={1440}
                     defaultValue={(c.maxRuntime as number) ?? 30}
                   />
                 </div>
               </>
             )}
             <div className="grid grid-cols-3 gap-3">
-              <Field id="environment" label="Environment" defaultValue={editing.environment ?? 'production'} />
+              <Field
+                id="environment"
+                label="Environment"
+                maxLength={64}
+                defaultValue={editing.environment ?? 'production'}
+              />
               <Field
                 id="failure_threshold"
                 label="Failures before an incident"
                 type="number"
                 min={1}
+                max={100}
                 defaultValue={editing.failure_threshold ?? (uptime ? 2 : 1)}
               />
               <Field
@@ -469,6 +485,7 @@ export function MonitorForm({
                 label="Successes to recover"
                 type="number"
                 min={1}
+                max={100}
                 defaultValue={editing.recovery_threshold ?? 1}
               />
             </div>

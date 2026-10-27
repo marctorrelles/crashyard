@@ -165,6 +165,7 @@ function ReleaseHealth() {
               id="new-issues-max"
               type="number"
               min={0}
+              max={100000}
               inputMode="numeric"
               placeholder="3"
               value={newIssues}

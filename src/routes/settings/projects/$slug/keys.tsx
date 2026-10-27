@@ -90,6 +90,7 @@ function KeyCard({ projectId, k }: { projectId: number; k: Key }) {
             name="limit"
             type="number"
             min={0}
+            max={10000000}
             inputMode="numeric"
             defaultValue={k.daily_limit ?? ''}
             placeholder="The project’s limit"
