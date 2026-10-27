@@ -69,3 +69,5 @@ in `pnpm run deploy`).
   `recovery_codes` and `user_tokens`, every secret as its SHA-256. New tables only: a worker from before ignores them.
 - 0023: `pending_spans`, streamed spans that came before their segment, held until it comes (`src/performance/`) and
   pruned after a day. A new table: a worker from before ignores it and drops those spans, as it did.
+- 0024: `projects.workers` (JSON, Cloudflare Workers by script name, for `src/api/tail.ts`; null for none) and
+  `worker_exceptions` (0). A worker from before has no `tail()` handler: runs sent to it are dropped.

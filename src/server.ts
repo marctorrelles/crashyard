@@ -32,6 +32,11 @@ export default {
       const results = await env.DB.batch(statements.map((s) => env.DB.prepare(s.sql).bind(...s.params)))
       return Response.json(results)
     }
+    if (import.meta.env.DEV && url.pathname === '/__dev/tail' && request.method === 'POST') {
+      const { handleTail } = await import('./api/tail')
+      await handleTail((await request.json()) as TraceItem[], env, ctx)
+      return Response.json({})
+    }
     if (import.meta.env.DEV && url.pathname === '/__dev/cron' && request.method === 'POST') {
       await everyMinute(env, Number(url.searchParams.get('now')) || Date.now())
       return Response.json({})
@@ -127,6 +132,12 @@ export default {
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     await everyMinute(env, controller.scheduledTime)
+  },
+
+  // Runs of the Workers that name crashyard in their `tail_consumers` (src/api/tail.ts)
+  async tail(items: TraceItem[], env: Env, ctx: ExecutionContext): Promise<void> {
+    const { handleTail } = await import('./api/tail')
+    await handleTail(items, env, ctx)
   },
 }
 

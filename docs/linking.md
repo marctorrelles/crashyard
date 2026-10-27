@@ -61,6 +61,25 @@ import * as Sentry from '@sentry/node'
 Sentry.init({ dsn: '<your DSN>', environment: process.env.NODE_ENV ?? 'production' })
 ```
 
+## Cloudflare Workers
+
+A Worker that runs out of CPU time or memory is stopped before its Sentry SDK can send anything. crashyard can catch
+those runs as a Tail Worker. This needs the Workers Paid plan, and the Worker must be on the same Cloudflare account as
+crashyard.
+
+1. In the Worker's wrangler file, name crashyard's Worker as a tail consumer, then deploy the Worker again.
+
+   ```jsonc
+   "tail_consumers": [{ "service": "crashyard" }]
+   ```
+
+2. In the project's settings, open Connect an app. Under Cloudflare Workers, the Worker shows up once it has run.
+   Select Watch Worker.
+
+A run that runs out of CPU time or memory becomes an issue for that Worker, with the request, the run's console logs
+as breadcrumbs, and its CPU time. Uncaught exceptions come in too if you turn on "Report uncaught exceptions too". Leave
+it off when the Worker already uses the Sentry SDK, or each error arrives twice.
+
 ## Other platforms
 
 Any Sentry SDK works. Set its DSN to the one crashyard gives you.

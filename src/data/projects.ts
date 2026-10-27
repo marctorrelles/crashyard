@@ -25,6 +25,8 @@ export type ProjectRow = {
   filters: string | null // JSON, inbound filters (src/ingest/filters.ts)
   release_crash_free_min: number | null // release health: crash-free sessions at least this fraction; null is none
   release_new_issues_max: number | null // release health: at most this many new issues; null is none
+  workers: string | null // JSON, Cloudflare Workers whose failed runs come in through tail() (src/api/tail.ts)
+  worker_exceptions: number // 1: their uncaught exceptions too, for Workers without the Sentry SDK
   created_at: number
 }
 
@@ -183,6 +185,23 @@ export async function overviewCharts(db: D1Database, projectIds: number[] | unde
   }
 }
 
+/** The Workers whose runs reach tail(), newest run first, each with the projects watching it */
+export async function seenWorkers(db: D1Database) {
+  const [seen, watched] = await db.batch<{ value: string; slug?: string; workers?: string }>([
+    db.prepare("SELECT value FROM settings WHERE key = 'tail.workers'"),
+    db.prepare('SELECT slug, workers FROM projects WHERE workers IS NOT NULL ORDER BY slug'),
+  ])
+  const at = JSON.parse(seen.results[0]?.value ?? '{}') as Record<string, number>
+  const projects = watched.results.map((p) => ({ slug: p.slug!, workers: JSON.parse(p.workers!) as string[] }))
+  return Object.entries(at)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, lastRun]) => ({
+      name,
+      lastRun,
+      projects: projects.filter((p) => p.workers.includes(name)).map((p) => p.slug),
+    }))
+}
+
 export const projectBySlug = (db: D1Database, slug: string) =>
   db.prepare('SELECT * FROM projects WHERE slug = ?').bind(slug).first<ProjectRow>()
 
@@ -253,6 +272,8 @@ export const PROJECT_FIELDS = [
   'release_crash_free_min',
   'release_new_issues_max',
   'filters',
+  'workers',
+  'worker_exceptions',
 ] as const
 export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>
 

@@ -79,6 +79,19 @@ signature; `/mcp` comes after sign-in.
   so the activity names who; `answerCallbackQuery` with a toast ("Resolved", "That issue no longer exists"), and
   `editMessageReplyMarkup` turns the button into "✓ Resolved" (resolving or ignoring takes the whole row; assigning
   only its button). `telegram.test.ts` on `test/fakes.ts` with `fetch` stubbed.
+- `tail.ts`: `tail()` in `src/server.ts`, the runs of every Worker naming crashyard in its `tail_consumers` (Workers
+  Paid, same account; billed by CPU time, not per run). Successes leave at once, before ingest is even imported. A
+  project lists Workers by script name (`projects.workers`, 0024, set on Connect an app). `tailEvent`: a run that hit
+  `exceededCpu` or `exceededMemory` is a fatal event, `ExceededCpu: The Worker ran out of CPU time`, fingerprinted by
+  outcome and Worker so every route groups together; `exception` only with `worker_exceptions` on, as the SDK
+  (`withSentry` rethrows) sends it too and it would arrive twice; `canceled` and the rest are left. The run's request,
+  its console logs as breadcrumbs, `tags.worker`, and `contexts.cloudflare_worker` (version, CPU and wall time).
+  `framesOf` reads a V8 stack. `noteWorkers`, first and for every run, ok or not: each Worker
+  name into the `tail.workers` setting (`{ name: ms }`, one upsert merging with `json_patch`), on its first run and then
+  at most once an hour per isolate, so Connect an app lists the Workers sending runs to watch with a click, which also
+  shows their wrangler line works. Each event goes through `handleIngest` as an envelope with the project's first key
+  that's on, so quotas, filters, grouping, notices and retries are ingest's. `/__dev/tail` (dev only) takes runs as
+  JSON for the end-to-end test. `tail.test.ts` and `test/ingest.e2e.test.ts`.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
   sign-in (routed after it in `src/server.ts`, as the dashboard), `handleMcp(request, db, { email, role })`; JSON only
   and never cross-site, so a web page can't call it with someone's cookie. An agent sends

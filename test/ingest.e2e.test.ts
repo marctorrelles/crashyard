@@ -340,6 +340,46 @@ describe('ingest, through the real SDK', () => {
     expect((await post('text/plain', {})).status).toBe(415)
   })
 
+  it('turns a watched Worker’s run out of CPU time into an issue, and leaves the rest', async () => {
+    await db().prepare(`UPDATE projects SET workers = '["shop-api"]' WHERE id = 1`).run()
+    const run = (scriptName: string, outcome: string) => ({
+      scriptName,
+      outcome,
+      eventTimestamp: Date.now(),
+      event: { request: { url: 'https://shop.example/cart', method: 'POST', headers: {} } },
+      logs: [{ timestamp: Date.now(), level: 'log', message: ['pricing cart'] }],
+      exceptions: [{ timestamp: Date.now(), name: 'TypeError', message: 'cart is null' }],
+      cpuTime: 51,
+      wallTime: 300,
+      truncated: false,
+    })
+    const tail = await fetch(`${origin}/__dev/tail`, {
+      method: 'POST',
+      // An exception the SDK sends itself, a success, and a Worker no project watches: none of them an issue
+      body: JSON.stringify([
+        run('shop-api', 'exceededCpu'),
+        run('shop-api', 'exception'),
+        run('shop-api', 'ok'),
+        run('other-api', 'exceededCpu'),
+      ]),
+    })
+    expect(tail.status).toBe(200)
+    const found = await waitFor(() =>
+      db()
+        .prepare(
+          "SELECT title, level, count FROM issues WHERE title LIKE 'ExceededCpu%' OR title LIKE 'TypeError: cart%'",
+        )
+        .all<Record<string, unknown>>()
+        .then((r) => (r.results.length ? r.results : null)),
+    )
+    expect(found).toEqual([{ title: 'ExceededCpu: The Worker ran out of CPU time', level: 'fatal', count: 1 }])
+    // Every Worker that sent a run is noted, watched or not, for Connect an app to list
+    const seen = await waitFor(() =>
+      db().prepare("SELECT value FROM settings WHERE key = 'tail.workers'").first<{ value: string }>(),
+    )
+    expect(Object.keys(JSON.parse(seen.value)).sort()).toEqual(['other-api', 'shop-api'])
+  })
+
   it('checks a URL, and opens an incident after two failures in a row', async () => {
     const config = { url: `http://localhost:${STUB_PORT}/health`, intervalMinutes: 1, mustContain: 'catalog' }
     const base = {

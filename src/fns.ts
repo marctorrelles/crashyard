@@ -192,10 +192,11 @@ export const getProjectSettings = createServerFn()
     const project = await projects.projectBySlug(env.DB, data.slug)
     if (!project) return null
     const now = Date.now()
-    const [uploads, keys, filtered] = await Promise.all([
+    const [uploads, keys, filtered, workersSeen] = await Promise.all([
       tokens.uploadsOf(env.DB, project.id),
       projects.keysOf(env.DB, project.id, now),
       projects.filteredSince(env.DB, project.id, 30, now),
+      projects.seenWorkers(env.DB),
     ])
     // The DSN to show: the first key that's on
     const key = keys.find((k) => k.enabled) ?? keys[0]
@@ -207,6 +208,7 @@ export const getProjectSettings = createServerFn()
       origin: origin(),
       uploads,
       filtered,
+      workersSeen,
       now,
     }
   })
@@ -253,6 +255,21 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
     return n
   },
   release_new_issues_max: (v) => (v === null || v === '' ? null : int(v, 0, 100_000, 'Most new issues')),
+  // Cloudflare Workers by their script name, any spacing or commas between; null for none
+  workers: (v) => {
+    const names = [
+      ...new Set(
+        text(v ?? '', 2000, 'Workers to watch')
+          .split(/[\s,]+/)
+          .filter(Boolean),
+      ),
+    ]
+    if (names.some((n) => !/^[a-z0-9][a-z0-9_-]{0,62}$/.test(n)))
+      throw new Error("A Worker's name is lowercase letters, numbers, dashes and underscores, as in its wrangler file.")
+    if (names.length > 50) throw new Error('Watch 50 Workers at most.')
+    return names.length ? JSON.stringify(names) : null
+  },
+  worker_exceptions: (v) => (v === true ? 1 : 0),
   // Rules that don't parse are refused with the line and why, so ingest only ever reads good ones
   grouping_rules: (v) => {
     const rules = text(v ?? '', 20_000, 'The grouping rules')

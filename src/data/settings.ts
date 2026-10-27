@@ -28,6 +28,8 @@ const DEFAULTS_KEY = 'defaults.project'
 export const SCRUB_KEY = 'privacy.scrub_fields'
 /** When the cron last ran, in ms: written each minute, late on Settings, Health after 3 minutes */
 export const CRON_KEY = 'cron.last_run'
+/** Every Worker whose runs reach `tail()`, by name, with when one was last noted: `{ name: ms }` (src/api/tail.ts) */
+export const WORKERS_KEY = 'tail.workers'
 
 /** What a new project starts with: the columns' own defaults until changed on Settings, New-project defaults */
 export type ProjectDefaults = {

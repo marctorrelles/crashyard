@@ -18,7 +18,8 @@ helpers (`change`).
   a batch deletes nothing or the deadline, the cron's shared one (`PRUNE_BUDGET`, 20 s, when called alone); `inBatches`;
   `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
   hour, 1000 a batch, then `issue_minutes` past a day, then
-  `session_users_daily` past the event retention, 1000 a batch each), `dsnOf` (a project id and a key), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
+  `session_users_daily` past the event retention, 1000 a batch each), `dsnOf` (a project id and a key), `seenWorkers` (the `tail.workers` setting, newest run first, each
+  Worker with the projects whose `workers` list it, for Connect an app), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
   Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
   before, new issues, the issue with the most, and the crash-free sessions of its newest release in the week, floored to
@@ -253,7 +254,8 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   hashing so case, spaces and dashes don't matter); user tokens (`cyp_`); `userByGitHub` and `linkGitHub`. Secrets are compared by their digests.
 - `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
-  clears to the default). `projectDefaults`: what `createProject` starts with, the columns' defaults under what
+  clears to the default). `WORKERS_KEY`, `tail.workers`: the Workers sending runs to `tail()`, written by
+  `src/api/tail.ts`. `projectDefaults`: what `createProject` starts with, the columns' defaults under what
   Settings, New-project defaults saved.
 - `notifications.ts`: channels, routes (with `frequency`, `releases`, `query`, `interval_minutes`) and metric alerts
   (`saveMetricAlert`: saving starts it again from ok, so its next read alerts if it's still past a value), and `testRoute` and `testChannel`, which send a made-up notice now through a
