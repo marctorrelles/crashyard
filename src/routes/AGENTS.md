@@ -14,6 +14,13 @@ server, the build, or `tsr generate`): never edit it.
   performance, logs) take the sidebar's project filter as `?project=`, every project's when there's none; a project's
   pages are titled by the page with the project under it. Each page gives `Shell` its breadcrumbs: the section, the
   project (a list narrowed to it, the overview's for settings), then the page (a list narrowed to a project ends at it).
+- `signin.tsx`, `setup.tsx`, `invite.$token.tsx`: crashyard's own sign-in pages, the only ones open while signed out
+  (`src/server.ts`), drawn without the sidebar (the root renders `Layout` only with a viewer; `getSidebar` returns
+  nothing of the deployment's without one). Their loaders (`getSetupPage`, `getInvitePage`) need no role and run
+  only in the server render, as every move from them is a whole page load. `/signin`: Sign in with a passkey, and Lost
+  your passkey? Use a recovery code (email and code); `?next=` is where it goes after. `/setup`: the setup code, name
+  and email, while there's no one (else Sign in; without `SETUP_CODE`, how to set it). `/invite/<token>`: who invited
+  them and as what, a name and email (the invite's, when it names one), or that it can't be used and who to ask.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
@@ -73,8 +80,11 @@ server, the build, or `tsr generate`): never edit it.
   the title and the page centred beside it, up to `max-w-4xl`; with less room the title, the list as selects, the
   page. It goes by the room it has, not the window: the frame is `@container/settings` (the list beside from
   `@3xl/settings`) and the page column a `@container`, so settings pages lay out with container variants (`@xl:`
-  where a page elsewhere says `sm:`, `@3xl:` for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. The deployment's pages, the group "crashyard": `general`
-  (public URL and Access, read-only, each saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
+  where a page elsewhere says `sm:`, `@3xl:` for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. The deployment's pages, the group "crashyard": `people` (owners only, and only listed for them with crashyard's own
+  sign-in: everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove
+  after a confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the
+  invites waiting, each with Withdraw invite), `general`
+  (public URL, and how people sign in or Access's values, read-only, each saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
   and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
   `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload
   tokens with their project or All projects, who made them, when last used, Delete; Create token with a name and a
@@ -99,8 +109,10 @@ server, the build, or `tsr generate`): never edit it.
   `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
   send commits), `connect` (the DSN and `Linking`), `debug-files` (how to upload, `UploadSteps`; the newest 500 debug
   files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;
-  the newest 10 source map bundles) and `delete`. The viewer's own, the group "You", each saved at once through
-  `savePreference` and read from the root's loader: `appearance` (the theme, `STYLES` in `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to
+  the newest 10 source map bundles) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
+  recovery codes left and Make new codes, shown once; where they're signed in, This browser, Sign out each and Sign
+  out everywhere else; with Access, who it signed in, and while no one is set up, Create passkey to become the
+  owner before switching), then, each saved at once through `savePreference` and read from the root's loader: `appearance` (the theme, `STYLES` in `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to
   preview it, and System, Light, Dark, both applied at once), `date-and-time`
   (a time zone from `Intl.supportedValuesOf`, empty for the browser's, and a 12 or 24-hour clock), `stack-traces`
   (newest or oldest frame first, other frames open or not) and `home` (the overview's project and range). Each page saves only its own fields through `updateProject`, whose
@@ -141,7 +153,8 @@ server, the build, or `tsr generate`): never edit it.
   monitor, and one monitor: muted since when, if it is; up, or runs ok, over 24 hours, 7 and 30 days; a p95 line of
   response times or run times; its environments with their status; its results or check-ins, how to check in;
   Errors during this job, each opening its event; incidents; pause, edit, delete.
-- `notifications.tsx`: channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
+- `notifications.tsx` (`getNotifications` keeps channel secrets on the server: Telegram's webhook secret for everyone,
+  bot tokens and webhook addresses for anyone below admin): channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, or what to set up first
   while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours, entered and kept in the channel's
   `quiet_zone`, else the viewer's zone from `useTimePrefs`, and saved in it; one from before 0020, in UTC, shows in
@@ -165,6 +178,6 @@ server, the build, or `tsr generate`): never edit it.
 - Times on a page are relative to the `now` its loader returns, so the server and the browser render the same text;
   dates and times go through `<Time>` or `formatTime` (`src/components/time.tsx`), in the viewer's zone and clock,
   the same on both sides.
-- Pages are behind Access (`src/server.ts`); `/api/*` never reaches Start (see `src/api/`).
+- Pages are behind sign-in (`src/server.ts`, `src/auth/AGENTS.md`); `/api/*` and `/auth/*` never reach Start.
 - Data for a page comes from a server function (`src/fns.ts`) called in the loader; after a change,
   `router.invalidate()`.

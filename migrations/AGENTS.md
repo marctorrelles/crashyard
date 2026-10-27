@@ -64,3 +64,6 @@ in `pnpm run deploy`).
   UTC). A worker from before 0020 reads a zoned channel's quiet hours as UTC.
 - 0021: `events.user_keys` (a hash per user field, `src/search/user.ts`; null for the events there were, still found by
   `user_hash`). No new rows per event: a column of the row already written.
+- 0022: crashyard's own sign-in (`src/auth/AGENTS.md`): `users` (email unique, lowercased; role; `github_id`),
+  `passkeys`, `sessions` (by the cookie's SHA-256, `sessions_expires` for pruning), `challenges`, `invites`,
+  `recovery_codes` and `user_tokens`, every secret as its SHA-256. New tables only: a worker from before ignores them.

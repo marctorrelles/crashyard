@@ -240,6 +240,17 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   project (null), listed with their project's slug; `tokenOf` marks one used; `uploadsOf`, a project's debug files and
   bundles; `debugFilesOf` (the newest 500) and `deleteDebugFile` (the row, then its file and symcache in R2 unless
   another row still names them: a fat binary's archs share one file). `source.ts`'s `storeCommits` takes `only`, a scoped token's project.
+- `people.ts`: crashyard's own sign-in (`src/auth/AGENTS.md`). `ROLES` (owner, admin, member, viewer) with
+  `ROLE_LABELS`, `ROLE_HINTS` and `reaches`; users (`createUser`, emails lowercased, `listUsers` with their passkey
+  count, `changeRole` and `removeUser`, both refused when they'd leave no owner; removing cascades to sessions,
+  passkeys, codes and tokens, their email stays on activity); sessions (`startSession`, a random 32-byte token,
+  only its SHA-256 stored; `sessionUser` renews under 60 days left, at most once a day, and writes `last_seen_at` at
+  most daily; `endSession`, `endSessionOf`, `endOtherSessions`; `pruneSignIn`, the cron at :20, sessions and
+  challenges past their end); passkeys (`removePasskey` refused when it's the last way in: no other passkey, unused
+  recovery code or GitHub; `deviceName` from the user agent, "iPhone, Safari"); challenges (`saveChallenge`,
+  `takeChallenge` deletes as it reads, so one use, five minutes); invites (7 days, `useInvite` only while unused and
+  unexpired); recovery codes (ten, `readableCode` groups of five without 0, O, 1, I or L, `normalCode` before
+  hashing so case, spaces and dashes don't matter); user tokens (`cyp_`). Secrets are compared by their digests.
 - `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `projectDefaults`: what `createProject` starts with, the columns' defaults under what

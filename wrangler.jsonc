@@ -20,6 +20,11 @@
   // Email notifications through Cloudflare Email Routing (to verified addresses); EMAIL_FROM below turns them on
   "send_email": [{ "name": "EMAIL" }],
   "vars": {
+    // How people sign in: "crashyard" (passkeys, crashyard's own) or "access" (Cloudflare Access). Empty: Access when
+    // ACCESS_AUD is set, else crashyard's own
+    "AUTH": "",
+    // The code that creates the first owner at /setup, while there's no one yet (pnpm run setup makes one)
+    "SETUP_CODE": "",
     // Cloudflare Access in front of the dashboard: your team's domain and the application's audience tag.
     // Empty means every dashboard request is refused (fail closed), except on a local dev server.
     "ACCESS_TEAM_DOMAIN": "",

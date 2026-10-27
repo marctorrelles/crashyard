@@ -177,8 +177,17 @@ function useCurrentProject() {
   return { page, projects, project: projects.find((p) => p.slug === kept), keep: setKept }
 }
 
+const SignedIn = ({ name, email }: { name: string | null; email: string | null }) => (
+  <span className="grid min-w-0 leading-tight">
+    <span>Sign out</span>
+    <span className="truncate text-xs text-sidebar-foreground/70" title={email ?? undefined}>
+      {name ?? email}
+    </span>
+  </span>
+)
+
 function AppSidebar() {
-  const { viewer } = root.useLoaderData()
+  const { viewer, name, auth } = root.useLoaderData()
   const { page, projects, project, keep } = useCurrentProject()
   const { setOpenMobile } = useSidebar()
   const close = () => setOpenMobile(false)
@@ -276,16 +285,23 @@ function AppSidebar() {
             )}
           </Item>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Sign out" className="h-auto">
-              {/* Cloudflare Access signs out of every app behind it on this domain */}
-              <a href="/cdn-cgi/access/logout">
-                <IconLogout />
-                <span className="grid min-w-0 leading-tight">
-                  <span>Sign out</span>
-                  <span className="truncate text-xs text-sidebar-foreground/70">{viewer}</span>
-                </span>
-              </a>
-            </SidebarMenuButton>
+            {auth === 'crashyard' ? (
+              // Ends this session only: Settings, Sign-in signs out other devices
+              <form method="post" action="/auth/signout">
+                <SidebarMenuButton type="submit" tooltip="Sign out" className="h-auto">
+                  <IconLogout />
+                  <SignedIn name={name} email={viewer} />
+                </SidebarMenuButton>
+              </form>
+            ) : (
+              <SidebarMenuButton asChild tooltip="Sign out" className="h-auto">
+                {/* Cloudflare Access signs out of every app behind it on this domain */}
+                <a href="/cdn-cgi/access/logout">
+                  <IconLogout />
+                  <SignedIn name={name} email={viewer} />
+                </a>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
@@ -411,14 +427,15 @@ function ProjectSwitcher({
 // every svg; in the sidebar's colour, which isn't always the page's
 const RING = 'M20.29,17.59A10 10 0 1 1 20.29,6.41L16.06,9.26A4.9 4.9 0 1 0 16.06,14.74Z'
 
-function Logo() {
+/** crashyard's mark, the sidebar's size and colour unless told otherwise */
+export function Logo({
+  className = 'size-6! shrink-0 fill-sidebar-foreground group-data-[collapsible=icon]:size-5!',
+}: {
+  className?: string
+}) {
   const id = useId()
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-6! shrink-0 fill-sidebar-foreground group-data-[collapsible=icon]:size-5!"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <clipPath id={`${id}n`}>
         <polygon points="12,12 24,12 24,24 0,24 -6.02,-0.62 0.49,4.9 3.39,5.82 3.89,7.89 5.78,7.98 6.55,9.5 8.28,10.34" />
       </clipPath>

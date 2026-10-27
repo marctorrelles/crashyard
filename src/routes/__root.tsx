@@ -26,11 +26,17 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
-  component: () => (
-    <Layout>
+  // Signed out, only the sign-in pages open (src/server.ts), on their own without the sidebar
+  component: function Root() {
+    const { viewer } = Route.useLoaderData()
+    return viewer ? (
+      <Layout>
+        <Outlet />
+      </Layout>
+    ) : (
       <Outlet />
-    </Layout>
-  ),
+    )
+  },
   errorComponent: ({ error }) => (
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="text-xl font-semibold">Something went wrong</h1>

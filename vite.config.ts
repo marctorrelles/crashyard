@@ -16,7 +16,15 @@ export default defineConfig({
     cloudflare({
       viteEnvironment: { name: 'ssr' },
       persistState: process.env.CRASHYARD_STATE ? { path: process.env.CRASHYARD_STATE } : true,
-      config: local ? (config) => ({ ...local, vars: { ...config.vars, ...local.vars } }) : undefined,
+      // AUTH=crashyard SETUP_CODE=… pnpm dev: the dev server signs in with passkeys too, to work on sign-in
+      config: (config) => ({
+        ...local,
+        vars: {
+          ...config.vars,
+          ...local?.vars,
+          ...Object.fromEntries(['AUTH', 'SETUP_CODE'].flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : []))),
+        },
+      }),
     }),
     tailwindcss(),
     tanstackStart(),

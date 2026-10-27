@@ -1,6 +1,6 @@
 // The settings area's pieces: its pages in three groups (the deployment's, the project's, the viewer's own), the left
 // list (a select on a phone), and what each page is made of.
-import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
+import { getRouteApi, Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useProjects } from '@/components/shell'
@@ -18,11 +18,14 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
-type Page = { label: string; path: string }
+const root = getRouteApi('__root__')
+
+type Page = { label: string; path: string; owners?: boolean }
 type Group = { label: string; pages: Page[]; project?: boolean }
 
 const INSTANCE: Page[] = [
   { label: 'General', path: '/settings/general' },
+  { label: 'People', path: '/settings/people', owners: true },
   { label: 'Email', path: '/settings/email' },
   { label: 'New-project defaults', path: '/settings/defaults' },
   { label: 'Data privacy', path: '/settings/privacy' },
@@ -44,6 +47,7 @@ const PROJECT: Page[] = [
   { label: 'Delete project', path: 'delete' },
 ]
 const PERSONAL: Page[] = [
+  { label: 'Sign-in', path: '/settings/sign-in' },
   { label: 'Appearance', path: '/settings/appearance' },
   { label: 'Date and time', path: '/settings/date-and-time' },
   { label: 'Stack traces', path: '/settings/stack-traces' },
@@ -51,9 +55,9 @@ const PERSONAL: Page[] = [
 ]
 
 /** The groups, the project's for `slug` (the page's, else the one picked last, else the first) */
-function groupsFor(project?: { slug: string; name: string }): Group[] {
+function groupsFor(project: { slug: string; name: string } | undefined, owner: boolean): Group[] {
   return [
-    { label: 'crashyard', pages: INSTANCE },
+    { label: 'crashyard', pages: INSTANCE.filter((p) => owner || !p.owners) },
     ...(project
       ? [
           {
@@ -76,7 +80,9 @@ export function SettingsNav({ lastProject }: { lastProject: string | null }) {
   const slug = path.match(/^\/settings\/projects\/([^/]+)/)?.[1]
   const project =
     projects.find((p) => p.slug === (slug ? decodeURIComponent(slug) : lastProject)) ?? (slug ? undefined : projects[0])
-  const groups = groupsFor(project)
+  // People only for owners of a crashyard signing in by itself: with Access, its policy says who comes in
+  const { auth, role } = root.useLoaderData()
+  const groups = groupsFor(project, auth === 'crashyard' && role === 'owner')
   // Another project opens the same page of it, or its General from a page that isn't a project's
   const pickProject = (other: string) => {
     const page = path.match(/^\/settings\/projects\/[^/]+\/([^/]+)/)?.[1] ?? 'general'

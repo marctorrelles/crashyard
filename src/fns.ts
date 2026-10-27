@@ -1,6 +1,6 @@
 // The dashboard's server functions: what pages load and change, behind Access (src/server.ts). Each checks its input
 // here and calls src/data/, which holds the SQL.
-import { createServerFn } from '@tanstack/react-start'
+import { createMiddleware, createServerFn } from '@tanstack/react-start'
 import { getCookie, getRequest, getRequestHeader, setCookie } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 import * as charts from './data/charts'
@@ -11,6 +11,7 @@ import * as issues from './data/issues'
 import * as logs from './data/logs'
 import * as monitors from './data/monitors'
 import * as notifications from './data/notifications'
+import * as people from './data/people'
 import * as performance from './data/performance'
 import * as projects from './data/projects'
 import * as releases from './data/releases'
@@ -35,6 +36,29 @@ import { version } from '../package.json'
 import { EVENT_KEYS, ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
+
+// What the signed-in person may change, by role (src/auth/AGENTS.md): src/server.ts sets the role with the viewer.
+// Every server function that changes something names the least role it needs; `fns.test.ts` fails on one that doesn't
+const REFUSALS: Record<people.Role, string> = {
+  viewer: 'Sign in to crashyard first.',
+  member: 'Viewers can look but not change things. Ask an admin to make you a member.',
+  admin: 'Only admins can do this. Ask an owner to make you an admin.',
+  owner: 'Only owners can do this. Ask an owner if you need it.',
+}
+const role = () => {
+  const r = getRequestHeader('x-crashyard-role')
+  return people.isRole(r) ? r : null
+}
+const as = (needed: people.Role) =>
+  createMiddleware({ type: 'function' }).server(({ next }) => {
+    const r = role()
+    if (!r || !people.reaches(r, needed)) throw new Error(REFUSALS[needed])
+    return next()
+  })
+const signedIn = as('viewer')
+const member = as('member')
+const admin = as('admin')
+const owner = as('owner')
 const ZONES = new Set([...Intl.supportedValuesOf('timeZone'), 'UTC'])
 const origin = () => new URL(getRequest().url).origin
 
@@ -116,11 +140,27 @@ export const getHome = createServerFn().handler(async () => {
 // it was folded (shadcn's own cookie) and who's signed in, with their preferences. Times show in their chosen zone, else
 // the browser's (a cookie the root's script keeps, `tz`), else UTC on a first visit; server and browser render the same.
 export const getSidebar = createServerFn().handler(async () => {
-  const [list, preferences] = await Promise.all([
+  const browserZone = getCookie('tz')
+  const auth = getRequestHeader('x-crashyard-auth') === 'crashyard' ? 'crashyard' : 'access'
+  // Signed out, on a sign-in page: nothing of the deployment's, the browser's own theme
+  if (!role())
+    return {
+      projects: [],
+      lastProject: null,
+      viewer: null,
+      name: null,
+      role: null,
+      auth,
+      sidebarOpen: true,
+      preferences: settings.PREFERENCES,
+      zone: browserZone && ZONES.has(browserZone) ? browserZone : 'UTC',
+    }
+  const userId = Number(getRequestHeader('x-crashyard-user'))
+  const [list, preferences, user] = await Promise.all([
     projects.allProjects(env.DB),
     settings.getPreferences(env.DB, viewer()),
+    userId ? people.userById(env.DB, userId) : null,
   ])
-  const browserZone = getCookie('tz')
   // The theme is the viewer's, the cookies the browser's: a browser that hasn't seen it yet gets it, from its next page
   if ((getCookie('theme') ?? 'system') !== preferences.theme) setThemeCookie('theme', preferences.theme)
   if ((getCookie('style') ?? 'hazard') !== preferences.style) setThemeCookie('style', preferences.style)
@@ -128,6 +168,9 @@ export const getSidebar = createServerFn().handler(async () => {
     projects: list,
     lastProject: getCookie('crashyard_project') ?? null,
     viewer: viewer(),
+    name: user?.name ?? null,
+    role: role(),
+    auth,
     sidebarOpen: getCookie('sidebar_state') !== 'false',
     preferences,
     zone: preferences.timeZone ?? (browserZone && ZONES.has(browserZone) ? browserZone : 'UTC'),
@@ -135,6 +178,7 @@ export const getSidebar = createServerFn().handler(async () => {
 })
 
 export const createProject = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
     return { name: text(o.name, 80, 'The project name').trim(), platform: oneOf(projects.PLATFORMS)(o.platform) }
@@ -237,6 +281,7 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
   },
 }
 export const updateProject = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
     const change: Record<string, unknown> = {}
@@ -246,6 +291,7 @@ export const updateProject = createServerFn({ method: 'POST' })
   .handler(({ data }) => projects.updateProject(env.DB, data.id, data.change))
 
 export const createKey = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
     return { project: int(o.project), label: text(o.label ?? '', 80, 'The key name').trim() || 'Untitled' }
@@ -253,6 +299,7 @@ export const createKey = createServerFn({ method: 'POST' })
   .handler(({ data }) => projects.createKey(env.DB, data.project, data.label, Date.now()).then(() => undefined))
 
 export const updateKey = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
     return {
@@ -268,6 +315,7 @@ export const updateKey = createServerFn({ method: 'POST' })
   .handler(({ data }) => projects.updateKey(env.DB, data.project, data.id, data.change).then(() => undefined))
 
 export const deleteProject = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => projects.deleteProject(env.DB, data.id).then(() => undefined))
 
@@ -361,6 +409,7 @@ export const getIssue = createServerFn()
   })
 
 export const changeIssues = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     const action = oneOf(['resolve', 'ignore', 'reopen', 'delete', 'priority'] as const)(o.action)
@@ -390,10 +439,12 @@ export const changeIssues = createServerFn({ method: 'POST' })
   .handler(({ data }) => issues.changeIssues(env.DB, data.ids, data.change, viewer(), Date.now()))
 
 export const mergeIssues = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => ({ ids: ints(object(d).ids) }))
   .handler(({ data }) => issues.mergeIssues(env.DB, data.ids, viewer(), Date.now()))
 
 export const assignIssue = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     const assignee = optional((v) => text(v, 200).trim())(o.assignee) ?? null
@@ -403,6 +454,7 @@ export const assignIssue = createServerFn({ method: 'POST' })
   .handler(({ data }) => issues.assignIssue(env.DB, data.id, data.assignee, viewer(), Date.now()))
 
 export const bookmarkIssue = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), on: o.on === true }
@@ -410,6 +462,7 @@ export const bookmarkIssue = createServerFn({ method: 'POST' })
   .handler(({ data }) => issues.bookmarkIssue(env.DB, viewer(), data.id, data.on).then(() => undefined))
 
 export const linkIssue = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     const url = optional((v) => text(v, 500, 'The issue address').trim())(o.url) ?? null
@@ -424,6 +477,7 @@ export const getMergedFingerprints = createServerFn()
   .handler(({ data }) => issues.mergedFingerprints(env.DB, data.id))
 
 export const unmergeIssue = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), fingerprint: text(o.fingerprint, 200) }
@@ -431,6 +485,7 @@ export const unmergeIssue = createServerFn({ method: 'POST' })
   .handler(({ data }) => issues.unmergeIssue(env.DB, data.id, data.fingerprint, viewer(), Date.now()))
 
 export const addNote = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), text: text(o.text, 10_000, 'A note').trim() }
@@ -440,6 +495,7 @@ export const addNote = createServerFn({ method: 'POST' })
   })
 
 export const deleteNote = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), note: int(o.note) }
@@ -611,8 +667,19 @@ export const getTrace = createServerFn()
     now: Date.now(),
   }))
 
+// A channel's secrets stay on the server: Telegram's webhook secret for everyone (saving finds it again), and the bot
+// token and webhook address for anyone below admin, who can't edit channels anyway
+const channelForPage = <C extends { config: string }>(channel: C, isAdmin: boolean): C => {
+  const { secret: _, ...config } = JSON.parse(channel.config) as Record<string, unknown>
+  if (!isAdmin) for (const key of ['token', 'url']) if (key in config) config[key] = ''
+  return { ...channel, config: JSON.stringify(config) }
+}
+
 export const getNotifications = createServerFn().handler(async () => ({
-  ...(await notifications.settings(env.DB)),
+  ...(await notifications.settings(env.DB).then((s) => {
+    const r = role()
+    return { ...s, channels: s.channels.map((c) => channelForPage(c, !!r && people.reaches(r, 'admin'))) }
+  })),
   projects: await projects.allProjects(env.DB),
   emailReady: !!env.EMAIL_FROM,
   now: Date.now(),
@@ -620,6 +687,7 @@ export const getNotifications = createServerFn().handler(async () => ({
 
 const minuteOfDay = optional((v) => int(v, 0, 1439))
 export const saveChannel = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown): notifications.ChannelInput => {
     const o = object(d)
     return {
@@ -663,6 +731,7 @@ export const saveChannel = createServerFn({ method: 'POST' })
 
 /** The chats that wrote to a Telegram bot lately, for its channel's chat */
 export const findTelegramChats = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const token = telegramToken(text(object(d).token, 500))
     if (!token) throw new Error('That isn’t a bot token. Copy the token from @BotFather, it looks like 123456789:AA…')
@@ -671,6 +740,7 @@ export const findTelegramChats = createServerFn({ method: 'POST' })
   .handler(({ data }) => telegramChats(data.token))
 
 export const deleteChannel = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(async ({ data }) => {
     const telegram = await notifications.telegramChannels(env.DB)
@@ -682,6 +752,7 @@ export const deleteChannel = createServerFn({ method: 'POST' })
   })
 
 export const saveRoute = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown): notifications.RouteInput => {
     const o = object(d)
     return {
@@ -728,6 +799,7 @@ const routeQuery = (v: unknown) => {
 }
 
 export const saveMetricAlert = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown): notifications.MetricAlertInput => {
     const o = object(d)
     const metric = oneOf(Object.keys(METRICS) as Metric[])(o.metric)
@@ -766,18 +838,22 @@ export const saveMetricAlert = createServerFn({ method: 'POST' })
   })
 
 export const deleteMetricAlert = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => notifications.deleteMetricAlert(env.DB, data.id).then(() => undefined))
 
 export const deleteRoute = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => notifications.deleteRoute(env.DB, data.id).then(() => undefined))
 
 export const testRoute = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => notifications.testRoute(env, data.id, origin()))
 
 export const testChannel = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => notifications.testChannel(env, data.id, origin()))
 
@@ -998,6 +1074,7 @@ export const getDashboard = createServerFn()
 
 // One widget's data before it's saved: the widget builder's preview, and the viewer's other displays
 export const previewWidget = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
   .validator((d: unknown) => {
     const o = object(d)
     return {
@@ -1013,6 +1090,7 @@ export const previewWidget = createServerFn({ method: 'POST' })
 
 // A whole dashboard written at once (a new one without `id`), every widget checked; who saved it is recorded
 export const saveDashboard = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     const name = text(o.name, 80, 'The dashboard name').trim()
@@ -1028,6 +1106,7 @@ export const getDashboardHistory = createServerFn()
 
 // A dashboard back to the widgets it had before a save; the ones it has now become a revision in turn
 export const restoreDashboard = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), index: int(o.index, 0, dashboards.MAX_REVISIONS - 1) }
@@ -1043,6 +1122,7 @@ export const restoreDashboard = createServerFn({ method: 'POST' })
 
 // One widget added at the end of a dashboard: the logs page's "Add to dashboard"
 export const addWidget = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), widget: widgets.parseWidgets([o.widget])[0] }
@@ -1050,11 +1130,13 @@ export const addWidget = createServerFn({ method: 'POST' })
   .handler(({ data }) => dashboards.addWidget(env.DB, data.id, data.widget, viewer(), Date.now()))
 
 export const deleteDashboard = createServerFn({ method: 'POST' })
+  .middleware([member])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => dashboards.deleteDashboard(env.DB, data.id).then(() => undefined))
 
 // A token for one project (`project`, its id) or every project
 export const createToken = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
     return {
@@ -1065,6 +1147,7 @@ export const createToken = createServerFn({ method: 'POST' })
   .handler(({ data }) => tokens.createToken(env.DB, data.name, viewer(), Date.now(), data.project))
 
 export const revokeToken = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => tokens.revokeToken(env.DB, data.id).then(() => undefined))
 
@@ -1130,6 +1213,7 @@ const assertionsOf = (v: unknown): Assertion[] | undefined => {
 }
 
 export const saveMonitor = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown): monitors.MonitorInput => {
     const o = object(d)
     const c = object(o.config)
@@ -1186,6 +1270,7 @@ export const saveMonitor = createServerFn({ method: 'POST' })
   })
 
 export const pauseMonitor = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), paused: o.paused === true }
@@ -1193,6 +1278,7 @@ export const pauseMonitor = createServerFn({ method: 'POST' })
   .handler(({ data }) => monitors.setPaused(env.DB, data.id, data.paused, Date.now()))
 
 export const deleteMonitor = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => monitors.deleteMonitor(env.DB, data.id).then(() => undefined))
 
@@ -1206,6 +1292,7 @@ export const getProjectPage = createServerFn()
   })
 
 export const deleteDebugFile = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
     return { project: int(o.project), id: int(o.id) }
@@ -1233,6 +1320,7 @@ export const getInstanceSettings = createServerFn().handler(async () => {
 })
 
 export const saveProjectDefaults = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown): settings.ProjectDefaults => {
     const o = object(d)
     return {
@@ -1246,6 +1334,7 @@ export const saveProjectDefaults = createServerFn({ method: 'POST' })
   .handler(({ data }) => settings.setSetting(env.DB, 'defaults.project', data, viewer()).then(() => undefined))
 
 export const saveScrubFields = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const list = object(d).fields
     if (!Array.isArray(list) || list.length > 100) throw new Error('Keep it to 100 field names at most.')
@@ -1254,10 +1343,12 @@ export const saveScrubFields = createServerFn({ method: 'POST' })
   .handler(({ data }) => settings.setSetting(env.DB, settings.SCRUB_KEY, data.fields, viewer()).then(() => undefined))
 
 export const saveAgentsCanChange = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => ({ on: object(d).on === true }))
   .handler(({ data }) => settings.setSetting(env.DB, settings.AGENTS_KEY, data.on, viewer()).then(() => undefined))
 
 export const sendTestEmail = createServerFn({ method: 'POST' })
+  .middleware([admin])
   .validator((d: unknown) => {
     const to = text(object(d).to, 200, 'The address').trim()
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error('That isn’t an email address.')
@@ -1316,6 +1407,7 @@ const PREFERENCE_CHECKS: { [K in keyof settings.Preferences]-?: (v: unknown) => 
 
 /** One preference of the viewer's; the theme and style go in cookies too, for the script that sets them before paint */
 export const savePreference = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
   .validator((d: unknown) => {
     const o = object(d)
     const key = oneOf(Object.keys(PREFERENCE_CHECKS) as (keyof settings.Preferences)[])(o.key)
@@ -1335,6 +1427,7 @@ export const getSavedSearches = createServerFn()
   .handler(({ data }) => searches.listSavedSearches(env.DB, viewer(), data.page))
 
 export const saveSearch = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
   .validator((d: unknown) => {
     const o = object(d)
     const name = text(o.name, 80, 'The search name').trim()
@@ -1349,6 +1442,7 @@ export const saveSearch = createServerFn({ method: 'POST' })
   .handler(({ data }) => searches.saveSearch(env.DB, viewer(), data, Date.now()))
 
 export const pinSearch = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
   .validator((d: unknown) => {
     const o = object(d)
     return { id: int(o.id), pinned: o.pinned === true }
@@ -1356,5 +1450,146 @@ export const pinSearch = createServerFn({ method: 'POST' })
   .handler(({ data }) => searches.pinSearch(env.DB, viewer(), data.id, data.pinned))
 
 export const deleteSearch = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => searches.deleteSearch(env.DB, viewer(), data.id))
+
+// Sign-in (src/auth/AGENTS.md): the signed-in person's passkeys, sessions and recovery codes, Settings, Sign-in; and
+// People, the owners' page. All of it is crashyard's own sign-in: with Access, only claiming the first passkey
+
+/** The signed-in person's id, only with crashyard's own sign-in */
+const me = () => {
+  const id = Number(getRequestHeader('x-crashyard-user'))
+  if (!id) throw new Error('This crashyard signs in through Cloudflare Access.')
+  return id
+}
+
+export const getSignIn = createServerFn()
+  .middleware([signedIn])
+  .handler(async () => {
+    const id = Number(getRequestHeader('x-crashyard-user'))
+    const now = Date.now()
+    if (!id)
+      return {
+        auth: 'access' as const,
+        // Moving over from Access: whoever it lets in makes the first passkey, and becomes the owner
+        canClaim: !viewer().startsWith('service:') && !(await people.userCount(env.DB)),
+        viewer: viewer(),
+        passkeys: [],
+        sessions: [],
+        codesLeft: 0,
+        now,
+      }
+    const current = getRequestHeader('x-crashyard-session')
+    const [passkeys, sessions, codesLeft] = await Promise.all([
+      people.passkeysOf(env.DB, id),
+      people.sessionsOf(env.DB, id, now),
+      people.recoveryCodesLeft(env.DB, id),
+    ])
+    return {
+      auth: 'crashyard' as const,
+      canClaim: false,
+      viewer: viewer(),
+      passkeys,
+      sessions: sessions.map((s) => ({ ...s, current: s.hash === current })),
+      codesLeft,
+      now,
+    }
+  })
+
+export const renamePasskey = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const name = text(o.name, 60, 'The passkey name').trim()
+    if (!name) throw new Error('Give the passkey a name.')
+    return { id: text(o.id, 1000), name }
+  })
+  .handler(async ({ data }) => {
+    await people.renamePasskey(env.DB, me(), data.id, data.name)
+  })
+
+export const removePasskey = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => ({ id: text(object(d).id, 1000) }))
+  .handler(({ data }) => people.removePasskey(env.DB, me(), data.id))
+
+export const signOutSession = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { hash: o.others === true ? null : text(o.hash, 64) }
+  })
+  .handler(async ({ data }) => {
+    const current = getRequestHeader('x-crashyard-session') ?? ''
+    if (data.hash === null) await people.endOtherSessions(env.DB, me(), current)
+    else await people.endSessionOf(env.DB, me(), data.hash)
+  })
+
+export const makeRecoveryCodes = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .handler(() => people.newRecoveryCodes(env.DB, me()))
+
+export const getPeople = createServerFn()
+  .middleware([owner])
+  .handler(async () => {
+    const now = Date.now()
+    const [users, invites] = await Promise.all([people.listUsers(env.DB), people.listInvites(env.DB, now)])
+    return { users, invites, me: Number(getRequestHeader('x-crashyard-user')) || null, now }
+  })
+
+export const createInvite = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const email = text(o.email ?? '', 200, 'The email')
+      .trim()
+      .toLowerCase()
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      throw new Error('That email doesn’t look right. It should look like someone@example.com.')
+    return { role: oneOf(people.ROLES)(o.role), email: email || null }
+  })
+  .handler(async ({ data }) => {
+    if (data.email && (await people.userByEmail(env.DB, data.email)))
+      throw new Error('Someone with that email is already here.')
+    const token = await people.createInvite(env.DB, data.role, data.email, viewer(), Date.now())
+    return `${env.PUBLIC_URL?.replace(/\/$/, '') || origin()}/invite/${token}`
+  })
+
+export const revokeInvite = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .validator((d: unknown) => ({ hash: text(object(d).hash, 64) }))
+  .handler(async ({ data }) => {
+    await people.revokeInvite(env.DB, data.hash)
+  })
+
+export const changeRole = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: int(o.id), role: oneOf(people.ROLES)(o.role) }
+  })
+  .handler(({ data }) => people.changeRole(env.DB, data.id, data.role))
+
+export const removePerson = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => {
+    if (data.id === me()) throw new Error('You can’t remove yourself. Ask another owner to do it.')
+    return people.removeUser(env.DB, data.id)
+  })
+
+// The sign-in pages' own data, read while signed out (only during their server render: src/server.ts answers 401 to a
+// server function call from a signed-out browser), so they say nothing about the deployment beyond what the page needs
+
+export const getSetupPage = createServerFn().handler(async () => ({
+  ready: !!env.SETUP_CODE,
+  done: (await people.userCount(env.DB)) > 0,
+}))
+
+export const getInvitePage = createServerFn()
+  .validator((d: unknown) => ({ token: text(object(d).token, 100) }))
+  .handler(async ({ data }) => {
+    const invite = await people.inviteOf(env.DB, data.token, Date.now())
+    return invite && { inviter: invite.inviter, role: invite.role, email: invite.email, usable: invite.usable }
+  })

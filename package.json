@@ -30,6 +30,8 @@
     "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.0.3",
     "@tabler/icons-react": "^3.49.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "1.170.46",

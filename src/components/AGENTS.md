@@ -13,7 +13,8 @@
   nothing wider than the screen) and in light and dark.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
   pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications, and at
-  the foot Settings, then who's signed in with Sign out, Access's `/cdn-cgi/access/logout`), `Shell` (a page: the top bar with the
+  the foot Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout` with
+  crashyard's own sign-in, Access's `/cdn-cgi/access/logout` with Access), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists, `full` for settings: from the sidebar's edge, not centred), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
   section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). The lists (overview, dashboards, issues, Explore, releases, performance, logs)
@@ -118,6 +119,13 @@
   gif, webp, `attachmentType`) as a 48 px thumbnail opening full size in a `Dialog`, and `view-hierarchy.json`
   (sentry-cocoa's and sentry-android's name for it) as an indented tree of type, identifier and frame, fetched when
   opened, 2000 views at most. Files come from `/attachments/<id>`.
+- `sign-in.tsx`: the sign-in pages' pieces. `SignInFrame` (the mark and crashyard, then a card with a title and a
+  line, alone in the middle of a muted page, `max-w-sm`), `auth` (a POST to `/auth/<path>`, its `error` thrown as
+  the sentence to show), `createPasskey` and `signInWithPasskey` (`@simplewebauthn/browser`; a cancelled prompt,
+  an existing passkey or an unusable browser in words), `nextPath` (only a path on this site), `RecoveryCodes` (two
+  columns, Copy and Download as a text file), `Problem` (an error under a form) and `NewPerson` (setup and invite:
+  the page's own fields, name, email or the invite's fixed one, Create passkey; then the recovery codes and
+  Continue to crashyard, a whole page load).
 - `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's `PROJECT` with Grouping and Filters, `PERSONAL`), `SettingsNav` (the list,
   the project's group for the page's project, else the one picked last, else the first, headed by a `Select` of every
   project that opens the same page of the one picked, or its General from a page that isn't a project's; with too little room

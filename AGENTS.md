@@ -6,7 +6,8 @@ server) with shadcn/ui; data is in D1 (SQLite) and R2. This file holds what the 
 own AGENTS.md for what's particular to it.
 
 ```sh
-pnpm dev                 # http://localhost:3000, with local D1 and R2 (Access is off locally)
+pnpm dev                 # http://localhost:3000, with local D1 and R2, signed in as dev@localhost
+                         # (AUTH=crashyard SETUP_CODE=… pnpm dev to work on sign-in itself)
 pnpm check               # lint, format, types, knip, tests, build: run it before every commit
 pnpm test                # vitest, in seconds
 pnpm seed                # a month of made-up crashes in the local database
@@ -17,8 +18,8 @@ pnpm run deploy          # build, apply migrations to the remote D1, deploy
 Where things are:
 
 - `src/server.ts`: the worker's entry (`main` in `wrangler.jsonc`: Start's default entry would skip the Access
-  check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys) and sends everything else to Start
-  through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications,
+  check). `fetch` answers `/api/*` itself (`src/api/`, which check their own keys), `/auth/*` (passkeys, signing out),
+  and sends everything else to Start for whoever is signed in, with a passkey or through Cloudflare Access; `scheduled` runs the cron every minute (monitors, held notifications,
   each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
   slower releases; every 5 minutes at :02, :07…, metric alerts; Mondays at 07:00 UTC, each project's week; hourly at
   :15, retention; hourly at :20, auto-resolve and notification failures past 30 days; hourly at :25, escalation;
@@ -30,8 +31,9 @@ Where things are:
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
 - `src/notify/`: routes (frequency, filters, a wait), metric alerts, channels (Telegram, email, webhooks), quiet hours
   (see its AGENTS.md).
-- `src/auth/`: the Access check (see its AGENTS.md).
-- `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`. A field a
+- `src/auth/`: who's signed in: crashyard's own passkeys and sessions, or Cloudflare Access (see its AGENTS.md).
+- `src/fns.ts`: the dashboard's server functions: input checks, who's signed in, then `src/data/`. Each one that
+  changes something names the least role it needs (`.middleware([member])`, `src/auth/AGENTS.md`). A field a
   person types passes its label to `int` or `text`, so a refusal names it and what fits ("Event retention in days is
   a whole number from 1 to 3,650."), and its input carries the same `min`, `max` or `maxLength`; ids and other
   fields only a page sets keep the short "expected …".
@@ -60,8 +62,9 @@ Where things are:
 
 ## Rules
 
-- **Fail closed.** The dashboard is behind Access, and the worker checks Access's token itself; without Access
-  configured, a deployment refuses every dashboard request. Anything that reads data checks who's asking.
+- **Fail closed.** Signed out, the dashboard opens only its sign-in pages; with no one set up yet, only `/setup` and
+  its setup code. With `AUTH` as `access`, the worker checks Access's token itself, and without Access configured it
+  refuses every dashboard request. Anything that reads data checks who's asking, anything that changes it their role.
 - **Be what the Sentry SDKs and sentry-cli expect.** When in doubt about a wire format, check what the real SDK sends
   and what Sentry answers; record what was checked, and against which version, in the part's AGENTS.md.
 - **Commits:** one subject per commit, Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`). No commit or

@@ -1,13 +1,16 @@
 import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/server'
-import { env as workerEnv } from 'cloudflare:workers'
 import { handleIngest } from './api/ingest'
-import { viewerOf } from './auth/access'
+import { authMode } from './auth/mode'
+import { whoIs } from './auth/session'
 import type { Notice } from './notify/notice'
 
 const start = createStartHandler(defaultStreamHandler)
 
 // What apps and build tools call: plain handlers, each checking its own key or token, ahead of Start. Ingest: an
 // envelope, an event, a security report, or a check-in over HTTP (`cron/<slug>/<key>`, the key optional)
+// crashyard's own sign-in pages, open while signed out (src/auth/AGENTS.md)
+const SIGN_IN_PAGES = /^\/(signin|setup|invite\/[^/]+)\/?$/
+
 const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
 
 export default {
@@ -55,17 +58,55 @@ export default {
     }
     if (url.pathname.startsWith('/api/')) return Response.json({ detail: 'Not found' }, { status: 404 })
 
-    // Everything else is the dashboard, behind Access
-    const viewer = await viewerOf(request, workerEnv, import.meta.env.DEV)
-    if (!viewer) return new Response('Sign in through Cloudflare Access to open crashyard.', { status: 403 })
-    if (url.pathname === '/mcp') {
-      const { handleMcp } = await import('./api/mcp')
-      return handleMcp(request, env.DB, viewer.email)
+    // Everything else is the dashboard: signed in with a passkey (crashyard's own sign-in), or through Access
+    const mode = authMode(env)
+    const now = Date.now()
+    const who = await whoIs(request, env, mode, import.meta.env.DEV, now)
+    if (url.pathname.startsWith('/auth/')) {
+      const { handleAuth } = await import('./auth/passkeys')
+      const answer = await handleAuth(url.pathname.slice('/auth/'.length), {
+        request,
+        env,
+        dev: import.meta.env.DEV,
+        mode,
+        who,
+        now,
+      })
+      if (answer) return answer
     }
-    // The dashboard reads who's signed in from this header; one sent from outside is replaced
-    const headers = new Headers(request.headers)
-    headers.set('x-crashyard-viewer', viewer.email)
-    return start(new Request(request, { headers }))
+    // The sign-in pages are open to anyone, and only to someone signed out
+    const signInPage = mode === 'crashyard' && SIGN_IN_PAGES.test(url.pathname)
+    if (signInPage && who) return Response.redirect(new URL('/', url), 303)
+    if (!who && !signInPage) {
+      if (mode === 'access')
+        return new Response('Sign in through Cloudflare Access to open crashyard.', { status: 403 })
+      if (url.pathname === '/mcp' || url.pathname.startsWith('/_serverFn') || request.method !== 'GET')
+        return new Response('Sign in to crashyard first.', { status: 401 })
+      const { userCount } = await import('./data/people')
+      const to = (await userCount(env.DB))
+        ? `/signin${url.pathname === '/' ? '' : `?next=${encodeURIComponent(url.pathname + url.search)}`}`
+        : '/setup'
+      return Response.redirect(new URL(to, url), 303)
+    }
+    if (url.pathname === '/mcp' && who) {
+      const { handleMcp } = await import('./api/mcp')
+      return handleMcp(request, env.DB, who.email)
+    }
+    // The dashboard reads who's signed in from these headers only; any sent from outside are dropped
+    const headers = new Headers()
+    for (const [name, value] of request.headers) if (!name.startsWith('x-crashyard-')) headers.append(name, value)
+    if (who) {
+      headers.set('x-crashyard-viewer', who.email)
+      headers.set('x-crashyard-role', who.role)
+      if (who.userId) headers.set('x-crashyard-user', String(who.userId))
+      if (who.session) headers.set('x-crashyard-session', who.session)
+    }
+    headers.set('x-crashyard-auth', mode)
+    const response = await start(new Request(request, { headers }))
+    if (!who?.cookie) return response
+    const renewed = new Response(response.body, response)
+    renewed.headers.append('Set-Cookie', who.cookie)
+    return renewed
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
@@ -145,9 +186,10 @@ async function everyMinute(env: Env, now: number) {
     await job('performance retention', () => prunePerformance(env.DB, now))
     await job('monitor retention', () => pruneMonitors(env.DB, now))
   }
-  // Hourly, at :20: issues not seen for their project's "Resolve issues not seen for", and notification failures past
-  // 30 days
+  // Hourly, at :20: sessions and passkey challenges past their end, issues not seen for their project's "Resolve issues
+  // not seen for", and notification failures past 30 days
   if (at.getUTCMinutes() === 20) {
+    await job('sign-in', async () => (await import('./data/people')).pruneSignIn(env.DB, now))
     await job('auto-resolve', async () => (await import('./data/issues')).autoResolve(env.DB, now, deadline))
     await job('notification failures', () => pruneFailures(env.DB, now))
   }
