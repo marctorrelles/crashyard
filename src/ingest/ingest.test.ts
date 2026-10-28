@@ -312,6 +312,31 @@ describe('reopening', () => {
     expect(transitionOf(fixed, '1.9', 0, false, true)).toBeUndefined()
     expect(transitionOf(fixed, undefined, 0)).toBeUndefined()
   })
+  it('keeps a resolve made while an event was on its way, and counts both events of a minute', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0)")
+    const project = {
+      id: 1,
+      slug: 'a',
+      name: 'a',
+      daily_event_quota: 1e6,
+      daily_log_quota: 1e6,
+      daily_transaction_quota: 1e6,
+    }
+    await storeEvent(db, project, await normalizeEvent({ message: 'm' }, 60_000), 'fp')
+    // Someone resolves it after the next event read the issue as unresolved, before that event's batch
+    const batch = db.batch.bind(db)
+    db.batch = (async (statements: D1PreparedStatement[]) => {
+      db.sqlite.exec("UPDATE issues SET status = 'resolved', substatus = NULL, minute_count = minute_count + 1")
+      return batch(statements)
+    }) as typeof db.batch
+    await storeEvent(db, project, await normalizeEvent({ message: 'm' }, 60_001), 'fp')
+    expect(db.sqlite.prepare('SELECT status, count, minute_count FROM issues').get()).toEqual({
+      status: 'resolved',
+      count: 2,
+      minute_count: 3,
+    })
+  })
   it('orders releases by when they were made, else their first event', async () => {
     const db = sqliteD1()
     db.sqlite.exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0);

@@ -225,40 +225,36 @@ export async function storeEvent(
   const minute = Math.floor(now / 60_000)
   const minuteCount = issue.minute === minute ? issue.minute_count + 1 : 1
   const keep = minuteCount <= SPIKE_LIMIT
-  const status = transition ? 'unresolved' : issue.status
-  // 'new' stays: an issue reads as new for its first week (NEW_FOR in src/search/query.ts), as Sentry's
-  const substatus = transition ?? (isNew ? 'new' : issue.substatus)
+  // Only a transition writes the status, and only over the one it was decided from: a resolve or ignore made by someone
+  // while this event was on its way stays. 'new' stays too: an issue reads as new for its first week (NEW_FOR in
+  // src/search/query.ts), as Sentry's, and the insert set it
   const day = dayOf(now)
   const tags = Object.entries(event.tags).slice(0, 30)
 
   const statements: D1PreparedStatement[] = [
     db
       .prepare(
-        `UPDATE issues SET count = count + 1, last_seen = MAX(last_seen, ?), last_release = COALESCE(?, last_release),
-           first_release = COALESCE(first_release, ?), last_event_id = ?, minute = ?, minute_count = ?, status = ?, substatus = ?,
-           resolved_in_release = CASE WHEN ? THEN NULL ELSE resolved_in_release END,
-           fixed_in_release = CASE WHEN ? THEN NULL ELSE fixed_in_release END,
-           resolved_in_commit = CASE WHEN ? THEN NULL ELSE resolved_in_commit END,
-           ignore_until_count = CASE WHEN ? THEN NULL ELSE ignore_until_count END,
-           ignore_until = CASE WHEN ? THEN NULL ELSE ignore_until END,
-           ignore_until_users = CASE WHEN ? THEN NULL ELSE ignore_until_users END
-         WHERE id = ?`,
+        `UPDATE issues SET count = count + 1, last_seen = MAX(last_seen, ?1), last_release = COALESCE(?2, last_release),
+           first_release = COALESCE(first_release, ?2), last_event_id = ?3,
+           minute_count = CASE WHEN minute = ?4 THEN minute_count + 1 ELSE 1 END, minute = ?4,
+           status = CASE WHEN ?5 AND status = ?6 THEN 'unresolved' ELSE status END,
+           substatus = CASE WHEN ?5 AND status = ?6 THEN ?7 ELSE substatus END,
+           resolved_in_release = CASE WHEN ?5 AND status = ?6 THEN NULL ELSE resolved_in_release END,
+           fixed_in_release = CASE WHEN ?5 AND status = ?6 THEN NULL ELSE fixed_in_release END,
+           resolved_in_commit = CASE WHEN ?5 AND status = ?6 THEN NULL ELSE resolved_in_commit END,
+           ignore_until_count = CASE WHEN ?5 AND status = ?6 THEN NULL ELSE ignore_until_count END,
+           ignore_until = CASE WHEN ?5 AND status = ?6 THEN NULL ELSE ignore_until END,
+           ignore_until_users = CASE WHEN ?5 AND status = ?6 THEN NULL ELSE ignore_until_users END
+         WHERE id = ?8`,
       )
       .bind(
         now,
         event.release ?? null,
-        event.release ?? null,
         keep ? event.id : null,
         minute,
-        minuteCount,
-        status,
-        substatus,
         transition ? 1 : 0,
-        transition ? 1 : 0,
-        transition ? 1 : 0,
-        transition ? 1 : 0,
-        transition ? 1 : 0,
-        transition ? 1 : 0,
+        issue.status,
+        transition ?? null,
         issue.id,
       ),
     db
