@@ -53,8 +53,11 @@ export function randomToken(bytes = 32) {
 // Readable codes, groups of five letters and digits with no 0, O, 1, I or L: a setup code and recovery codes
 const READABLE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 export function readableCode(groups: number) {
-  const raw = crypto.getRandomValues(new Uint8Array(groups * 5))
-  const chars = [...raw].map((b) => READABLE[b % READABLE.length])
+  // Bytes from 248 up are dropped: 256 isn't a multiple of 31, and taking them would make 8 letters likelier
+  const chars: string[] = []
+  while (chars.length < groups * 5)
+    for (const b of crypto.getRandomValues(new Uint8Array(groups * 5)))
+      if (b < 248 && chars.length < groups * 5) chars.push(READABLE[b % READABLE.length])
   return Array.from({ length: groups }, (_, i) => chars.slice(i * 5, i * 5 + 5).join('')).join('-')
 }
 /** A typed code as stored: capitals, no spaces or dashes */
