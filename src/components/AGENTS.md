@@ -111,7 +111,7 @@
   folded: a row per thread with a stack, its name or id and top frame (its app's, else the innermost), opening to its
   stack; breadcrumbs, "Request" (method and URL, query string, headers as a two-column `Pairs` table, a name over its
   value on a phone, body), tags, contexts, "Additional data" (`extra` as `Pairs`), a line naming what was cut when the event was over its size budget
-  (`_trimmed`), raw JSON. Nested `<details>` use named groups (`group/threads`) so a chevron
+  (`_trimmed`), raw JSON (`RawEvent`, written only once opened, so an issue page's HTML doesn't carry it). Nested `<details>` use named groups (`group/threads`) so a chevron
   turns only with its own.
 - `attachments.tsx`: an event's attachments, under its threads: each with its size and Download, an image (png, jpeg,
   gif, webp, `attachmentType`) as a 48 px thumbnail opening full size in a `Dialog`, and `view-hierarchy.json`

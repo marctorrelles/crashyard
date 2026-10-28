@@ -74,16 +74,26 @@ export function EventView({
           This event was too large to keep whole, so some of it was cut: {event._trimmed.join(', ')}.
         </p>
       ) : null}
-      <details className="group rounded-xl border">
-        <summary className="flex cursor-pointer items-center gap-1 px-4 py-3 text-sm font-medium">
-          <IconChevronRight className="size-4 transition-transform group-open:rotate-90" />
-          Raw event
-        </summary>
+      <RawEvent event={event} />
+    </div>
+  )
+}
+
+/** The event as JSON, written only once opened: up to 900 KB of it, it would weigh down every issue page's HTML */
+function RawEvent({ event }: { event: NormalizedEvent }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details className="group rounded-xl border" onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="flex cursor-pointer items-center gap-1 px-4 py-3 text-sm font-medium">
+        <IconChevronRight className="size-4 transition-transform group-open:rotate-90" />
+        Raw event
+      </summary>
+      {open && (
         <pre className="max-h-[32rem] overflow-auto border-t bg-muted/30 p-4 font-mono text-xs">
           {JSON.stringify(event, null, 2)}
         </pre>
-      </details>
-    </div>
+      )}
+    </details>
   )
 }
 
