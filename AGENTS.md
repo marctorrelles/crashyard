@@ -47,7 +47,7 @@ Where things are:
 - `symcache/`: Sentry's symbolic, in Rust, built to `src/symbols/symcache.wasm` (see its AGENTS.md).
 - `src/routes/`: pages and API routes, file-based (see its AGENTS.md).
 - `src/components/`: shadcn/ui and our own components (see its AGENTS.md).
-- `src/lib/`: small shared helpers (`cn`).
+- `src/lib/`: small shared helpers (`cn`; `nextPath`, where sign-in goes after, a path on this site only).
 - `migrations/`: D1 migrations, numbered (see its AGENTS.md).
 - `test/`: tests that run the worker, with the real Sentry SDK (see its AGENTS.md).
 - `docs/`: decisions, deploying, linking an app (see its AGENTS.md).

@@ -93,9 +93,7 @@ export async function signInWithPasskey() {
   return auth('signin/verify', { id, response })
 }
 
-/** Where to go once signed in: the page asked for, only ever on this site */
-export const nextPath = (next: unknown) =>
-  typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/'
+export { nextPath } from '@/lib/next'
 
 /** Ten recovery codes, shown once, to copy or download */
 export function RecoveryCodes({ codes }: { codes: string[] }) {

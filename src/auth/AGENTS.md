@@ -37,7 +37,7 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
   webhook), posted from Settings, People to `github.com/settings/apps/new` or an organization's (`startApp`, a
   `github-app` state of an hour). `created` (owners only) trades the code at `app-manifests/<code>/conversions` for
   the app's id, slug, client id and secret, kept in `settings` as `auth.github` (`GitHubApp`). `start` sets a state
-  (`github`, ten minutes, the PKCE verifier as its challenge, `next` and an invite) and binds it to the browser with
+  (`github`, ten minutes, the PKCE verifier as its challenge, `next` through `nextPath` and an invite) and binds it to the browser with
   the `crashyard_github` cookie (`Path=/auth/github`); `callback` takes it only when the cookie matches, trades the
   code with the verifier, reads `/user` and `/user/emails`, then signs in, in order: the account linked before
   (`users.github_id`), someone here by any verified email (linking the account, unless theirs is another), or with an

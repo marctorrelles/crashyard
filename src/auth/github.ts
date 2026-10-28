@@ -3,6 +3,7 @@
 // someone is, crashyard decides who comes in: someone already here (by the GitHub account they used before, else a
 // verified email of theirs), or someone with an invite.
 import * as people from '../data/people'
+import { nextPath } from '../lib/next'
 import { getSetting, setSetting } from '../data/settings'
 import { sessionCookie } from './session'
 
@@ -45,10 +46,6 @@ const base64url = (bytes: Uint8Array) =>
 
 const back = (to: string, headers: Record<string, string> = {}) =>
   new Response(null, { status: 303, headers: { Location: to, ...headers } })
-
-/** Only a path on this site */
-const safeNext = (next: unknown) =>
-  typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/'
 
 type Context = {
   request: Request
@@ -111,7 +108,7 @@ export async function handleGitHub(step: string, ctx: Context): Promise<Response
       db,
       verifier,
       'github',
-      { next: safeNext(url.searchParams.get('next')), invite },
+      { next: nextPath(url.searchParams.get('next')), invite },
       now,
       10 * 60_000,
     )
