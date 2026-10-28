@@ -1,4 +1,5 @@
 // Projects: what the home page lists and charts, and creating, changing and deleting one.
+import { deleteDebugFile } from './tokens'
 import type { Notice } from '../notify/notice'
 import { topWithOther } from './charts'
 import { projectDefaults } from './settings'
@@ -334,8 +335,37 @@ export const updateKey = (
     .run()
 
 /** Deletes the project with its issues and events (foreign keys cascade); its raw envelopes expire from R2 */
-export const deleteProject = (db: D1Database, id: number) =>
-  db.prepare('DELETE FROM projects WHERE id = ?').bind(id).run()
+/**
+ * Deletes a project with everything of it. Its biggest tables go first, a batch at a time (one cascading delete of
+ * millions of logs runs past D1's limit for a statement and undoes itself every time), then its files in R2, then the
+ * project, whose cascade is small by then. Out of time first, it throws, and deleting again goes on from there
+ */
+export async function deleteProject(db: D1Database, files: R2Bucket, id: number, deadline = Date.now() + PRUNE_BUDGET) {
+  const project = await db.prepare('SELECT name FROM projects WHERE id = ?').bind(id).first<{ name: string }>()
+  if (!project) return
+  const batches = (sql: string) => inBatches(deadline, async () => changes(await db.prepare(sql).bind(id).run()))
+  await batches('DELETE FROM logs WHERE rowid IN (SELECT rowid FROM logs WHERE project_id = ? LIMIT 1000)')
+  await batches('DELETE FROM events WHERE rowid IN (SELECT rowid FROM events WHERE project_id = ? LIMIT 1000)')
+  await batches('DELETE FROM issues WHERE id IN (SELECT id FROM issues WHERE project_id = ? LIMIT 100)')
+  // Debug files one by one, as their files in R2 may be another row's too (a fat binary's archs share one)
+  await inBatches(deadline, async () => {
+    const { results } = await db
+      .prepare('SELECT id FROM debug_files WHERE project_id = ? LIMIT 100')
+      .bind(id)
+      .all<{ id: number }>()
+    for (const r of results) await deleteDebugFile(db, files, id, r.id)
+    return results.length
+  })
+  for (const prefix of ['attachments', 'envelopes', 'pending', 'failed'])
+    await inBatches(deadline, async () => {
+      const { objects } = await files.list({ prefix: `${prefix}/${id}/`, limit: 1000 })
+      if (objects.length) await files.delete(objects.map((o) => o.key))
+      return objects.length
+    })
+  if (Date.now() >= deadline)
+    throw new Error(`${project.name} has a lot stored, and only part of it is deleted. Delete it again to go on.`)
+  await db.prepare('DELETE FROM projects WHERE id = ?').bind(id).run()
+}
 
 /** What the hourly prune may take, all of it together, in wall-clock ms */
 export const PRUNE_BUDGET = 20_000

@@ -344,7 +344,7 @@ export const updateKey = createServerFn({ method: 'POST' })
 export const deleteProject = createServerFn({ method: 'POST' })
   .middleware([admin])
   .validator((d: unknown) => ({ id: int(object(d).id) }))
-  .handler(({ data }) => projects.deleteProject(env.DB, data.id).then(() => undefined))
+  .handler(({ data }) => projects.deleteProject(env.DB, env.FILES, data.id).then(() => undefined))
 
 export const getIssues = createServerFn()
   .validator((d: unknown) => {

@@ -31,7 +31,12 @@ export function Delete() {
           disabled={typed !== project.slug}
           className="max-sm:h-10"
           onClick={async () => {
-            await deleteProject({ data: { id: project.id } })
+            try {
+              await deleteProject({ data: { id: project.id } })
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : String(error))
+              return
+            }
             toast.success(`${project.name} deleted`)
             await navigate({ to: '/' })
           }}

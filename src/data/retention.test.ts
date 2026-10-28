@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
 import { pruneLogs } from './logs'
-import { pruneEvents } from './projects'
+import { deleteProject, pruneEvents } from './projects'
 
 const DAY = 864e5
 const NOW = Date.UTC(2026, 9, 26, 12)
@@ -72,5 +72,32 @@ describe('retention', () => {
       minutes: 0,
       sessionUsers: 0,
     })
+  })
+})
+
+describe('deleting a project', () => {
+  it('takes its rows in batches and its files in R2, and goes on from where a run out of time stopped', async () => {
+    const db = sqliteD1()
+    const files = memoryR2()
+    db.sqlite.exec(`
+      INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'Big', 'k', 0), (2, 'b', 'Kept', 'k2', 0);
+      INSERT INTO issues (id, project_id, fingerprint, title, first_seen, last_seen, count) VALUES (1, 1, 'f', 'I', 0, 0, 1);
+      WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 2500)
+        INSERT INTO logs (project_id, timestamp, received, level, body, attributes) SELECT 1, 0, 0, 'info', 'x', '{}' FROM n;
+      WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 1500)
+        INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, data)
+        SELECT printf('%032x', i), 1, 1, 0, 0, 'error', 'node', '{}' FROM n;
+      INSERT INTO logs (project_id, timestamp, received, level, body, attributes) VALUES (2, 0, 0, 'info', 'kept', '{}');
+    `)
+    await files.put('attachments/1/e/0-shot.png', 'x')
+    await files.put('envelopes/1/2026-10-28/e', 'x')
+    await files.put('attachments/2/e/0-shot.png', 'x')
+    await expect(deleteProject(db, files, 1, Date.now() - 1)).rejects.toThrow('Delete it again to go on')
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM projects').get()).toEqual({ n: 2 })
+    await deleteProject(db, files, 1)
+    const count = (sql: string) => (db.sqlite.prepare(sql).get() as { n: number }).n
+    expect([count('SELECT COUNT(*) AS n FROM projects'), count('SELECT COUNT(*) AS n FROM logs')]).toEqual([1, 1])
+    expect(count('SELECT COUNT(*) AS n FROM events')).toBe(0)
+    expect([...files.objects.keys()]).toEqual(['attachments/2/e/0-shot.png'])
   })
 })
