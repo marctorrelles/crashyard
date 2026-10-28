@@ -16,7 +16,7 @@
   the foot Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists, `full` for settings: from the sidebar's edge, not centred), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
-  section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). The lists (overview, dashboards, issues, Explore, releases, performance, logs)
+  section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). `Logo`: the mark, one path (its tiled drawings are `docs/images/logo.svg`, the README's, and `src/favicon.svg`). The lists (overview, dashboards, issues, Explore, releases, performance, logs)
   take the filter as `?project=` (on a dashboard, picking a project keeps it and its range); the project shown comes
   from that, `/projects/$slug` or an issue's own; pages of no project keep the one last picked (cookie
   `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The filter's menu also has the

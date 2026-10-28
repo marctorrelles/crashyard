@@ -18,7 +18,7 @@ import {
   IconSettings,
   IconTag,
 } from '@tabler/icons-react'
-import { Fragment, useEffect, useId, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -370,7 +370,7 @@ function ProjectSwitcher({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" tooltip="Switch project">
-              <span className="flex size-6 shrink-0 items-center justify-center group-data-[collapsible=icon]:size-8">
+              <span className="flex size-8 shrink-0 items-center justify-center">
                 <Logo />
               </span>
               <span className="grid min-w-0 flex-1 text-left leading-tight">
@@ -412,28 +412,22 @@ function ProjectSwitcher({
   )
 }
 
-// The c of crashyard with its upper end cracked off and lifted clear (the large-size drawing is docs/images/logo.svg;
-// this one's crack is wider, so it still shows small). 24 px, 20 folded to icons, over the menu button's 16 px for
-// every svg; in the sidebar's colour, which isn't always the page's
-const RING = 'M20.29,17.59A10 10 0 1 1 20.29,6.41L16.06,9.26A4.9 4.9 0 1 0 16.06,14.74Z'
+// The c of crashyard: one band drawn round three times, folding back at the mouth, every end and fold cut square on
+// the mouth's two lines (the tiled drawings are docs/images/logo.svg and src/favicon.svg). 32 px, as tall as the name
+// and project beside it, 20 folded to icons, over the menu button's 16 px for every svg; in the sidebar's colour,
+// which isn't always the page's
+const MARK =
+  'M19.73 5.04A10.4 10.4 0 1 0 19.73 18.96L15.94 15.55A5.3 5.3 0 1 1 14.31 7.23L13.41 8.04A4.2 4.2 0 1 0 15.12 14.81L13.63 13.47A2.2 2.2 0 1 1 13.63 10.53L17.42 7.12A7.3 7.3 0 1 0 15.88 18.18L16.72 18.95A8.4 8.4 0 1 1 18.24 6.38Z'
 
 /** crashyard's mark, the sidebar's size and colour unless told otherwise */
 export function Logo({
-  className = 'size-6! shrink-0 fill-sidebar-foreground group-data-[collapsible=icon]:size-5!',
+  className = 'size-8! shrink-0 fill-sidebar-foreground group-data-[collapsible=icon]:size-5!',
 }: {
   className?: string
 }) {
-  const id = useId()
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <clipPath id={`${id}n`}>
-        <polygon points="12,12 24,12 24,24 0,24 -6.02,-0.62 0.49,4.9 3.39,5.82 3.89,7.89 5.78,7.98 6.55,9.5 8.28,10.34" />
-      </clipPath>
-      <clipPath id={`${id}f`}>
-        <polygon points="12,12 9.17,9.07 7.44,8.22 6.67,6.71 4.79,6.61 4.28,4.54 1.39,3.62 -6.02,-0.62 -2,-6 24,-6 24,12" />
-      </clipPath>
-      <path d={RING} clipPath={`url(#${id}n)`} />
-      <path d={RING} clipPath={`url(#${id}f)`} transform="translate(.45 -.5)" />
+      <path d={MARK} />
     </svg>
   )
 }
