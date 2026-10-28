@@ -161,7 +161,8 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   Sentry's (`retarget`); no retries, and the cron's retries never forward. Sentry's answer is only logged.
   `FORWARDED` marks the request, and a request carrying it isn't forwarded again, so a DSN pointing back at a crashyard
   can't loop. `forward_dsn` comes with the project from ingest's cached read, so a change takes up to a minute.
-  Tail Workers' runs (`src/api/tail.ts`) aren't forwarded: Sentry wouldn't have had them.
+  Tail Workers' runs (`src/api/tail.ts`) aren't forwarded: Sentry wouldn't have had them, so their requests carry
+  `FORWARDED`. The send times out after 10 seconds.
 - `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).
   `storeLogs` writes each log, then its own (not `sentry.*`) attributes, up to 16, into `log_attributes` with

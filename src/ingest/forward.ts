@@ -60,8 +60,11 @@ export async function forwardToSentry(dsn: string, body: Uint8Array, userAgent: 
         ...(userAgent ? { 'user-agent': userAgent } : {}),
       },
       body: retarget(body, target.dsn) as Uint8Array<ArrayBuffer>,
+      // Within the request's waitUntil: a Sentry that never answers mustn't hold it
+      signal: AbortSignal.timeout(10_000),
     })
     if (!response.ok) console.warn(`forward: Sentry answered ${response.status} for ${target.url}`)
+    await response.body?.cancel()
   } catch (error) {
     console.warn(`forward: couldn't reach ${target.url}`, error)
   }

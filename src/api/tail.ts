@@ -2,6 +2,7 @@
 // the ones the Sentry SDK never sees (out of CPU time or memory). A failed run becomes an event for every project
 // that lists the Worker, sent through ingest as an envelope with the project's own key, so quotas, filters, grouping,
 // notices and retries are the envelope's.
+import { FORWARDED } from '../ingest/forward'
 import { WORKERS_KEY } from '../data/settings'
 import type { IngestEnv } from './ingest'
 
@@ -149,7 +150,8 @@ export async function handleTail(items: TraceItem[], env: IngestEnv, ctx: Execut
       const body = `${JSON.stringify({ event_id: event.event_id })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(event)}\n`
       const request = new Request(`https://tail.crashyard/api/${project.id}/envelope/`, {
         method: 'POST',
-        headers: { 'x-sentry-auth': `Sentry sentry_version=7, sentry_key=${project.key}` },
+        // Not forwarded to Sentry: it never had these runs (FORWARDED marks a request as not to send on)
+        headers: { 'x-sentry-auth': `Sentry sentry_version=7, sentry_key=${project.key}`, [FORWARDED]: 'tail' },
         body,
       })
       await handleIngest(request, env, ctx, project.id, 'envelope')
