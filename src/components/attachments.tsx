@@ -1,10 +1,9 @@
 // An event's attachments: each with its size and a download, images as a thumbnail that opens full size, and the view
 // hierarchy sentry-cocoa and sentry-android send as an indented tree. Files come from /attachments/<id>, behind sign-in.
-import { IconChevronRight, IconDownload, IconFile } from '@tabler/icons-react'
+import { IconChevronRight, IconDownload, IconFile, IconLoader2 } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Loader } from '@/components/shell'
 
 export type Attachment = { id: number; filename: string; size: number; image: boolean }
 
@@ -114,7 +113,7 @@ function ViewHierarchy({ attachment: a }: { attachment: Attachment }) {
       <div className="mt-1 max-h-96 overflow-auto rounded-lg border bg-muted/30 py-2 font-mono text-xs">
         {state === 'loading' && (
           <p className="flex items-center gap-2 px-3 text-muted-foreground">
-            <Loader />
+            <IconLoader2 className="size-4 shrink-0 animate-spin" />
             Loading…
           </p>
         )}

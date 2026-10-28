@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
-import { IconPencil, IconPlayerPause, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
+import { IconLoader2, IconPencil, IconPlayerPause, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago, Level, percent } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
@@ -8,7 +8,7 @@ import { Time } from '@/components/time'
 import { Beats, incidentReason, MonitorStatus } from '@/components/beats'
 import { Code } from '@/components/linking'
 import { type Editing, MonitorForm } from '@/components/monitor-form'
-import { Loader, PageHeader, Shell } from '@/components/shell'
+import { PageHeader, Shell } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import { deleteMonitor, getMonitor, pauseMonitor } from '@/fns'
 import { cn } from '@/lib/utils'
@@ -243,7 +243,7 @@ function MonitorPage() {
           {d.checkins.length === 0 && (
             <div className="grid gap-2">
               <p className="flex items-center gap-2 text-sm">
-                <Loader />
+                <IconLoader2 className="size-4 shrink-0 animate-spin" />
                 Waiting for the first check-in. Send one from the job with a Sentry SDK:
               </p>
               <Code

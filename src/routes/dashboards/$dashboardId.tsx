@@ -1,10 +1,19 @@
 import { createFileRoute, notFound, useNavigate, useRouter, Link } from '@tanstack/react-router'
-import { IconChartBar, IconCopy, IconHistory, IconPencil, IconPlus, IconTrash, IconX } from '@tabler/icons-react'
+import {
+  IconChartBar,
+  IconCopy,
+  IconHistory,
+  IconLoader2,
+  IconPencil,
+  IconPlus,
+  IconTrash,
+  IconX,
+} from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
 import { SearchBar } from '@/components/search-bar'
-import { Empty, Loader, PageHeader, Shell, useProjects } from '@/components/shell'
+import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -449,7 +458,7 @@ function History({ id, now, onClose }: { id: number; now: number; onClose: () =>
         </DialogHeader>
         {list === null ? (
           <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-            <Loader />
+            <IconLoader2 className="size-4 shrink-0 animate-spin" />
             Loading…
           </p>
         ) : list.length === 0 ? (

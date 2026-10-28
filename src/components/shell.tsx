@@ -344,6 +344,9 @@ function ProjectSwitcher({
 }) {
   const navigate = useNavigate()
   const loading = usePageLoading()
+  // Set once the loader's first round starts, cleared at the end of the round in which the page came: a round always
+  // finishes, back to the whole mark, so the swap to the logo is seamless
+  const [drawing, setDrawing] = useState(false)
   const pick = (slug?: string) => {
     onPick()
     keep(slug ?? null)
@@ -372,8 +375,12 @@ function ProjectSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" tooltip="Switch project">
               <span className="flex size-8 shrink-0 items-center justify-center">
-                {loading ? (
-                  <Loader className="size-8! shrink-0 text-sidebar-foreground group-data-[collapsible=icon]:size-5!" />
+                {loading || drawing ? (
+                  <Loader
+                    className="size-8! shrink-0 text-sidebar-foreground group-data-[collapsible=icon]:size-5!"
+                    onStart={() => setDrawing(true)}
+                    onRound={() => !loading && setDrawing(false)}
+                  />
                 ) : (
                   <Logo />
                 )}
@@ -440,14 +447,19 @@ export function Logo({
   )
 }
 
-/** The mark drawing itself and taking itself away again, for as long as something loads (`.cy-draw` in styles.css) */
-export function Loader({ className = 'size-4 shrink-0 text-muted-foreground' }: { className?: string }) {
+/**
+ * The sidebar's logo while a page loads: from the whole mark it takes itself away from its start, then draws itself
+ * back (`.cy-draw` in styles.css). `onRound` at the end of each round, when it's whole again
+ */
+function Loader({ className, onStart, onRound }: { className: string; onStart: () => void; onRound: () => void }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <path
         d={LINE}
         pathLength={1}
         className="cy-draw"
+        onAnimationStart={onStart}
+        onAnimationIteration={onRound}
         fill="none"
         stroke="currentColor"
         strokeWidth={2}
@@ -455,16 +467,6 @@ export function Loader({ className = 'size-4 shrink-0 text-muted-foreground' }: 
         strokeLinejoin="miter"
       />
     </svg>
-  )
-}
-
-/** A page whose loader is taking over a second (the router's pending component): the loader in the middle */
-export function PagePending() {
-  return (
-    <div role="status" className="grid min-h-[60svh] place-items-center">
-      <Loader className="size-12 text-muted-foreground" />
-      <span className="sr-only">Loading</span>
-    </div>
   )
 }
 

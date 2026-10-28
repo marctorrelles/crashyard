@@ -6,6 +6,7 @@ import {
   IconChevronDown,
   IconEyeOff,
   IconGitMerge,
+  IconLoader2,
   IconRotate,
   IconTrash,
 } from '@tabler/icons-react'
@@ -30,7 +31,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Ago, count } from '@/components/bits'
-import { Loader } from '@/components/shell'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { changeIssues, getMergedFingerprints, mergeIssues, unmergeIssue } from '@/fns'
@@ -384,7 +384,7 @@ export function UnmergeDialog({
         </DialogHeader>
         {!list ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader />
+            <IconLoader2 className="size-4 shrink-0 animate-spin" />
             Loading what was merged…
           </p>
         ) : (
