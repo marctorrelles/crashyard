@@ -276,9 +276,12 @@ export function culpritOf(frames: Frame[]): string | undefined {
 function tagsOf(event: Json): Record<string, string> {
   const tags: Record<string, string> = {}
   const raw = event.tags
-  const pairs: [unknown, unknown][] = Array.isArray(raw)
-    ? raw.filter(Array.isArray).map((p) => [p[0], p[1]] as [unknown, unknown])
-    : Object.entries(obj(raw))
+  // 100 at most read: only the first 30 are kept (store.ts), each scrubbed first
+  const pairs: [unknown, unknown][] = (
+    Array.isArray(raw)
+      ? raw.filter(Array.isArray).map((p) => [p[0], p[1]] as [unknown, unknown])
+      : Object.entries(obj(raw))
+  ).slice(0, 100)
   for (const [k, v] of pairs) {
     const key = str(k)
     const value = str(v)
@@ -299,7 +302,10 @@ export async function normalizeEvent(
   const exceptions = exceptionsOf(event, rawThreads, used)
   const threads = threadsOf(rawThreads, used)
   const main = exceptions.at(-1)
-  const message = messageOf(event)
+  // A message as long as the SDK sent: kept to 8 KB, as a row has room for the event beside it
+  const message = cut(messageOf(event), 8192)
+  const release = str(event.release) && cut(str(event.release)!, 200)
+  const environment = str(event.environment) && cut(str(event.environment)!, 200)
   const rawLevel = (str(event.level) ?? 'error').toLowerCase()
   const level = LEVELS.has(rawLevel) ? rawLevel : (LEVEL_ALIASES[rawLevel] ?? 'error')
   const transaction = str(event.transaction)
@@ -321,17 +327,17 @@ export async function normalizeEvent(
     200,
   )
 
-  // Tags: the SDK's, then those Sentry derives from the event, which win
-  const tags = tagsOf(event)
+  // Tags: those Sentry derives from the event first, which win, then the SDK's: only 30 are kept, and an SDK sending
+  // that many mustn't push level, os or browser out
   const os = obj(contexts.os)
   const device = obj(contexts.device)
   const browser = obj(contexts.browser)
   const runtime = obj(contexts.runtime)
   const derived: Record<string, string | undefined> = {
     level,
-    release: str(event.release),
+    release,
     dist: str(event.dist),
-    environment: str(event.environment),
+    environment,
     transaction,
     'os.name': str(os.name),
     os: str(os.name) && [str(os.name), str(os.version)].filter(Boolean).join(' '),
@@ -345,7 +351,9 @@ export async function normalizeEvent(
     // Where withMonitor's errors say they came from, when an SDK sets it (src/monitors/AGENTS.md)
     'monitor.slug': str(obj(contexts.monitor).slug),
   }
+  const tags: Record<string, string> = {}
   for (const [k, v] of Object.entries(derived)) if (v) tags[k] = cut(v, 200)
+  for (const [k, v] of Object.entries(tagsOf(event))) if (!(k in tags)) tags[k] = v
   delete tags['user.id'] // users are counted by hash, never stored
 
   const user = obj(event.user)
@@ -361,8 +369,8 @@ export async function normalizeEvent(
     received,
     level,
     platform: str(event.platform) ?? 'other',
-    release: str(event.release),
-    environment: str(event.environment),
+    release,
+    environment,
     dist: str(event.dist),
     type: csp ? 'csp' : main && !main.synthetic ? 'error' : 'message',
     title,

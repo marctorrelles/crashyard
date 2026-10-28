@@ -77,6 +77,21 @@ describe('envelopes', () => {
 })
 
 describe('events', () => {
+  it('puts the tags it derives before the SDK’s, and keeps a message, release and environment to their lengths', async () => {
+    const tags = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`t${i}`, 'v']))
+    const e = await normalizeEvent({
+      message: 'x'.repeat(20_000),
+      release: 'r'.repeat(300),
+      environment: 'production',
+      level: 'warning',
+      tags,
+      contexts: { os: { name: 'iOS', version: '26.1' } },
+    })
+    expect(Object.keys(e.tags).slice(0, 30)).toEqual(expect.arrayContaining(['level', 'os', 'os.name', 'environment']))
+    expect(e.message).toHaveLength(8192)
+    expect(e.release).toHaveLength(200)
+  })
+
   it('takes an iOS crash’s stack from the crashed thread, frames without symbols and all', async () => {
     const e = await normalizeEvent(event('ios-crash'))
     expect(e.type).toBe('error')

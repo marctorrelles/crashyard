@@ -24,8 +24,9 @@ order.
   frames (from the crashed thread when the exception has none), `threads` (every one of `threads.values`, 32 at most
   of 100 frames each, the innermost; crashed, then current, first; the thread an exception matches, by `thread_id` or
   `crashed`, keeps no frames, as its stack is the exception's; grouping reads only the exceptions; events stored
-  before have none), tags (pairs or object, plus derived: level, release,
-  os, device, browser, runtime, handled, mechanism, `monitor.slug` from `contexts.monitor.slug`), `request` (method, URL, query string, headers as pairs, body as
+  before have none), tags (derived first, as only 30 are kept: level, release,
+  os, device, browser, runtime, handled, mechanism, `monitor.slug` from `contexts.monitor.slug`; then the SDK's, pairs or
+  object, the first 100 read), `message` (8 KB), `release` and `environment` (200 characters), `request` (method, URL, query string, headers as pairs, body as
   text of 8 KB at most; header and query keys that name a secret are filtered as in `scrub`, query values in the URL
   too, the rest masked as tags; headers that carry the client's IP, `x-forwarded-for`, `cf-connecting-ip`,
   `forwarded` and the like (`IP_HEADERS`, and any name matching `IP_HEADER`, such as `fly-client-ip`,
