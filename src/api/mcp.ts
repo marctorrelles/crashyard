@@ -15,6 +15,8 @@ import { releaseCommits } from '../data/source'
 import * as status from '../data/status'
 import type { NormalizedEvent } from '../ingest/event'
 import { PRIORITIES, type Priority } from '../ingest/priority'
+import favicon from '../favicon.svg?url'
+import { version } from '../../package.json'
 
 const VERSION = '2025-06-18'
 
@@ -801,7 +803,16 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
       return reply(rpc.id, {
         protocolVersion: typeof rpc.params?.protocolVersion === 'string' ? rpc.params.protocolVersion : VERSION,
         capabilities: { tools: {} },
-        serverInfo: { name: 'crashyard', version: '1' },
+        // What clients show for the server (title, icon), as Caliu's does; icons came in MCP 2025-11-25
+        serverInfo: {
+          name: 'crashyard',
+          title: 'crashyard',
+          version,
+          description: 'Crashes, errors, logs, performance and uptime from your apps, with the Sentry SDKs.',
+          websiteUrl: ctx.origin,
+          // The dashboard's favicon: inlined by Vite as a data URI, else its path on this crashyard
+          icons: [{ src: new URL(favicon, ctx.origin).href, mimeType: 'image/svg+xml', sizes: ['any'] }],
+        },
         instructions:
           'Crashes, errors, logs, performance and uptime from your apps. Start with list_projects for the slugs. Search issues, read one with its stack and timeline, look at its events, search events by tag or release, follow its trace, check releases, then triage: resolve, ignore, assign, merge, link or note. post_status_update is public.',
       })

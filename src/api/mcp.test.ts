@@ -89,6 +89,21 @@ describe('MCP for agents', () => {
     }
   }
 
+  it('names itself with a title and an icon', async () => {
+    const request = new Request('https://cy.example/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }),
+    })
+    const { result } = (await (
+      await handleMcp(request, sqliteD1(), { email: 'ada@example.com', role: 'viewer' })
+    ).json()) as {
+      result: { serverInfo: { title: string; websiteUrl: string; icons: { src: string; mimeType: string }[] } }
+    }
+    expect(result.serverInfo).toMatchObject({ title: 'crashyard', websiteUrl: 'https://cy.example' })
+    expect(result.serverInfo.icons[0].src).toMatch(/^(data:image\/svg\+xml|https:\/\/cy\.example\/)/)
+  })
+
   it('answers every read tool with text, on data and on none', async () => {
     const { db, ids } = await seeded()
     const reads: [string, Record<string, unknown>, RegExp][] = [
