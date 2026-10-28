@@ -291,7 +291,13 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   clears to the default). `WORKERS_KEY`, `tail.workers`: the Workers sending runs to `tail()`, written by
   `src/api/tail.ts`. `projectDefaults`: what `createProject` starts with, the columns' defaults under what
   Settings, Projects saved.
-- `notifications.ts`: channels, routes (with `frequency`, `releases`, `query`, `interval_minutes`) and metric alerts
+- `push.ts`: push notifications' storage. `vapidKeys`, the deployment's VAPID pair, made on first use and kept in
+  `settings` as `push.vapid` (an insert that does nothing when one is there, then read back, so two first calls agree;
+  no secret to set); `pushDevices`, `savePushDevice` (an upsert by endpoint, so a browser saved again, or by someone
+  else signed in on it, is one device, theirs; it makes the person's push channel, "<name>'s devices", `kind` push,
+  config `{ email }`, with the first), `deletePushDevice` (one's own, by id or endpoint), `pushChannel` (theirs and how
+  many routes send to it, for Preferences).
+- `notifications.ts`: channels (`channelOf`, one by id), routes (with `frequency`, `releases`, `query`, `interval_minutes`) and metric alerts
   (`saveMetricAlert`: saving starts it again from ok, so its next read alerts if it's still past a value), and `testRoute` and `testChannel`, which send a made-up notice now through a
   route's channels or one channel and say how each went.
 

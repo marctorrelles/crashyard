@@ -93,3 +93,6 @@ in `pnpm run deploy`).
 - `0032_session_crashes.sql`: `session_crashes`, a crashed session's id (`sid`) when first counted, so a crash
   counts once a session (the browser SDK sends an `unhandled` session again); and `sessions_daily.crashed` cut to
   `started` where double counts had taken it past (crash-free read below 0%).
+- `0033_push.sql`: `push_devices`, each person's devices with push on, by email as preferences are (endpoint unique,
+  the browser's `p256dh` and `auth`, a name, when last sent to), and `users_push_delete`, a trigger taking someone's
+  devices and push channel with them when they're removed.

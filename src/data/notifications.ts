@@ -68,6 +68,9 @@ export async function saveChannel(db: D1Database, c: ChannelInput, now: number) 
   }
 }
 
+export const channelOf = (db: D1Database, id: number) =>
+  db.prepare('SELECT * FROM channels WHERE id = ?').bind(id).first<Channel>()
+
 export const deleteChannel = (db: D1Database, id: number) =>
   db.prepare('DELETE FROM channels WHERE id = ?').bind(id).run()
 
@@ -142,7 +145,11 @@ export async function testChannel(
   return sendTest(env, channel ? [channel] : [], origin)
 }
 
-function sendTest(env: { EMAIL?: SendEmail; EMAIL_FROM?: string }, channels: Channel[], origin: string) {
+function sendTest(
+  env: { DB: D1Database; EMAIL?: SendEmail; EMAIL_FROM?: string },
+  channels: Channel[],
+  origin: string,
+) {
   const notice: Notice = {
     kind: 'new',
     project: { id: 0, slug: 'test', name: 'crashyard' },
@@ -154,7 +161,7 @@ function sendTest(env: { EMAIL?: SendEmail; EMAIL_FROM?: string }, channels: Cha
   return Promise.all(
     channels.map(async (c) => {
       try {
-        await send(c, notice, mailer, env.EMAIL_FROM || undefined)
+        await send(c, notice, mailer, env.EMAIL_FROM || undefined, env.DB)
         return { channel: c.name, ok: true as const }
       } catch (error) {
         return { channel: c.name, ok: false as const, error: error instanceof Error ? error.message : String(error) }

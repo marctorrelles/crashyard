@@ -50,7 +50,8 @@ Where things are:
 - `symcache/`: Sentry's symbolic, in Rust, built to `src/symbols/symcache.wasm` (see its AGENTS.md).
 - `src/routes/`: pages and API routes, file-based (see its AGENTS.md).
 - `src/components/`: shadcn/ui and our own components (see its AGENTS.md).
-- `public/`: served as they are, before the worker and so signed out: the app's manifest and its icons (PNGs of
+- `public/`: served as they are, before the worker and so signed out: `sw.js`, the service worker for push
+  notifications (`src/notify/AGENTS.md`), the app's manifest and its icons (PNGs of
   `docs/images/logo.svg`, the 192 and 512 with rounded corners, the maskable 512 and the 180 Apple one square).
 - `src/lib/`: small shared helpers (`cn`; `nextPath`, where sign-in goes after, a path on this site only).
 - `migrations/`: D1 migrations, numbered (see its AGENTS.md).

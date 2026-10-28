@@ -30,7 +30,7 @@ flowchart LR
   mcp --> d1
   cron --> d1
   cron --> r2
-  ingest -- alerts --> notify["Telegram, Slack, Discord,<br/>email, webhooks"]
+  ingest -- alerts --> notify["Telegram, Slack, Discord,<br/>email, webhooks, push"]
   cron -- alerts --> notify
 ```
 

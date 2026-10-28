@@ -15,6 +15,7 @@ import * as people from './data/people'
 import { GITHUB_KEY, gitHubApp, startApp } from './auth/github'
 import * as performance from './data/performance'
 import * as projects from './data/projects'
+import * as push from './data/push'
 import * as releases from './data/releases'
 import * as searches from './data/searches'
 import * as settings from './data/settings'
@@ -32,6 +33,7 @@ import { parseGroupingRules } from './ingest/rules'
 import { botIdOf, telegramCall, telegramChats, telegramToken, type TelegramConfig } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
 import { LEVELS } from './notify/notice'
+import { sendPush } from './notify/push'
 import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { version } from '../package.json'
@@ -719,7 +721,7 @@ export const saveChannel = createServerFn({ method: 'POST' })
     const o = object(d)
     return {
       id: optional((v) => int(v))(o.id),
-      kind: oneOf(['telegram', 'email', 'webhook'] as const)(o.kind),
+      kind: oneOf(['telegram', 'email', 'webhook', 'push'] as const)(o.kind),
       name: text(o.name, 80, 'The name').trim() || 'Untitled',
       config: json(o.config),
       quiet_from: minuteOfDay(o.quiet_from) ?? null,
@@ -734,6 +736,14 @@ export const saveChannel = createServerFn({ method: 'POST' })
     }
   })
   .handler(async ({ data }) => {
+    // A push channel is made by its person's first device: only renamed and given quiet hours here, never pointed at
+    // someone else's devices
+    if (data.kind === 'push') {
+      const kept = data.id ? await notifications.channelOf(env.DB, data.id) : null
+      if (kept?.kind !== 'push')
+        throw new Error('Push notifications are turned on by each person in Settings, Preferences.')
+      return notifications.saveChannel(env.DB, { ...data, config: kept.config }, Date.now())
+    }
     if (data.kind !== 'telegram') return notifications.saveChannel(env.DB, data, Date.now())
     // A Telegram channel's buttons act through the bot's webhook, which Telegram calls with the bot's secret; it needs
     // a public https address, so a local crashyard sends them without
@@ -1484,6 +1494,73 @@ export const savePreference = createServerFn({ method: 'POST' })
     await settings.setPreference(env.DB, viewer(), data.key, data.value)
     if (data.key === 'theme' || data.key === 'style') setThemeCookie(data.key, String(data.value))
   })
+
+// Push notifications on the viewer's own devices (src/data/push.ts, src/notify/push.ts)
+const base64url = (v: unknown, bytes: number, what: string) => {
+  const t = text(v, 200)
+  const ok = /^[\w-]+$/.test(t) && atob(t.replace(/-/g, '+').replace(/_/g, '/')).length === bytes
+  if (!ok) throw new Error(`expected ${what}`)
+  return t
+}
+const subscription = (o: Input) => {
+  const endpoint = text(o.endpoint, 1000)
+  if (!/^https:\/\//.test(endpoint)) throw new Error('expected an https push endpoint')
+  return { endpoint, p256dh: base64url(o.p256dh, 65, 'a P-256 key'), auth: base64url(o.auth, 16, 'an auth secret') }
+}
+
+/** The deployment's public VAPID key, for subscribing, and the viewer's devices */
+export const getPush = createServerFn()
+  .middleware([signedIn])
+  .handler(async () => ({
+    key: (await push.vapidKeys(env.DB)).publicKey,
+    channel: await push.pushChannel(env.DB, viewer()),
+    devices: (await push.pushDevices(env.DB, viewer())).map(({ id, endpoint, name, created_at, last_sent_at }) => ({
+      id,
+      endpoint,
+      name,
+      created_at,
+      last_sent_at,
+    })),
+    now: Date.now(),
+  }))
+
+export const savePushDevice = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => subscription(object(d)))
+  .handler(({ data }) =>
+    push.savePushDevice(env.DB, viewer(), people.deviceName(getRequestHeader('user-agent') ?? null), data, Date.now()),
+  )
+
+export const deletePushDevice = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { id: optional((v) => int(v))(o.id), endpoint: optional((v) => text(v, 1000))(o.endpoint) }
+  })
+  .handler(async ({ data }) => {
+    await push.deletePushDevice(env.DB, viewer(), data)
+  })
+
+/** "Notifications are on" to this device alone */
+export const testPush = createServerFn({ method: 'POST' })
+  .middleware([signedIn])
+  .validator((d: unknown) => ({ endpoint: text(object(d).endpoint, 1000) }))
+  .handler(({ data }) =>
+    sendPush(
+      env.DB,
+      viewer(),
+      // A kind that says its culprit and has no issue actions: a test has nothing to resolve
+      {
+        kind: 'slower_release',
+        project: { id: 0, slug: 'test', name: 'crashyard' },
+        issue: { id: 0, title: 'Notifications are on', culprit: 'Alerts will arrive here.', level: 'info', count: 1 },
+        event: { level: 'info' },
+        url: `${origin()}/settings/preferences`,
+      },
+      Date.now(),
+      data.endpoint,
+    ),
+  )
 
 const setThemeCookie = (name: 'theme' | 'style', value: string) =>
   setCookie(name, value, { path: '/', maxAge: 31_536_000, sameSite: 'lax', secure: true })

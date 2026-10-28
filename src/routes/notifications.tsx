@@ -11,6 +11,7 @@ import {
   IconChartLine,
   IconTrash,
   IconWebhook,
+  IconDeviceMobileMessage,
 } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -80,6 +81,7 @@ const ICONS = {
   discord: IconBrandDiscord,
   email: IconMail,
   webhook: IconWebhook,
+  push: IconDeviceMobileMessage,
 }
 const list = <T,>(json: string | null): T[] => (json ? (JSON.parse(json) as T[]) : [])
 
@@ -212,6 +214,7 @@ function summary(c: Channel) {
   const config = JSON.parse(c.config) as Record<string, string>
   if (c.kind === 'telegram') return `Telegram · ${config.name ?? `chat ${config.chat}`}`
   if (c.kind === 'email') return `email · ${config.to}`
+  if (c.kind === 'push') return `Push · ${config.email}`
   if (config.format === 'slack') return 'Slack'
   if (config.format === 'discord') return 'Discord'
   // Below admin the address isn't sent (getNotifications), so there's no host to show
@@ -331,7 +334,7 @@ function TestButton({
 }
 
 /** What the kind menu offers: Slack and Discord are webhooks in their formats */
-type Choice = 'telegram' | 'slack' | 'discord' | 'email' | 'webhook'
+type Choice = 'telegram' | 'slack' | 'discord' | 'email' | 'webhook' | 'push'
 function choiceOf(c?: Channel): Choice {
   if (!c) return 'telegram'
   const format = c.kind === 'webhook' ? (JSON.parse(c.config) as { format?: string }).format : undefined
@@ -374,11 +377,13 @@ function ChannelDialog({
             if (kind === 'telegram' && !f.chat.trim())
               return toast.error('Choose a chat first. Send your bot a message, then select Find.')
             const settings =
-              kind === 'telegram'
-                ? { token, chat: f.chat.trim(), name: f.chatName || undefined }
-                : kind === 'email'
-                  ? { to: f.to }
-                  : { url: f.url.trim(), format: choice === 'webhook' ? 'json' : choice }
+              kind === 'push'
+                ? JSON.parse(channel!.config)
+                : kind === 'telegram'
+                  ? { token, chat: f.chat.trim(), name: f.chatName || undefined }
+                  : kind === 'email'
+                    ? { to: f.to }
+                    : { url: f.url.trim(), format: choice === 'webhook' ? 'json' : choice }
             try {
               await saveChannel({
                 data: {
@@ -404,21 +409,33 @@ function ChannelDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="channel-kind">Kind</Label>
-              <Select value={choice} onValueChange={(v) => setChoice(v as Choice)}>
-                <SelectTrigger id="channel-kind" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="telegram">Telegram</SelectItem>
-                  <SelectItem value="slack">Slack</SelectItem>
-                  <SelectItem value="discord">Discord</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="webhook">Webhook (JSON)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {choice === 'push' ? (
+              <p className="text-sm text-muted-foreground">
+                Push notifications to {config.email}’s devices. They turn them on, and see their devices, in Settings,
+                Preferences.
+              </p>
+            ) : (
+              <div className="grid gap-2">
+                <Label htmlFor="channel-kind">Kind</Label>
+                <Select value={choice} onValueChange={(v) => setChoice(v as Choice)}>
+                  <SelectTrigger id="channel-kind" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="telegram">Telegram</SelectItem>
+                    <SelectItem value="slack">Slack</SelectItem>
+                    <SelectItem value="discord">Discord</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="webhook">Webhook (JSON)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!channel && (
+                  <p className="text-xs text-muted-foreground">
+                    For push notifications, each person turns them on in Settings, Preferences.
+                  </p>
+                )}
+              </div>
+            )}
             {blocked ? (
               <EmailSetup />
             ) : (

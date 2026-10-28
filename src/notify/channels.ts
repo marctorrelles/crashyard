@@ -1,9 +1,10 @@
-// Sending a notice through a channel: Telegram, email (Cloudflare Email Routing) or a webhook.
+// Sending a notice through a channel: Telegram, email (Cloudflare Email Routing), a webhook or push (push.ts).
 import { ISSUE_KINDS, type Notice, noticeLine } from './notice'
+import { sendPush } from './push'
 
 export type Channel = {
   id: number
-  kind: 'telegram' | 'email' | 'webhook'
+  kind: 'telegram' | 'email' | 'webhook' | 'push'
   name: string
   config: string // JSON
   quiet_from: number | null
@@ -23,6 +24,8 @@ export type TelegramConfig = {
   owner?: string
 }
 type EmailConfig = { to: string }
+// A person's devices (src/data/push.ts), by their email
+export type PushConfig = { email: string }
 type WebhookConfig = { url: string; format?: 'json' | 'slack' | 'discord' }
 
 export type Mailer = { send(from: string, to: string, subject: string, text: string): Promise<void> }
@@ -235,8 +238,18 @@ export function webhookBody(format: WebhookConfig['format'], notice: Notice): un
   }
 }
 
-export async function send(channel: Channel, notice: Notice, mailer?: Mailer, from?: string): Promise<void> {
+export async function send(
+  channel: Channel,
+  notice: Notice,
+  mailer?: Mailer,
+  from?: string,
+  db?: D1Database,
+): Promise<void> {
   const config = JSON.parse(channel.config)
+  if (channel.kind === 'push') {
+    if (!db) throw new Error('push needs the database')
+    return sendPush(db, (config as PushConfig).email, notice, Date.now())
+  }
   if (channel.kind === 'telegram') {
     const response = await fetch(telegramRequest(config as TelegramConfig, notice), {
       signal: AbortSignal.timeout(SEND_TIMEOUT),

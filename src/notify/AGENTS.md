@@ -65,6 +65,18 @@ environment, each with its own thresholds, and send them to channels.
   UTC for a channel from before 0020, or a zone `Intl` doesn't know; across midnight too). No ntfy: ntfy.sh limits by IP unless the sender pays, and a Worker
   sends from IPs Cloudflare shares, so others spend its daily quota. No Bark: iPhone only. Migration 0011 took both
   channels out.
+- `push.ts`: Web Push to a person's devices, our own code on WebCrypto, no dependency. `encrypt`: RFC 8291's
+  aes128gcm, one record of 4096 (ECDH with a fresh P-256 pair, HKDF to the key and nonce, the `0x02` delimiter; the
+  test passes RFC 8291 Appendix A's salt and keys and gets its exact body). `vapidAuth`: RFC 8292, an ES256 JWT for the
+  push service's origin, 12 hours, `sub` the notice URL's origin (so the cron needs no `PUBLIC_URL`). `pushPayload`,
+  what `public/sw.js` shows: the title, `noticeLine`, the URL, a `tag` (`issue:<id>`, `monitor:`, `metric:`: a newer
+  notice replaces the older on the device), for `ISSUE_KINDS` Resolve and Ignore as the confirm-on-the-page links
+  email has (no signed-out acting), `silent` for `weekly`. `sendPush`: every device at once, `Urgency` high for
+  `monitor_down`, `metric_critical` and fatal issues and low for `weekly`, `TTL` a day, 10 seconds each; a 404 or 410
+  deletes that device (the browser dropped it); `last_sent_at` on those that took it; it throws, for Health, only
+  when none did, or there are none. The service worker shows it, an action's tap opens its link and any other tap the
+  notice's page, in an open crashyard window if there is one; it has no fetch handler and caches nothing.
+  `send` in `channels.ts` takes the database for it.
 - `email.ts`: a plain-text MIME message for Cloudflare Email Routing's `send_email` binding (`EMAIL`, from
   `EMAIL_FROM`; the address it sends to must be a verified destination).
 - `dispatch.ts`: `dispatch` sends each notice to its routes' channels, or holds it in `held_notifications` in quiet
@@ -75,6 +87,6 @@ environment, each with its own thresholds, and send them to channels.
   is logged, written to `notification_failures` (channel, the notice's kind, the error's first 500 characters; for
   Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them after 30 days.
 
-`notify.test.ts` covers routes, thresholds, frequency and metric kinds, filters, channel formats, quiet hours and the
+`push.test.ts`: RFC 8291's example, the VAPID token verified by its key, one key pair, the payload, dead devices dropped and all failing throws, the channel made once and removed with its person. `notify.test.ts` covers routes, thresholds, frequency and metric kinds, filters, channel formats, quiet hours and the
 signed links. `rules.test.ts` (the gate: 50 events in 10 minutes fire once, 365 one a day never; out of order and past spike
 protection, once each; users; the wait; filters) and `metrics.test.ts` (crossing, staying, recovering, below, logs) run on `test/fakes.ts`.

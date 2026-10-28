@@ -53,7 +53,7 @@ export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now
           return
         }
         try {
-          await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
+          await send(channel, notice, mailer, env.EMAIL_FROM || undefined, env.DB)
         } catch (error) {
           await failed(env.DB, channel, notice, error, now)
         }
@@ -95,7 +95,7 @@ export async function flushHeld(env: NotifyEnv, now = Date.now()): Promise<void>
     const first = notices.findLast((n) => URGENT.includes(n.kind)) ?? notices.at(-1)!
     const notice = notices.length > 1 ? { ...first, heldMore: notices.length - 1 } : first
     try {
-      await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
+      await send(channel, notice, mailer, env.EMAIL_FROM || undefined, env.DB)
     } catch (error) {
       await failed(env.DB, channel, notice, error, now)
     }
