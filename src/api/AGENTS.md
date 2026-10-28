@@ -107,8 +107,9 @@ signature; `/mcp` comes after sign-in.
   `merge_issues` (one project, the first id kept), `link_issue` (http or https), `add_note`, `post_status_update`
   (public: opens a post on a page by slug, or adds an update to one by id, as `createPost` and `addUpdate`; its
   description says it's public). No admin tool: a change token tops out at member. It's behind
-  sign-in (routed after it in `src/server.ts`, as the dashboard), `handleMcp(request, db, { email, role })`; JSON only
-  and never cross-site, so a web page can't call it with someone's cookie. An agent sends
+  sign-in (routed after it in `src/server.ts`, as the dashboard), `handleMcp(request, db, { email, role })`; exactly
+  `application/json` (not `text/plain; x=application/json`) and `Sec-Fetch-Site` same-origin, none or absent, so no
+  web page, a sibling subdomain's included, can call it with someone's cookie. An agent sends
   `Authorization: Bearer cyp_…` (Settings, Agent tokens; `userTokenOf`), acting as its person with
   `tokenRole`: a read token is a viewer, a change token at most a member. The tools marked `changes` answer an
   `isError` result for a role below member, saying so. `mcp.test.ts`: every read tool on a small database and on an

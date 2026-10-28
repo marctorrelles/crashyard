@@ -835,11 +835,11 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
 export async function handleMcp(request: Request, db: D1Database, who: { email: string; role: Role }) {
   if (request.method !== 'POST')
     return new Response('crashyard’s MCP server takes JSON-RPC over POST', { status: 405, headers: { Allow: 'POST' } })
-  // Not from a web page: JSON only (a page can't send that cross-site without a preflight we don't answer)
-  if (
-    !request.headers.get('content-type')?.includes('application/json') ||
-    request.headers.get('sec-fetch-site') === 'cross-site'
-  ) {
+  // Not from a web page: exactly JSON (a page can't send that without a preflight we don't answer; `text/plain;
+  // x=application/json` it can), and from no other site, a sibling subdomain's included (Lax cookies reach /mcp from it)
+  const type = request.headers.get('content-type')?.split(';')[0].trim().toLowerCase()
+  const site = request.headers.get('sec-fetch-site')
+  if (type !== 'application/json' || (site !== null && site !== 'same-origin' && site !== 'none')) {
     return new Response('Forbidden', { status: 403 })
   }
   let body: unknown
