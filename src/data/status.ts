@@ -1,8 +1,9 @@
-// A project's status page: the uptime checks chosen for it, and what the team posts there, incidents, notices and
-// maintenance, each a post with its updates and the checks it affects (0027, 0028); the page's look and its own domain
+// Status pages (0030): each shows the uptime checks it picks, from any projects, and what the team posts there,
+// incidents, notices and maintenance, each a post with its updates and the checks it affects; its look and its own
+// domain
 const DAY = 86_400_000
 
-/** The page's own look (`projects.status_page`), each part optional */
+/** The page's own look (`status_pages.branding`), each part optional */
 export type Branding = { title?: string; description?: string; logo?: string; color?: string; website?: string }
 
 export function parseBranding(json: string | null): Branding {
@@ -67,17 +68,17 @@ function phaseOf(p: PostRow, now: number): Phase {
   return p.starts_at! > now ? 'upcoming' : 'ongoing'
 }
 
-/** The project's posts still open or ended in the last 30 days, newest first, each with its updates, newest first */
-async function readPosts(db: D1Database, projectId: number, now: number) {
+/** The page's posts still open or ended in the last 30 days, newest first, each with its updates, newest first */
+async function readPosts(db: D1Database, pageId: number, now: number) {
   const posts = (
     await db
       .prepare(
         `SELECT id, title, impact, starts_at, ends_at, resolved_at, created_at FROM status_posts
-         WHERE project_id = ?
+         WHERE page_id = ?
            AND COALESCE(resolved_at, CASE impact WHEN 'maintenance' THEN ends_at END, ?) >= ?
          ORDER BY COALESCE(starts_at, created_at) DESC LIMIT 50`,
       )
-      .bind(projectId, now, now - 30 * DAY)
+      .bind(pageId, now, now - 30 * DAY)
       .all<PostRow>()
   ).results
   const updates = posts.length
@@ -121,7 +122,7 @@ export const postsOf = readPosts
 /** A post and its first update; a post made resolved starts resolved */
 export async function createPost(
   db: D1Database,
-  projectId: number,
+  pageId: number,
   post: {
     title: string
     impact: Impact
@@ -136,10 +137,10 @@ export async function createPost(
 ) {
   const row = await db
     .prepare(
-      `INSERT INTO status_posts (project_id, title, impact, starts_at, ends_at, resolved_at, created_at)
+      `INSERT INTO status_posts (page_id, title, impact, starts_at, ends_at, resolved_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
-    .bind(projectId, post.title, post.impact, post.starts, post.ends, post.state === 'resolved' ? now : null, now)
+    .bind(pageId, post.title, post.impact, post.starts, post.ends, post.state === 'resolved' ? now : null, now)
     .first<{ id: number }>()
   await db.batch([
     db
@@ -151,20 +152,15 @@ export async function createPost(
 }
 
 export const postOf = (db: D1Database, id: number) =>
-  db
-    .prepare(
-      'SELECT p.id, p.impact, p.project_id, pr.slug FROM status_posts p JOIN projects pr ON pr.id = p.project_id WHERE p.id = ?',
-    )
-    .bind(id)
-    .first<{ id: number; impact: Impact; project_id: number; slug: string }>()
+  db.prepare('SELECT id, impact FROM status_posts WHERE id = ?').bind(id).first<{ id: number; impact: Impact }>()
 
-// The post's affected checks: only uptime checks of its own project
+// The post's affected checks: only those on its page
 const affects = (db: D1Database, postId: number, monitors: number[]) =>
   db
     .prepare(
       `INSERT INTO status_post_monitors (post_id, monitor_id)
-       SELECT p.id, m.id FROM status_posts p JOIN monitors m ON m.project_id = p.project_id AND m.kind = 'uptime'
-       WHERE p.id = ? AND m.id IN (SELECT value FROM json_each(?))`,
+       SELECT p.id, s.monitor_id FROM status_posts p JOIN status_page_monitors s ON s.page_id = p.page_id
+       WHERE p.id = ? AND s.monitor_id IN (SELECT value FROM json_each(?))`,
     )
     .bind(postId, JSON.stringify(monitors))
 
@@ -189,69 +185,163 @@ export async function addUpdate(
   ])
 }
 
-/** The project's uptime checks, whether each is on the page or not */
-export const checksOf = async (db: D1Database, projectId: number) =>
+/** Every project's uptime checks, by project, and whether each is on the page */
+export const checksOf = async (db: D1Database, pageId: number) =>
   (
     await db
-      .prepare("SELECT id, name, status, public FROM monitors WHERE project_id = ? AND kind = 'uptime' ORDER BY name")
-      .bind(projectId)
-      .all<{ id: number; name: string; status: string; public: number }>()
+      .prepare(
+        `SELECT m.id, m.name, m.status, p.name AS project,
+           EXISTS (SELECT 1 FROM status_page_monitors s WHERE s.page_id = ? AND s.monitor_id = m.id) AS shown
+         FROM monitors m JOIN projects p ON p.id = m.project_id WHERE m.kind = 'uptime' ORDER BY p.name, m.name`,
+      )
+      .bind(pageId)
+      .all<{ id: number; name: string; status: string; project: string; shown: number }>()
   ).results
 
-/** Every project's status page, for Monitors: its domain, the checks on it, and its posts not yet ended */
+/** Every status page, for Monitors: its domain, the checks on it, and its posts not yet ended */
 export const pagesOf = async (db: D1Database, now: number) =>
   (
     await db
       .prepare(
-        `SELECT p.slug, p.name, p.status_domain,
-           (SELECT COUNT(*) FROM monitors m WHERE m.project_id = p.id AND m.kind = 'uptime' AND m.public = 1) AS shown,
-           (SELECT COUNT(*) FROM status_posts s WHERE s.project_id = p.id
+        `SELECT g.id, g.slug, g.name, g.domain,
+           (SELECT COUNT(*) FROM status_page_monitors s WHERE s.page_id = g.id) AS shown,
+           (SELECT COUNT(*) FROM status_posts s WHERE s.page_id = g.id
               AND COALESCE(s.resolved_at, CASE WHEN s.impact = 'maintenance' THEN s.ends_at END, ? + 1) > ?) AS open
-         FROM projects p ORDER BY p.name`,
+         FROM status_pages g ORDER BY g.name`,
       )
       .bind(now, now)
-      .all<{ slug: string; name: string; status_domain: string | null; shown: number; open: number }>()
+      .all<{ id: number; slug: string; name: string; domain: string | null; shown: number; open: number }>()
   ).results
+
+export type PageRow = {
+  id: number
+  slug: string
+  name: string
+  branding: string | null
+  domain: string | null
+  created_at: number
+}
+
+export const pageOf = (db: D1Database, slug: string) =>
+  db.prepare('SELECT * FROM status_pages WHERE slug = ?').bind(slug).first<PageRow>()
+
+/** The status pages a check is on, for its monitor page */
+export const pagesShowing = async (db: D1Database, monitorId: number) =>
+  (
+    await db
+      .prepare(
+        `SELECT g.slug, g.name FROM status_pages g JOIN status_page_monitors s ON s.page_id = g.id
+         WHERE s.monitor_id = ? ORDER BY g.name`,
+      )
+      .bind(monitorId)
+      .all<{ slug: string; name: string }>()
+  ).results
+
+/** An address made of a name: lowercase letters, numbers and dashes, `page` when nothing's left */
+export const slugify = (name: string) =>
+  name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/, '') || 'page'
+
+/** A new page named so, its slug made of the name, a number added while another page has it; its slug */
+export async function createPage(db: D1Database, name: string, now: number) {
+  const base = slugify(name)
+  const taken = new Set(
+    (
+      await db
+        .prepare("SELECT slug FROM status_pages WHERE slug = ? OR slug LIKE ? || '-%'")
+        .bind(base, base)
+        .all<{ slug: string }>()
+    ).results.map((r) => r.slug),
+  )
+  let slug = base
+  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`
+  await db.prepare('INSERT INTO status_pages (slug, name, created_at) VALUES (?, ?, ?)').bind(slug, name, now).run()
+  return slug
+}
+
+export type PageChange = Partial<Pick<PageRow, 'name' | 'slug' | 'branding' | 'domain'>>
+
+/** Only the fields given change; a slug or domain another page has is refused */
+export async function updatePage(db: D1Database, id: number, change: PageChange) {
+  const fields = (['name', 'slug', 'branding', 'domain'] as const).filter((f) => change[f] !== undefined)
+  if (!fields.length) return
+  for (const [field, taken] of [
+    ['slug', 'Another status page has that address. Pick a different one.'],
+    ['domain', 'Another status page has that domain. Use a different one.'],
+  ] as const)
+    if (
+      change[field] &&
+      (await db.prepare(`SELECT 1 FROM status_pages WHERE ${field} = ? AND id != ?`).bind(change[field], id).first())
+    )
+      throw new Error(taken)
+  await db
+    .prepare(`UPDATE status_pages SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`)
+    .bind(...fields.map((f) => change[f]), id)
+    .run()
+}
+
+/** Shows an uptime check on the page, or takes it off */
+export const setCheck = (db: D1Database, pageId: number, monitorId: number, on: boolean) =>
+  on
+    ? db
+        .prepare(
+          "INSERT OR IGNORE INTO status_page_monitors (page_id, monitor_id) SELECT ?, id FROM monitors WHERE id = ? AND kind = 'uptime'",
+        )
+        .bind(pageId, monitorId)
+        .run()
+    : db.prepare('DELETE FROM status_page_monitors WHERE page_id = ? AND monitor_id = ?').bind(pageId, monitorId).run()
+
+/** Deletes the page with its posts; the checks stay */
+export const deletePage = (db: D1Database, id: number) =>
+  db.prepare('DELETE FROM status_pages WHERE id = ?').bind(id).run()
 
 export const deletePost = (db: D1Database, id: number) =>
   db.prepare('DELETE FROM status_posts WHERE id = ?').bind(id).run()
 
 /**
- * A project's public status page: its uptime checks shown on it, each with its state, its days up over the last 30
- * (UTC) and its incidents then, and the posts. Only what the page shows leaves here: names, times and what was
- * posted, never a URL, config, why a check failed or who posted. Null when the project shows nothing, the same as
- * when there's no such project.
+ * A public status page: the uptime checks on it, each with its project's name, its state, its days up over the last
+ * 30 (UTC) and its incidents then, and the posts. Only what the page shows leaves here: names, times and what was
+ * posted, never a URL, config, why a check failed or who posted. Null when the page shows nothing, the same as when
+ * there's no such page.
  */
 export async function statusPage(db: D1Database, slug: string, now: number) {
-  const project = await db
-    .prepare('SELECT id, name, status_page FROM projects WHERE slug = ?')
+  const page = await db
+    .prepare('SELECT id, name, branding FROM status_pages WHERE slug = ?')
     .bind(slug)
-    .first<{ id: number; name: string; status_page: string | null }>()
-  if (!project) return null
+    .first<{ id: number; name: string; branding: string | null }>()
+  if (!page) return null
   const since = Math.floor(now / DAY) * DAY - 29 * DAY
   const [[checks, days, incidents], posts] = await Promise.all([
     db.batch<Record<string, number | string | null>>([
       db
         .prepare(
-          "SELECT id, name, status FROM monitors WHERE project_id = ? AND public = 1 AND kind = 'uptime' ORDER BY name",
+          `SELECT m.id, m.name, m.status, p.name AS project FROM status_page_monitors s
+           JOIN monitors m ON m.id = s.monitor_id JOIN projects p ON p.id = m.project_id
+           WHERE s.page_id = ? ORDER BY p.name, m.name`,
         )
-        .bind(project.id),
+        .bind(page.id),
       db
         .prepare(
           `SELECT r.monitor_id, r.at / ${DAY} AS day, SUM(r.ok) AS up, COUNT(*) AS checks
-           FROM uptime_results r JOIN monitors m ON m.id = r.monitor_id
-           WHERE m.project_id = ? AND m.public = 1 AND m.kind = 'uptime' AND r.at >= ? GROUP BY r.monitor_id, day`,
+           FROM uptime_results r JOIN status_page_monitors s ON s.monitor_id = r.monitor_id
+           WHERE s.page_id = ? AND r.at >= ? GROUP BY r.monitor_id, day`,
         )
-        .bind(project.id, since),
+        .bind(page.id, since),
       db
         .prepare(
-          `SELECT i.monitor_id, i.opened_at, i.closed_at FROM incidents i JOIN monitors m ON m.id = i.monitor_id
-           WHERE m.project_id = ? AND m.public = 1 AND m.kind = 'uptime' AND (i.closed_at IS NULL OR i.closed_at >= ?)
+          `SELECT i.monitor_id, i.opened_at, i.closed_at FROM incidents i JOIN status_page_monitors s ON s.monitor_id = i.monitor_id
+           WHERE s.page_id = ? AND (i.closed_at IS NULL OR i.closed_at >= ?)
            ORDER BY i.opened_at DESC LIMIT 50`,
         )
-        .bind(project.id, since),
+        .bind(page.id, since),
     ]),
-    readPosts(db, project.id, now),
+    readPosts(db, page.id, now),
   ])
   if (!checks.results.length && !posts.length) return null
   const nameOf = new Map(checks.results.map((c) => [c.id as number, c.name as string]))
@@ -261,8 +351,8 @@ export async function statusPage(db: D1Database, slug: string, now: number) {
       posts.some((p) => p.impact === impact && (p.phase === 'open' || p.phase === 'ongoing') && p.affects.includes(id)),
     ) ?? null
   return {
-    name: project.name,
-    branding: parseBranding(project.status_page),
+    name: page.name,
+    branding: parseBranding(page.branding),
     now,
     checks: checks.results.map((c) => {
       const mine = days.results.filter((d) => d.monitor_id === c.id)
@@ -270,6 +360,7 @@ export async function statusPage(db: D1Database, slug: string, now: number) {
       const all = mine.reduce((n, d) => n + (d.checks as number), 0)
       return {
         name: c.name as string,
+        project: c.project as string,
         status: c.status as 'pending' | 'ok' | 'failing' | 'paused',
         affected: affectedBy(c.id as number),
         uptime: all ? up / all : null,
@@ -296,15 +387,15 @@ export async function statusPage(db: D1Database, slug: string, now: number) {
 
 let domains: { at: number; slugs: Map<string, string> } | undefined
 
-/** The project whose status page a hostname opens, read at most once a minute per isolate */
+/** The status page a hostname opens, read at most once a minute per isolate */
 export async function slugOfDomain(db: D1Database, host: string, now: number) {
   if (!domains || now - domains.at > 60_000) {
     const rows = (
       await db
-        .prepare('SELECT status_domain, slug FROM projects WHERE status_domain IS NOT NULL')
-        .all<{ status_domain: string; slug: string }>()
+        .prepare('SELECT domain, slug FROM status_pages WHERE domain IS NOT NULL')
+        .all<{ domain: string; slug: string }>()
     ).results
-    domains = { at: now, slugs: new Map(rows.map((r) => [r.status_domain, r.slug])) }
+    domains = { at: now, slugs: new Map(rows.map((r) => [r.domain, r.slug])) }
   }
   return domains.slugs.get(host.toLowerCase())
 }

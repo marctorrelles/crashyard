@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
 import { IconExternalLink } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Markdown } from '@/components/markdown'
@@ -17,45 +17,49 @@ import { type Impact, IMPACTS, parseBranding, type PostState, STATES_FOR, stateL
 import {
   addStatusUpdate,
   createStatusPost,
+  deleteStatusPage,
   deleteStatusPost,
   getStatusPosts,
-  setMonitorPublic,
-  updateProject,
+  setStatusPageCheck,
+  updateStatusPage,
 } from '@/fns'
 
 export const Route = createFileRoute('/monitors/status-pages/$slug')({
-  loader: ({ params }) => getStatusPosts({ data: { slug: params.slug } }),
-  head: ({ loaderData }) => ({ meta: [{ title: `Status page · ${loaderData?.project.name} · crashyard` }] }),
+  loader: async ({ params }) => {
+    const data = await getStatusPosts({ data: { slug: params.slug } })
+    if (!data) throw notFound()
+    return data
+  },
+  head: ({ loaderData }) => ({
+    meta: [{ title: `${loaderData?.page.name ?? 'Status page'} · Status pages · crashyard` }],
+  }),
   component: StatusPage,
 })
 
-type Post = Awaited<ReturnType<typeof getStatusPosts>>['posts'][number]
-type Check = Awaited<ReturnType<typeof getStatusPosts>>['checks'][number]
+type Loaded = NonNullable<Awaited<ReturnType<typeof getStatusPosts>>>
+type Post = Loaded['posts'][number]
+type Check = Loaded['checks'][number]
 
 const PHASES = { open: 'Open', upcoming: 'Scheduled', ongoing: 'In progress', past: 'Ended' } as const
 
 function StatusPage() {
-  const { project } = Route.useLoaderData()
+  const { page } = Route.useLoaderData()
   return (
     <Shell
-      crumbs={[
-        <Link to="/monitors">Monitors</Link>,
-        <Link to="/monitors/status-pages">Status pages</Link>,
-        project.name,
-      ]}
+      crumbs={[<Link to="/monitors">Monitors</Link>, <Link to="/monitors/status-pages">Status pages</Link>, page.name]}
     >
       <PageHeader
-        title="Status page"
+        title={page.name}
         actions={
           <Button variant="outline" asChild>
-            <a href={`/status/${project.slug}`}>
+            <a href={`/status/${page.slug}`}>
               <IconExternalLink data-icon="inline-start" />
               Open status page
             </a>
           </Button>
         }
       >
-        {project.name}
+        {page.domain ?? `/status/${page.slug}`}
       </PageHeader>
       <div className="@container">
         <StatusPageSettings />
@@ -66,41 +70,49 @@ function StatusPage() {
 
 // The status page's checks, what to post on it, and what was posted: incidents, notices and maintenance
 function StatusPageSettings() {
-  const { project, checks, posts } = Route.useLoaderData()
+  const { page, checks, posts } = Route.useLoaderData()
   const { save } = useSave()
   const current = posts.filter((p) => p.phase !== 'past')
   const past = posts.filter((p) => p.phase === 'past')
   // Only the checks on the page can be named as affected
-  const shown = checks.filter((c) => c.public === 1)
+  const shown = checks.filter((c) => c.shown === 1)
+  const projects = [...new Set(checks.map((c) => c.project))]
   return (
     <div className="grid gap-4">
       <SettingsCard
         title="Checks on the page"
-        description="A public page anyone with the link can open, with the checks you choose and what you post. It shows a check’s name, whether it’s up and its incidents, never its address."
+        description="A public page anyone with the link can open, with the checks you choose and what you post. It shows a check’s name, whether it’s up and its incidents, never its address. With checks from more than one project, each project’s name heads its checks."
       >
         {checks.length ? (
-          <div className="grid gap-3">
-            {checks.map((c) => (
-              <div key={c.id} className="flex items-center gap-3">
-                <Switch
-                  id={`check-${c.id}`}
-                  checked={c.public === 1}
-                  onCheckedChange={(on) =>
-                    save(
-                      () => setMonitorPublic({ data: { id: c.id, on } }),
-                      on ? 'Shown on the status page' : 'Taken off the status page',
-                    )
-                  }
-                />
-                <Label htmlFor={`check-${c.id}`}>{c.name}</Label>
-              </div>
+          <div className="grid gap-5 @xl:grid-cols-2">
+            {projects.map((project) => (
+              <fieldset key={project} className="grid content-start gap-3">
+                <legend className="mb-3 text-xs font-medium text-muted-foreground">{project}</legend>
+                {checks
+                  .filter((c) => c.project === project)
+                  .map((c) => (
+                    <div key={c.id} className="flex items-center gap-3 max-sm:min-h-10">
+                      <Switch
+                        id={`check-${c.id}`}
+                        checked={c.shown === 1}
+                        onCheckedChange={(on) =>
+                          save(
+                            () => setStatusPageCheck({ data: { page: page.id, monitor: c.id, on } }),
+                            on ? 'Shown on the status page' : 'Taken off the status page',
+                          )
+                        }
+                      />
+                      <Label htmlFor={`check-${c.id}`}>{c.name}</Label>
+                    </div>
+                  ))}
+              </fieldset>
             ))}
           </div>
         ) : (
           <Hint>No uptime checks yet. Add one under Monitors to show it here.</Hint>
         )}
       </SettingsCard>
-      <NewPost slug={project.slug} checks={shown} />
+      <NewPost page={page.id} checks={shown} />
       {current.length > 0 && (
         <SettingsCard title="Now on the page">
           <Posts posts={current} checks={checks} />
@@ -112,6 +124,7 @@ function StatusPageSettings() {
         </SettingsCard>
       )}
       <Branding />
+      <Delete />
     </div>
   )
 }
@@ -147,7 +160,7 @@ function Affects({ id, checks, chosen = [] }: { id: string; checks: Check[]; cho
 
 const chosenChecks = (f: FormData) => f.getAll('monitors').map(Number)
 
-function NewPost({ slug, checks }: { slug: string; checks: Check[] }) {
+function NewPost({ page, checks }: { page: number; checks: Check[] }) {
   const { save, saving } = useSave()
   const [impact, setImpact] = useState<Impact>('minor')
   const [state, setState] = useState<PostState>('investigating')
@@ -171,7 +184,7 @@ function NewPost({ slug, checks }: { slug: string; checks: Check[] }) {
             () =>
               createStatusPost({
                 data: {
-                  slug,
+                  page,
                   impact,
                   state,
                   title: f.get('title'),
@@ -342,7 +355,7 @@ function PostItem({ post, checks }: { post: Post; checks: Check[] }) {
           {post.impact !== 'notice' && (
             <Affects
               id={`affects-${post.id}`}
-              checks={checks.filter((c) => c.public === 1 || post.affects.includes(c.id))}
+              checks={checks.filter((c) => c.shown === 1 || post.affects.includes(c.id))}
               chosen={post.affects}
             />
           )}
@@ -376,36 +389,66 @@ function PostItem({ post, checks }: { post: Post; checks: Check[] }) {
   )
 }
 
-// The page's own look and address, saved with the project
+// The page's name and own look and address
 function Branding() {
-  const { project } = Route.useLoaderData()
+  const { page } = Route.useLoaderData()
+  const navigate = useNavigate()
   const { save, saving } = useSave()
-  const b = parseBranding(project.status_page)
+  const b = parseBranding(page.branding)
   const [color, setColor] = useState(b.color ?? '')
   return (
-    <SettingsCard title="Look and address" description="Make the page yours. Everything here is optional.">
+    <SettingsCard
+      title="Look and address"
+      description="Make the page yours. Everything but the name and address is optional."
+    >
       <form
         className="grid gap-4 @xl:grid-cols-2"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault()
           const f = new FormData(e.currentTarget)
-          void save(() =>
-            updateProject({
+          const slug = String(f.get('slug')).trim()
+          const saved = await save(() =>
+            updateStatusPage({
               data: {
-                id: project.id,
-                status_page: {
+                id: page.id,
+                name: f.get('name'),
+                slug,
+                branding: {
                   title: f.get('page-title'),
                   description: f.get('description'),
                   logo: f.get('logo'),
                   color,
                   website: f.get('website'),
                 },
-                status_domain: f.get('domain'),
+                domain: f.get('domain'),
               },
             }),
           )
+          if (saved && slug !== page.slug)
+            await navigate({ to: '/monitors/status-pages/$slug', params: { slug }, replace: true })
         }}
       >
+        <div className="grid content-start gap-2">
+          <Label htmlFor="name">Name</Label>
+          <Input id="name" name="name" required maxLength={80} defaultValue={page.name} className="max-sm:h-10" />
+        </div>
+        <div className="grid content-start gap-2">
+          <Label htmlFor="slug">Address</Label>
+          <div className="flex items-center gap-1.5">
+            <span className="shrink-0 text-sm text-muted-foreground">/status/</span>
+            <Input
+              id="slug"
+              name="slug"
+              required
+              maxLength={40}
+              defaultValue={page.slug}
+              autoCapitalize="none"
+              spellCheck={false}
+              className="font-mono max-sm:h-10"
+            />
+          </div>
+          <Hint>A new address breaks links to the old one.</Hint>
+        </div>
         <div className="grid gap-2">
           <Label htmlFor="page-title">Page title</Label>
           <Input
@@ -413,7 +456,7 @@ function Branding() {
             name="page-title"
             maxLength={80}
             defaultValue={b.title}
-            placeholder={`${project.name} status`}
+            placeholder={`${page.name} status`}
             className="max-sm:h-10"
           />
         </div>
@@ -480,7 +523,7 @@ function Branding() {
             id="domain"
             name="domain"
             maxLength={253}
-            defaultValue={project.status_domain ?? ''}
+            defaultValue={page.domain ?? ''}
             placeholder="status.example.com"
             autoCapitalize="none"
             spellCheck={false}
@@ -490,14 +533,11 @@ function Branding() {
             First add it to crashyard’s Worker in Cloudflare, under Workers and Pages, crashyard, Settings, Domains and
             Routes, Add, Custom domain. Its domain must be on the same Cloudflare account. The address then opens this
             page and nothing else of crashyard.
-            {project.status_domain && (
+            {page.domain && (
               <>
                 {' '}
-                <a
-                  href={`https://${project.status_domain}`}
-                  className="font-medium text-foreground underline underline-offset-2"
-                >
-                  Open {project.status_domain}
+                <a href={`https://${page.domain}`} className="font-medium text-foreground underline underline-offset-2">
+                  Open {page.domain}
                 </a>
               </>
             )}
@@ -507,6 +547,34 @@ function Branding() {
           <SaveButton saving={saving} />
         </div>
       </form>
+    </SettingsCard>
+  )
+}
+
+function Delete() {
+  const { page } = Route.useLoaderData()
+  const navigate = useNavigate()
+  const { save, saving } = useSave()
+  return (
+    <SettingsCard
+      title="Delete status page"
+      description="Its address stops working and its posts are deleted. The checks stay, with their history."
+    >
+      <div>
+        <Button
+          variant="destructive"
+          disabled={saving}
+          className="max-sm:h-10"
+          onClick={async () => {
+            if (!confirm(`Delete ${page.name} and all its posts? Its address stops working, and this can’t be undone.`))
+              return
+            if (await save(() => deleteStatusPage({ data: { id: page.id } }), 'Status page deleted'))
+              await navigate({ to: '/monitors/status-pages' })
+          }}
+        >
+          Delete status page
+        </Button>
+      </div>
     </SettingsCard>
   )
 }

@@ -232,10 +232,3 @@ export const failingMonitors = async (db: D1Database) =>
         reason: string | null
       }>()
   ).results
-
-/** Shows an uptime check on its project's status page, or takes it off */
-export const setPublic = (db: D1Database, id: number, on: boolean) =>
-  db
-    .prepare("UPDATE monitors SET public = ? WHERE id = ? AND kind = 'uptime'")
-    .bind(on ? 1 : 0, id)
-    .run()

@@ -62,7 +62,7 @@ Where things are:
 
 ## Rules
 
-- **Fail closed.** Signed out, the dashboard opens only its sign-in pages, and a project's status page with the uptime
+- **Fail closed.** Signed out, the dashboard opens only its sign-in pages, and the status pages with the uptime
   checks someone chose to show and what the team posted, also on its own domain, which opens nothing else; with no one set up yet, only `/setup`, its setup code and
   the Workers plan. Anything that reads data checks who's asking, anything that changes it their role.
 - **Be what the Sentry SDKs and sentry-cli expect.** When in doubt about a wire format, check what the real SDK sends

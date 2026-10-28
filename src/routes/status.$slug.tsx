@@ -7,7 +7,7 @@ import { stateLabel } from '@/data/status'
 import { getStatusPage } from '@/fns'
 import { cn } from '@/lib/utils'
 
-// A project's public status page: open signed out (src/server.ts), its data read in the server render only
+// A public status page: open signed out (src/server.ts), its data read in the server render only
 export const Route = createFileRoute('/status/$slug')({
   loader: async ({ params }) => {
     const page = await getStatusPage({ data: { slug: params.slug } })
@@ -134,6 +134,27 @@ function Days({ days }: { days: Page['checks'][number]['days'] }) {
   )
 }
 
+function Check({ check: c }: { check: Page['checks'][number] }) {
+  const state = c.status !== 'failing' && c.affected ? AFFECTED[c.affected] : STATES[c.status]
+  return (
+    <div className="grid gap-3 bg-card p-4">
+      <div className="flex items-center gap-3">
+        <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+        <span className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className={cn('size-2 rounded-full', state.dot)} />
+          {state.label}
+        </span>
+      </div>
+      <Days days={c.days} />
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>30 days ago</span>
+        {c.uptime !== null && <span className="tabular-nums">{percent(c.uptime)} up</span>}
+        <span>Today</span>
+      </div>
+    </div>
+  )
+}
+
 function StatusPage() {
   const page = Route.useLoaderData()
   const b = page.branding
@@ -143,6 +164,14 @@ function StatusPage() {
     .sort((a, b) => RANK.indexOf(a.impact) - RANK.indexOf(b.impact))
   const upcoming = page.posts.filter((p) => p.phase === 'upcoming').reverse()
   const past = page.posts.filter((p) => p.phase === 'past')
+  // Checks under their project's name once the page has more than one project's, else one list without a heading
+  const projects = [...new Set(page.checks.map((c) => c.project))]
+  const groups: [string | null, Page['checks']][] =
+    projects.length > 1
+      ? projects.map((p) => [p, page.checks.filter((c) => c.project === p)])
+      : page.checks.length
+        ? [[null, page.checks]]
+        : []
   return (
     <main className="min-h-dvh bg-muted/40 px-4 py-10">
       {b.color && <div className="fixed inset-x-0 top-0 h-1" style={{ background: b.color }} />}
@@ -175,32 +204,16 @@ function StatusPage() {
             ))}
           </section>
         )}
-        {page.checks.length > 0 && (
-          <section className="grid gap-px overflow-hidden rounded-xl border bg-border" aria-label="Services">
-            {page.checks.map((c) => (
-              <div key={c.name} className="grid gap-3 bg-card p-4">
-                <div className="flex items-center gap-3">
-                  <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-                  {(() => {
-                    const state = c.status !== 'failing' && c.affected ? AFFECTED[c.affected] : STATES[c.status]
-                    return (
-                      <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className={cn('size-2 rounded-full', state.dot)} />
-                        {state.label}
-                      </span>
-                    )
-                  })()}
-                </div>
-                <Days days={c.days} />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>30 days ago</span>
-                  {c.uptime !== null && <span className="tabular-nums">{percent(c.uptime)} up</span>}
-                  <span>Today</span>
-                </div>
-              </div>
-            ))}
+        {groups.map(([project, checks]) => (
+          <section key={project ?? ''} className="grid gap-2" aria-label={project ?? 'Services'}>
+            {project && <h2 className="font-semibold">{project}</h2>}
+            <div className="grid gap-px overflow-hidden rounded-xl border bg-border">
+              {checks.map((c) => (
+                <Check key={c.name} check={c} />
+              ))}
+            </div>
           </section>
-        )}
+        ))}
         {past.length > 0 && (
           <section className="grid gap-3">
             <h2 className="font-semibold">Past updates</h2>

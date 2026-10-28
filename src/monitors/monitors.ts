@@ -42,7 +42,6 @@ export type MonitorRow = {
   last_seen: number | null
   environment: string
   muted_at: number | null
-  public: number // 1: on its project's status page (uptime checks only)
 }
 
 type Env = { DB: D1Database; PUBLIC_URL?: string }

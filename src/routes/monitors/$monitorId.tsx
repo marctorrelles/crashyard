@@ -10,9 +10,7 @@ import { Code } from '@/components/linking'
 import { type Editing, MonitorForm } from '@/components/monitor-form'
 import { PageHeader, Shell } from '@/components/shell'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { deleteMonitor, getMonitor, pauseMonitor, setMonitorPublic } from '@/fns'
+import { deleteMonitor, getMonitor, pauseMonitor } from '@/fns'
 import { cn } from '@/lib/utils'
 import { describeSchedule, type Schedule } from '@/monitors/schedule'
 
@@ -96,31 +94,34 @@ function MonitorPage() {
         </p>
       )}
       {m.kind === 'uptime' && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border px-4 py-3">
-          <Switch
-            id="public"
-            checked={m.public === 1}
-            onCheckedChange={async (on) => {
-              await setMonitorPublic({ data: { id: m.id, on } })
-              await router.invalidate()
-            }}
-            className="mt-0.5"
-          />
-          <div className="grid gap-0.5">
-            <Label htmlFor="public">Show on the status page</Label>
-            <p className="text-sm text-muted-foreground">
-              Anyone with the link sees its name, whether it’s up and its incidents. Never its address.
-              {m.public === 1 && (
-                <>
-                  {' '}
-                  <a href={`/status/${m.project}`} className="font-medium text-foreground underline underline-offset-2">
-                    Open the status page
-                  </a>
-                </>
-              )}
-            </p>
-          </div>
-        </div>
+        <p className="mb-4 rounded-xl border px-4 py-3 text-sm text-muted-foreground">
+          {d.statusPages.length ? (
+            <>
+              Shown on{' '}
+              {d.statusPages.map((p, i) => (
+                <span key={p.slug}>
+                  {i > 0 && (i === d.statusPages.length - 1 ? ' and ' : ', ')}
+                  <Link
+                    to="/monitors/status-pages/$slug"
+                    params={{ slug: p.slug }}
+                    className="font-medium text-foreground underline underline-offset-2"
+                  >
+                    {p.name}
+                  </Link>
+                </span>
+              ))}
+              . Anyone with the link sees its name, whether it’s up and its incidents. Never its address.
+            </>
+          ) : (
+            <>
+              Not on any status page. Add it to one under{' '}
+              <Link to="/monitors/status-pages" className="font-medium text-foreground underline underline-offset-2">
+                Status pages
+              </Link>
+              .
+            </>
+          )}
+        </p>
       )}
       <section className="mb-6 grid gap-3" aria-label="Uptime and timing">
         <dl className="grid grid-cols-3 gap-3">

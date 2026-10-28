@@ -81,3 +81,10 @@ in `pnpm run deploy`).
   `projects.status_domain` (unique when set, `projects_status_domain`). A worker from before ignores them.
 - 0029: `projects.forward_dsn`, a Sentry DSN every envelope the project accepts goes on to (`src/ingest/forward.ts`),
   null for none. A worker from before ignores it.
+- 0030: status pages of their own. `status_pages` (`slug` and `domain` unique, `branding` JSON) and
+  `status_page_monitors` (any uptime check, on any number of pages); each project with a page (a look, a domain, a
+  check shown or a post) carried over under its slug and name, its checks with `public` on. `status_posts`,
+  `status_updates` and `status_post_monitors` made again with the same ids, posts by `page_id` instead of
+  `project_id`, the old tables dropped children first so nothing cascades, the new renamed (SQLite rewrites the
+  foreign keys). `projects.status_page`, `projects.status_domain` and `monitors.public` dropped. A worker from before
+  fails on status pages until the deploy finishes.

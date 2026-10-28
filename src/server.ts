@@ -9,7 +9,7 @@ const start = createStartHandler(defaultStreamHandler)
 // envelope, an event, a security report, or a check-in over HTTP (`cron/<slug>/<key>`, the key optional)
 // crashyard's own sign-in pages, open while signed out (src/auth/AGENTS.md)
 const SIGN_IN_PAGES = /^\/(signin|setup|invite\/[^/]+)\/?$/
-// A project's public status page, open to anyone (src/routes/status.$slug.tsx): a GET only, its data read in the render
+// A status page, open to anyone (src/routes/status.$slug.tsx): a GET only, its data read in the render
 const STATUS_PAGE = /^\/status\/[a-z0-9][a-z0-9-]*\/?$/
 
 /** A request's headers without the `x-crashyard-` ones, which only this file sets */
@@ -71,7 +71,7 @@ export default {
     }
     if (url.pathname.startsWith('/api/')) return Response.json({ detail: 'Not found' }, { status: 404 })
 
-    // A project's own domain for its status page (Monitors, Status pages): that page alone, as to someone signed out
+    // A status page's own domain (Monitors, Status pages): that page alone, as to someone signed out
     if (!env.PUBLIC_URL || url.hostname !== new URL(env.PUBLIC_URL).hostname) {
       const { slugOfDomain } = await import('./data/status')
       const slug = await slugOfDomain(env.DB, url.hostname, Date.now())

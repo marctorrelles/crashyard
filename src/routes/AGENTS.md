@@ -23,18 +23,18 @@ server, the build, or `tsr generate`): never edit it.
   (`getSetupPage` checks the plan only then). `/invite/<token>`: who invited
   them and as what, a name and email (the invite's, when it names one), Join with GitHub when it's set up, or that it
   can't be used and who to ask. `?error=` on `/signin` and an invite says what went wrong with GitHub.
-- `status.$slug.tsx`: a project's public status page, open signed out (`src/server.ts`'s `STATUS_PAGE`, GET only)
+- `status.$slug.tsx`: a public status page, open signed out (`src/server.ts`'s `STATUS_PAGE`, GET only)
   and drawn without the sidebar for anyone (the root checks the path). `getStatusPage`, no role, read in the server
-  render only (a signed-out server function call is still 401): the project's uptime checks with `public` on, their
+  render only (a signed-out server function call is still 401): the uptime checks on the page, under their project's
+  name once there are several projects' (one list without a heading otherwise), their
   state, 30 UTC days as bars (all passed, at least 99%, less, none), uptime over them and the incidents then; never a
   URL or why a check failed. Over them a summary, the worst of a check down or a major outage (red), some services
   affected (amber), maintenance going on (sky); then the open posts, an outage first, as cards with a coloured edge and
   their updates, newest first (`Markdown`), and the checks they affect; Scheduled maintenance; Past updates. A check
-  an open post affects reads Major outage, Degraded or Under maintenance unless it's down. The project's branding: a
-  bar of its colour on top, its logo, title and description, Go to its website (under them on a phone). A project with no check shown and no
+  an open post affects reads Major outage, Degraded or Under maintenance unless it's down. The page's branding: a
+  bar of its colour on top, its logo, title and description, Go to its website (under them on a phone). A page with no check shown and no
   post is a 404, as one that doesn't exist. Loads again each minute
-  with a meta refresh, no script. Turned on per check on its monitor page, Show on the status page
-  (`setMonitorPublic`, admin), or on its page under Monitors, Status pages. On a project's status domain
+  with a meta refresh, no script. Made and filled under Monitors, Status pages. On a page's own domain
   (`src/server.ts`) it's the same page, `/` redirecting to it.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
@@ -185,16 +185,19 @@ server, the build, or `tsr generate`): never edit it.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
   monitor, and one monitor: muted since when, if it is; up, or runs ok, over 24 hours, 7 and 30 days; a p95 line of
   response times or run times; its environments with their status; its results or check-ins, how to check in;
-  Errors during this job, each opening its event; incidents; pause, edit, delete. Status pages, from the list's
-  header: `status-pages.index.tsx` (`getStatusPages`: each project's page, its domain or `/status/<slug>`, the checks
-  shown and posts not ended, or Not public yet) and `status-pages.$slug.tsx` (`getStatusPosts`, with the project:
-  Open status page; the project's uptime checks, each a switch for the page; Post to the status page, a kind, its
+  Errors during this job, each opening its event; incidents; pause, edit, delete; an uptime check says which status
+  pages show it, each a link, or Not on any status page (`pagesShowing`). Status pages, from the list's header:
+  `status-pages.index.tsx` (`getStatusPages`: Create status page, a name, `createStatusPage`, admin, opening the new
+  page; each page, its domain or `/status/<slug>`, the checks shown and posts not ended, or Not public yet; No status
+  pages yet) and `status-pages.$slug.tsx` (`getStatusPosts`, null as a 404: Open status page; every project's uptime
+  checks under its name, two columns with room, each a switch for the page, `setStatusPageCheck`, admin; Post to the status page, a kind, its
   state, a title, for maintenance its start and end as `datetime-local` in the viewer's zone, Affects (a checkbox
   per check on the page, not for a notice; 40 px on a phone), and a message, `createStatusPost`, member; then Now on
   the page and Ended in the last 30 days, each post with its updates and who posted them, what it affects, Add
   update, `addStatusUpdate`, its Affects filled in, and Delete after a confirmation, `deleteStatusPost`, admin; Look
-  and address, `updateProject`: page title, brand colour, a picker and its hex, description, logo and website, https
-  only, and the custom domain with how to add it to the Worker in Cloudflare).
+  and address, `updateStatusPage`, admin: name, address (the slug, opening the page at the new one), page title, brand
+  colour, a picker and its hex, description, logo and website, https only, and the custom domain with how to add it to
+  the Worker in Cloudflare; Delete status page after a confirmation, `deleteStatusPage`, admin).
 - `notifications.tsx` (`getNotifications` keeps channel secrets on the server: Telegram's webhook secret for everyone,
   bot tokens and webhook addresses for anyone below admin): channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, with the address it's sent from, or what to set up first

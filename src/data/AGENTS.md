@@ -102,22 +102,26 @@ helpers (`change`).
   `log_attributes`' primary key, temp B-trees for the groups; `log_hours` by its primary key (a project's) or
   `log_hours_hour`, the part-hours by `logs_time` (a multi-index OR). `pruneLogs` (the hourly cron, in the same
   budget): logs past their project's retention, 1000 a batch until done, and the hours of `log_hours` wholly past it.
-- `status.ts`: a project's status page. `statusPage` (no sign-in: the uptime checks with `public` on, their state,
-  30 UTC days, incidents, and the posts; never a URL, why a check failed or who posted; null when it shows nothing,
-  as for no such project) and the posts (0027): `IMPACTS` (minor, major, notice, maintenance), `STATES_FOR` (an
+- `status.ts`: status pages (0030), each with the uptime checks it picks from any projects. `statusPage` (no sign-in:
+  the checks in `status_page_monitors`, each with its project's name, its state, 30 UTC days, incidents, and the
+  posts; never a URL, why a check failed or who posted; null when it shows nothing, as for no such page) and the
+  posts: `IMPACTS` (minor, major, notice, maintenance), `STATES_FOR` (an
   incident's investigating, identified, monitoring, resolved; a notice's or maintenance's update, resolved, shown as
   Completed for maintenance, `stateLabel`), `createPost` (the post and its first update), `addUpdate` (resolved
   closes it, any other state opens it again), `deletePost`, `postsOf` (open, or ended in 30 days, newest first, each
   with `phase`: open, upcoming, ongoing, past; maintenance ends at `ends_at` unless resolved first, and `affects`, the
-  checks it names, 0028), `checksOf`, `pagesOf` (every project's page for Monitors, Status pages: its domain, the
-  checks shown, the posts not ended). A post's checks are only uptime checks of its project (an `INSERT … SELECT`);
-  an update with `monitors` replaces them. `statusPage` names only the checks on the page, gives each check
-  `affected` (the worst open post naming it: major, minor, then ongoing maintenance) and the project's `branding`
-  (`parseBranding` of `projects.status_page`: title, description, logo, color, website). `slugOfDomain`: the project
-  whose `status_domain` a hostname is, all of them read at most once a minute per isolate, for `src/server.ts`.
-  `status.test.ts`: only chosen checks, nothing of their URLs or errors, the posts' phases, no poster's email,
-  affected checks, branding, domains.
-- `monitors.ts`: `setPublic`, the monitors page (each with its last 30 results), one monitor's history and incidents (with
+  checks it names, 0028), `checksOf` (every project's uptime checks, by project, `shown` on this page), `pagesOf`
+  (every page for Monitors, Status pages: its domain, the checks shown, the posts not ended), `pageOf`,
+  `pagesShowing` (the pages a check is on, for its monitor page), `createPage` (its slug `slugify` of the name, `-2`,
+  `-3`… while taken), `updatePage` (name, slug, branding, domain; a slug or domain another page has refused),
+  `setCheck` (uptime checks only), `deletePage` (its posts with it). A post's checks are only checks on its page (an
+  `INSERT … SELECT`); an update with `monitors` replaces them. `statusPage` names only the checks on the page, gives
+  each check `affected` (the worst open post naming it: major, minor, then ongoing maintenance) and the page's
+  `branding` (`parseBranding`: title, description, logo, color, website). `slugOfDomain`: the page whose `domain` a
+  hostname is, all of them read at most once a minute per isolate, for `src/server.ts`. `status.test.ts`: only chosen
+  checks, nothing of their URLs or errors, the posts' phases, no poster's email, affected checks, branding, domains,
+  checks of several projects and on several pages, slugs.
+- `monitors.ts`: the monitors page (each with its last 30 results), one monitor's history and incidents (with
   `uptime`, the share of results that passed, or of finished runs that were ok, over 24 hours, 7 and 30 days, null
   with none; `p95`, `p95Series` nearest rank, per hour over 24 hours for an uptime check's response times, per day
   over 30 days for a job's durations; `environments`; `errors`, the newest 20 events naming its slug in the

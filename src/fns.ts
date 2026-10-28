@@ -271,41 +271,6 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
     return names.length ? JSON.stringify(names) : null
   },
   worker_exceptions: (v) => (v === true ? 1 : 0),
-  // The status page's look: each part optional, addresses only https, a colour as #rrggbb
-  status_page: (v) => {
-    const o = object(v)
-    const https = (x: unknown, name: string) => {
-      const s = text(x ?? '', 500, name).trim()
-      if (s && !/^https:\/\/[^\s"'<>]+$/.test(s)) throw new Error(`${name} starts with https://.`)
-      return s
-    }
-    const b = {
-      title: text(o.title ?? '', 80, 'The page title').trim(),
-      description: text(o.description ?? '', 500, 'The description').trim(),
-      logo: https(o.logo, 'The logo address'),
-      color: text(o.color ?? '', 7, 'The brand colour')
-        .trim()
-        .toLowerCase(),
-      website: https(o.website, 'The website address'),
-    }
-    if (b.color && !/^#[0-9a-f]{6}$/.test(b.color))
-      throw new Error('The brand colour is a hex colour, such as #f97316.')
-    const set = Object.fromEntries(Object.entries(b).filter(([, x]) => x))
-    return Object.keys(set).length ? JSON.stringify(set) : null
-  },
-  // A hostname of the deployment's Cloudflare account, never the dashboard's own
-  status_domain: (v) => {
-    const host = text(v ?? '', 253, 'The domain')
-      .trim()
-      .toLowerCase()
-      .replace(/\.$/, '')
-    if (!host) return null
-    if (!/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host))
-      throw new Error('The domain is a hostname such as status.example.com, without https:// or a path.')
-    if (env.PUBLIC_URL && host === new URL(env.PUBLIC_URL).hostname)
-      throw new Error('That’s crashyard’s own address. Use a different hostname for the status page.')
-    return host
-  },
   // A Sentry DSN, tidied; null for none
   forward_dsn: (v) => {
     const dsn = text(v ?? '', 500, 'The Sentry DSN').trim()
@@ -1223,7 +1188,13 @@ export const getMonitor = createServerFn()
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(async ({ data }) => {
     const monitor = await monitors.getMonitor(env.DB, data.id, Date.now())
-    return monitor ? { ...monitor, projects: await projects.allProjects(env.DB) } : null
+    return monitor
+      ? {
+          ...monitor,
+          projects: await projects.allProjects(env.DB),
+          statusPages: await status.pagesShowing(env.DB, monitor.monitor.id),
+        }
+      : null
   })
 
 const httpUrl = (v: unknown) => {
@@ -1376,14 +1347,6 @@ export const importFromSentry = createServerFn({ method: 'POST' })
     const { importPage } = await import('./ingest/import')
     return importPage(env.DB, data.project_id, data.source, data.cursor)
   })
-
-export const setMonitorPublic = createServerFn({ method: 'POST' })
-  .middleware([admin])
-  .validator((d: unknown) => {
-    const o = object(d)
-    return { id: int(o.id), on: o.on === true }
-  })
-  .handler(({ data }) => monitors.setPublic(env.DB, data.id, data.on).then(() => undefined))
 
 export const deleteMonitor = createServerFn({ method: 'POST' })
   .middleware([admin])
@@ -1662,24 +1625,24 @@ export const removePerson = createServerFn({ method: 'POST' })
 
 export const getSignInPage = createServerFn().handler(async () => ({ github: !!(await gitHubApp(env.DB)) }))
 
-// A project's status page, read while signed out as the sign-in pages are: only the uptime checks chosen for it, by
-// name, never their addresses (src/data/monitors.ts statusPage)
+// A status page, read while signed out as the sign-in pages are: only the uptime checks on it, by name, never their
+// addresses (src/data/status.ts statusPage)
 export const getStatusPage = createServerFn()
   .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
   .handler(({ data }) => status.statusPage(env.DB, data.slug, Date.now()))
 
-// What a project's status page shows and says, for the team
+// What a status page shows and says, for the team
 export const getStatusPosts = createServerFn()
   .middleware([signedIn])
   .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
   .handler(async ({ data }) => {
-    const project = await projects.projectBySlug(env.DB, data.slug)
-    if (!project) throw new Error('That project no longer exists.')
+    const page = await status.pageOf(env.DB, data.slug)
+    if (!page) return null
     const now = Date.now()
     return {
-      project,
-      checks: await status.checksOf(env.DB, project.id),
-      posts: await status.postsOf(env.DB, project.id, now),
+      page,
+      checks: await status.checksOf(env.DB, page.id),
+      posts: await status.postsOf(env.DB, page.id, now),
       now,
     }
   })
@@ -1687,6 +1650,86 @@ export const getStatusPosts = createServerFn()
 export const getStatusPages = createServerFn()
   .middleware([signedIn])
   .handler(() => status.pagesOf(env.DB, Date.now()))
+
+const pageName = (v: unknown) => {
+  const name = text(v, 80, 'The name').trim()
+  if (!name) throw new Error('Give the status page a name.')
+  return name
+}
+
+export const createStatusPage = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => ({ name: pageName(object(d).name) }))
+  .handler(({ data }) => status.createPage(env.DB, data.name, Date.now()))
+
+// A status page's own fields, each checked as the person typed it
+const STATUS_PAGE_CHECKS: { [K in keyof status.PageChange]-?: (v: unknown) => status.PageChange[K] } = {
+  name: pageName,
+  slug: (v) => {
+    const slug = text(v, 40, 'The address').trim()
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(slug))
+      throw new Error('An address is lowercase letters, numbers and dashes, and starts with a letter or number.')
+    return slug
+  },
+  // The look: each part optional, addresses only https, a colour as #rrggbb
+  branding: (v) => {
+    const o = object(v)
+    const https = (x: unknown, name: string) => {
+      const s = text(x ?? '', 500, name).trim()
+      if (s && !/^https:\/\/[^\s"'<>]+$/.test(s)) throw new Error(`${name} starts with https://.`)
+      return s
+    }
+    const b = {
+      title: text(o.title ?? '', 80, 'The page title').trim(),
+      description: text(o.description ?? '', 500, 'The description').trim(),
+      logo: https(o.logo, 'The logo address'),
+      color: text(o.color ?? '', 7, 'The brand colour')
+        .trim()
+        .toLowerCase(),
+      website: https(o.website, 'The website address'),
+    }
+    if (b.color && !/^#[0-9a-f]{6}$/.test(b.color))
+      throw new Error('The brand colour is a hex colour, such as #f97316.')
+    const set = Object.fromEntries(Object.entries(b).filter(([, x]) => x))
+    return Object.keys(set).length ? JSON.stringify(set) : null
+  },
+  // A hostname of the deployment's Cloudflare account, never the dashboard's own
+  domain: (v) => {
+    const host = text(v ?? '', 253, 'The domain')
+      .trim()
+      .toLowerCase()
+      .replace(/\.$/, '')
+    if (!host) return null
+    if (!/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host))
+      throw new Error('The domain is a hostname such as status.example.com, without https:// or a path.')
+    if (env.PUBLIC_URL && host === new URL(env.PUBLIC_URL).hostname)
+      throw new Error('That’s crashyard’s own address. Use a different hostname for the status page.')
+    return host
+  },
+}
+
+export const updateStatusPage = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const change: Record<string, unknown> = {}
+    for (const [field, check] of Object.entries(STATUS_PAGE_CHECKS)) if (field in o) change[field] = check(o[field])
+    return { id: int(o.id), change: change as status.PageChange }
+  })
+  .handler(({ data }) => status.updatePage(env.DB, data.id, data.change))
+
+export const setStatusPageCheck = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { page: int(o.page), monitor: int(o.monitor), on: o.on === true }
+  })
+  .handler(({ data }) => status.setCheck(env.DB, data.page, data.monitor, data.on).then(() => undefined))
+
+export const deleteStatusPage = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(({ data }) => status.deletePage(env.DB, data.id).then(() => undefined))
 
 const statusMessage = (v: unknown) => {
   const m = text(v, 5000, 'The message').trim()
@@ -1706,7 +1749,7 @@ export const createStatusPost = createServerFn({ method: 'POST' })
     const ends = maintenance ? int(o.ends, 0, Number.MAX_SAFE_INTEGER, 'The end') : null
     if (starts !== null && ends! <= starts) throw new Error('Maintenance ends after it starts. Check both times.')
     return {
-      slug: text(o.slug, 60),
+      page: int(o.page),
       title,
       impact,
       state: oneOf(status.STATES_FOR[impact])(o.state),
@@ -1716,11 +1759,7 @@ export const createStatusPost = createServerFn({ method: 'POST' })
       monitors: ints(o.monitors ?? [], 100),
     }
   })
-  .handler(async ({ data: { slug, ...post } }) => {
-    const project = await projects.projectBySlug(env.DB, slug)
-    if (!project) throw new Error('That project no longer exists.')
-    return status.createPost(env.DB, project.id, post, viewer(), Date.now())
-  })
+  .handler(({ data: { page, ...post } }) => status.createPost(env.DB, page, post, viewer(), Date.now()))
 
 export const addStatusUpdate = createServerFn({ method: 'POST' })
   .middleware([member])

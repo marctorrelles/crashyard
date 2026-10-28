@@ -44,8 +44,8 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
   App Review and TestFlight are called out.
 - **Logs.** Search Sentry logs, follow them live, group them and jump to the issues in the same trace.
 - **Dashboards.** Build charts, numbers and tables from issues, events and logs, or start from the Crashes template.
-- **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs, with a public status page per project
-  showing the checks you choose, and incidents, notices and planned maintenance you post with their updates, the services they affect, your
+- **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs, with public status pages
+  showing the checks you choose from any of your projects, and incidents, notices and planned maintenance you post with their updates, the services they affect, your
   own look and your own domain.
 - **Cloudflare Workers.** Catch the runs that run out of CPU time or memory, which a Worker's SDK never gets to send.
 - **Performance.** Transactions by p95, how each release changed them, and the slowest ones with their spans.
