@@ -67,6 +67,25 @@ describe('explore', () => {
     expect(out.older).toBeNull()
   })
 
+  it('pages through events that came in the same millisecond without skipping any', async () => {
+    const db = seeded()
+    // 120 events, three to a millisecond: a page of 50 would end inside one
+    db.sqlite.exec(`WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 119)
+      INSERT INTO events (id, project_id, issue_id, timestamp, received, level, platform, data)
+      SELECT 'b' || i, 1, 1, 0, ${NOW - 5 * HOUR} - i / 3, 'error', 'cocoa', '{}' FROM n`)
+    const seen: string[] = []
+    let before: number | undefined
+    do {
+      const page = await exploreEvents(db, { query: '', range: '24h', projectId: 1, before }, NOW)
+      seen.push(...page.rows.map((r) => r.id))
+      before = page.older ?? undefined
+    } while (before !== undefined)
+    expect(seen.filter((id) => id.startsWith('b')).sort()).toEqual(
+      Array.from({ length: 120 }, (_, i) => `b${i}`).sort(),
+    )
+    expect(new Set(seen).size).toBe(seen.length)
+  })
+
   it('charts a count or users over time, and groups by a tag or a column', async () => {
     const db = seeded()
     const all = await exploreChart(db, { query: '', range: '24h' }, NOW)

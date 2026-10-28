@@ -166,7 +166,8 @@ helpers (`change`).
   then each one's days by `issue_days`' primary key; with no filter, the days by `issue_days_day`.
 - `explore.ts`: Explore. `whereOf` (a search through `eventFilter` over a window, `all` for every event kept, the
   page's project, an issue, `project:` slugs; every value bound, `explore.test.ts` checks none reaches the SQL),
-  `exploreEvents` (the newest 50 with `older`, the cursor of the next page by `received`; columns: `level`,
+  `exploreEvents` (the newest 50 with `older`, the cursor of the next page by `received`, at or before it: a page ends
+  before the millisecond that runs past it, so events that came at once are never split and skipped; columns: `level`,
   `release`, `environment`, `project` or a tag's value, 6 at most, `DEFAULT_COLUMNS` when none), `exploreChart` (count
   or `count_unique(user)`, distinct `user_hash` per bucket, per bucket of `intervalFor` the range; with `groupBy`, a
   built-in or a tag, the 10 biggest values, `GROUPS`, each a series, events without the tag in none), `traceOf` (a

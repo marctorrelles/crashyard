@@ -30,7 +30,7 @@ export type ExploreInput = {
   columns?: string[]
   groupBy?: string
   aggregate?: ExploreAggregate
-  before?: number // received, for the page of older events
+  before?: number // received, for the page of older events: those at it or before
 }
 
 /** The WHERE of a search: the window, the page's project or issue, the search's tokens; every value bound */
@@ -75,7 +75,7 @@ export async function exploreEvents(db: D1Database, input: ExploreInput, now: nu
   const colParams: unknown[] = []
   const cols = columns.map((c, i) => `${columnSql(c, colParams)} AS c${i}`)
   const w = whereOf(input, now)
-  const before = input.before !== undefined ? ' AND e.received < ?' : ''
+  const before = input.before !== undefined ? ' AND e.received <= ?' : ''
   const rows = (
     await db
       .prepare(
@@ -86,16 +86,27 @@ export async function exploreEvents(db: D1Database, input: ExploreInput, now: nu
       .bind(...colParams, ...w.params, ...(input.before !== undefined ? [input.before] : []))
       .all<Record<string, unknown>>()
   ).results
+  // A page ends before the millisecond that runs past it, and `older` starts the next page at that millisecond, so
+  // events that came at once are never split between pages and skipped
+  let shown = rows.slice(0, PAGE)
+  let older: number | null = null
+  if (rows.length > PAGE) {
+    const cut = rows[PAGE].received as number
+    const whole = shown.filter((r) => (r.received as number) > cut)
+    // ponytail: a page of events all of one millisecond moves on past it; a cursor with the id if that happens
+    if (whole.length) shown = whole
+    older = whole.length ? cut : cut - 1
+  }
   return {
     columns,
-    rows: rows.slice(0, PAGE).map((r): ExploreRow => ({
+    rows: shown.map((r): ExploreRow => ({
       id: r.id as string,
       issue_id: r.issue_id as number,
       received: r.received as number,
       title: r.title as string,
       values: columns.map((_, i) => (r[`c${i}`] as string | null) ?? null),
     })),
-    older: rows.length > PAGE ? (rows[PAGE - 1].received as number) : null,
+    older,
   }
 }
 
