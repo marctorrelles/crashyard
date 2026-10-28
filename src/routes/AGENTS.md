@@ -183,7 +183,8 @@ server, the build, or `tsr generate`): never edit it.
   and a title, `addWidget`), Create metric alert for a count (`/notifications?metric=log_count&query=…&project=…`), Remove
   chart. Export: CSV or JSON Lines of the current search, through `logs_.export.ts`. Saved searches beside the bar: with no `query` in the
   URL the viewer's pinned one opens, so a search cleared while one is pinned stays in the URL as `query=`.
-- `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
+- `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars; `getMonitors` and `getMonitor`
+  send an uptime check's header values and body only to admins, `monitorForPage`, as they may hold credentials), adding an uptime check or a cron
   monitor, and one monitor: muted since when, if it is; up, or runs ok, over 24 hours, 7 and 30 days; a p95 line of
   response times or run times; its environments with their status; its results or check-ins, how to check in;
   Errors during this job, each opening its event; incidents; pause, edit, delete; an uptime check says which status

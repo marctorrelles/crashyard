@@ -1178,8 +1178,19 @@ export const revokeToken = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => tokens.revokeToken(env.DB, data.id).then(() => undefined))
 
+// An uptime check's header values and body may hold credentials (an Authorization header, a token in a POST): they
+// stay on the server for anyone below admin, who can't edit monitors anyway, as channels' secrets do
+const monitorForPage = <M extends { kind: string; config: string }>(monitor: M): M => {
+  const r = role()
+  if (monitor.kind !== 'uptime' || (r && people.reaches(r, 'admin'))) return monitor
+  const config = JSON.parse(monitor.config) as { headers?: [string, string][]; body?: string }
+  if (config.headers) config.headers = config.headers.map(([name]) => [name, ''])
+  if (config.body) config.body = ''
+  return { ...monitor, config: JSON.stringify(config) }
+}
+
 export const getMonitors = createServerFn().handler(async () => ({
-  monitors: await monitors.listMonitors(env.DB),
+  monitors: (await monitors.listMonitors(env.DB)).map(monitorForPage),
   projects: await projects.allProjects(env.DB),
   now: Date.now(),
 }))
@@ -1191,6 +1202,7 @@ export const getMonitor = createServerFn()
     return monitor
       ? {
           ...monitor,
+          monitor: monitorForPage(monitor.monitor),
           projects: await projects.allProjects(env.DB),
           statusPages: await status.pagesShowing(env.DB, monitor.monitor.id),
         }
