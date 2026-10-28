@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
 import { csvField, exportLogs, MAX_LINES } from './export'
+import { listLogs } from './logs'
 import { hourly, readsHours } from './logs'
 
 const HOUR = 36e5
@@ -104,5 +105,24 @@ describe('export', () => {
         .map((l) => JSON.parse(l).body),
     ).toEqual(['Export failed, "disk full"', 'Saved'])
     expect(JSON.parse(lines.split('\n')[0]).attributes).toEqual({ song: 42 })
+  })
+})
+
+describe('live tail', () => {
+  it('brings what arrived since, a late batch with earlier times too, newest arrival first', async () => {
+    const db = sqliteD1()
+    const now = Date.UTC(2026, 9, 26, 12)
+    db.sqlite.exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'p', 'p', 'k', 0);
+      INSERT INTO logs (id, project_id, timestamp, received, level, body, attributes) VALUES
+        (1, 1, ${now - 1000}, 0, 'info', 'shown', '{}'),
+        (2, 1, ${now - 5000}, 0, 'info', 'flushed late', '{}'),
+        (3, 1, ${now - 4000}, 0, 'info', 'flushed late too', '{}')`)
+    const fresh = await listLogs(
+      db,
+      { query: '', window: { range: '24h' }, after: { timestamp: now - 1000, id: 1 } },
+      now,
+    )
+    expect(fresh.logs.map((l) => l.body)).toEqual(['flushed late too', 'flushed late'])
+    expect(fresh.more).toBe(false)
   })
 })

@@ -64,21 +64,24 @@ export async function listLogs(db: D1Database, opts: Search & { before?: Cursor;
     where.push('(l.timestamp < ? OR (l.timestamp = ? AND l.id < ?))')
     params.push(opts.before.timestamp, opts.before.timestamp, opts.before.id)
   }
+  // The live tail asks for what arrived since its newest, by id, the order logs are stored in: an SDK flushes its
+  // buffer with the logs' own earlier times, which a cursor by time would never show
   if (opts.after) {
-    where.push('(l.timestamp > ? OR (l.timestamp = ? AND l.id > ?))')
-    params.push(opts.after.timestamp, opts.after.timestamp, opts.after.id)
+    where.push('l.id > ?')
+    params.push(opts.after.id)
   }
   const rows = (
     await db
       .prepare(
         `SELECT l.id, p.slug AS project, l.timestamp, l.level, l.body, l.attributes, l.release, l.environment, l.trace_id
          FROM logs l JOIN projects p ON p.id = l.project_id WHERE ${where.join(' AND ')}
-         ORDER BY l.timestamp DESC, l.id DESC LIMIT ?`,
+         ORDER BY ${opts.after ? 'l.id' : 'l.timestamp DESC, l.id DESC'} LIMIT ?`,
       )
       .bind(...params, PAGE_LOGS + 1)
       .all<LogRow>()
   ).results
-  if (opts.after) return { logs: rows.slice(0, PAGE_LOGS), more: false, facets: [] }
+  // Read oldest arrival first, so a burst past a page goes on in order (`more` asks again at once), shown newest first
+  if (opts.after) return { logs: rows.slice(0, PAGE_LOGS).reverse(), more: rows.length > PAGE_LOGS, facets: [] }
 
   // Facets over the newest 1000 that match (not the page's cursor)
   // ponytail: a sample, so counts on a big range are of its newest 1000; a rollup table if that misleads

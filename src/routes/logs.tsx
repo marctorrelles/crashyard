@@ -905,20 +905,37 @@ function LogStream({
 }) {
   const [logs, setLogs] = useState(initial.logs)
   const [more, setMore] = useState(initial.more)
-  const newest = useRef(logs[0])
-  useEffect(() => {
-    newest.current = logs[0]
-  }, [logs])
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  // The newest id shown: the live tail asks for what arrived after it, whatever the logs' own times
+  const newest = useRef(Math.max(0, ...initial.logs.map((l) => l.id)))
+  // Logs not shown yet, newest first: none twice, whichever request brought them
+  const add = (fresh: Log[], at: 'top' | 'bottom') =>
+    setLogs((l) => {
+      const shown = new Set(l.map((x) => x.id))
+      const unseen = fresh.filter((x) => !shown.has(x.id))
+      return at === 'top' ? [...unseen, ...l].slice(0, 1000) : [...l, ...unseen]
+    })
   useEffect(() => {
     if (!live) return
-    const timer = setInterval(async () => {
-      const head = newest.current
-      const fresh = await getLogs({
-        data: { ...params, after: head ? { timestamp: head.timestamp, id: head.id } : undefined },
-      })
-      if (fresh.logs.length) setLogs((l) => [...fresh.logs, ...l].slice(0, 1000))
-    }, 2000)
-    return () => clearInterval(timer)
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout>
+    // One request at a time: the next waits for the last, sooner while a burst is being read
+    const poll = async () => {
+      const fresh = await getLogs({ data: { ...params, after: { timestamp: 0, id: newest.current } } }).catch(
+        () => null,
+      )
+      if (stopped) return
+      if (fresh?.logs.length) {
+        newest.current = Math.max(newest.current, ...fresh.logs.map((l) => l.id))
+        add(fresh.logs, 'top')
+      }
+      timer = setTimeout(poll, fresh?.more ? 0 : 2000)
+    }
+    timer = setTimeout(poll, 2000)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
   }, [live, params])
   return (
     <>
@@ -944,11 +961,19 @@ function LogStream({
           <Button
             variant="outline"
             size="sm"
+            disabled={loadingOlder}
             onClick={async () => {
               const last = logs.at(-1)!
-              const older = await getLogs({ data: { ...params, before: { timestamp: last.timestamp, id: last.id } } })
-              setLogs((l) => [...l, ...older.logs])
-              setMore(older.more)
+              setLoadingOlder(true)
+              try {
+                const older = await getLogs({
+                  data: { ...params, before: { timestamp: last.timestamp, id: last.id } },
+                })
+                add(older.logs, 'bottom')
+                setMore(older.more)
+              } finally {
+                setLoadingOlder(false)
+              }
             }}
           >
             Older

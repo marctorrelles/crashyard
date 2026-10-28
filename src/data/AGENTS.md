@@ -85,7 +85,8 @@ helpers (`change`).
   one holds, `failed` naming the others; null when none is set or can be judged, crash-free needing sessions),
   `deploysOf` (50, newest first) and `storeDeploy`. `releases.test.ts` on `test/fakes.ts`.
 - `logs.ts`: `conditions` (a search's SQL over `logs l`, narrowed to a project, exported for `widgets.ts` and
-  `export.ts`); the explorer's page (newest first, cursors for older and for the live tail's newer) over a `Window`:
+  `export.ts`); the explorer's page (newest first, a `(timestamp, id)` cursor for older; the live tail's newer by id, as SDKs flush logs late with their own
+  earlier times, the oldest arrival first and `more` past a page) over a `Window`:
   a preset range up to now (the list reads on past now, for the live tail) or an exact span `from` to `to` (`to` left
   out, 90 days at most, `MAX_SPAN`); facets over the newest 1000 that match; `logsByBucket`, logs per bucket and level
   over the window (the bucket from `intervalFor`, `timestamp - timestamp % size`: `%` reads integers, whatever D1
