@@ -121,12 +121,16 @@ export function telegramError(status: number, description = '') {
   return `Telegram answered ${status}${description ? `: ${description}` : ''}`
 }
 
+/** How long a send waits for Telegram or a webhook: one that never answers mustn't hold the cron or the rest */
+const SEND_TIMEOUT = 10_000
+
 /** One Bot API method; throws Telegram's refusal in words */
 export async function telegramCall(config: Pick<TelegramConfig, 'token' | 'server'>, method: string, body: unknown) {
   const response = await fetch(`${(config.server || TELEGRAM).replace(/\/$/, '')}/bot${config.token}/${method}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(SEND_TIMEOUT),
   })
   const answer = (await response.json().catch(() => ({ ok: false }))) as TelegramAnswer<unknown>
   if (!answer.ok) throw new Error(telegramError(response.status, answer.description))
@@ -234,22 +238,27 @@ export function webhookBody(format: WebhookConfig['format'], notice: Notice): un
 export async function send(channel: Channel, notice: Notice, mailer?: Mailer, from?: string): Promise<void> {
   const config = JSON.parse(channel.config)
   if (channel.kind === 'telegram') {
-    const response = await fetch(telegramRequest(config as TelegramConfig, notice))
+    const response = await fetch(telegramRequest(config as TelegramConfig, notice), {
+      signal: AbortSignal.timeout(SEND_TIMEOUT),
+    })
     if (!response.ok) {
       const why = ((await response.json().catch(() => null)) as TelegramAnswer<unknown> | null)?.description
       throw new Error(telegramError(response.status, why))
     }
+    await response.body?.cancel()
   } else if (channel.kind === 'webhook') {
     const { url, format } = config as WebhookConfig
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(webhookBody(format, notice)),
+      signal: AbortSignal.timeout(SEND_TIMEOUT),
     })
     if (!response.ok) {
       const why = (await response.text().catch(() => '')).slice(0, 200)
       throw new Error(`The webhook returned HTTP ${response.status}${why ? `: ${why}` : ''}`)
     }
+    await response.body?.cancel()
   } else if (channel.kind === 'email') {
     if (!mailer || !from) throw new Error('Email isn’t set up on this crashyard. Set EMAIL_FROM and deploy again.')
     const subject = `[crashyard] ${notice.issue.title}`.slice(0, 200)

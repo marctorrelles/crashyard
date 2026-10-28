@@ -41,21 +41,24 @@ export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now
         candidate.kind === 'threshold' ? { ...candidate, threshold: thresholdFor(route, candidate) } : candidate
       for (const id of channelIds(route)) if (!targets.has(id)) targets.set(id, notice)
     }
-    for (const [id, notice] of targets) {
-      const channel = channels.get(id)
-      if (!channel) continue
-      if (isQuiet(channel, now)) {
-        await env.DB.prepare('INSERT INTO held_notifications (channel_id, payload, at) VALUES (?, ?, ?)')
-          .bind(id, JSON.stringify(notice), now)
-          .run()
-        continue
-      }
-      try {
-        await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
-      } catch (error) {
-        await failed(env.DB, channel, notice, error, now)
-      }
-    }
+    // Its channels at once, each on its own: a slow one doesn't hold the others back (each send times out)
+    await Promise.all(
+      [...targets].map(async ([id, notice]) => {
+        const channel = channels.get(id)
+        if (!channel) return
+        if (isQuiet(channel, now)) {
+          await env.DB.prepare('INSERT INTO held_notifications (channel_id, payload, at) VALUES (?, ?, ?)')
+            .bind(id, JSON.stringify(notice), now)
+            .run()
+          return
+        }
+        try {
+          await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
+        } catch (error) {
+          await failed(env.DB, channel, notice, error, now)
+        }
+      }),
+    )
   }
 }
 
