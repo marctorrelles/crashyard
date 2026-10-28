@@ -51,7 +51,8 @@ environment, each with its own thresholds, and send them to channels.
   whoever saved, then `setWebhook` to `/api/telegram/<bot id>` with `secret_token` and only `callback_query`;
   deleting the bot's last channel deletes the webhook; `telegramCall` for any method; `telegramChats`, the chats that
   wrote to the bot lately, from `getUpdates`, for the settings' Find (a bot with a webhook gets 409 there: it deletes
-  the webhook and asks again, and saving sets it back); `server` for a local Bot API server; `telegramToken` picks
+  the webhook and asks again, and `findTelegramChats` sets it back when the bot has a channel with a secret, as
+  saving does); `server` for a local Bot API server; `telegramToken` picks
   `<bot id>:<secret>` out of what's pasted, @BotFather's whole message too; `telegramError` says what a refusal means:
   404 a token Telegram has no bot for, 401 a revoked one, 409 a bot with a webhook, a chat not found or blocked), webhooks (`json`; `slack`: Block Kit, the title in bold over its line and a button,
   `text` for the notification; `discord`: an embed coloured by level or kind, its title linking to the page,

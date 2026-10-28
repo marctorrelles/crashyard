@@ -764,7 +764,20 @@ export const findTelegramChats = createServerFn({ method: 'POST' })
     if (!token) throw new Error('That isn’t a bot token. Copy the token from @BotFather, it looks like 123456789:AA…')
     return { token }
   })
-  .handler(({ data }) => telegramChats(data.token))
+  .handler(async ({ data }) => {
+    const chats = await telegramChats(data.token)
+    // Reading them takes a bot's webhook off: put it back for its channels' buttons, as saving would
+    const base = env.PUBLIC_URL?.replace(/\/$/, '')
+    const bot = botIdOf(data.token)
+    const known = (await notifications.telegramChannels(env.DB)).find((c) => botIdOf(c.token) === bot && c.secret)
+    if (known && base?.startsWith('https://'))
+      await telegramCall(known, 'setWebhook', {
+        url: `${base}/api/telegram/${bot}`,
+        secret_token: known.secret,
+        allowed_updates: ['callback_query'],
+      }).catch(() => {})
+    return chats
+  })
 
 export const deleteChannel = createServerFn({ method: 'POST' })
   .middleware([admin])
