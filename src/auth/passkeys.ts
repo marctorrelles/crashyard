@@ -205,7 +205,11 @@ export async function handleAuth(path: string, ctx: Context): Promise<Response |
             { email: taken!.data.email, name: taken!.data.name, role: invite!.role, createdBy: invite!.created_by },
             now,
           )
-          .catch(() => refuse('Someone with that email is already here. Sign in instead.'))
+          .catch(async () => {
+            // Not joined after all: the invite can still be used, by another email
+            await people.unuseInvite(db, taken!.data.hash)
+            return refuse('Someone with that email is already here. Sign in instead.')
+          })
         await db.batch([
           people.addPasskey(db, passkeyOf(credential, user.id, passkeyName), now),
           db.prepare('UPDATE invites SET used_by = ? WHERE hash = ?').bind(user.id, taken!.data.hash),

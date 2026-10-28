@@ -195,11 +195,18 @@ export async function handleGitHub(step: string, ctx: Context): Promise<Response
     if (!email) return fail('github-no-email')
     const used = await people.useInvite(db, found.hash, null, now).run()
     if (!used.meta.changes) return fail('invite-used')
-    const created = await people.createUser(
-      db,
-      { email, name: user.name || user.login, role: found.role, createdBy: found.created_by, githubId: user.id },
-      now,
-    )
+    const created = await people
+      .createUser(
+        db,
+        { email, name: user.name || user.login, role: found.role, createdBy: found.created_by, githubId: user.id },
+        now,
+      )
+      .catch(() => null)
+    // Someone here has that email with another GitHub account: the invite stays usable
+    if (!created) {
+      await people.unuseInvite(db, found.hash)
+      return fail('github-taken')
+    }
     await db.prepare('UPDATE invites SET used_by = ? WHERE hash = ?').bind(created.id, found.hash).run()
     return signIn(created.id, '/')
   }

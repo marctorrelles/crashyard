@@ -242,6 +242,7 @@ export const GITHUB_ERRORS: Record<string, string> = {
     'No one here uses that GitHub account or its email addresses. Ask an owner for an invite, or sign in with a passkey.',
   'github-email': 'This invite is for another email. Sign in to GitHub with the account that has it.',
   'github-no-email': 'Your GitHub account has no verified email. Verify one on GitHub, then try again.',
+  'github-taken': 'Someone with that email is already here. Sign in instead.',
   'invite-used': 'This invite has expired or was already used. Ask whoever sent it for a new one.',
 }
 

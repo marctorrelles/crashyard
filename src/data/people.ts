@@ -361,6 +361,10 @@ export const useInvite = (db: D1Database, hash: string, userId: number | null, n
     .prepare('UPDATE invites SET used_at = ?, used_by = ? WHERE hash = ? AND used_at IS NULL AND expires_at > ?')
     .bind(now, userId, hash, now)
 
+/** An invite taken by someone who then couldn't join, usable again */
+export const unuseInvite = (db: D1Database, hash: string) =>
+  db.prepare('UPDATE invites SET used_at = NULL, used_by = NULL WHERE hash = ?').bind(hash).run()
+
 // Recovery codes
 
 export const RECOVERY_CODES = 10

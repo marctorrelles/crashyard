@@ -158,4 +158,23 @@ describe('Sign in with GitHub', () => {
     )
     expect(reused!.headers.get('Location')).toBe(`/invite/${open}?error=invite-used`)
   })
+
+  it('leaves an invite usable when its email is someone’s here with another GitHub account', async () => {
+    const db = sqliteD1()
+    await setSetting(db, GITHUB_KEY, APP, null, NOW)
+    const ed = await people.createUser(
+      db,
+      { email: 'ed@example.com', name: 'Ed', role: 'member', createdBy: null },
+      NOW,
+    )
+    await people.linkGitHub(db, ed.id, 20)
+    const invite = await people.createInvite(db, 'member', null, 'ada@example.com', NOW)
+    const taken = await signInWith(
+      db,
+      gitHub({ id: 21, login: 'ed2' }, [{ email: 'ed@example.com', verified: true }]),
+      `?invite=${invite}`,
+    )
+    expect(taken!.headers.get('Location')).toBe(`/invite/${invite}?error=github-taken`)
+    expect((await people.inviteOf(db, invite, NOW))?.usable).toBe(true)
+  })
 })

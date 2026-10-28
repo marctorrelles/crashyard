@@ -17,7 +17,7 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
   dashes or spaces; the first owner, signed in, ten recovery codes), `signin` (any of this crashyard's passkeys,
   picked by the browser: no email to type; the counter written back), `passkeys` (another for whoever is signed in,
   their others excluded), `invite` (the invite taken first, `useInvite` only while unused and unexpired, so one use
-  even from two tabs, then the person with its role; an email it names is the only one it takes), `recover` (email and
+  even from two tabs, then the person with its role, and given back, `unuseInvite`, when the person can't be made; an email it names is the only one it takes), `recover` (email and
   a recovery code, once per code) and `signout` (a form POST: the session deleted, the cookie cleared, 303 to
   `/signin`). The relying party is `PUBLIC_URL`'s host (not on a dev server), else the request's: a domain change means
   new passkeys. The authenticator's user handle is SHA-256 of `crashyard:<email>`, so a device keeps one per person.
