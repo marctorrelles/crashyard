@@ -10,7 +10,9 @@ order.
 - `auth.ts`: `projectKey` finds the DSN key: `X-Sentry-Auth` `sentry_key=`, `?sentry_key=`, `Authorization`, or the
   envelope header's `dsn`.
 - `scrub.ts`: before anything is stored. Values under secret-looking keys become `[Filtered]`; emails, card numbers
-  and bearer tokens in text are masked (an email's domain ends in letters, so a release like `app@1.2.0` stays).
+  (14 to 19 digits that pass the Luhn check, so ms timestamps and ids stay) and bearer tokens in text are masked (an
+  email's domain ends in letters, so a release like `app@1.2.0` stays; its patterns are bounded and anchored to the
+  start of a run, one pass over any text: the unbounded email pattern took seconds on 100 KB without an `@`).
   The user is kept only as hashes (`src/search/user.ts`): `user_hash` (`hashUser` of the id, else email, else
   username) counts distinct users, and `user_keys` has one per field sent (id, email, username, name; never the IP
   address), which `user:` searches hash the same way. The deployment's own field names (Settings, Privacy, setting

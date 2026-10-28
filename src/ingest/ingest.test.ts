@@ -249,6 +249,20 @@ describe('scrubbing', () => {
       nested: { apiKey: '[Filtered]', note: 'mail me at [email], Bearer [Filtered]' },
     })
   })
+
+  it('masks card numbers that pass the Luhn check, and leaves timestamps and ids', () => {
+    expect(scrubText('paid with 4111 1111 1111 1111 today')).toBe('paid with [Filtered] today')
+    expect(scrubText('card 5555-5555-5555-4444.')).toBe('card [Filtered].')
+    // A time in ms is 13 digits, however Luhn reads it
+    expect(scrubText('at 1761652800000 order 1234567890123456')).toBe('at 1761652800000 order 1234567890123456')
+  })
+
+  it('scrubs long text in one pass, however many characters come without an @', () => {
+    const long = `${'a1'.repeat(100_000)} ${'b.'.repeat(50_000)}x me@mail.example.org`
+    const started = performance.now()
+    expect(scrubText(long).endsWith(' [email]')).toBe(true)
+    expect(performance.now() - started).toBeLessThan(200)
+  })
 })
 
 describe('grouping anonymous and synthetic frames', () => {

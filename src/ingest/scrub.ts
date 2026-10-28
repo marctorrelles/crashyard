@@ -2,9 +2,12 @@
 import { getSetting, SCRUB_KEY } from '../data/settings'
 
 const SECRET_KEY = /pass(word|wd)?|secret|token|auth|api[-_]?key|cookie|session|credential|private[-_]?key|bearer/i
-// A domain ends in letters: `app@1.2.0`, Sentry's way of naming a release, isn't an email
-const EMAIL = /[\w.+-]+@(?:[\w-]+\.)+[A-Za-z]{2,}\b/g
-const CARD = /\b(?:\d[ -]?){13,19}\b/g
+// A domain ends in letters: `app@1.2.0`, Sentry's way of naming a release, isn't an email. Bounded, and the local
+// part starts where its run of characters does, so a long text without an @ costs one pass, not one per character
+const EMAIL = /(?<![\w.+-])[\w.+-]{1,64}@(?:[\w-]{1,63}\.){1,8}[A-Za-z]{2,24}\b/g
+// 14 to 19 digits, spaces or dashes between them (no card has had 13 for years, and a time in ms has exactly 13);
+// masked only when the Luhn check passes, so timestamps and ids stay
+const CARD = /\b\d(?:[ -]?\d){13,18}\b/g
 const BEARER = /\b(Bearer|Basic)\s+[\w\-._~+/]+=*/gi
 
 export const FILTERED = '[Filtered]'
@@ -36,8 +39,23 @@ export async function loadExtraFields(db: D1Database, now = Date.now()) {
   }
 }
 
+/** Whether a card number's digits pass the Luhn check, as every card number does */
+function luhn(number: string) {
+  const digits = number.replace(/\D/g, '')
+  let sum = 0
+  for (let i = 0; i < digits.length; i++) {
+    let d = Number(digits[digits.length - 1 - i])
+    if (i % 2) d = d * 2 > 9 ? d * 2 - 9 : d * 2
+    sum += d
+  }
+  return sum % 10 === 0
+}
+
 export function scrubText(text: string): string {
-  return text.replace(BEARER, `$1 ${FILTERED}`).replace(EMAIL, '[email]').replace(CARD, FILTERED)
+  return text
+    .replace(BEARER, `$1 ${FILTERED}`)
+    .replace(EMAIL, '[email]')
+    .replace(CARD, (number) => (luhn(number) ? FILTERED : number))
 }
 
 /** A copy of a JSON value with secrets taken out; deep values past `depth` are dropped */
