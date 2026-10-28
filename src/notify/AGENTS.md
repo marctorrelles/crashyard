@@ -68,9 +68,10 @@ environment, each with its own thresholds, and send them to channels.
 - `email.ts`: a plain-text MIME message for Cloudflare Email Routing's `send_email` binding (`EMAIL`, from
   `EMAIL_FROM`; the address it sends to must be a verified destination).
 - `dispatch.ts`: `dispatch` sends each notice to its routes' channels, or holds it in `held_notifications` in quiet
-  hours, after each route's wait (`throttled`) for the kinds about an issue; `flushHeld` (the cron, every minute) sends what was held as one message once they end, the newest with
-  `heldMore`, the others' count. A notice's channels are sent at once, each send timing out after 10 seconds
-  (`SEND_TIMEOUT`, Telegram's and webhooks'). A failing channel
+  hours, after each route's wait (`throttled`) for the kinds about an issue; `flushHeld` (the cron, every minute) sends what was held as one message once they end: a `monitor_down` or
+  `metric_critical` if one was held, else the newest, with `heldMore`, the others' count; its rows are taken
+  (`DELETE … RETURNING`) before sending, so two runs at once send them once. A notice's channels are sent at once,
+  each send timing out after 10 seconds (`SEND_TIMEOUT`, Telegram's and webhooks'). A failing channel
   is logged, written to `notification_failures` (channel, the notice's kind, the error's first 500 characters; for
   Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them after 30 days.
 

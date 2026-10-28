@@ -62,7 +62,11 @@ export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now
   }
 }
 
-/** After quiet hours: what each channel held, sent as one notice (the newest, saying how many came with it) */
+// Held notices that matter most, sent over a newer one: an outage still going on mustn't hide behind a new issue
+const URGENT = ['monitor_down', 'metric_critical']
+
+/** After quiet hours: what each channel held, sent as one notice (an outage or a critical alert first, else the newest,
+ * saying how many came with it). The rows are taken before sending, so two cron runs at once can't both send them */
 export async function flushHeld(env: NotifyEnv, now = Date.now()): Promise<void> {
   const held = (
     await env.DB.prepare('SELECT * FROM held_notifications ORDER BY at').all<{
@@ -80,17 +84,20 @@ export async function flushHeld(env: NotifyEnv, now = Date.now()): Promise<void>
   for (const [id, rows] of byChannel) {
     const channel = channels.get(id)
     if (channel && isQuiet(channel, now)) continue
-    if (channel) {
-      const last = JSON.parse(rows.at(-1)!.payload) as Notice
-      const notice = rows.length > 1 ? { ...last, heldMore: rows.length - 1 } : last
-      try {
-        await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
-      } catch (error) {
-        await failed(env.DB, channel, notice, error, now)
-      }
+    const taken = (
+      await env.DB.prepare('DELETE FROM held_notifications WHERE id IN (SELECT value FROM json_each(?)) RETURNING id')
+        .bind(JSON.stringify(rows.map((r) => r.id)))
+        .all<{ id: number }>()
+    ).results
+    if (!channel || !taken.length) continue
+    const mine = new Set(taken.map((t) => t.id))
+    const notices = rows.filter((r) => mine.has(r.id)).map((r) => JSON.parse(r.payload) as Notice)
+    const first = notices.findLast((n) => URGENT.includes(n.kind)) ?? notices.at(-1)!
+    const notice = notices.length > 1 ? { ...first, heldMore: notices.length - 1 } : first
+    try {
+      await send(channel, notice, mailer, env.EMAIL_FROM || undefined)
+    } catch (error) {
+      await failed(env.DB, channel, notice, error, now)
     }
-    await env.DB.prepare(`DELETE FROM held_notifications WHERE id IN (${rows.map(() => '?').join(',')})`)
-      .bind(...rows.map((r) => r.id))
-      .run()
   }
 }

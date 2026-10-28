@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { sqliteD1 } from '../../test/fakes'
 import { isQuiet, telegramError, telegramRequest, telegramToken, webhookBody } from './channels'
+import { flushHeld } from './dispatch'
+
+// dispatch reaches email.ts, which imports the Workers runtime's email module: not in Node, and not sent here
+vi.mock('cloudflare:email', () => ({ EmailMessage: class {} }))
 import { crossed, type Notice, noticeLine, type Route, routeTakes, thresholdFor } from './notice'
 
 const notice = (over: Partial<Notice> = {}): Notice => ({
@@ -169,5 +174,31 @@ describe('channels', () => {
     // 05:30 UTC is 06:30 in winter, still quiet, and 07:30 in summer, not
     expect(isQuiet(night, Date.UTC(2026, 0, 15, 5, 30))).toBe(true)
     expect(isQuiet(night, Date.UTC(2026, 6, 15, 5, 30))).toBe(false)
+  })
+})
+
+describe('held notifications', () => {
+  it('send an outage held over a newer notice, once, however many runs flush at once', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO channels (id, kind, name, config, created_at)
+      VALUES (1, 'webhook', 'Hook', '{"url":"https://hook.example","format":"json"}', 0)`)
+    const held = (n: Notice, at: number) =>
+      db.sqlite
+        .prepare('INSERT INTO held_notifications (channel_id, payload, at) VALUES (1, ?, ?)')
+        .run(JSON.stringify(n), at)
+    held(notice({ kind: 'monitor_down', issue: { ...notice().issue, title: 'API' } }), 1)
+    held(notice(), 2)
+    const sent: { kind: string; issue: { title: string } }[] = []
+    vi.stubGlobal('fetch', async (_: string, init: RequestInit) => {
+      sent.push(JSON.parse(String(init.body)))
+      return new Response('{}')
+    })
+    try {
+      await Promise.all([flushHeld({ DB: db }), flushHeld({ DB: db })])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+    expect(sent.map((s) => [s.kind, s.issue.title])).toEqual([['monitor_down', 'API']])
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM held_notifications').get()).toEqual({ n: 0 })
   })
 })
