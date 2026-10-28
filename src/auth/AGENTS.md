@@ -30,7 +30,8 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
 - Roles (`src/data/people.ts`, `ROLES`, `reaches`): owner (everything, People; at least one always), admin (projects,
   keys, channels, routes, alerts, monitors, upload tokens, debug files, defaults, privacy, test sends), member (resolve, ignore, assign, merge, link, notes, dashboards), viewer (reads, their own preferences,
   bookmarks, saved searches and sign-in). Every POST server function in `src/fns.ts` names its least role,
-  `.middleware([signedIn | member | admin | owner])`; `sign-in.test.ts` fails on one that doesn't.
+  `.middleware([signedIn | member | admin | owner])`; `sign-in.test.ts` fails on one that doesn't, on one declared
+  any other way than a POST with a role or a GET named `get…`, and on a server function outside `src/fns.ts`.
 - `github.ts`: Sign in with GitHub, optional, GETs under `/auth/github/` routed by `src/server.ts`.
   The owner creates a private GitHub App from `manifest(base)` (name `crashyard <host>`, at most 34 characters;
   `redirect_url` `/auth/github/created`, `callback_urls` `/auth/github/callback`, permission `emails: read` only, no

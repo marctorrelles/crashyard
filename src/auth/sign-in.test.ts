@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
@@ -207,7 +208,15 @@ it('gives every changing server function a role', () => {
   const posts = [
     ...source.matchAll(/export const (\w+) = createServerFn\(\{ method: 'POST' \}\)\n\s*\.middleware\(\[(\w+)\]\)/g),
   ]
-  expect(posts.length).toBe(source.match(/createServerFn\(\{ method: 'POST' \}\)/g)?.length)
+  const gets = [...source.matchAll(/export const (\w+) = createServerFn\(\)/g)].map((m) => m[1])
+  // Each one is a POST with a role, or a GET that reads (named get…): none declared any other way, which this would miss
+  expect(posts.length + gets.length).toBe(source.match(/createServerFn\(/g)?.length)
+  expect(gets.filter((name) => !name.startsWith('get'))).toEqual([])
+  // And none outside fns.ts, where this reads them
+  const elsewhere = execFileSync('grep', ['-rl', 'createServerFn', 'src'], { encoding: 'utf8' })
+    .split('\n')
+    .filter((f) => f && f !== 'src/fns.ts' && !f.endsWith('.test.ts'))
+  expect(elsewhere).toEqual([])
   const roles = Object.fromEntries(posts.map((m) => [m[1], m[2]]))
   expect(roles).toMatchObject({
     changeIssues: 'member',
