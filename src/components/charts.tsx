@@ -59,7 +59,7 @@ export const PALETTE = [
 
 const DAY = 864e5
 // A day (`YYYY-MM-DD`) is a UTC day: written as that day wherever the viewer is. A bucket start (ms) shorter than a
-// day is written in the viewer's zone and clock (Settings, Date and time)
+// day is written in the viewer's zone and clock (Settings, Preferences)
 const startOf = (x: number | string) => (typeof x === 'string' ? Date.parse(`${x}T00:00:00Z`) : x)
 const utc = (prefs: TimePrefs): TimePrefs => ({ ...prefs, zone: 'UTC' })
 function tick(x: number | string, step: number, prefs: TimePrefs) {

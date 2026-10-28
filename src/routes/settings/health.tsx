@@ -1,14 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react'
-import { useState } from 'react'
 import { Ago, count } from '@/components/bits'
-import { usePlan } from '@/components/plan'
-import { SettingsCard } from '@/components/settings'
-import { Time } from '@/components/time'
-import { Button } from '@/components/ui/button'
-import { size } from '@/components/uploads'
+import { SettingsCard, Status } from '@/components/settings'
 import { getHealth } from '@/fns'
-import { cn } from '@/lib/utils'
 import { KINDS, type NoticeKind, routeKindOf } from '@/notify/notice'
 
 export const Route = createFileRoute('/settings/health')({
@@ -17,130 +10,13 @@ export const Route = createFileRoute('/settings/health')({
   component: Health,
 })
 
-function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
-  const Icon = ok ? IconCircleCheck : IconAlertTriangle
-  return (
-    <p
-      className={cn(
-        'flex items-start gap-1.5 text-sm',
-        ok ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400',
-      )}
-    >
-      <Icon className="mt-0.5 size-4 shrink-0" />
-      <span>{children}</span>
-    </p>
-  )
-}
-
 const capped = (n: { count: number; more: boolean }) => (n.more ? `${count(n.count)} or more` : count(n.count))
 
-// What needs Workers Paid, and what happens on Free
-const PAID_FEATURES = [
-  ['Debug file and source map uploads', 'Uploads fail on Free, so stack traces stay as the app sent them.'],
-  ['Cloudflare Workers runs', 'Tail Workers need Paid, so no Worker can send its runs on Free.'],
-  ['Import from Sentry', 'Goes 2 issues at a time on Free instead of 10.'],
-] as const
-
-function CloudflarePlan() {
-  const { plan, recheck } = usePlan()
-  const [checking, setChecking] = useState(false)
-  return (
-    <SettingsCard
-      title="Cloudflare plan"
-      description="Found by trying a limit that differs between Workers Free and Workers Paid, once a day."
-    >
-      <div className="grid gap-3">
-        <p className="text-sm">
-          {plan === undefined ? (
-            'Checking…'
-          ) : plan === null ? (
-            'The plan couldn’t be found. Try again in a minute.'
-          ) : (
-            <>
-              <span className="font-medium">{plan.paid ? 'Workers Paid' : 'Workers Free'}</span>
-              <span className="text-muted-foreground">
-                {' '}
-                · checked <Time at={plan.checked} />
-              </span>
-            </>
-          )}
-        </p>
-        {plan && (
-          <div className="grid gap-1.5">
-            {PAID_FEATURES.map(([feature, onFree]) => (
-              <Status key={feature} ok={plan.paid}>
-                {feature}
-                {plan.paid ? ' work.' : `. ${onFree}`}
-              </Status>
-            ))}
-          </div>
-        )}
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={checking || plan === undefined}
-            onClick={async () => {
-              setChecking(true)
-              await recheck()
-              setChecking(false)
-            }}
-          >
-            Check again
-          </Button>
-        </div>
-      </div>
-    </SettingsCard>
-  )
-}
-
+// Whether the work crashyard does in the background runs: the schedule, notifications, retries and retention
 function Health() {
   const h = Route.useLoaderData()
-  const share = h.database.bytes === null ? null : h.database.bytes / h.database.limit
   return (
     <>
-      <CloudflarePlan />
-      <SettingsCard title="Database" description="D1 holds up to 10 GB in one database.">
-        {share === null ? (
-          <p className="text-sm text-muted-foreground">
-            The size isn’t reported here. It is on Cloudflare’s dashboard.
-          </p>
-        ) : (
-          <div className="grid gap-2">
-            <p className="text-sm">
-              <span className="font-medium">{size(h.database.bytes!)}</span>{' '}
-              <span className="text-muted-foreground">of 10 GB, {(share * 100).toFixed(share < 0.1 ? 1 : 0)}%</span>
-            </p>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn('h-full rounded-full', share >= 0.8 ? 'bg-amber-500' : 'bg-emerald-500')}
-                style={{ width: `${Math.max(1, Math.min(100, share * 100))}%` }}
-              />
-            </div>
-            {share >= 0.8 && (
-              <Status ok={false}>
-                Over 80% full. Shorten event or log retention on the projects that keep the most.
-              </Status>
-            )}
-          </div>
-        )}
-      </SettingsCard>
-
-      <SettingsCard title="Stored files" description="Uploads and attachments, kept in R2.">
-        <dl className="grid gap-2 text-sm @xl:grid-cols-3">
-          {[
-            ['Debug files', h.files.debugFiles],
-            ['Source maps', h.files.bundles],
-            ['Attachments', h.files.attachments],
-          ].map(([label, bytes]) => (
-            <div key={label} className="grid">
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className="font-medium">{size(bytes as number)}</dd>
-            </div>
-          ))}
-        </dl>
-      </SettingsCard>
-
       <SettingsCard
         title="Scheduled jobs"
         description="Every minute, crashyard checks monitors, sends held notifications and retries envelopes."

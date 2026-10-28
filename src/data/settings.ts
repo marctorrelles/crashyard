@@ -31,7 +31,7 @@ export const CRON_KEY = 'cron.last_run'
 /** Every Worker whose runs reach `tail()`, by name, with when one was last noted: `{ name: ms }` (src/api/tail.ts) */
 export const WORKERS_KEY = 'tail.workers'
 
-/** What a new project starts with: the columns' own defaults until changed on Settings, New-project defaults */
+/** What a new project starts with: the columns' own defaults until changed on Settings, Projects */
 export type ProjectDefaults = {
   daily_event_quota: number
   daily_log_quota: number

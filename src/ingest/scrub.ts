@@ -9,7 +9,7 @@ const BEARER = /\b(Bearer|Basic)\s+[\w\-._~+/]+=*/gi
 
 export const FILTERED = '[Filtered]'
 
-// The deployment's own field names to scrub (Settings, Data privacy), on top of SECRET_KEY: a key containing one,
+// The deployment's own field names to scrub (Settings, Privacy), on top of SECRET_KEY: a key containing one,
 // whatever its case, is filtered, as Sentry's additional sensitive fields
 let extra: string[] = []
 export const setExtraFields = (names: string[]) => {

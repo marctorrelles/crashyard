@@ -6,7 +6,7 @@ Cloudflare's free plans.
 Apps with native crashes, such as iOS and Android apps, or with source maps, need the Workers Paid plan. Turning their
 stack traces back into code, and processing the files you upload for it, takes more processing time than the free
 plan's 10 ms a request. Apps whose stack traces are readable as sent, such as Node.js and Python, work on the free
-plan. Settings, Health shows which plan crashyard found, and the pages that need Paid say so on the free plan.
+plan. Settings, Usage shows which plan crashyard found, and the pages that need Paid say so on the free plan.
 
 ## Deploy with the button
 
@@ -82,7 +82,7 @@ choose:
 - **Member**: resolve, ignore, assign and note issues, and edit dashboards.
 - **Viewer**: read everything, change nothing.
 
-Each person can add a passkey on every device they use in Settings, then Sign-in, and sign out other devices there.
+Each person can add a passkey on every device they use in Settings, then Account, and sign out other devices there.
 
 ### Sign in with GitHub
 
@@ -134,8 +134,8 @@ there.
 3. In the `vars` of `wrangler.local.json`, set `EMAIL_FROM` to an address on your domain, such as
    `crashyard@example.com`. The address doesn't need to exist. Then deploy again.
 
-To check it, open Settings, then Email, and choose **Send test email** with the address you verified. Then add an
-email channel under Notifications in the dashboard. Telegram, Slack, Discord and webhook channels need no setup here.
+To check it, add an email channel under Notifications with the address you verified, then choose its test button.
+Telegram, Slack, Discord and webhook channels need no setup here.
 A Telegram channel's Resolve, Ignore and Assign to me buttons work once `PUBLIC_URL` is set: saving the channel tells
 Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, which needs no sign-in, with a secret only crashyard and
 Telegram know.

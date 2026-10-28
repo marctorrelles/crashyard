@@ -1,4 +1,4 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { IconCircleCheck } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
@@ -8,8 +8,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { updateProject } from '@/fns'
 import { parseGroupingRules } from '@/ingest/rules'
 
-export const Route = createFileRoute('/settings/projects/$slug/grouping')({ component: Grouping })
-
 const parent = getRouteApi('/settings/projects/$slug')
 
 const EXAMPLE = `# Every timeout is one issue
@@ -17,7 +15,7 @@ error.type:TimeoutError -> timeouts
 # Frames from vendored code aren't the app's
 stack.module:Vendor* -app`
 
-function Grouping() {
+export function Grouping() {
   const { project } = parent.useLoaderData()
   const { save, saving } = useSave()
   const [rules, setRules] = useState(project.grouping_rules ?? '')

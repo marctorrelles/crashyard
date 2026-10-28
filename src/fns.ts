@@ -33,7 +33,6 @@ import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/m
 import { LEVELS } from './notify/notice'
 import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
-import { mailerOf } from './notify/email'
 import { version } from '../package.json'
 import { EVENT_KEYS, ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
 
@@ -131,7 +130,7 @@ export const getOverviewCharts = createServerFn()
     return projects.overviewCharts(env.DB, data.project ? [project?.id ?? -1] : undefined, Date.now(), data.days)
   })
 
-/** Where the overview opens, from the viewer's Settings, Home: a project that still exists and a range */
+/** Where the overview opens, from the viewer's Settings, Preferences: a project that still exists and a range */
 export const getHome = createServerFn().handler(async () => {
   const prefs = await settings.getPreferences(env.DB, viewer())
   const project = prefs.homeProject && (await projects.projectBySlug(env.DB, prefs.homeProject))
@@ -217,7 +216,7 @@ export const getProjectSettings = createServerFn()
 // A project's settings: each page sends only its own fields, each checked as here
 const limit = (name: string) => (v: unknown) => int(v, 0, 10_000_000, name)
 const retention = (name: string) => (v: unknown) => int(v, 1, 3650, name)
-// Their checks, shared with New-project defaults
+// Their checks, shared with Defaults for new projects
 const LIMITS = {
   daily_event_quota: limit('The daily event limit'),
   event_retention_days: retention('Event retention in days'),
@@ -732,7 +731,7 @@ export const getNotifications = createServerFn().handler(async () => ({
     return { ...s, channels: s.channels.map((c) => channelForPage(c, !!r && people.reaches(r, 'admin'))) }
   })),
   projects: await projects.allProjects(env.DB),
-  emailReady: !!env.EMAIL_FROM,
+  emailFrom: env.EMAIL_FROM || null,
   now: Date.now(),
 }))
 
@@ -752,7 +751,7 @@ export const saveChannel = createServerFn({ method: 'POST' })
         optional((v) => {
           const zone = text(v, 64)
           if (!ZONES.has(zone))
-            throw new Error('That time zone for quiet hours isn’t known. Pick one in Settings, Date and time.')
+            throw new Error('That time zone for quiet hours isn’t known. Pick one in Settings, Preferences.')
           return zone
         })(o.quiet_zone) ?? null,
     }
@@ -1405,7 +1404,6 @@ export const getInstanceSettings = createServerFn().handler(async () => {
   return {
     origin: origin(),
     publicUrl: env.PUBLIC_URL || null,
-    emailFrom: env.EMAIL_FROM || null,
     defaults,
     scrubFields,
     version,
@@ -1436,35 +1434,9 @@ export const saveScrubFields = createServerFn({ method: 'POST' })
   })
   .handler(({ data }) => settings.setSetting(env.DB, settings.SCRUB_KEY, data.fields, viewer()).then(() => undefined))
 
-export const sendTestEmail = createServerFn({ method: 'POST' })
-  .middleware([admin])
-  .validator((d: unknown) => {
-    const to = text(object(d).to, 200, 'The address').trim()
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error('That isn’t an email address.')
-    return { to }
-  })
-  .handler(async ({ data }) => {
-    const mailer = mailerOf(env.EMAIL)
-    if (!mailer || !env.EMAIL_FROM) throw new Error('Email isn’t set up. Set EMAIL_FROM, then deploy again.')
-    try {
-      await mailer.send(
-        env.EMAIL_FROM,
-        data.to,
-        'crashyard test email',
-        `This is a test from crashyard at ${origin()}. Email notifications will reach this address.`,
-      )
-    } catch (error) {
-      console.error('test email failed', error)
-      throw new Error(`The email wasn’t sent. Check that ${data.to} is a verified destination in Email Routing.`, {
-        cause: error,
-      })
-    }
-  })
-
 export const getTokens = createServerFn().handler(async () => ({
   tokens: await tokens.listTokens(env.DB),
   projects: await projects.allProjects(env.DB),
-  origin: origin(),
   now: Date.now(),
 }))
 
@@ -1549,7 +1521,7 @@ export const deleteSearch = createServerFn({ method: 'POST' })
   .validator((d: unknown) => ({ id: int(object(d).id) }))
   .handler(({ data }) => searches.deleteSearch(env.DB, viewer(), data.id))
 
-// Sign-in (src/auth/AGENTS.md): the signed-in person's passkeys, sessions and recovery codes, Settings, Sign-in; and
+// Sign-in (src/auth/AGENTS.md): the signed-in person's passkeys, sessions and recovery codes, Settings, Account; and
 // People, the owners' page
 
 /** The signed-in person's id; none on a dev server signed in as dev@localhost */
@@ -1693,11 +1665,16 @@ export const getStatusPosts = createServerFn()
     if (!project) throw new Error('That project no longer exists.')
     const now = Date.now()
     return {
+      project,
       checks: await status.checksOf(env.DB, project.id),
       posts: await status.postsOf(env.DB, project.id, now),
       now,
     }
   })
+
+export const getStatusPages = createServerFn()
+  .middleware([signedIn])
+  .handler(() => status.pagesOf(env.DB, Date.now()))
 
 const statusMessage = (v: unknown) => {
   const m = text(v, 5000, 'The message').trim()

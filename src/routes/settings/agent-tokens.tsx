@@ -20,6 +20,7 @@ export const Route = createFileRoute('/settings/agent-tokens')({
 const SCOPES = { read: 'Read only', change: 'Read and change issues' } as const
 const EXPIRY = { '30': '30 days', '90': '90 days', '365': 'A year', never: 'Never' } as const
 
+// The tokens your agents reach crashyard with over MCP, acting as you
 function AgentTokens() {
   const { tokens, mcp, now } = Route.useLoaderData()
   const { save, saving } = useSave()

@@ -1,4 +1,4 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { useState } from 'react'
 import { count } from '@/components/bits'
 import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
@@ -7,8 +7,6 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { updateProject } from '@/fns'
 import { FILTER_SWITCHES, parseFilters } from '@/ingest/filters'
-
-export const Route = createFileRoute('/settings/projects/$slug/filters')({ component: FiltersPage })
 
 const parent = getRouteApi('/settings/projects/$slug')
 
@@ -45,7 +43,7 @@ const LISTS = [
   },
 ] as const
 
-function FiltersPage() {
+export function Filters() {
   const { project, filtered } = parent.useLoaderData()
   const { save, saving } = useSave()
   const stored = parseFilters(project.filters)

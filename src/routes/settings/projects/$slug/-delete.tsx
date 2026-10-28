@@ -1,4 +1,4 @@
-import { createFileRoute, getRouteApi, useNavigate } from '@tanstack/react-router'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { SettingsCard } from '@/components/settings'
@@ -6,11 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { deleteProject } from '@/fns'
 
-export const Route = createFileRoute('/settings/projects/$slug/delete')({ component: Delete })
-
 const parent = getRouteApi('/settings/projects/$slug')
 
-function Delete() {
+export function Delete() {
   const { project } = parent.useLoaderData()
   const navigate = useNavigate()
   const [typed, setTyped] = useState('')

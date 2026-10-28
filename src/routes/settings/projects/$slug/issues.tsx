@@ -7,6 +7,7 @@ import { PRIORITY_LABELS } from '@/components/priority'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { updateProject } from '@/fns'
+import { Grouping } from './-grouping'
 import { PRIORITIES, type Priority, priorityFor } from '@/ingest/priority'
 import { LEVELS } from '@/notify/notice'
 
@@ -20,6 +21,7 @@ function Issues() {
       <AutoResolve />
       <Priorities />
       <ReleaseHealth />
+      <Grouping />
     </>
   )
 }

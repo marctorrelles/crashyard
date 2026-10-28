@@ -1,4 +1,4 @@
-import { createFileRoute, getRouteApi, notFound } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { IconFileCode, IconSearch, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago } from '@/components/bits'
@@ -8,25 +8,17 @@ import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { NeedsPaid } from '@/components/plan'
 import { size, UploadSteps } from '@/components/uploads'
-import { deleteDebugFile, getProjectPage } from '@/fns'
-
-export const Route = createFileRoute('/settings/projects/$slug/debug-files')({
-  loader: async ({ params }) => {
-    const data = await getProjectPage({ data: { slug: params.slug } })
-    if (!data) throw notFound()
-    return data
-  },
-  component: DebugFiles,
-})
+import { deleteDebugFile } from '@/fns'
 
 const parent = getRouteApi('/settings/projects/$slug')
+const page = getRouteApi('/settings/projects/$slug/stack-traces')
 
 const kindOf = (f: { kind: string; arch: string | null }) =>
   f.kind === 'proguard' ? 'ProGuard mapping' : `${f.kind}${f.arch ? ` ${f.arch}` : ''}`
 
-function DebugFiles() {
+export function DebugFiles() {
   const { project, origin, uploads } = parent.useLoaderData()
-  const { debugFiles, now } = Route.useLoaderData()
+  const { debugFiles, now } = page.useLoaderData()
   const { save } = useSave()
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()

@@ -1,4 +1,3 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { SettingsCard, useSave } from '@/components/settings'
 import { usePreferences } from '@/components/shell'
 import { Label } from '@/components/ui/label'
@@ -6,12 +5,7 @@ import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { savePreference } from '@/fns'
 
-export const Route = createFileRoute('/settings/stack-traces')({
-  head: () => ({ meta: [{ title: 'Stack traces · Settings · crashyard' }] }),
-  component: StackTraces,
-})
-
-function StackTraces() {
+export function StackTraces() {
   const { stackOrder, showOtherFrames } = usePreferences()
   const { save, saving } = useSave()
   return (

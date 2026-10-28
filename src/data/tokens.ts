@@ -100,7 +100,7 @@ export type DebugFile = {
   created_at: number
 }
 
-/** Settings, Debug files: the newest 500, all searched in the page */
+/** A project's settings, Stack traces: the newest 500, all searched in the page */
 export const debugFilesOf = async (db: D1Database, projectId: number) =>
   (
     await db

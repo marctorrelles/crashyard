@@ -1,4 +1,4 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { IconKey } from '@tabler/icons-react'
 import { useState } from 'react'
 import { count } from '@/components/bits'
@@ -10,11 +10,9 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { createKey, updateKey } from '@/fns'
 
-export const Route = createFileRoute('/settings/projects/$slug/keys')({ component: Keys })
-
 const parent = getRouteApi('/settings/projects/$slug')
 
-function Keys() {
+export function Keys() {
   const { project, keys } = parent.useLoaderData()
   const { save, saving } = useSave()
   const [label, setLabel] = useState('')

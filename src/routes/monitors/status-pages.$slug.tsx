@@ -1,7 +1,9 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { IconExternalLink } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Markdown } from '@/components/markdown'
 import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
+import { PageHeader, Shell } from '@/components/shell'
 import { Time } from '@/components/time'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,22 +23,50 @@ import {
   updateProject,
 } from '@/fns'
 
-export const Route = createFileRoute('/settings/projects/$slug/status-page')({
+export const Route = createFileRoute('/monitors/status-pages/$slug')({
   loader: ({ params }) => getStatusPosts({ data: { slug: params.slug } }),
-  component: StatusPageSettings,
+  head: ({ loaderData }) => ({ meta: [{ title: `Status page · ${loaderData?.project.name} · crashyard` }] }),
+  component: StatusPage,
 })
-
-const parent = getRouteApi('/settings/projects/$slug')
 
 type Post = Awaited<ReturnType<typeof getStatusPosts>>['posts'][number]
 type Check = Awaited<ReturnType<typeof getStatusPosts>>['checks'][number]
 
 const PHASES = { open: 'Open', upcoming: 'Scheduled', ongoing: 'In progress', past: 'Ended' } as const
 
+function StatusPage() {
+  const { project } = Route.useLoaderData()
+  return (
+    <Shell
+      crumbs={[
+        <Link to="/monitors">Monitors</Link>,
+        <Link to="/monitors/status-pages">Status pages</Link>,
+        project.name,
+      ]}
+    >
+      <PageHeader
+        title="Status page"
+        actions={
+          <Button variant="outline" asChild>
+            <a href={`/status/${project.slug}`}>
+              <IconExternalLink data-icon="inline-start" />
+              Open status page
+            </a>
+          </Button>
+        }
+      >
+        {project.name}
+      </PageHeader>
+      <div className="@container">
+        <StatusPageSettings />
+      </div>
+    </Shell>
+  )
+}
+
 // The status page's checks, what to post on it, and what was posted: incidents, notices and maintenance
 function StatusPageSettings() {
-  const { project } = parent.useLoaderData()
-  const { checks, posts } = Route.useLoaderData()
+  const { project, checks, posts } = Route.useLoaderData()
   const { save } = useSave()
   const current = posts.filter((p) => p.phase !== 'past')
   const past = posts.filter((p) => p.phase === 'past')
@@ -45,16 +75,8 @@ function StatusPageSettings() {
   return (
     <div className="grid gap-4">
       <SettingsCard
-        title="Status page"
-        description={
-          <>
-            A public page anyone with the link can open, with the checks you choose and what you post. It shows a
-            check’s name, whether it’s up and its incidents, never its address.{' '}
-            <a href={`/status/${project.slug}`} className="font-medium text-foreground underline underline-offset-2">
-              Open the status page
-            </a>
-          </>
-        }
+        title="Checks on the page"
+        description="A public page anyone with the link can open, with the checks you choose and what you post. It shows a check’s name, whether it’s up and its incidents, never its address."
       >
         {checks.length ? (
           <div className="grid gap-3">
@@ -356,7 +378,7 @@ function PostItem({ post, checks }: { post: Post; checks: Check[] }) {
 
 // The page's own look and address, saved with the project
 function Branding() {
-  const { project } = parent.useLoaderData()
+  const { project } = Route.useLoaderData()
   const { save, saving } = useSave()
   const b = parseBranding(project.status_page)
   const [color, setColor] = useState(b.color ?? '')

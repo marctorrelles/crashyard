@@ -109,7 +109,8 @@ helpers (`change`).
   Completed for maintenance, `stateLabel`), `createPost` (the post and its first update), `addUpdate` (resolved
   closes it, any other state opens it again), `deletePost`, `postsOf` (open, or ended in 30 days, newest first, each
   with `phase`: open, upcoming, ongoing, past; maintenance ends at `ends_at` unless resolved first, and `affects`, the
-  checks it names, 0028), `checksOf`. A post's checks are only uptime checks of its project (an `INSERT … SELECT`);
+  checks it names, 0028), `checksOf`, `pagesOf` (every project's page for Monitors, Status pages: its domain, the
+  checks shown, the posts not ended). A post's checks are only uptime checks of its project (an `INSERT … SELECT`);
   an update with `monitors` replaces them. `statusPage` names only the checks on the page, gives each check
   `affected` (the worst open post naming it: major, minor, then ongoing maintenance) and the project's `branding`
   (`parseBranding` of `projects.status_page`: title, description, logo, color, website). `slugOfDomain`: the project
@@ -246,7 +247,7 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   `test/fakes.ts`, with resolving by commit.
 - `health.ts`: `usage` (Settings, Usage: per UTC day over N days from `project_days`, of every project or one: events,
   logs, transactions, `dropped` (whole envelopes a limit turned away), `filtered`, `failed`) and `health` (Settings,
-  Health: the database's size, `meta.size_after` of a `SELECT 1`, against D1's 10 GB; the sizes of debug files,
+  Usage and Health: the database's size, `meta.size_after` of a `SELECT 1`, against D1's 10 GB; the sizes of debug files,
   bundles and attachments; the cron's heartbeat `cron.last_run`, late past 3 minutes or when never written;
   notification failures in 7 days, the newest 20 with their channel's name; R2's `pending/` and `failed/`, one list of
   1000 each, `more` when there are more; events and logs past retention by the prune's own joins, counted up to 10,000,
@@ -274,7 +275,7 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   and when) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `WORKERS_KEY`, `tail.workers`: the Workers sending runs to `tail()`, written by
   `src/api/tail.ts`. `projectDefaults`: what `createProject` starts with, the columns' defaults under what
-  Settings, New-project defaults saved.
+  Settings, Projects saved.
 - `notifications.ts`: channels, routes (with `frequency`, `releases`, `query`, `interval_minutes`) and metric alerts
   (`saveMetricAlert`: saving starts it again from ok, so its next read alerts if it's still past a value), and `testRoute` and `testChannel`, which send a made-up notice now through a
   route's channels or one channel and say how each went.

@@ -21,7 +21,7 @@
   from that, `/projects/$slug` or an issue's own; pages of no project keep the one last picked (cookie
   `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The filter's menu also has the
   picked project's settings (`/settings/projects/<slug>/general`); picking a project on one of its settings pages
-  keeps the page for the new project, and All projects goes to the deployment's General.
+  keeps the page for the new project, and All projects goes to Settings, Projects.
 - `bits.tsx`: `Sparkline` (SVG bars, no chart library; `label` for what they are when not events per day), `Ago`
   (relative to a `now` from the loader, the whole date in its title), `Level`, `count`, `percent`.
 - `time.tsx`: `formatTime(at, { zone, clock }, style)` (`Intl.DateTimeFormat` in English, `hourCycle` from the clock,
@@ -124,12 +124,14 @@
   columns, Copy and Download as a text file), `Problem` (an error under a form), `GITHUB_ERRORS` (`?error=` from GitHub sign-in in words), `Or` and `NewPerson` (setup and invite:
   the page's own fields, name, email or the invite's fixed one, Create passkey; then the recovery codes and
   Continue to crashyard, a whole page load; `alternative` under it, the invite's Join with GitHub).
-- `settings.tsx`: the settings area's pages in groups (`INSTANCE`, the project's `PROJECT` with Grouping and Filters, `PERSONAL`), `SettingsNav` (the list,
-  the project's group for the page's project, else the one picked last, else the first, headed by a `Select` of every
-  project that opens the same page of the one picked, or its General from a page that isn't a project's; with too little room
-  beside the page, `@3xl/settings`, a Project `Select` over the page's `Select`, both always there so switching doesn't move the page; no projects, no
-  group), `pageOf` (a path's page name), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
-  `Hint`, `LimitInputs` (a project's limits and retention as form fields, also New-project defaults), `useSave` (runs
+- `settings.tsx`: the settings area's pages (`INSTANCE`, `PROJECTS`, the open project's `PROJECT`: General,
+  Connect, Stack traces, Events, Issues, Import from Sentry, and `PERSONAL`), `SettingsNav` (the list: crashyard's pages, Projects, and
+  while a project's page is open its name and pages indented under Projects, then You; with too little room beside
+  the page, `@3xl/settings`, one `Select` of the same, labelled Settings page; no project picker of its own, the
+  sidebar's filter is the only one), `useSettingsProject` (the project whose settings the path is), `pageOf` (a
+  path's page name), `Subhead` (a heading over a few cards with an id to link to, Connect's Client keys), `Status` (a
+  check's line, a tick or an amber warning, on Usage and Health), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
+  `Hint`, `LimitInputs` (a project's limits and retention as form fields, also Defaults for new projects), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
 - `markdown.tsx`: `Markdown` (no library: paragraphs, line breaks, `**bold**`, http and https links, lists of `-`,
   `*` or `1.`; nothing else, as React elements, no HTML), for markdown widgets and status page posts.

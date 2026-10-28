@@ -6,10 +6,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { updateProject } from '@/fns'
+import { Delete } from './-delete'
 
-export const Route = createFileRoute('/settings/projects/$slug/general')({ component: General })
+export const Route = createFileRoute('/settings/projects/$slug/general')({ component: GeneralTab })
 
 const parent = getRouteApi('/settings/projects/$slug')
+
+// The project itself, and deleting it
+function GeneralTab() {
+  return (
+    <>
+      <General />
+      <Delete />
+    </>
+  )
+}
 
 function General() {
   const { project } = parent.useLoaderData()

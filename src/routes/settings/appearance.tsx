@@ -63,6 +63,7 @@ function applyMode(theme: Preferences['theme']) {
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
 }
 
+// How crashyard looks for you: its theme, light or dark
 function Appearance() {
   const { theme, style } = usePreferences()
   const { save } = useSave()

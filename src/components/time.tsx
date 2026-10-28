@@ -1,4 +1,4 @@
-// Dates and times as the viewer chose them on Settings, Date and time: their time zone (else the browser's, from the
+// Dates and times as the viewer chose them on Settings, Preferences: their time zone (else the browser's, from the
 // root's `tz` cookie, else UTC on a first visit) and a 12 or 24-hour clock. The zone comes from the root's loader, so
 // the server and the browser write the same text and nothing shifts on hydration.
 import { getRouteApi } from '@tanstack/react-router'

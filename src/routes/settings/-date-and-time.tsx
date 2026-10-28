@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { usePreferences } from '@/components/shell'
@@ -8,18 +8,14 @@ import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { savePreference } from '@/fns'
 
-export const Route = createFileRoute('/settings/date-and-time')({
-  // The time shown as an example, the same on the server and in the browser
-  loader: () => ({ now: Date.now() }),
-  head: () => ({ meta: [{ title: 'Date and time · Settings · crashyard' }] }),
-  component: DateAndTime,
-})
+// Preferences' date and time, its example time from that page's loader
+const page = getRouteApi('/settings/preferences')
 
 const ZONES = Intl.supportedValuesOf('timeZone')
 
-function DateAndTime() {
+export function DateAndTime() {
   const { timeZone, clock } = usePreferences()
-  const { now } = Route.useLoaderData()
+  const { now } = page.useLoaderData()
   const prefs = useTimePrefs()
   const { save, saving } = useSave()
   const [zone, setZone] = useState(timeZone ?? '')

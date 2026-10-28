@@ -1,18 +1,12 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { Hint, SettingsCard, useSave } from '@/components/settings'
 import { usePreferences, useProjects } from '@/components/shell'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { savePreference } from '@/fns'
 
-export const Route = createFileRoute('/settings/home')({
-  head: () => ({ meta: [{ title: 'Home · Settings · crashyard' }] }),
-  component: Home,
-})
-
 const ALL = 'all'
 
-function Home() {
+export function Home() {
   const { homeProject, homeRange } = usePreferences()
   const projects = useProjects()
   const { save } = useSave()

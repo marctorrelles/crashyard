@@ -1,8 +1,8 @@
 # Connecting an app
 
 crashyard speaks Sentry's protocol, so an app connects with the official Sentry SDK pointed at a crashyard DSN. Create a
-project with **New project** on the overview. Its settings, under Connect an app, show the DSN and the steps below with
-the DSN already filled in. A project can have several keys, one per app or build, under Client keys.
+project with **New project** on the overview. Its settings, under Connect, show the DSN and the steps below with
+the DSN already filled in. A project can have several keys, one per app or build, under Client keys on the same page.
 
 A DSN looks like `https://<public key>@crashyard.example.com/<project id>`. The key is public by design. It ships inside
 your apps and only allows sending events.
@@ -73,7 +73,7 @@ crashyard.
    "tail_consumers": [{ "service": "crashyard" }]
    ```
 
-2. In the project's settings, open Connect an app. Under Cloudflare Workers, the Worker shows up once it has run.
+2. In the project's settings, open Connect. Under Cloudflare Workers, the Worker shows up once it has run.
    Select Watch Worker.
 
 A run that runs out of CPU time or memory becomes an issue for that Worker, with the request, the run's console logs
@@ -190,7 +190,7 @@ To share how a service is doing, open the uptime check and turn on "Show on the 
 is then at `/status/<project>`, open to anyone with the link. It shows each check you chose by name, whether it's up,
 its last 30 days and its incidents. It never shows the address being checked or why a check failed.
 
-To tell people more, open the project's settings and choose Status page. There you pick the checks it shows and post
+To tell people more, open Monitors, then Status pages, and choose the project. There you pick the checks it shows and post
 to it: an incident, which some or all services feel, a notice, or planned maintenance with its start and end. Add
 updates as things change, such as Identified, Monitoring and Resolved. Messages can have bold text, links and lists.
 The page names no one who posted. Resolved posts and ended maintenance stay on the page for 30 days.

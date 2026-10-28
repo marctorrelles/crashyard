@@ -1,20 +1,17 @@
-import { createFileRoute, getRouteApi, Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { pageOf, SettingsNav } from '@/components/settings'
+import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { NewProject } from '@/components/new-project'
+import { pageOf, SettingsNav, useSettingsProject } from '@/components/settings'
 import { PageHeader, Shell, useProjects } from '@/components/shell'
-
-const root = getRouteApi('__root__')
 
 export const Route = createFileRoute('/settings')({ component: SettingsLayout })
 
-// The settings area: the deployment's pages, the project's and the viewer's own, listed at the left edge with the page
-// centred beside them; with less room, a phone or a narrow window with the sidebar open, the title, then the list as
-// selects, then the page
+// The settings area: the deployment's pages, Projects (and the open project's pages) and the viewer's own, listed at
+// the left edge with the page centred beside them; with less room, a phone or a narrow window with the sidebar open,
+// the title, then the list as a select, then the page
 function SettingsLayout() {
-  const { lastProject } = root.useLoaderData()
   const projects = useProjects()
-  const path = useRouterState({ select: (s) => s.location.pathname })
-  const slug = path.match(/^\/settings\/projects\/([^/]+)/)?.[1]
-  const project = slug ? projects.find((p) => p.slug === decodeURIComponent(slug)) : undefined
+  const path = useRouterState({ select: (s) => s.location.pathname.replace(/\/$/, '') })
+  const project = useSettingsProject()
   const page = pageOf(path) ?? 'Settings'
   return (
     <Shell
@@ -23,6 +20,7 @@ function SettingsLayout() {
         <Link to="/settings">Settings</Link>,
         ...(project
           ? [
+              <Link to="/settings/projects">Projects</Link>,
               <Link to="/settings/projects/$slug/general" params={{ slug: project.slug }}>
                 {project.name}
               </Link>,
@@ -36,10 +34,15 @@ function SettingsLayout() {
       <div className="@container/settings">
         <div className="grid gap-5 @3xl/settings:grid-cols-[12rem_minmax(0,1fr)] @3xl/settings:grid-rows-[auto_1fr] @3xl/settings:gap-x-8">
           <div className="mx-auto w-full max-w-4xl min-w-0 *:mb-0 @3xl/settings:col-start-2">
-            <PageHeader title={page}>{project?.name}</PageHeader>
+            <PageHeader
+              title={page}
+              actions={path === '/settings/projects' && projects.length > 0 && <NewProject variant="outline" />}
+            >
+              {project?.name}
+            </PageHeader>
           </div>
           <div className="@3xl/settings:col-start-1 @3xl/settings:row-span-2 @3xl/settings:row-start-1">
-            <SettingsNav lastProject={lastProject} />
+            <SettingsNav />
           </div>
           <div className="@container mx-auto grid w-full max-w-4xl min-w-0 content-start gap-5 @3xl/settings:col-start-2">
             <Outlet />

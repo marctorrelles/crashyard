@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { IconKey, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/settings/tokens')({
 const ALL = 'all'
 
 function Tokens() {
-  const { tokens, projects, origin, now } = Route.useLoaderData()
+  const { tokens, projects, now } = Route.useLoaderData()
   const router = useRouter()
   const { save } = useSave()
   const [made, setMade] = useState<string>()
@@ -127,25 +127,6 @@ function Tokens() {
               ))}
             </ul>
           )}
-        </div>
-      </SettingsCard>
-
-      {/* Each person makes their own, acting as them */}
-      <SettingsCard
-        title="Agents"
-        description={
-          <>
-            Agents such as Claude Code reach crashyard over MCP with an agent token, which each person creates in{' '}
-            <Link to="/settings/agent-tokens" className="font-medium text-foreground underline underline-offset-2">
-              Agent tokens
-            </Link>
-            .
-          </>
-        }
-      >
-        <div className="grid min-w-0 gap-2">
-          <Label>MCP URL</Label>
-          <Code text={`${origin}/mcp`} />
         </div>
       </SettingsCard>
     </>

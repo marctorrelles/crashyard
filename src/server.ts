@@ -71,7 +71,7 @@ export default {
     }
     if (url.pathname.startsWith('/api/')) return Response.json({ detail: 'Not found' }, { status: 404 })
 
-    // A project's own domain for its status page (Settings, Status page): that page alone, as to someone signed out
+    // A project's own domain for its status page (Monitors, Status pages): that page alone, as to someone signed out
     if (!env.PUBLIC_URL || url.hostname !== new URL(env.PUBLIC_URL).hostname) {
       const { slugOfDomain } = await import('./data/status')
       const slug = await slugOfDomain(env.DB, url.hostname, Date.now())

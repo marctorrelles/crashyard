@@ -199,7 +199,7 @@ function Notifications() {
       {channel && (
         <ChannelDialog
           channel={channel === 'new' ? undefined : channel}
-          emailReady={d.emailReady}
+          emailFrom={d.emailFrom}
           onClose={() => setChannel(null)}
         />
       )}
@@ -339,18 +339,18 @@ function choiceOf(c?: Channel): Choice {
 
 function ChannelDialog({
   channel,
-  emailReady,
+  emailFrom,
   onClose,
 }: {
   channel?: Channel
-  emailReady: boolean
+  emailFrom: string | null
   onClose: () => void
 }) {
   const router = useRouter()
   const config = channel ? (JSON.parse(channel.config) as Record<string, string>) : {}
   const [choice, setChoice] = useState<Choice>(choiceOf(channel))
   const kind: Channel['kind'] = choice === 'slack' || choice === 'discord' ? 'webhook' : choice
-  const blocked = choice === 'email' && !emailReady
+  const blocked = choice === 'email' && !emailFrom
   const [quiet, setQuiet] = useState(channel?.quiet_from != null)
   // The channel's own zone, else the viewer's
   const { zone } = useTimePrefs()
@@ -462,7 +462,7 @@ function ChannelDialog({
                 type="email"
                 defaultValue={config.to}
                 required
-                hint="The address must be a verified destination in Cloudflare Email Routing."
+                hint={`Sent from ${emailFrom}. The address must be a verified destination in Cloudflare Email Routing.`}
               />
             )}
             {choice === 'webhook' && (

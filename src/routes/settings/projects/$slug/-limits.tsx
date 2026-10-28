@@ -1,12 +1,10 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { LimitInputs, SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { updateProject } from '@/fns'
 
-export const Route = createFileRoute('/settings/projects/$slug/limits')({ component: Limits })
-
 const parent = getRouteApi('/settings/projects/$slug')
 
-function Limits() {
+export function Limits() {
   const { project } = parent.useLoaderData()
   const { save, saving } = useSave()
   return (

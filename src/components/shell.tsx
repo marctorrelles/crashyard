@@ -285,7 +285,7 @@ function AppSidebar() {
             )}
           </Item>
           <SidebarMenuItem>
-            {/* Ends this session only: Settings, Sign-in signs out other devices */}
+            {/* Ends this session only: Settings, Account signs out other devices */}
             <form method="post" action="/auth/signout">
               <SidebarMenuButton type="submit" tooltip="Sign out" className="h-auto">
                 <IconLogout />
@@ -348,7 +348,7 @@ function ProjectSwitcher({
     keep(slug ?? null)
     const search = { project: slug }
     const sub = page.path.match(/^\/projects\/[^/]+\/(releases|performance)/)?.[1]
-    // A project's settings page stays, for the project picked; every project's goes to the deployment's settings
+    // A project's settings page stays, for the project picked; every project's goes to the list of projects
     const settingsPage = page.path.match(/^\/settings\/projects\/[^/]+\/([^/]+)/)?.[1]
     const dashboardId = dashboardOf(page.path)
     if (isList(page.path)) void navigate({ to: page.path, search })
@@ -360,7 +360,7 @@ function ProjectSwitcher({
         search: (s) => ({ ...s, project: slug }),
       })
     else if (settingsPage)
-      void navigate({ to: slug ? `/settings/projects/${slug}/${settingsPage}` : '/settings/general' })
+      void navigate({ to: slug ? `/settings/projects/${slug}/${settingsPage}` : '/settings/projects' })
     else if (sub) void navigate({ to: `/${sub}`, search })
     else if (page.path.startsWith('/issues/')) void navigate({ to: '/issues', search })
   }

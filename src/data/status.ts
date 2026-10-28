@@ -198,6 +198,21 @@ export const checksOf = async (db: D1Database, projectId: number) =>
       .all<{ id: number; name: string; status: string; public: number }>()
   ).results
 
+/** Every project's status page, for Monitors: its domain, the checks on it, and its posts not yet ended */
+export const pagesOf = async (db: D1Database, now: number) =>
+  (
+    await db
+      .prepare(
+        `SELECT p.slug, p.name, p.status_domain,
+           (SELECT COUNT(*) FROM monitors m WHERE m.project_id = p.id AND m.kind = 'uptime' AND m.public = 1) AS shown,
+           (SELECT COUNT(*) FROM status_posts s WHERE s.project_id = p.id
+              AND COALESCE(s.resolved_at, CASE WHEN s.impact = 'maintenance' THEN s.ends_at END, ? + 1) > ?) AS open
+         FROM projects p ORDER BY p.name`,
+      )
+      .bind(now, now)
+      .all<{ slug: string; name: string; status_domain: string | null; shown: number; open: number }>()
+  ).results
+
 export const deletePost = (db: D1Database, id: number) =>
   db.prepare('DELETE FROM status_posts WHERE id = ?').bind(id).run()
 

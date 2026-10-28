@@ -7,10 +7,11 @@ import { getInstanceSettings, saveScrubFields } from '@/fns'
 
 export const Route = createFileRoute('/settings/privacy')({
   loader: () => getInstanceSettings(),
-  head: () => ({ meta: [{ title: 'Data privacy · Settings · crashyard' }] }),
+  head: () => ({ meta: [{ title: 'Privacy · Settings · crashyard' }] }),
   component: Privacy,
 })
 
+// What's scrubbed from what apps send before it's stored
 function Privacy() {
   const { scrubFields } = Route.useLoaderData()
   const { save, saving } = useSave()

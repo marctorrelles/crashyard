@@ -1,25 +1,29 @@
-import { createFileRoute, getRouteApi, Link } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Code, Linking } from '@/components/linking'
 import { NeedsPaid } from '@/components/plan'
-import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
+import { Hint, SaveButton, SettingsCard, Subhead, useSave } from '@/components/settings'
 import { Time } from '@/components/time'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { updateProject } from '@/fns'
+import { Keys } from './-keys'
 
 export const Route = createFileRoute('/settings/projects/$slug/connect')({ component: Connect })
 
 const parent = getRouteApi('/settings/projects/$slug')
 
+// What an app needs to send here: the DSN and setup, Workers' runs, and its keys
 function Connect() {
   const { project, dsn, publicKey, origin } = parent.useLoaderData()
   return (
     <>
       <App project={project} dsn={dsn} publicKey={publicKey} origin={origin} />
       <Workers />
+      <Subhead id="client-keys">Client keys</Subhead>
+      <Keys />
     </>
   )
 }
@@ -32,14 +36,10 @@ function App({ project, dsn, publicKey, origin }: Pick<Loaded, 'project' | 'dsn'
       title="Connect an app"
       description={
         <>
-          Give the app’s Sentry SDK this DSN and its events start arriving here. Other keys are in{' '}
-          <Link
-            to="/settings/projects/$slug/keys"
-            params={{ slug: project.slug }}
-            className="font-medium text-foreground underline underline-offset-2"
-          >
+          Give the app’s Sentry SDK this DSN and its events start arriving here. Other keys are under{' '}
+          <a href="#client-keys" className="font-medium text-foreground underline underline-offset-2">
             Client keys
-          </Link>
+          </a>
           .
         </>
       }

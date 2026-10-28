@@ -1,15 +1,13 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { Code } from '@/components/linking'
 import { SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { updateProject } from '@/fns'
 
-export const Route = createFileRoute('/settings/projects/$slug/source')({ component: Source })
-
 const parent = getRouteApi('/settings/projects/$slug')
 
-function Source() {
+export function Source() {
   const { project } = parent.useLoaderData()
   const { save, saving } = useSave()
   return (

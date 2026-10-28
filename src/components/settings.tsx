@@ -1,6 +1,7 @@
-// The settings area's pieces: its pages in three groups (the deployment's, the project's, the viewer's own), the left
-// list (a select on a phone), and what each page is made of.
+// The settings area's pieces: its pages (the deployment's, Projects, the viewer's own), the left list (a select on a
+// phone), and what each page is made of.
 import { getRouteApi, Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
+import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useProjects } from '@/components/shell'
@@ -13,6 +14,7 @@ import {
   SelectGroup,
   SelectItem,
   SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -21,146 +23,157 @@ import { cn } from '@/lib/utils'
 const root = getRouteApi('__root__')
 
 type Page = { label: string; path: string; owners?: boolean }
-type Group = { label: string; pages: Page[]; project?: boolean }
 
 const INSTANCE: Page[] = [
   { label: 'General', path: '/settings/general' },
   { label: 'People', path: '/settings/people', owners: true },
-  { label: 'Email', path: '/settings/email' },
-  { label: 'New-project defaults', path: '/settings/defaults' },
-  { label: 'Data privacy', path: '/settings/privacy' },
+  { label: 'Privacy', path: '/settings/privacy' },
   { label: 'Tokens', path: '/settings/tokens' },
   { label: 'Usage', path: '/settings/usage' },
   { label: 'Health', path: '/settings/health' },
-  { label: 'About', path: '/settings/about' },
 ]
+const PROJECTS: Page = { label: 'Projects', path: '/settings/projects' }
+/** A project's pages, under Projects once one is open */
 const PROJECT: Page[] = [
   { label: 'General', path: 'general' },
+  { label: 'Connect', path: 'connect' },
+  { label: 'Stack traces', path: 'stack-traces' },
+  { label: 'Events', path: 'events' },
   { label: 'Issues', path: 'issues' },
-  { label: 'Grouping', path: 'grouping' },
-  { label: 'Filters', path: 'filters' },
-  { label: 'Client keys', path: 'keys' },
-  { label: 'Limits and retention', path: 'limits' },
-  { label: 'Source code', path: 'source' },
-  { label: 'Connect an app', path: 'connect' },
-  { label: 'Debug files', path: 'debug-files' },
-  { label: 'Status page', path: 'status-page' },
   { label: 'Import from Sentry', path: 'import' },
-  { label: 'Delete project', path: 'delete' },
 ]
 const PERSONAL: Page[] = [
-  { label: 'Sign-in', path: '/settings/sign-in' },
+  { label: 'Account', path: '/settings/account' },
   { label: 'Agent tokens', path: '/settings/agent-tokens' },
   { label: 'Appearance', path: '/settings/appearance' },
-  { label: 'Date and time', path: '/settings/date-and-time' },
-  { label: 'Stack traces', path: '/settings/stack-traces' },
-  { label: 'Home', path: '/settings/home' },
+  { label: 'Preferences', path: '/settings/preferences' },
 ]
 
-/** The groups, the project's for `slug` (the page's, else the one picked last, else the first) */
-function groupsFor(project: { slug: string; name: string } | undefined, owner: boolean): Group[] {
-  return [
-    { label: 'crashyard', pages: INSTANCE.filter((p) => owner || !p.owners) },
-    ...(project
-      ? [
-          {
-            label: project.name,
-            project: true,
-            pages: PROJECT.map((p) => ({ ...p, path: `/settings/projects/${project.slug}/${p.path}` })),
-          },
-        ]
-      : []),
-    { label: 'You', pages: PERSONAL },
-  ]
+/** The project whose settings the path is, if any */
+export function useSettingsProject() {
+  const projects = useProjects()
+  const slug = useRouterState({ select: (s) => s.location.pathname.match(/^\/settings\/projects\/([^/]+)/)?.[1] })
+  return slug ? projects.find((p) => p.slug === decodeURIComponent(slug)) : undefined
 }
 
-/** The settings area's frame: the list of pages beside the page (a select over it on a phone), with the project's
- * group headed by a picker of every project */
-export function SettingsNav({ lastProject }: { lastProject: string | null }) {
-  const projects = useProjects()
+/** The settings area's frame: the list of pages beside the page (a select over it on a phone). Projects is one page,
+ * the list of them; the project open adds its own pages under it */
+export function SettingsNav() {
   const path = useRouterState({ select: (s) => s.location.pathname.replace(/\/$/, '') })
   const navigate = useNavigate()
-  const slug = path.match(/^\/settings\/projects\/([^/]+)/)?.[1]
-  const project =
-    projects.find((p) => p.slug === (slug ? decodeURIComponent(slug) : lastProject)) ?? (slug ? undefined : projects[0])
+  const project = useSettingsProject()
   // People only for owners
   const { role } = root.useLoaderData()
-  const groups = groupsFor(project, role === 'owner')
-  // Another project opens the same page of it, or its General from a page that isn't a project's
-  const pickProject = (other: string) => {
-    const page = path.match(/^\/settings\/projects\/[^/]+\/([^/]+)/)?.[1] ?? 'general'
-    void navigate({ href: `/settings/projects/${encodeURIComponent(other)}/${page}` })
-  }
-  const picker = (className?: string) =>
-    project && (
-      <Select value={project.slug} onValueChange={pickProject}>
-        <SelectTrigger className={className} aria-label="Project">
+  const instance = INSTANCE.filter((p) => role === 'owner' || !p.owners)
+  const projectPages = project
+    ? PROJECT.map((p) => ({ ...p, path: `/settings/projects/${encodeURIComponent(project.slug)}/${p.path}` }))
+    : []
+  const link = (p: Page, className?: string) => (
+    <Link
+      key={p.path}
+      to={p.path}
+      className={cn(
+        'rounded-md px-2 py-1.5 text-sm hover:bg-muted',
+        path === p.path && 'bg-muted font-medium text-foreground',
+        className,
+      )}
+    >
+      {p.label}
+    </Link>
+  )
+  const heading = (label: string) => (
+    <p className="truncate px-2 pb-1 text-xs font-medium text-muted-foreground">{label}</p>
+  )
+  return (
+    <>
+      <Select value={path} onValueChange={(to) => void navigate({ href: to })}>
+        <SelectTrigger className="h-10 w-full @3xl/settings:hidden" aria-label="Settings page">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {projects.map((p) => (
-            <SelectItem key={p.slug} value={p.slug}>
-              {p.name}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            <SelectLabel>crashyard</SelectLabel>
+            {instance.map((p) => (
+              <SelectItem key={p.path} value={p.path}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+          <SelectSeparator />
+          <SelectItem value={PROJECTS.path}>{PROJECTS.label}</SelectItem>
+          {project && (
+            <SelectGroup>
+              <SelectLabel>{project.name}</SelectLabel>
+              {projectPages.map((p) => (
+                <SelectItem key={p.path} value={p.path} className="pl-5">
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          )}
+          <SelectSeparator />
+          <SelectGroup>
+            <SelectLabel>You</SelectLabel>
+            {PERSONAL.map((p) => (
+              <SelectItem key={p.path} value={p.path}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
-    )
-  return (
-    <>
-      <div className="grid gap-2 @3xl/settings:hidden">
-        {picker('h-10 w-full')}
-        <Select value={path} onValueChange={(to) => void navigate({ href: to })}>
-          <SelectTrigger className="h-10 w-full" aria-label="Settings page">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {groups.map((g) => (
-              <SelectGroup key={g.label}>
-                <SelectLabel>{g.label}</SelectLabel>
-                {g.pages.map((p) => (
-                  <SelectItem key={p.path} value={p.path}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
       <nav className="grid content-start gap-5 @max-3xl/settings:hidden" aria-label="Settings">
-        {groups.map((g) => (
-          <div key={g.label} className="grid gap-0.5">
-            {g.project ? (
-              <div className="pb-1">{picker('h-8 w-full text-xs font-medium')}</div>
-            ) : (
-              <p className="truncate px-2 pb-1 text-xs font-medium text-muted-foreground">{g.label}</p>
-            )}
-            {g.pages.map((p) => (
-              <Link
-                key={p.path}
-                to={p.path}
-                className={cn(
-                  'rounded-md px-2 py-1.5 text-sm hover:bg-muted',
-                  path === p.path && 'bg-muted font-medium text-foreground',
-                )}
-              >
-                {p.label}
-              </Link>
-            ))}
-          </div>
-        ))}
+        <div className="grid gap-0.5">
+          {heading('crashyard')}
+          {instance.map((p) => link(p))}
+        </div>
+        <div className="grid gap-0.5">
+          {link(PROJECTS, cn('font-medium', project && 'text-foreground'))}
+          {project && (
+            <div className="mt-1 ml-2 grid gap-0.5 border-l pl-2">
+              {heading(project.name)}
+              {projectPages.map((p) => link(p))}
+            </div>
+          )}
+        </div>
+        <div className="grid gap-0.5">
+          {heading('You')}
+          {PERSONAL.map((p) => link(p))}
+        </div>
       </nav>
     </>
   )
 }
 
-/** The page the path is, for the breadcrumbs */
+/** The page the path is, for the title and breadcrumbs */
 export function pageOf(path: string) {
   const clean = path.replace(/\/$/, '')
   const project = clean.match(/^\/settings\/projects\/[^/]+\/([^/]+)/)?.[1]
   if (project) return PROJECT.find((p) => p.path === project)?.label
-  return [...INSTANCE, ...PERSONAL].find((p) => p.path === clean)?.label
+  return [...INSTANCE, PROJECTS, ...PERSONAL].find((p) => p.path === clean)?.label
+}
+
+/** A heading over a few cards of a page, with an id to link to */
+export const Subhead = ({ id, children }: { id: string; children: React.ReactNode }) => (
+  <h2 id={id} className="mt-3 scroll-mt-20 text-lg font-semibold tracking-tight">
+    {children}
+  </h2>
+)
+
+/** One line of a check's outcome: a tick when fine, a warning in amber when not */
+export function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
+  const Icon = ok ? IconCircleCheck : IconAlertTriangle
+  return (
+    <p
+      className={cn(
+        'flex items-start gap-1.5 text-sm',
+        ok ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400',
+      )}
+    >
+      <Icon className="mt-0.5 size-4 shrink-0" />
+      <span>{children}</span>
+    </p>
+  )
 }
 
 /** A settings page's section: a title, what it's for, then its fields */
@@ -232,7 +245,7 @@ export function SaveButton({ saving, children = 'Save' }: { saving: boolean; chi
   )
 }
 
-/** The fields of daily limits and retention, shared with New-project defaults */
+/** The fields of daily limits and retention, shared with Defaults for new projects */
 const LIMIT_FIELDS = [
   {
     name: 'daily_event_quota',

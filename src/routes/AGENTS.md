@@ -34,14 +34,14 @@ server, the build, or `tsr generate`): never edit it.
   bar of its colour on top, its logo, title and description, Go to its website (under them on a phone). A project with no check shown and no
   post is a 404, as one that doesn't exist. Loads again each minute
   with a meta refresh, no script. Turned on per check on its monitor page, Show on the status page
-  (`setMonitorPublic`, admin), or on the project's settings page `status-page`. On a project's status domain
+  (`setMonitorPublic`, admin), or on its page under Monitors, Status pages. On a project's status domain
   (`src/server.ts`) it's the same page, `/` redirecting to it.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
   (bars side by side) and crash-free per release (`getOverviewCharts`, 30 days or `?days=14|90`, loaded with the
   overview, narrowed by `?project=`); failing monitors, new issues. Opening `/` as a page load with neither (not a
-  click on All projects, which is a client navigation) redirects to the viewer's Settings, Home (`getHome`, in
+  click on All projects, which is a client navigation) redirects to the viewer's Settings, Preferences (`getHome`, in
   `beforeLoad` on the server only).
 - `dashboards/index.tsx`: the dashboards (name, widgets or that they can't be read, when saved and by whom), Create
   dashboard (a template picker, `RadioGroup`: Blank, which opens in edit mode, `?edit=true`, or one of `TEMPLATES`,
@@ -90,62 +90,65 @@ server, the build, or `tsr generate`): never edit it.
   with vitals and no transactions too); `projects/$slug/performance/transaction.tsx` (`?name=`): its own vitals, p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and Open trace.
-- `settings/`: the settings area. `route.tsx` is its frame: `Shell` (`full`) with Settings, the project when it's a
-  project's page, then the page; `SettingsNav` (`src/components/settings.tsx`) at the left edge, the page's name as
-  the title and the page centred beside it, up to `max-w-4xl`; with less room the title, the list as selects, the
-  page. It goes by the room it has, not the window: the frame is `@container/settings` (the list beside from
-  `@3xl/settings`) and the page column a `@container`, so settings pages lay out with container variants (`@xl:`
-  where a page elsewhere says `sm:`, `@3xl:` for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. The deployment's pages, the group "crashyard": `people` (owners only, and only listed for them:
-  everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove
-  after a confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the
-  invites waiting, each with Withdraw invite; Sign in with GitHub: an optional organization and Add Sign in with
-  GitHub, which posts the app's manifest to GitHub, back with `?github=added|stale|failed` as a toast; once on, the
-  app linked on GitHub and Remove Sign in with GitHub), `general`
-  (public URL, read-only, saying it's set in `wrangler.local.json`), `email` (the sender, read-only,
-  and Send test email to a typed address), `defaults` (new-project limits and retention, `defaults.project`),
-  `privacy` (what's always scrubbed, and the extra field names, one a line or comma-separated), `tokens` (upload
-  tokens with their project or All projects, who made them, when last used, Delete; Create token with a name and a
-  project, the token shown once; Agents: the MCP URL and where agent tokens are made), `usage` (30
-  UTC days of events with rate-limited, filtered and failed, logs and transactions, each a chart and totals,
-  `?project=`), `health` (the Cloudflare plan, `CloudflarePlan` with `usePlan`: Workers Paid or Free, when checked, Check
-  again, and what needs Paid, `PAID_FEATURES`; the database against 10 GB, warning from 80%; stored files; the cron, late after 3 minutes; failed
-  notifications, each by its kind's label from `KINDS`, "Metric alert" for any metric kind; envelopes pending and failed; the pruning backlog) and `about` (the version, a newer release,
-  the docs). Each loads its own server function (`getInstanceSettings`, `getTokens`, `getUsage`, `getHealth`).
-  `projects/$slug/route.tsx` loads the project's settings once (`getProjectSettings`: the project, its keys with their
-  DSNs, the DSN of the first key that's on, uploads) for its pages, the group named by the project: `general` (name,
-  platform, slug; a changed slug warns that `SENTRY_PROJECT` must change, and the page moves to the new slug),
-  `issues` (Resolve issues not seen for N days, `auto_resolve_days`, off by default; Priority of new issues, a
-  priority per level, `priorities`; Release health, the lowest crash-free sessions in percent, saved as a fraction,
-  and the most new issues, empty for none), `grouping` (the rules in a monospace text area with the syntax and links to
-  Sentry's docs; Check rules parses them in the page, `parseGroupingRules`, and says the line that's wrong; Save is
-  refused the same way by `updateProject`), `filters` (a switch per inbound filter with what it catches, text areas
-  of error message globs, release globs and allowed domains, one a line, and what was filtered in 30 days,
-  `getProjectSettings`' `filtered`; saved as `filters` through `updateProject`, which keeps the switches that are on
-  and the lists' lines, 100 of 200 characters at most), `keys` (per key its
-  DSN, name, daily event limit, empty for none, events today, and an on switch that asks before turning a key off;
-  the existing keys first, then Create key),
-  `limits` (daily event, log and transaction limits, event and log retention), `source` (the repository and how to
-  send commits), `connect` (the DSN and `Linking`; then Cloudflare Workers: the `tail_consumers` line, the Workers
-  sending runs, `workersSeen`, `NeedsPaid`, each with Watch Worker, the list to watch and uncaught exceptions too), `debug-files` (`NeedsPaid`, then how to upload, `UploadSteps`; the newest 500 debug
-  files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, `getProjectPage`;
-  the newest 10 source map bundles), `import` (Import from Sentry: `NeedsPaid` saying it goes slower; address, organization and project slugs, a token
-  kept only in the form; asks `importFromSentry` page after page with a count, Continue import from the page it
-  stopped at), `status-page` (`getStatusPosts`: the project's uptime checks, each a switch for the status page; Post to
-  the status page, a kind, its state, a title, for maintenance its start and end as `datetime-local` in the viewer's
-  zone, Affects (a checkbox per check on the page, not for a notice; 40 px on a phone), and a message,
-  `createStatusPost`, member; then Now on the page and Ended in the last 30 days, each post with
-  its updates and who posted them, what it affects, Add update, `addStatusUpdate`, its Affects filled in, and Delete
-  after a confirmation, `deleteStatusPost`, admin; Look and address, `updateProject`: page title, brand colour, a
-  picker and its hex, description, logo and website, https only, and the custom domain with how to add it to the
-  Worker in Cloudflare) and `delete`. The viewer's own, the group "You": `sign-in` (`getSignIn`: passkeys with Rename and Remove, Add passkey;
-  recovery codes left and Make new codes, shown once; where they're signed in, This browser, Sign out each and Sign
-  out everywhere else), `agent-tokens` (a person's `cyp_` tokens for MCP with a
-  name, Read only or Read and change issues, and an expiry; the token and the `claude mcp add` command shown once;
-  Delete), then, each saved at once through `savePreference` and read from the root's loader: `appearance` (the theme, `STYLES` in `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to
-  preview it, and System, Light, Dark, both applied at once), `date-and-time`
-  (a time zone from `Intl.supportedValuesOf`, empty for the browser's, and a 12 or 24-hour clock), `stack-traces`
-  (newest or oldest frame first, other frames open or not) and `home` (the overview's project and range). Each page saves only its own fields through `updateProject`, whose
-  checks are per field. `projects/$slug/settings.tsx` redirects to the project's General.
+- `settings/`: the settings area. `route.tsx` is its frame: `Shell` (`full`) with Settings, then Projects and the
+  project on a project's page, then the page; `SettingsNav` (`src/components/settings.tsx`) at the left edge, the
+  page's name as the title (the project's name under it on its pages) and the page centred beside it, up to
+  `max-w-4xl`; with less room the title, the list as one select, the page. It goes by the room it has, not the
+  window: the frame is `@container/settings` (the list beside from `@3xl/settings`) and the page column a
+  `@container`, so settings pages lay out with container variants (`@xl:` where a page elsewhere says `sm:`, `@3xl:`
+  for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. Pages that join others are
+  `-name.tsx` modules (the router skips them) exporting their component, which reads the joined page's loader with
+  `getRouteApi`. `$.tsx` and `projects/$slug/$.tsx` send the old addresses of joined pages where they went (a
+  project's `keys` to Connect at Client keys, `debug-files` and `source` to Stack traces, `limits` and `filters` to
+  Events, `status-page` to Monitors), anything else a 404.
+  The deployment's pages, the group "crashyard": `general` (the public URL, read-only, saying it's set in
+  `wrangler.local.json`; the version and a newer release; the docs), `people` (owners only, and only listed for them:
+  everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove after a
+  confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the invites
+  waiting, each with Withdraw invite; Sign in with GitHub: an optional organization and Add Sign in with GitHub,
+  which posts the app's manifest to GitHub, back with `?github=added|stale|failed` as a toast; once on, the app
+  linked on GitHub and Remove Sign in with GitHub), `privacy` (what's always scrubbed, and the extra field names, one
+  a line or comma-separated), `tokens` (upload tokens with their
+  project or All projects, who made them, when last used, Delete; Create token with a name and a project, the token
+  shown once), `usage` (`getUsage` and `getHealth`: 30 UTC days of events with rate-limited, filtered and failed,
+  logs and transactions, each a chart and totals, `?project=`; the Cloudflare plan, `CloudflarePlan` with `usePlan`:
+  Workers Paid or Free, when checked, Check again, and what needs Paid, `PAID_FEATURES`; the database against 10 GB,
+  warning from 80%; stored files) and `health` (`getHealth`, each line a `Status`: the cron, late after 3 minutes; failed notifications, each by its kind's label from `KINDS`, "Metric alert" for any
+  metric kind; envelopes pending and failed; the pruning backlog). The email sender is on Notifications, in an email
+  channel's form. `projects/index.tsx`, Projects: every project, its platform and slug, each opening its General;
+  New project in the header; then Defaults for new projects, their limits and retention, `defaults.project`
+  (`getInstanceSettings`). A project's pages, listed under Projects in the nav only while one is open:
+  `projects/$slug/route.tsx` loads its settings once (`getProjectSettings`: the project, its keys with their DSNs,
+  the DSN of the first key that's on, uploads). `general` (name, platform, slug, a changed slug warning that
+  `SENTRY_PROJECT` must change and moving the page to the new slug; then `-delete`), `connect` (the
+  DSN and `Linking`; Cloudflare Workers: the `tail_consumers` line, the Workers sending runs, `workersSeen`,
+  `NeedsPaid`, each with Watch Worker, the list to watch and uncaught exceptions too; then under Client keys,
+  `-keys`: per key its DSN, name, daily event limit, empty for none, events today, and an on switch that asks before
+  turning a key off, then Create key), `stack-traces` (`-source` the repository and how to send commits; then
+  `-debug-files`, from the page's own loader, `getProjectPage`: `NeedsPaid`, how to upload, `UploadSteps`, the newest
+  500 debug files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, and the
+  newest 10 source map bundles), `events` (`-limits` daily event, log and transaction limits, event and log
+  retention; then `-filters`, a switch per inbound filter with what it catches, text areas of error message globs,
+  release globs and allowed domains, one a line, and what was filtered in 30 days, `getProjectSettings`' `filtered`,
+  saved as `filters` through `updateProject`, which keeps the switches that are on and the lists' lines, 100 of 200
+  characters at most), `issues`
+  (Resolve issues not seen for N days, `auto_resolve_days`, off by default; Priority of new issues, a priority per
+  level, `priorities`; Release health, the lowest crash-free sessions in percent, saved as a fraction, and the most
+  new issues, empty for none; `-grouping`, the rules in a monospace text area with the syntax and links to Sentry's
+  docs, Check rules parsing them in the page, `parseGroupingRules`, and saying the line that's wrong, Save refused
+  the same way by `updateProject`) and `import` (Import from Sentry: `NeedsPaid` saying it goes
+  slower; address, organization and project slugs, a token kept only in the form; asks `importFromSentry` page after
+  page with a count, Continue import from the page it stopped at). The viewer's own, the group "You": `account`
+  (`getSignIn`: passkeys with Rename and Remove, Add passkey; recovery codes left and Make new
+  codes, shown once; where they're signed in, This browser, Sign out each and Sign out everywhere else),
+  `agent-tokens` (`getAgentTokens`: a person's `cyp_` tokens for MCP with a name, Read only or Read and change issues,
+  and an expiry, the token and the `claude mcp add` command shown once, Delete), `appearance` (the theme, `STYLES` in
+  `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to preview
+  it, and System, Light, Dark, both applied at once) and `preferences`; both save each change at once through
+  `savePreference` and read from the root's loader. Preferences: `-date-and-time`, a time zone from `Intl.supportedValuesOf`, empty for the browser's, and a
+  12 or 24-hour clock; `-stack-traces`, newest or oldest frame first, other frames open or not; `-home`, the
+  overview's project and range. Each page saves only its own fields through `updateProject`, whose checks are per
+  field. `projects/$slug/settings.tsx` redirects to the project's General.
 - `explore.tsx`: Explore, events across issues. The search lives in the URL (`project`, `query`, `range`, `columns`,
   comma-separated, `groupBy`, `users`, `before`): `SearchBar` scope `events`, saved searches of page `explore` (the
   pinned one opens with no `query`), a time range; Columns (a text field of tag names, applied on Enter or blur),
@@ -181,10 +184,19 @@ server, the build, or `tsr generate`): never edit it.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars), adding an uptime check or a cron
   monitor, and one monitor: muted since when, if it is; up, or runs ok, over 24 hours, 7 and 30 days; a p95 line of
   response times or run times; its environments with their status; its results or check-ins, how to check in;
-  Errors during this job, each opening its event; incidents; pause, edit, delete.
+  Errors during this job, each opening its event; incidents; pause, edit, delete. Status pages, from the list's
+  header: `status-pages.index.tsx` (`getStatusPages`: each project's page, its domain or `/status/<slug>`, the checks
+  shown and posts not ended, or Not public yet) and `status-pages.$slug.tsx` (`getStatusPosts`, with the project:
+  Open status page; the project's uptime checks, each a switch for the page; Post to the status page, a kind, its
+  state, a title, for maintenance its start and end as `datetime-local` in the viewer's zone, Affects (a checkbox
+  per check on the page, not for a notice; 40 px on a phone), and a message, `createStatusPost`, member; then Now on
+  the page and Ended in the last 30 days, each post with its updates and who posted them, what it affects, Add
+  update, `addStatusUpdate`, its Affects filled in, and Delete after a confirmation, `deleteStatusPost`, admin; Look
+  and address, `updateProject`: page title, brand colour, a picker and its hex, description, logo and website, https
+  only, and the custom domain with how to add it to the Worker in Cloudflare).
 - `notifications.tsx` (`getNotifications` keeps channel secrets on the server: Telegram's webhook secret for everyone,
   bot tokens and webhook addresses for anyone below admin): channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
-  in their formats, each with where its URL comes from and checked against its host; email, or what to set up first
+  in their formats, each with where its URL comes from and checked against its host; email, with the address it's sent from, or what to set up first
   while the deployment has no `EMAIL_FROM`; a JSON webhook; quiet hours, entered and kept in the channel's
   `quiet_zone`, else the viewer's zone from `useTimePrefs`, and saved in it; one from before 0020, in UTC, shows in
   the viewer's zone at today's offset; the row names the zone when it isn't the viewer's), routes, each with a

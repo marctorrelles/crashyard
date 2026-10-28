@@ -16,7 +16,7 @@ export type Filters = {
   domains?: string[] // the only origins events may come from; none for any
 }
 
-/** The switches, in the order Settings, Filters shows them */
+/** The switches, in the order a project's settings, Events shows them */
 export const FILTER_SWITCHES = [
   'browserExtensions',
   'localhost',

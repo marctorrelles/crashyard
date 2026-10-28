@@ -10,13 +10,14 @@ import { Input } from '@/components/ui/input'
 import { deviceName } from '@/data/people'
 import { getSignIn, makeRecoveryCodes, removePasskey, renamePasskey, signOutSession } from '@/fns'
 
-export const Route = createFileRoute('/settings/sign-in')({
+export const Route = createFileRoute('/settings/account')({
   loader: () => getSignIn(),
-  head: () => ({ meta: [{ title: 'Sign-in · Settings · crashyard' }] }),
-  component: SignInSettings,
+  head: () => ({ meta: [{ title: 'Account · Settings · crashyard' }] }),
+  component: Account,
 })
 
-function SignInSettings() {
+// How you sign in, and where you're signed in
+function Account() {
   return (
     <>
       <Passkeys />

@@ -45,7 +45,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Themes, the viewer's pick on Settings, Appearance: the root's script puts it on <html data-style>, and a tile there
+/* Themes, the viewer's pick on Settings, Preferences: the root's script puts it on <html data-style>, and a tile there
    previews one on itself. Each sets the font, the roundness, the density (--spacing scales every padding, gap and
    size) and the colours, light then dark (.dark on <html>), and sets every variable, so one nests in another. */
 

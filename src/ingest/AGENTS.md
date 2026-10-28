@@ -12,7 +12,7 @@ order.
   and bearer tokens in text are masked (an email's domain ends in letters, so a release like `app@1.2.0` stays).
   The user is kept only as hashes (`src/search/user.ts`): `user_hash` (`hashUser` of the id, else email, else
   username) counts distinct users, and `user_keys` has one per field sent (id, email, username, name; never the IP
-  address), which `user:` searches hash the same way. The deployment's own field names (Settings, Data privacy, setting
+  address), which `user:` searches hash the same way. The deployment's own field names (Settings, Privacy, setting
   `privacy.scrub_fields`) are filtered too, in any key containing one, any case, as Sentry's additional sensitive
   fields: `loadExtraFields`, at the start of every pass (`processItems`), reads them at most once a minute per isolate,
   so a change takes up to a minute to apply; a read that fails is logged and keeps the last list (the built-ins only
@@ -44,7 +44,7 @@ order.
   through `issue_fingerprints`) gets the new in `issue_fingerprints` (`INSERT OR IGNORE`, one statement per event
   during the overlap). Past it, the old hash isn't computed. Events record `fingerprint` (before any merge) and
   `grouping_version`.
-- `rules.ts`: a project's grouping rules (Settings, Grouping, `projects.grouping_rules`), Sentry's syntax, from its docs
+- `rules.ts`: a project's grouping rules (a project's settings, Issues, `projects.grouping_rules`), Sentry's syntax, from its docs
   "Fingerprint Rules" and "Stack Trace Rules" (docs.sentry.io, read 2026-10-26). `parseGroupingRules` answers
   `{ fingerprint, stack }` or `{ error, line }` (the first bad line and a sentence). Supported: matchers `error.type`
   (`type`), `error.value` (`value`), `message` (also every exception's value), `level`, `tags.<name>`, and on a frame
@@ -63,7 +63,7 @@ order.
   over the SDK's. `rulesOf` parses a project's text once per isolate (100 kept); text that no longer parses applies as
   none, and `updateProject` refuses it with the line, so it can't be saved. The rules come with the project from
   ingest's cached read: a change applies within a minute, to new events only.
-- `filters.ts`: inbound filters (Settings, Filters, `projects.filters` JSON, `parseFilters` keeps only known switches
+- `filters.ts`: inbound filters (a project's settings, Events, `projects.filters` JSON, `parseFilters` keeps only known switches
   and string lists). `filterReason(event, filters)` answers a Relay stat key or null: `browser-extensions` (the first
   exception's value against `EXTENSION_EXC_VALUES`, or the abs_path of its frame nearest the crash, skipping
   `<anonymous>` and `[native code]`, stopping at one without, against `EXTENSION_EXC_SOURCES`), `localhost` (the
