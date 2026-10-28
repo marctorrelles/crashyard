@@ -184,7 +184,7 @@ export function webhookBody(format: WebhookConfig['format'], notice: Notice): un
   // Slack: the title in bold over its line, and a button; `text` is what the notification itself shows
   if (format === 'slack')
     return {
-      text: `${title}: ${line}`,
+      text: slackText(`${title}: ${line}`),
       blocks: [
         { type: 'section', text: { type: 'mrkdwn', text: `*${slackText(title)}*\n${slackText(line)}` } },
         {

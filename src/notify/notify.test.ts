@@ -102,7 +102,7 @@ describe('channels', () => {
   it('speak Slack’s blocks and Discord’s embeds, escaped, mentioning no one', () => {
     const n = notice({ issue: { ...notice().issue, title: '@everyone <b> & co' } })
     expect(webhookBody('slack', n)).toMatchObject({
-      text: expect.stringContaining('@everyone <b> & co'),
+      text: expect.stringContaining('@everyone &lt;b&gt; &amp; co'),
       blocks: [
         {
           type: 'section',
