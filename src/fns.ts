@@ -1727,7 +1727,10 @@ const STATUS_PAGE_CHECKS: { [K in keyof status.PageChange]-?: (v: unknown) => st
     if (!host) return null
     if (!/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host))
       throw new Error('The domain is a hostname such as status.example.com, without https:// or a path.')
-    if (env.PUBLIC_URL && host === new URL(env.PUBLIC_URL).hostname)
+    // The dashboard's own host, by PUBLIC_URL or, without one, the address it was opened at: that host would open
+    // only the status page from then on, sign-in included
+    const own = [env.PUBLIC_URL && new URL(env.PUBLIC_URL).hostname, new URL(getRequest().url).hostname]
+    if (own.includes(host))
       throw new Error('That’s crashyard’s own address. Use a different hostname for the status page.')
     return host
   },
