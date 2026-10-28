@@ -14,7 +14,9 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
 - `symbolicate.ts`: on each event, before grouping, every stack: the exceptions', then each thread's, with the same
   caches. Native frames by address within their image (the crashing
   frame as is, the others one byte back: return addresses), inlined calls as frames of their own; Android frames and
-  obfuscated exception classes through ProGuard; JavaScript through SourceMapCaches, with context lines. Mapped
+  obfuscated exception classes through ProGuard; JavaScript through SourceMapCaches, with context lines. Each image's
+  addresses go in one SymCache lookup, and each mapping's frames, every stack's and the classes, in one ProGuard call,
+  so a mapping's mapper is built once an event (an ANR's 30 threads made it 30 times). Mapped
   frames are marked `symbolicated` so a second pass leaves them be. Debug files an event lacked go in
   `missingDebugFiles`, shown on the event; the OS's own libraries (`/usr/lib/`, `/System/`, Android's `/system/`,
   `/apex/`…) never do, as no one can upload theirs. Checked against a real sentry-cocoa 9.31 crash on macOS. What it reads is cached in the isolate for ten minutes (48 MB budget);

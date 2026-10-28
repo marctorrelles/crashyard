@@ -150,7 +150,7 @@ describe('readable stacks, uploaded with sentry-cli', () => {
     expect((frame.context as { line: string }).line).toContain('note.content!.blocks[0]')
   })
 
-  it('retraces an Android stack through its ProGuard mapping, inlined calls too', async () => {
+  it('retraces an Android stack through its ProGuard mapping, inlined calls, threads and classes too', async () => {
     cli('upload-proguard', 'test/fixtures/proguard/mapping.txt')
     const { debug_id: uuid } = (await dev.db
       .prepare("SELECT debug_id FROM debug_files WHERE kind = 'proguard'")
@@ -161,13 +161,14 @@ describe('readable stacks, uploaded with sentry-cli', () => {
       exception: {
         values: [
           {
-            type: 'IllegalStateException',
-            module: 'java.lang',
+            type: 'b',
+            module: 'a',
             value: 'no voice',
             stacktrace: { frames: [{ module: 'a.a', function: 'a', lineno: 5, in_app: true }] },
           },
         ],
       },
+      threads: { values: [{ id: 2, stacktrace: { frames: [{ module: 'a.b', function: 'b', lineno: 2 }] } }] },
       debug_meta: { images: [{ type: 'proguard', uuid }] },
     }
     await send(event)
@@ -177,6 +178,14 @@ describe('readable stacks, uploaded with sentry-cli', () => {
       { module: 'com.example.pocketband.Player', function: 'voiceAt', lineno: 20 },
     ])
     expect((await issueOf(event.event_id))!.culprit).toBe('com.example.pocketband.Player in voiceAt')
+    const data = JSON.parse(
+      (await dev.db.prepare('SELECT data FROM events WHERE id = ?').bind(event.event_id).first<{ data: string }>())!
+        .data,
+    )
+    expect(data.exceptions[0]).toMatchObject({ module: 'com.example.pocketband', type: 'Mixer' })
+    expect(data.threads[0].frames).toMatchObject([
+      { module: 'com.example.pocketband.Mixer', function: 'mix', lineno: 31 },
+    ])
   })
 
   it('keeps a release’s commits, and the files they leave, from set-commits --local', async () => {

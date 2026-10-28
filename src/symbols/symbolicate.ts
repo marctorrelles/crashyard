@@ -6,7 +6,7 @@
 // - JavaScript: positions through the source map found by the file's debug id, or else its URL.
 // What it can't map stays as it came, and the debug files it lacked are listed on the event.
 import { culpritOf, type Frame, type NormalizedEvent } from '../ingest/event'
-import type { Symbolic } from './symcache'
+import type { Symbolic, SymbolFrame } from './symcache'
 
 export type SymbolEnv = { DB: D1Database; FILES: R2Bucket }
 
@@ -92,8 +92,13 @@ export async function symbolicate(
     }))
   if (native.length) {
     const s = await symbolic()
-    for (const [n, frames] of stacks.entries()) {
-      const mapped: Frame[] = []
+    // Each frame's image and address first, then one lookup per image with all of them: a SymCache goes into Wasm
+    // once an event, not once a frame
+    const byImage = new Map<string, { bytes: Uint8Array | null; addresses: bigint[]; found: SymbolFrame[][] }>()
+    const asks: ({ image: string; at: number } | undefined)[][] = []
+    for (const frames of stacks) {
+      const asked: (typeof asks)[number] = []
+      asks.push(asked)
       for (const [index, frame] of frames.entries()) {
         const addr = hex(frame.instructionAddr)
         const image =
@@ -105,45 +110,52 @@ export async function symbolicate(
                   : addr >= i.start && (i.end === undefined || addr < i.end),
               )
         if (!image || addr === undefined || frame.symbolicated) {
-          mapped.push(frame)
+          asked.push(undefined)
           continue
         }
         const debugId = image.debugId!.toLowerCase()
-        const row = fileOf.get(debugId)
-        const symcacheBytes = row?.symcache_key
-          ? await remember<Uint8Array>(
-              `sc:${row.symcache_key}`,
-              (b) => b.length,
-              () => r2Bytes(env.FILES, row.symcache_key!),
-            )
-          : null
-        if (!symcacheBytes) {
+        let lookup = byImage.get(debugId)
+        if (!lookup) {
+          const row = fileOf.get(debugId)
+          const bytes = row?.symcache_key
+            ? await remember<Uint8Array>(
+                `sc:${row.symcache_key}`,
+                (b) => b.length,
+                () => r2Bytes(env.FILES, row.symcache_key!),
+              )
+            : null
+          lookup = { bytes, addresses: [], found: [] }
+          byImage.set(debugId, lookup)
+        }
+        if (!lookup.bytes) {
           if ((!frame.function || frame.function === '<redacted>') && !isSystemImage(image.codeFile))
             missing.set(debugId, { debugId, codeFile: image.codeFile, type: image.type })
-          mapped.push(frame)
+          asked.push(undefined)
           continue
         }
         // The crashing frame (the last) points at the instruction; the rest at return addresses
         const relative = addr - image.start - (index === frames.length - 1 ? 0n : 1n)
-        const [found] = s.lookup(symcacheBytes, [relative])
-        if (!found?.length) {
-          mapped.push(frame)
-          continue
-        }
-        // Innermost first from symbolic; frames here run oldest first
-        for (const f of [...found].reverse()) {
-          mapped.push({
-            ...frame,
-            function: f.function,
-            filename: f.file && f.file !== '<compiler-generated>' ? f.file.split('/').at(-1) : frame.filename,
-            absPath: f.file ?? frame.absPath,
-            lineno: f.line || undefined,
-            context: undefined,
-            symbolicated: true,
-          })
-        }
+        asked.push({ image: debugId, at: lookup.addresses.push(relative) - 1 })
       }
-      stacks[n] = mapped
+    }
+    for (const lookup of byImage.values())
+      if (lookup.bytes && lookup.addresses.length) lookup.found = s.lookup(lookup.bytes, lookup.addresses)
+    for (const [n, frames] of stacks.entries()) {
+      stacks[n] = frames.flatMap((frame, i) => {
+        const ask = asks[n][i]
+        const found = ask && byImage.get(ask.image)!.found[ask.at]
+        if (!found?.length) return [frame]
+        // Innermost first from symbolic; frames here run oldest first
+        return [...found].reverse().map((f) => ({
+          ...frame,
+          function: f.function,
+          filename: f.file && f.file !== '<compiler-generated>' ? f.file.split('/').at(-1) : frame.filename,
+          absPath: f.file ?? frame.absPath,
+          lineno: f.line || undefined,
+          context: undefined,
+          symbolicated: true,
+        }))
+      })
     }
   }
 
@@ -161,14 +173,21 @@ export async function symbolicate(
     )
     if (!mapping) continue
     const s = await symbolic()
-    for (const [n, frames] of stacks.entries()) {
-      const java = frames.map((f) => ({
+    // Every stack's frames and every exception's class in one call: the mapper is built once a mapping, not once a
+    // stack, which for a large mapping and an ANR's every thread was most of the work
+    const java = stacks.map((frames) =>
+      frames.map((f) => ({
         module: f.symbolicated ? '' : (f.module ?? ''),
         function: f.function ?? '',
         lineno: f.lineno,
-      }))
-      if (!java.some((f) => f.module)) continue
-      const remapped = s.proguard(mapping, java)
+      })),
+    )
+    const classes = event.exceptions.map((e) => (e.module ? `${e.module}.${e.type}` : e.type))
+    const all = s.proguard(mapping, [...java.flat(), ...classes.map((module) => ({ module, function: '' }))])
+    let at = 0
+    for (const [n, frames] of stacks.entries()) {
+      const remapped = all.slice(at, (at += frames.length))
+      if (!java[n].some((f) => f.module)) continue
       stacks[n] = frames.flatMap((frame, i) =>
         remapped[i]?.length
           ? [...remapped[i]].reverse().map((r) => ({
@@ -183,10 +202,9 @@ export async function symbolicate(
       )
     }
     // An app's own exception classes are obfuscated too
-    for (const e of event.exceptions) {
-      const full = e.module ? `${e.module}.${e.type}` : e.type
-      const [named] = s.proguard(mapping, [{ module: full, function: '' }])
-      const original = named?.[0]?.module
+    for (const [i, e] of event.exceptions.entries()) {
+      const full = classes[i]
+      const original = all[at + i]?.[0]?.module
       if (original && original !== full) {
         const dot = original.lastIndexOf('.')
         e.module = dot > 0 ? original.slice(0, dot) : undefined
