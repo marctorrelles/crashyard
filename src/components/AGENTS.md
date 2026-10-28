@@ -125,7 +125,7 @@
   the page's own fields, name, email or the invite's fixed one, Create passkey; then the recovery codes and
   Continue to crashyard, a whole page load; `alternative` under it, the invite's Join with GitHub).
 - `settings.tsx`: the settings area's pages (`INSTANCE`, `PROJECTS`, the open project's `PROJECT`: General,
-  Connect, Stack traces, Events, Issues, Import from Sentry, and `PERSONAL`), `SettingsNav` (the list: crashyard's pages, Projects, and
+  Connect, Stack traces, Events, Issues, Sentry, and `PERSONAL`), `SettingsNav` (the list: crashyard's pages, Projects, and
   while a project's page is open its name and pages indented under Projects, then You; with too little room beside
   the page, `@3xl/settings`, one `Select` of the same, labelled Settings page; no project picker of its own, the
   sidebar's filter is the only one), `useSettingsProject` (the project whose settings the path is), `pageOf` (a

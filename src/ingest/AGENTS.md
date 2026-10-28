@@ -135,7 +135,7 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   pass, so every item in it is tried again: events dedupe by id, check-ins find their row again, logs, transactions
   and filtered events already counted count again.
 
-- `import.ts`: Import from Sentry (Settings, a project's Import from Sentry; `importFromSentry` in `fns.ts`, admin).
+- `import.ts`: Import from Sentry (Settings, a project's Sentry; `importFromSentry` in `fns.ts`, admin).
   `importPage`: one page of 10 (`PAGE`) on Workers Paid, 2 on Free or a plan not known yet (`cloudflare.plan`,
   `src/data/plan.ts`), of the Sentry project's issues, every status (`/api/0/projects/<org>/<project>/issues/?query=`,
   deprecated by Sentry for the organization's, which only lists a time window), then per issue not in `sentry_imports`
@@ -146,10 +146,19 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   `groupingFor` (the project's rules) and `storeEvent`, not symbolication (Sentry's frames are already symbolicated)
   and not filters or notices; then the issue takes Sentry's count (less the event just counted), first and last seen
   (min and max), users (max), resolved or ignored (`for_good`), unresolved as `ongoing`, and comments as notes by
-  "<email> on Sentry". `nextCursor` reads the Link header. The browser asks for each page (`settings/projects/$slug/import.tsx`),
+  "<email> on Sentry". `nextCursor` reads the Link header. The browser asks for each page (`settings/projects/$slug/sentry.tsx`),
   so it can continue from where it stopped; the token comes with each call and is never stored. Sentry's errors as
   sentences: 401/403 the token's scopes, 404 the slugs, 429 wait. `import.test.ts`: fetch stubbed, GlitchTip fixtures;
   the SDK's next event of an imported error joins its issue.
+- `forward.ts`: Forward to Sentry (a project's settings, Sentry; `projects.forward_dsn`, 0029, checked by
+  `sentryTarget` in `fns.ts`, which keeps it tidied). `handleIngest`, once the key and the allowed domains pass and
+  before quotas and filters, hands the body to `forwardToSentry` in `waitUntil` (a `store` event wrapped as an
+  envelope; a security report or check-in as the envelope made at the door): POSTed once to `<base>/api/<id>/envelope/`
+  with `X-Sentry-Auth`, the SDK's User-Agent and no client IP, the envelope header's `dsn`, when present, swapped for
+  Sentry's (`retarget`); no retries, and the cron's retries never forward. Sentry's answer is only logged.
+  `FORWARDED` marks the request, and a request carrying it isn't forwarded again, so a DSN pointing back at a crashyard
+  can't loop. `forward_dsn` comes with the project from ingest's cached read, so a change takes up to a minute.
+  Tail Workers' runs (`src/api/tail.ts`) aren't forwarded: Sentry wouldn't have had them.
 - `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).
   `storeLogs` writes each log, then its own (not `sentry.*`) attributes, up to 16, into `log_attributes` with

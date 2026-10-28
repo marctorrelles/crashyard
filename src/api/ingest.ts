@@ -8,6 +8,7 @@ import { EnvelopeError, type EnvelopeItem, parseEnvelope, payloadJson, toEnvelop
 import { cspEvent, cspReports, isSecurityType } from '../ingest/security'
 import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { filterReason, originAllowed, parseFilters, transactionFilterReason } from '../ingest/filters'
+import { FORWARDED, forwardToSentry } from '../ingest/forward'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
 import { recordCheckIn } from '../monitors/monitors'
 import { sessionCounts, spanTransactions, storeSessions, storeTransaction, summarize } from '../performance/ingest'
@@ -129,7 +130,7 @@ function fromDoor(request: Request, url: URL, door: 'security' | 'cron', body: U
 // Projects and keys change rarely; a minute's cache spares a read per request. So a change to a project's grouping
 // rules or filters takes up to a minute to apply
 const PROJECT_COLUMNS =
-  'id, slug, name, daily_event_quota, daily_log_quota, daily_transaction_quota, priorities, grouping_rules, grouping_version, grouping_previous, grouping_until, filters'
+  'id, slug, name, daily_event_quota, daily_log_quota, daily_transaction_quota, priorities, grouping_rules, grouping_version, grouping_previous, grouping_until, filters, forward_dsn'
 type Keyed = { project: Project; key: { id: number; enabled: boolean; daily_limit: number | null } }
 const projects = new Map<string, { found: Keyed | null; at: number }>()
 async function projectFor(db: D1Database, id: number, key: string): Promise<Keyed | null> {
@@ -222,6 +223,16 @@ export async function handleIngest(
     if (filtered) ctx.waitUntil(countFiltered(env.DB, project.id, now, filtered))
     return answer({ detail: 'event submission rejected with_reason: Cors' }, 403)
   }
+  // Forward to Sentry: everything the project accepts at the door, before crashyard's own quotas and filters, as
+  // Sentry applies its own; never what crashyard itself forwarded, so a DSN pointing back here can't loop
+  if (project.forward_dsn && !request.headers.has(FORWARDED))
+    ctx.waitUntil(
+      forwardToSentry(
+        project.forward_dsn,
+        door === 'store' ? toEnvelope({}, items) : body,
+        request.headers.get('user-agent'),
+      ),
+    )
 
   // The project's daily quotas, events and logs apart, and its key's daily event limit: past one, the SDK is told
   // when to try that kind again, as Sentry tells it (X-Sentry-Rate-Limits, by category and scope); an envelope with

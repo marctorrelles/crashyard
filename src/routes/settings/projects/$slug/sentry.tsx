@@ -1,15 +1,67 @@
 import { createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { NeedsPaid } from '@/components/plan'
-import { Hint, SettingsCard } from '@/components/settings'
+import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { importFromSentry } from '@/fns'
+import { importFromSentry, updateProject } from '@/fns'
 
-export const Route = createFileRoute('/settings/projects/$slug/import')({ component: Import })
+export const Route = createFileRoute('/settings/projects/$slug/sentry')({ component: Sentry })
 
 const parent = getRouteApi('/settings/projects/$slug')
+
+// Moving from Sentry: its issues brought over once, and the SDK's events sent on to it while both run
+function Sentry() {
+  return (
+    <>
+      <Import />
+      <Forward />
+    </>
+  )
+}
+
+/** Forward to Sentry (src/ingest/forward.ts): a DSN, or none */
+function Forward() {
+  const { project } = parent.useLoaderData()
+  const { save, saving } = useSave()
+  return (
+    <SettingsCard
+      title="Forward to Sentry"
+      description="Send every event this project receives on to Sentry too, so you can run both side by side before you switch. Clear the DSN to stop."
+    >
+      <form
+        className="grid gap-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          const forward_dsn = new FormData(e.currentTarget).get('forward_dsn')
+          void save(() => updateProject({ data: { id: project.id, forward_dsn } }))
+        }}
+      >
+        <div className="grid gap-2">
+          <Label htmlFor="forward_dsn">Sentry DSN</Label>
+          <Input
+            id="forward_dsn"
+            name="forward_dsn"
+            defaultValue={project.forward_dsn ?? ''}
+            maxLength={500}
+            placeholder="https://abc123@o1.ingest.sentry.io/42"
+            autoComplete="off"
+            spellCheck={false}
+            className="font-mono"
+          />
+          <Hint>
+            Find it in Sentry under the project’s settings, Client Keys. Events go on as the app sent them, before this
+            project’s limits and filters, and without the sender’s IP address. A change takes up to a minute.
+          </Hint>
+        </div>
+        <div>
+          <SaveButton saving={saving} />
+        </div>
+      </form>
+    </SettingsCard>
+  )
+}
 
 type Progress = { imported: number; skipped: number; cursor: string | null; done: boolean; error?: string }
 

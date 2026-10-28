@@ -131,6 +131,14 @@ issues past the project's event retention are pruned as usual. Importing again s
 
 The import runs while its page is open, 10 issues at a time. If it stops, it continues from where it was.
 
+## Forwarding to Sentry
+
+To run crashyard and Sentry side by side, give a project the DSN of its Sentry project in its settings, under Sentry.
+Every envelope the project accepts then goes on to Sentry as the app sent it. That happens before crashyard's daily
+limits and inbound filters, as Sentry applies its own. Sentry doesn't get the sender's IP address. Each envelope is
+sent once, and if Sentry is down or refuses it, crashyard still keeps it. Failed runs of Cloudflare Workers that come
+through a Tail Worker aren't forwarded. Clear the DSN to stop.
+
 ## sentry-cli and the build plugins
 
 Set `SENTRY_URL` to your crashyard, `SENTRY_AUTH_TOKEN` to a token created in a project's settings, and `SENTRY_ORG` to

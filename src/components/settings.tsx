@@ -40,7 +40,7 @@ const PROJECT: Page[] = [
   { label: 'Stack traces', path: 'stack-traces' },
   { label: 'Events', path: 'events' },
   { label: 'Issues', path: 'issues' },
-  { label: 'Import from Sentry', path: 'import' },
+  { label: 'Sentry', path: 'sentry' },
 ]
 const PERSONAL: Page[] = [
   { label: 'Account', path: '/settings/account' },

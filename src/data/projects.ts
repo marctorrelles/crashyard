@@ -29,6 +29,7 @@ export type ProjectRow = {
   worker_exceptions: number // 1: their uncaught exceptions too, for Workers without the Sentry SDK
   status_page: string | null // JSON, the status page's look (src/data/status.ts Branding)
   status_domain: string | null // a hostname that opens only its status page (src/server.ts)
+  forward_dsn: string | null // a Sentry DSN every envelope goes on to (src/ingest/forward.ts)
   created_at: number
 }
 
@@ -278,6 +279,7 @@ export const PROJECT_FIELDS = [
   'worker_exceptions',
   'status_page',
   'status_domain',
+  'forward_dsn',
 ] as const
 export type ProjectChange = Partial<Pick<ProjectRow, (typeof PROJECT_FIELDS)[number]>>
 

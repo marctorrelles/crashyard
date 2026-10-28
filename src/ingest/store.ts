@@ -18,6 +18,7 @@ export type Project = {
   grouping_previous?: number | null
   grouping_until?: number | null
   filters?: string | null // JSON, src/ingest/filters.ts
+  forward_dsn?: string | null // a Sentry DSN every envelope goes on to (src/ingest/forward.ts)
 }
 
 /** How long a project computes the grouping before a new version as well, so open issues keep their events */

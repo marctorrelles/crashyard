@@ -100,7 +100,7 @@ server, the build, or `tsr generate`): never edit it.
   `-name.tsx` modules (the router skips them) exporting their component, which reads the joined page's loader with
   `getRouteApi`. `$.tsx` and `projects/$slug/$.tsx` send the old addresses of joined pages where they went (a
   project's `keys` to Connect at Client keys, `debug-files` and `source` to Stack traces, `limits` and `filters` to
-  Events, `status-page` to Monitors), anything else a 404.
+  Events, `import` to Sentry, `status-page` to Monitors), anything else a 404.
   The deployment's pages, the group "crashyard": `general` (the public URL, read-only, saying it's set in
   `wrangler.local.json`; the version and a newer release; the docs), `people` (owners only, and only listed for them:
   everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove after a
@@ -136,9 +136,10 @@ server, the build, or `tsr generate`): never edit it.
   level, `priorities`; Release health, the lowest crash-free sessions in percent, saved as a fraction, and the most
   new issues, empty for none; `-grouping`, the rules in a monospace text area with the syntax and links to Sentry's
   docs, Check rules parsing them in the page, `parseGroupingRules`, and saying the line that's wrong, Save refused
-  the same way by `updateProject`) and `import` (Import from Sentry: `NeedsPaid` saying it goes
+  the same way by `updateProject`) and `sentry` (Import from Sentry: `NeedsPaid` saying it goes
   slower; address, organization and project slugs, a token kept only in the form; asks `importFromSentry` page after
-  page with a count, Continue import from the page it stopped at). The viewer's own, the group "You": `account`
+  page with a count, Continue import from the page it stopped at; then Forward to Sentry, the DSN saved as
+  `forward_dsn` by `updateProject`, empty for none). The viewer's own, the group "You": `account`
   (`getSignIn`: passkeys with Rename and Remove, Add passkey; recovery codes left and Make new
   codes, shown once; where they're signed in, This browser, Sign out each and Sign out everywhere else),
   `agent-tokens` (`getAgentTokens`: a person's `cyp_` tokens for MCP with a name, Read only or Read and change issues,

@@ -7,6 +7,7 @@ import { projectKey } from './auth'
 import { readBody } from './body'
 import { EnvelopeError, parseEnvelope, payloadJson } from './envelope'
 import { eventIdOf, normalizeEvent, timestampOf } from './event'
+import { FORWARDED, sentryTarget } from './forward'
 import { fingerprintOf, mask } from './grouping'
 import { loadExtraFields, scrub, scrubText, setExtraFields } from './scrub'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
@@ -452,6 +453,65 @@ describe('filtered events', () => {
     expect((await send({ message: 'other' }, { origin: 'https://app.example.com' })).status).toBe(200)
     expect(day()).toEqual({ events: 2, filtered: 3 })
     expect(keyDay()).toEqual({ n: 2 })
+  })
+})
+
+describe('forward to Sentry', () => {
+  it('reads a DSN, a self-hosted one under a path too, and refuses what isn’t one', () => {
+    expect(sentryTarget(' https://abc@o1.ingest.sentry.io/42 ')).toEqual({
+      url: 'https://o1.ingest.sentry.io/api/42/envelope/',
+      key: 'abc',
+      dsn: 'https://abc@o1.ingest.sentry.io/42',
+    })
+    expect(sentryTarget('http://k@sentry.local:9000/sentry/7/')?.url).toBe(
+      'http://sentry.local:9000/sentry/api/7/envelope/',
+    )
+    for (const bad of ['https://o1.ingest.sentry.io/42', 'https://k@host/abc', 'ftp://k@host/1', 'not a dsn'])
+      expect(sentryTarget(bad)).toBeNull()
+  })
+
+  it('sends every envelope the project accepts on to Sentry, filtered ones too, with Sentry’s DSN in its header', async () => {
+    const env = { DB: sqliteD1(), FILES: memoryR2() }
+    env.DB.sqlite.exec(
+      `INSERT INTO projects (id, slug, name, public_key, created_at, filters, forward_dsn)
+       VALUES (70, 'fw', 'fw', 'fwk', 0, '{"releases":["bad*"]}', 'https://sk@o1.ingest.sentry.io/42')`,
+    )
+    const sent: Request[] = []
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      sent.push(new Request(input, init))
+      return new Response('{}')
+    })
+    const send = async (release: string, headers: Record<string, string> = {}) => {
+      const waits: Promise<unknown>[] = []
+      const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) } as unknown as ExecutionContext
+      const header = { event_id: crypto.randomUUID().replace(/-/g, ''), dsn: 'https://fwk@x/70' }
+      const body = [header, { type: 'event' }, { message: 'hi', release }].map((l) => JSON.stringify(l)).join('\n')
+      const response = await handleIngest(
+        new Request('https://x/api/70/envelope/', { method: 'POST', headers, body }),
+        env,
+        ctx,
+        70,
+        'envelope',
+      )
+      await Promise.all(waits)
+      return response
+    }
+    try {
+      expect((await send('good-1', { 'user-agent': 'sentry.javascript.node/11.9.0' })).status).toBe(200)
+      expect((await send('bad-1')).status).toBe(200)
+      expect(sent).toHaveLength(2)
+      expect(sent[0].url).toBe('https://o1.ingest.sentry.io/api/42/envelope/')
+      expect(sent[0].headers.get('x-sentry-auth')).toBe('Sentry sentry_version=7, sentry_key=sk')
+      expect(sent[0].headers.get('user-agent')).toBe('sentry.javascript.node/11.9.0')
+      const lines = (await sent[0].text()).split('\n')
+      expect(JSON.parse(lines[0]).dsn).toBe('https://sk@o1.ingest.sentry.io/42')
+      expect(JSON.parse(lines[2])).toEqual({ message: 'hi', release: 'good-1' })
+      // What crashyard forwarded, coming back to it, goes no further
+      await send('good-2', { [FORWARDED]: '1' })
+      expect(sent).toHaveLength(2)
+    } finally {
+      fetch.mockRestore()
+    }
   })
 })
 

@@ -27,6 +27,7 @@ import * as updates from './data/updates'
 import * as widgets from './data/widgets'
 import { PRIORITIES, type Priority } from './ingest/priority'
 import { FILTER_LISTS, FILTER_SWITCHES, type Filters } from './ingest/filters'
+import { sentryTarget } from './ingest/forward'
 import { parseGroupingRules } from './ingest/rules'
 import { botIdOf, telegramCall, telegramChats, telegramToken, type TelegramConfig } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
@@ -304,6 +305,17 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
     if (env.PUBLIC_URL && host === new URL(env.PUBLIC_URL).hostname)
       throw new Error('That’s crashyard’s own address. Use a different hostname for the status page.')
     return host
+  },
+  // A Sentry DSN, tidied; null for none
+  forward_dsn: (v) => {
+    const dsn = text(v ?? '', 500, 'The Sentry DSN').trim()
+    if (!dsn) return null
+    const target = sentryTarget(dsn)
+    if (!target)
+      throw new Error(
+        'That isn’t a DSN. Copy it from Sentry, under the project’s Client Keys. It looks like https://abc123@o1.ingest.sentry.io/42.',
+      )
+    return target.dsn
   },
   // Rules that don't parse are refused with the line and why, so ingest only ever reads good ones
   grouping_rules: (v) => {

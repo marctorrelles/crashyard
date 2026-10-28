@@ -9,6 +9,7 @@ const MOVED: Record<string, [tab: string, hash?: string]> = {
   filters: ['events'],
   delete: ['general'],
   grouping: ['issues'],
+  import: ['sentry'],
 }
 
 export const Route = createFileRoute('/settings/projects/$slug/$')({

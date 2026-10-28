@@ -79,3 +79,5 @@ in `pnpm run deploy`).
   before shows no posts.
 - 0028: `status_post_monitors` (the uptime checks a post affects), `projects.status_page` (JSON, the page's look) and
   `projects.status_domain` (unique when set, `projects_status_domain`). A worker from before ignores them.
+- 0029: `projects.forward_dsn`, a Sentry DSN every envelope the project accepts goes on to (`src/ingest/forward.ts`),
+  null for none. A worker from before ignores it.
