@@ -128,9 +128,10 @@ function ViewHierarchy({ attachment: a }: { attachment: Attachment }) {
               {String(node.type ?? 'View')}
             </span>
             {node.identifier && <span className="text-sky-600 dark:text-sky-400">#{String(node.identifier)}</span>}
+            {/* A file the app sent, any shape: only numbers drawn as numbers, never an object as a child */}
             {typeof node.width === 'number' && typeof node.height === 'number' && (
               <span className="text-muted-foreground">
-                {node.x ?? 0}, {node.y ?? 0} · {node.width} × {node.height}
+                {Number(node.x) || 0}, {Number(node.y) || 0} · {node.width} × {node.height}
               </span>
             )}
           </div>

@@ -40,6 +40,9 @@ const OP_COLORS = ['bg-sky-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-50
 export function Waterfall({ spans, duration }: { spans: Span[]; duration: number }) {
   if (spans.length === 0) return <p className="px-4 py-3 text-sm text-muted-foreground">No spans in this one.</p>
   const ops = [...new Set(spans.map((s) => s.op))]
+  // A span's start and end as shares of the transaction, kept inside it: a transaction of 0 ms, or a span the SDK
+  // timed before it began or past its end, would otherwise draw NaN% or overflow sideways
+  const share = (ms: number) => Math.min(1, Math.max(0, ms / Math.max(duration, 1)))
   return (
     <ul className="grid gap-px px-4 py-3 text-xs">
       {spans.map((s, i) => (
@@ -57,9 +60,12 @@ export function Waterfall({ spans, duration }: { spans: Span[]; duration: number
                 OP_COLORS[ops.indexOf(s.op) % OP_COLORS.length],
                 s.status && s.status !== 'ok' && 'ring-2 ring-red-500',
               )}
-              style={{ left: `${(s.start / duration) * 100}%`, width: `${(s.duration / duration) * 100}%` }}
+              style={{
+                left: `${share(s.start) * 100}%`,
+                width: `${(share(s.start + s.duration) - share(s.start)) * 100}%`,
+              }}
             />
-            <SpanDuration start={s.start / duration} end={(s.start + s.duration) / duration} ms={s.duration} />
+            <SpanDuration start={share(s.start)} end={share(s.start + s.duration)} ms={s.duration} />
           </div>
         </li>
       ))}
