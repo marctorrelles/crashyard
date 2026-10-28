@@ -68,7 +68,8 @@ helpers (`change`).
   busy, and its usual peaks don't. `checkEscalation` (the cron, hourly at :25, within its deadline): the hour just ended's
   issues with 10 or more in `event_hours` (by `event_hours_hour`), unresolved and not escalating, or ignored
   `until_escalating`, first seen over a day ago (a younger one is still new), 500 at most, 50 a batch: their 168 hours
-  before from `event_hours`; those that escalate get `escalating` (an ignored one opens), an `escalating` activity
+  before from `event_hours`; those that escalate get `escalating` (an ignored one opens; the update only takes an issue still as it was read, so one
+  resolved meanwhile stays resolved and gets no entry or notice), an `escalating` activity
   entry (`{ count, hour, wasIgnored }`) and an `escalating` notice with the hour's most common release, environment
   and level. Escalating issues with no `escalating` entry in 7 days go back to `ongoing` first (index
   `issues_escalating`). `escalation.test.ts` on `test/fakes.ts`.

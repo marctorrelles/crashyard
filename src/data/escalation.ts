@@ -99,21 +99,31 @@ export async function checkEscalation(db: D1Database, origin: string, now: numbe
       return escalating([...hours, c.n])
     })
     if (!escalated.length) continue
-    const marked = escalated.map(() => '?').join(',')
+    // Only those still as they were read: one resolved or ignored for good meanwhile stays so
+    const changed = new Set(
+      (
+        await db
+          .prepare(
+            `UPDATE issues SET status = 'unresolved', substatus = 'escalating', ignore_until = NULL,
+             ignore_until_count = NULL, ignore_until_users = NULL
+             WHERE id IN (SELECT value FROM json_each(?)) AND ((status = 'unresolved' AND IFNULL(substatus, '') != 'escalating')
+               OR (status = 'ignored' AND substatus = 'until_escalating'))
+             RETURNING id`,
+          )
+          .bind(JSON.stringify(escalated.map((c) => c.id)))
+          .all<{ id: number }>()
+      ).results.map((r) => r.id),
+    )
+    const opened = escalated.filter((c) => changed.has(c.id))
+    if (!opened.length) continue
     await db.batch([
-      db
-        .prepare(
-          `UPDATE issues SET status = 'unresolved', substatus = 'escalating', ignore_until = NULL,
-           ignore_until_count = NULL, ignore_until_users = NULL WHERE id IN (${marked})`,
-        )
-        .bind(...escalated.map((c) => c.id)),
-      ...escalated.map((c) =>
+      ...opened.map((c) =>
         db
           .prepare("INSERT INTO issue_activity (issue_id, kind, data, at) VALUES (?, 'escalating', ?, ?)")
           .bind(c.id, JSON.stringify({ count: c.n, hour, wasIgnored: c.status === 'ignored' }), now),
       ),
     ])
-    for (const c of escalated) {
+    for (const c of opened) {
       const t = tops.get(c.id)
       notices.push({
         kind: 'escalating',
