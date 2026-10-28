@@ -227,6 +227,20 @@ export async function changeIssues(db: D1Database, ids: number[], change: IssueC
             .bind(now, list(ids)),
         ]
       : []
+    // Their events first, a batch at a time: an issue's cascade to a million events runs past D1's limit for a
+    // statement and undoes itself. Out of time, the issues stay, and deleting again goes on
+    const deadline = Date.now() + 20_000
+    while (Date.now() < deadline) {
+      const gone = await db
+        .prepare(`DELETE FROM events WHERE rowid IN (SELECT rowid FROM events WHERE issue_id ${IN_LIST} LIMIT 1000)`)
+        .bind(list(ids))
+        .run()
+      if (!gone.meta.changes) break
+    }
+    if (Date.now() >= deadline)
+      throw new Error(
+        'Those issues have a lot of events, and only part of them are deleted. Delete them again to go on.',
+      )
     await db.batch([...discard, db.prepare(`DELETE FROM issues WHERE id ${IN_LIST}`).bind(list(ids))])
     return
   }

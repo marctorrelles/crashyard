@@ -34,7 +34,8 @@ helpers (`change`).
   (resolve, now, in the next release, in the current release (`current`: each issue's `last_release`, read first so
   the activity names it) or in a chosen one (`release`), the last two as `fixed_in_release`; ignore, for good, for N events or until a date; reopen; delete, and with
   `discard` first every fingerprint of the issues, their own and those merged into them, into
-  `discarded_fingerprints`, so ingest drops their events as filtered; each written to the
+  `discarded_fingerprints`, so ingest drops their events as filtered; their events go first, 1000 a statement, for
+  up to 20 seconds, else it throws and deleting again goes on; each written to the
   activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into
   the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
   `autoResolve` (the hourly cron, at :20): unresolved issues of a project with `auto_resolve_days`, last seen before
