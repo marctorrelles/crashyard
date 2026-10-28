@@ -313,12 +313,16 @@ export function BarList({
   // What's written beside a value instead of its count and share
   format?: (count: number) => string
 }) {
-  // Shown on hover where there's a pointer that hovers; always on touch
-  const action = 'max-sm:size-10 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100'
+  // With a pointer that hovers, Show only and Exclude float just above the row, at its end, taking no room: on hover
+  // or once tabbed to (the padding under them keeps the hover while the pointer moves up). On touch, + and − follow
+  // the row, always there. One track that never grows past the list, so a long value truncates
+  const actions = onInclude || onExclude
+  const above =
+    'pointer-fine:pointer-events-none pointer-fine:absolute pointer-fine:right-0 pointer-fine:bottom-full pointer-fine:z-20 pointer-fine:pb-1 pointer-fine:opacity-0 pointer-fine:transition-opacity pointer-fine:group-focus-within:pointer-events-auto pointer-fine:group-focus-within:opacity-100 pointer-fine:group-hover:pointer-events-auto pointer-fine:group-hover:opacity-100'
   return (
-    <ul className="grid gap-1">
+    <ul className="grid grid-cols-1 gap-1">
       {items.map((it) => (
-        <li key={it.value} className="group flex items-center gap-0.5 text-xs">
+        <li key={it.value} className="group relative flex items-center gap-0.5 text-xs">
           <div className="relative min-w-0 flex-1 overflow-hidden rounded-md">
             <div
               className="absolute inset-y-0 left-0 bg-muted"
@@ -333,29 +337,35 @@ export function BarList({
               </span>
             </div>
           </div>
-          {onInclude && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className={action}
-              aria-label={`Show only ${it.value}`}
-              title="Show only this"
-              onClick={() => onInclude(it.value)}
-            >
-              <IconPlus />
-            </Button>
-          )}
-          {onExclude && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className={action}
-              aria-label={`Exclude ${it.value}`}
-              title="Exclude this"
-              onClick={() => onExclude(it.value)}
-            >
-              <IconMinus />
-            </Button>
+          {actions && (
+            <div className={cn('shrink-0', above)}>
+              <div className="flex gap-0.5 pointer-fine:rounded-md pointer-fine:border pointer-fine:bg-popover pointer-fine:p-0.5 pointer-fine:shadow-md">
+                {onInclude && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="pointer-coarse:size-10 pointer-coarse:px-0"
+                    aria-label={`Show only ${it.value}`}
+                    onClick={() => onInclude(it.value)}
+                  >
+                    <IconPlus />
+                    <span className="pointer-coarse:sr-only">Show only</span>
+                  </Button>
+                )}
+                {onExclude && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="pointer-coarse:size-10 pointer-coarse:px-0"
+                    aria-label={`Exclude ${it.value}`}
+                    onClick={() => onExclude(it.value)}
+                  >
+                    <IconMinus />
+                    <span className="pointer-coarse:sr-only">Exclude</span>
+                  </Button>
+                )}
+              </div>
+            </div>
           )}
         </li>
       ))}

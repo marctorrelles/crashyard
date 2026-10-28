@@ -58,10 +58,12 @@
   tick that starts a day says its date); it draws inside `<ClientOnly>`, a `Skeleton` of its size before. Colours: a
   series' own, else `LEVEL_COLORS` by key, the same as `Level`'s dots (fatal red 600, error orange 500, warning and
   logs' warn amber 400, info sky 500, debug zinc 400, logs' trace fainter), else the theme's `--chart-n`; `PALETTE`, 8
-  colours for groups and projects; the legend wraps. `BarList`: values with a bar for their share, count and percent (or `format`'s text),
-  - (show only) and − (exclude) on hover, always shown on touch. `BigNumber`: a number, its label and its change (more
-    reads red, less green, the other way with `higherIsBetter`, none as rounded muted), `tone` amber or red past a
-    widget's thresholds, on the overview and dashboards.
+  colours for groups and projects; the legend wraps. `BarList`: values with a bar for their share, count and percent
+  (or `format`'s text), a long value truncated inside the list's width; with a pointer that hovers, Show only and
+  Exclude float in a small toolbar just above the row's end, taking no room, on hover or once tabbed to; on touch a + and
+  a − follow the row, always shown, 40 px.
+  `BigNumber`: a number, its label and its change (more reads red, less green, the other way with `higherIsBetter`,
+  none as rounded muted), `tone` amber or red past a widget's thresholds, on the overview and dashboards.
 - `widget.tsx`: a dashboard's widget. `WidgetCard` (title, dataset and group-by unless the title says just that,
   queries, each aggregate in words, `aggregateName`: "Unique users", "p95 of duration"; Open in view mode; draggable in edit mode, native HTML drag and drop onto another card), `WidgetView` (numbers
   with their change, in their unit, `formatValue`, the first one amber or red past its thresholds; unique users as a
