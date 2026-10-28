@@ -101,18 +101,17 @@ async function apply(
   nextDue: number | null,
 ): Promise<Notice | undefined> {
   const next = afterResult(monitor, ok)
+  // Paused while its check ran (the row was read up to the cron's deadline ago): left paused, nothing opened
   const statements = [
     env.DB.prepare(
-      'UPDATE monitors SET status = ?, failures = ?, successes = ?, next_due = ?, last_seen = ? WHERE id = ?',
+      "UPDATE monitors SET status = ?, failures = ?, successes = ?, next_due = ?, last_seen = ? WHERE id = ? AND status != 'paused'",
     ).bind(next.status, next.failures, next.successes, nextDue, now, monitor.id),
   ]
   if (next.change === 'down')
     statements.push(
-      env.DB.prepare('INSERT INTO incidents (monitor_id, opened_at, reason) VALUES (?, ?, ?)').bind(
-        monitor.id,
-        now,
-        reason,
-      ),
+      env.DB.prepare(
+        "INSERT INTO incidents (monitor_id, opened_at, reason) SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM monitors WHERE id = ? AND status != 'paused')",
+      ).bind(monitor.id, now, reason, monitor.id),
     )
   if (next.change === 'up')
     statements.push(
@@ -124,7 +123,8 @@ async function apply(
   // Recovering unmutes it, and says so
   if (next.change === 'up' && monitor.muted_at)
     statements.push(env.DB.prepare('UPDATE monitors SET muted_at = NULL WHERE id = ?').bind(monitor.id))
-  await env.DB.batch(statements)
+  const [updated] = await env.DB.batch(statements)
+  if (!updated.meta.changes) return undefined
   if (!next.change || (next.change === 'down' && monitor.muted_at)) return undefined
   const project = await env.DB.prepare('SELECT id, slug, name FROM projects WHERE id = ?')
     .bind(monitor.project_id)

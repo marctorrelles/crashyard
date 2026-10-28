@@ -202,14 +202,17 @@ export async function setPaused(db: D1Database, id: number, paused: boolean, now
     .first<{ kind: string; config: string }>()
   if (!m) return
   const nextDue = m.kind === 'uptime' ? now : dueAfter(JSON.parse(m.config) as CronConfig, now)
-  await db
-    .prepare(
-      paused
-        ? "UPDATE monitors SET status = 'paused' WHERE id = ?"
-        : "UPDATE monitors SET status = 'pending', failures = 0, successes = 0, muted_at = NULL, next_due = ? WHERE id = ?",
-    )
-    .bind(...(paused ? [id] : [nextDue, id]))
-    .run()
+  // Its open incident ends either way: a resumed monitor starts again from pending, and only failing closes one
+  await db.batch([
+    db
+      .prepare(
+        paused
+          ? "UPDATE monitors SET status = 'paused' WHERE id = ?"
+          : "UPDATE monitors SET status = 'pending', failures = 0, successes = 0, muted_at = NULL, next_due = ? WHERE id = ?",
+      )
+      .bind(...(paused ? [id] : [nextDue, id])),
+    db.prepare('UPDATE incidents SET closed_at = ? WHERE monitor_id = ? AND closed_at IS NULL').bind(now, id),
+  ])
 }
 
 export const deleteMonitor = (db: D1Database, id: number) =>

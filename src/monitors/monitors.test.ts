@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
 import { getMonitor } from '../data/monitors'
+import { setPaused } from '../data/monitors'
 import { afterResult, atPath, check, MAX_CRON_MONITORS, recordCheckIn, runMonitors } from './monitors'
 
 const m = (over: Partial<Parameters<typeof afterResult>[0]> = {}) => ({
@@ -215,6 +216,28 @@ describe('cron monitors', () => {
     await runMonitors(env, NOW, fetcher)
     expect(most).toBe(5)
     expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM uptime_results').get()).toEqual({ n: 8 })
+  })
+
+  it('stays paused when paused during its check, and pausing ends its incident', async () => {
+    const db = seeded()
+    const env = { DB: db }
+    const uptime = JSON.stringify({ url: 'https://example.com', intervalMinutes: 1 })
+    db.sqlite
+      .exec(`INSERT INTO monitors (id, project_id, slug, name, kind, config, status, failure_threshold, next_due, created_at)
+      VALUES (1, 1, 'u', 'U', 'uptime', '${uptime}', 'ok', 1, 0, 0)`)
+    const pausing = (async () => {
+      await setPaused(db, 1, true, NOW)
+      return new Response('', { status: 500 })
+    }) as unknown as typeof fetch
+    expect(await runMonitors(env, NOW, pausing)).toEqual([])
+    expect(db.sqlite.prepare('SELECT status FROM monitors').get()).toEqual({ status: 'paused' })
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM incidents').get()).toEqual({ n: 0 })
+    // Failing, then paused and resumed: the incident it had is over
+    await setPaused(db, 1, false, NOW)
+    await runMonitors(env, NOW, (async () => new Response('', { status: 500 })) as unknown as typeof fetch)
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM incidents WHERE closed_at IS NULL').get()).toEqual({ n: 1 })
+    await setPaused(db, 1, true, NOW + 1)
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM incidents WHERE closed_at IS NULL').get()).toEqual({ n: 0 })
   })
 
   it('makes at most MAX_CRON_MONITORS monitors from a project’s check-ins', async () => {

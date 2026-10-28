@@ -126,7 +126,7 @@ helpers (`change`).
   with none; `p95`, `p95Series` nearest rank, per hour over 24 hours for an uptime check's response times, per day
   over 30 days for a job's durations; `environments`; `errors`, the newest 20 events naming its slug in the
   `monitor.slug` tag, by `event_tags_lookup`, or in the trace of one of its last 200 check-ins, by `events_trace`),
-  making, changing, pausing (a resumed one starts again from pending, unmuted) and deleting; failing monitors for home.
+  making, changing, pausing (a resumed one starts again from pending, unmuted; pausing or resuming closes its open incident, which only failing closes otherwise) and deleting; failing monitors for home.
 - `performance.ts`: transactions over 1, 7 or 30 days by p95 (percentiles merged from the hourly histograms) with the
   change since the release before and `trend`, the p95 of each step (an hour in a day, 6 hours in a week, a day in 30;
   from the same read of `transaction_buckets`, grouped by the step too) (the project's two newest releases with

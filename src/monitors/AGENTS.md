@@ -38,6 +38,8 @@ Cron monitors (jobs that check in, Sentry's way) and uptime checks (URLs the wor
     among some, a header containing a value, a JSON path, `atPath` `$.a.b[0]`, whose value, a string or else its JSON,
     equals one; the first that fails is the error; a timeout). Headers, body and assertions live in `config`, beside
     the method and status, not in columns of their own.
+  - `apply` writes a result only while the monitor isn't paused (the cron read it before its check ran), and sends
+    nothing when it was.
   - `afterResult`: failures and successes in a row against the monitor's thresholds (Sentry's
     `failure_issue_threshold`, `recovery_threshold`; uptime checks default to two failures). Crossing one opens or
     closes an incident and sends `monitor_down` or `monitor_up` through the routes.
