@@ -7,7 +7,7 @@ server, the build, or `tsr generate`): never edit it.
   `savePreference` sets, and `getSidebar`, the root's loader, sets from the saved preference when they differ, so a
   new browser has it from its second page), else as the system is: a script sets `.dark` before paint and when the system changes. It
   puts the theme, the `style` cookie (kept the same way), on `<html data-style>`; none is Hazard, `:root`. The
-  same script keeps the browser's time zone in the `tz` cookie, so the server writes times in it. The viewport covers the notch (`viewport-fit=cover`). It also has the error and not-found
+  same script keeps the browser's time zone in the `tz` cookie, so the server writes times in it. The viewport covers the notch (`viewport-fit=cover`). It links `public/manifest.webmanifest` and the home screen icon, so the dashboard installs as an app, except on a status page, which is the public's. It also has the error and not-found
   pages. Its loader is the sidebar's (projects, the one last picked, folded or not, who's signed in, their
   `preferences` and `zone`: the chosen time zone, else the `tz` cookie's, else UTC on a first visit) and its component
   is `Layout` (`src/components/shell.tsx`). The lists (`/`, dashboards and each dashboard, issues, releases,

@@ -14,17 +14,29 @@ const THEME_SCRIPT = `(function(){var d=document.documentElement,c=document.cook
 export const Route = createRootRoute({
   // The sidebar: the projects, the one picked last, folded or not; the viewer's preferences and time zone
   loader: () => getSidebar(),
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
-      { title: 'crashyard' },
-    ],
-    links: [
-      { rel: 'stylesheet', href: appCss },
-      { rel: 'icon', type: 'image/svg+xml', href: favicon },
-    ],
-  }),
+  // The dashboard installs as an app (public/manifest.webmanifest); a status page doesn't offer to, it's the public's
+  head: ({ matches }) => {
+    const app = !matches.some((m) => m.pathname.startsWith('/status/'))
+    return {
+      meta: [
+        { charSet: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+        { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#F2F3F6' },
+        { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#0D1013' },
+        { title: 'crashyard' },
+      ],
+      links: [
+        { rel: 'stylesheet', href: appCss },
+        { rel: 'icon', type: 'image/svg+xml', href: favicon },
+        ...(app
+          ? [
+              { rel: 'manifest', href: '/manifest.webmanifest' },
+              { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+            ]
+          : []),
+      ],
+    }
+  },
   shellComponent: RootDocument,
   // Signed out, only the sign-in pages and status pages open (src/server.ts), on their own without the sidebar; a
   // status page has none for anyone, as the public sees it
