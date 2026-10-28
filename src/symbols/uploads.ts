@@ -5,7 +5,9 @@ import { unzipSync, strFromU8 } from 'fflate'
 import type { Symbolic } from './symcache'
 
 export const CHUNK_SIZE = 8 * 1024 * 1024
-export const MAX_FILE = 256 * 1024 * 1024
+// ponytail: what a 128 MB isolate can assemble: the file, then its copy in the Wasm module that makes the SymCache.
+// Larger needs the file streamed into the module instead of held whole
+export const MAX_FILE = 48 * 1024 * 1024
 
 export const chunkKey = (sha1: string) => `chunks/${sha1}`
 
@@ -26,20 +28,25 @@ export async function joinChunks(
   chunks: string[],
   checksum: string,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const parts = await Promise.all(
+  // Sizes first, then each chunk read into its place: the file is held once, not beside a copy of every chunk
+  const objects = await Promise.all(
     chunks.map(async (c) => {
-      const object = await files.get(chunkKey(c))
+      const object = await files.head(chunkKey(c))
       if (!object) throw new Error(`chunk ${c} is gone`)
-      return new Uint8Array(await object.arrayBuffer())
+      return object
     }),
   )
-  const size = parts.reduce((n, p) => n + p.length, 0)
+  const size = objects.reduce((n, o) => n + o.size, 0)
   if (size > MAX_FILE) throw new Error('file too large')
   const file = new Uint8Array(size)
   let at = 0
-  for (const p of parts) {
-    file.set(p, at)
-    at += p.length
+  for (const c of chunks) {
+    const object = await files.get(chunkKey(c))
+    if (!object) throw new Error(`chunk ${c} is gone`)
+    const part = new Uint8Array(await object.arrayBuffer())
+    if (at + part.length > size) throw new Error('the chunks don’t add up to the checksum')
+    file.set(part, at)
+    at += part.length
   }
   if ((await sha1(file)) !== checksum) throw new Error('the chunks don’t add up to the checksum')
   return file
