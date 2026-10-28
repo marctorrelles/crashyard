@@ -214,7 +214,8 @@ function summary(c: Channel) {
   if (c.kind === 'email') return `email · ${config.to}`
   if (config.format === 'slack') return 'Slack'
   if (config.format === 'discord') return 'Discord'
-  return `JSON webhook · ${new URL(config.url).host}`
+  // Below admin the address isn't sent (getNotifications), so there's no host to show
+  return config.url ? `JSON webhook · ${new URL(config.url).host}` : 'JSON webhook'
 }
 
 // Quiet hours are kept in a time zone, the viewer's (chosen, else the browser's) when they're saved. A channel saved
