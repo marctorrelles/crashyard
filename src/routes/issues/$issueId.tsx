@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { IconChevronLeft, IconChevronRight, IconGitCommit, IconGitMerge, IconTrash } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Ago, count, Level } from '@/components/bits'
 import { Time } from '@/components/time'
@@ -391,12 +391,16 @@ function Events({ d, current }: { d: Data; current?: string }) {
   const [found, setFound] = useState<{ id: string; received: number; release?: string; environment?: string }[] | null>(
     null,
   )
+  // The latest search only: an answer to one typed before it, arriving after, is dropped
+  const latest = useRef(0)
   if (d.events.length < 2 && found === null) return null
   const search = async (q: string) => {
+    const asked = ++latest.current
     setQuery(q)
     if (!q.trim()) return setFound(null)
     try {
       const r = await getIssueEvents({ data: { issue: d.issue.id, query: q, columns: ['release', 'environment'] } })
+      if (asked !== latest.current) return
       setFound(
         r.rows.map((e) => ({
           id: e.id,
@@ -406,6 +410,7 @@ function Events({ d, current }: { d: Data; current?: string }) {
         })),
       )
     } catch (error) {
+      if (asked !== latest.current) return
       toast.error(error instanceof Error ? error.message : 'That search didn’t work. Check it and try again.')
     }
   }

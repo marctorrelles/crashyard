@@ -79,7 +79,7 @@ server, the build, or `tsr generate`): never edit it.
   newer), Suspect commits under the stack (sha linked through `commitUrl`, message, author, when, the files), Similar
   issues, each with Merge into this issue (a confirmation, then `mergeIssues` with this one first), tags' top values with their share (for a key the grammar can write, + and − open the project's unresolved
   issues with or without that value), events (the latest, and a `SearchBar` of scope `events` that searches this
-  issue's events through `getIssueEvents`, the newest 50 that match), feedback, activity and notes.
+  issue's events through `getIssueEvents`, the newest 50 that match, an answer to a search typed before the last dropped), feedback, activity and notes.
 - `releases.tsx`: releases, a section per project for every project, each with its adoption stage, and on a desktop
   its adoption, sessions, users and crash-free users (crash-free sessions under its issues); sorted by `?sort=`
   (sessions, users, adoption, crashFree, crashFreeUsers, highest first, a release without the number last; newest
