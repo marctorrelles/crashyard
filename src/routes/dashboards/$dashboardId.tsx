@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
 import { SearchBar } from '@/components/search-bar'
-import { Empty, PageHeader, Shell, useProjects } from '@/components/shell'
+import { Empty, Loader, PageHeader, Shell, useProjects } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -448,7 +448,10 @@ function History({ id, now, onClose }: { id: number; now: number; onClose: () =>
           <DialogDescription>The widgets this dashboard had before each of its last 10 saves.</DialogDescription>
         </DialogHeader>
         {list === null ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">Loading…</p>
+          <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+            <Loader />
+            Loading…
+          </p>
         ) : list.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
             Nothing yet. Each save keeps the widgets it replaced here.

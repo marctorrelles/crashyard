@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Ago, count } from '@/components/bits'
+import { Loader } from '@/components/shell'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { changeIssues, getMergedFingerprints, mergeIssues, unmergeIssue } from '@/fns'
@@ -382,7 +383,10 @@ export function UnmergeDialog({
           </DialogDescription>
         </DialogHeader>
         {!list ? (
-          <p className="text-sm text-muted-foreground">Loading what was merged…</p>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader />
+            Loading what was merged…
+          </p>
         ) : (
           <RadioGroup value={chosen} onValueChange={setChosen} className="max-h-80 overflow-auto">
             {list.map((f) => (

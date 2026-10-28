@@ -8,7 +8,7 @@ import { Time } from '@/components/time'
 import { Beats, incidentReason, MonitorStatus } from '@/components/beats'
 import { Code } from '@/components/linking'
 import { type Editing, MonitorForm } from '@/components/monitor-form'
-import { PageHeader, Shell } from '@/components/shell'
+import { Loader, PageHeader, Shell } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import { deleteMonitor, getMonitor, pauseMonitor } from '@/fns'
 import { cn } from '@/lib/utils'
@@ -242,7 +242,10 @@ function MonitorPage() {
           </div>
           {d.checkins.length === 0 && (
             <div className="grid gap-2">
-              <p className="text-sm">Waiting for the first check-in. Send one from the job with a Sentry SDK:</p>
+              <p className="flex items-center gap-2 text-sm">
+                <Loader />
+                Waiting for the first check-in. Send one from the job with a Sentry SDK:
+              </p>
               <Code
                 text={`const id = Sentry.captureCheckIn({ monitorSlug: '${m.slug}', status: 'in_progress' })
 // … the job …

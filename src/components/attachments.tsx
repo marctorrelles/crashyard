@@ -4,6 +4,7 @@ import { IconChevronRight, IconDownload, IconFile } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Loader } from '@/components/shell'
 
 export type Attachment = { id: number; filename: string; size: number; image: boolean }
 
@@ -111,7 +112,12 @@ function ViewHierarchy({ attachment: a }: { attachment: Attachment }) {
         Show view hierarchy
       </summary>
       <div className="mt-1 max-h-96 overflow-auto rounded-lg border bg-muted/30 py-2 font-mono text-xs">
-        {state === 'loading' && <p className="px-3 text-muted-foreground">Loading…</p>}
+        {state === 'loading' && (
+          <p className="flex items-center gap-2 px-3 text-muted-foreground">
+            <Loader />
+            Loading…
+          </p>
+        )}
         {state === 'error' && (
           <p className="px-3 text-muted-foreground">This file isn’t a view hierarchy crashyard can read.</p>
         )}

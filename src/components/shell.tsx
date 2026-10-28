@@ -343,6 +343,7 @@ function ProjectSwitcher({
   onPick: () => void
 }) {
   const navigate = useNavigate()
+  const loading = usePageLoading()
   const pick = (slug?: string) => {
     onPick()
     keep(slug ?? null)
@@ -371,7 +372,11 @@ function ProjectSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" tooltip="Switch project">
               <span className="flex size-8 shrink-0 items-center justify-center">
-                <Logo />
+                {loading ? (
+                  <Loader className="size-8! shrink-0 text-sidebar-foreground group-data-[collapsible=icon]:size-5!" />
+                ) : (
+                  <Logo />
+                )}
               </span>
               <span className="grid min-w-0 flex-1 text-left leading-tight">
                 <span className="font-semibold tracking-tight">crashyard</span>
@@ -413,11 +418,14 @@ function ProjectSwitcher({
 }
 
 // The c of crashyard: one band drawn round three times, folding back at the mouth, every end and fold cut square on
-// the mouth's two lines (the tiled drawings are docs/images/logo.svg and src/favicon.svg). 32 px, as tall as the name
-// and project beside it, 20 folded to icons, over the menu button's 16 px for every svg; in the sidebar's colour,
-// which isn't always the page's
+// the mouth's two lines (the tiled drawings are docs/images/logo.svg and src/favicon.svg). MARK is its outline; LINE
+// its centreline, which stroked 2 wide with butt caps and miter joins covers exactly the outline, so the loader draws
+// the same mark. 32 px, as tall as the name and project beside it, 20 folded to icons, over the menu button's 16 px
+// for every svg; in the sidebar's colour, which isn't always the page's
 const MARK =
   'M19.73 5.04A10.4 10.4 0 1 0 19.73 18.96L15.94 15.55A5.3 5.3 0 1 1 14.31 7.23L13.41 8.04A4.2 4.2 0 1 0 15.12 14.81L13.63 13.47A2.2 2.2 0 1 1 13.63 10.53L17.42 7.12A7.3 7.3 0 1 0 15.88 18.18L16.72 18.95A8.4 8.4 0 1 1 18.24 6.38Z'
+const LINE =
+  'M18.99 5.71A9.4 9.4 0 1 0 18.28 19L15.95 16.91A6.3 6.3 0 1 1 15.95 7.09L13.59 9.22A3.2 3.2 0 1 0 14.38 14.14'
 
 /** crashyard's mark, the sidebar's size and colour unless told otherwise */
 export function Logo({
@@ -430,6 +438,49 @@ export function Logo({
       <path d={MARK} />
     </svg>
   )
+}
+
+/** The mark drawing itself and taking itself away again, for as long as something loads (`.cy-draw` in styles.css) */
+export function Loader({ className = 'size-4 shrink-0 text-muted-foreground' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path
+        d={LINE}
+        pathLength={1}
+        className="cy-draw"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="butt"
+        strokeLinejoin="miter"
+      />
+    </svg>
+  )
+}
+
+/** A page whose loader is taking over a second (the router's pending component): the loader in the middle */
+export function PagePending() {
+  return (
+    <div role="status" className="grid min-h-[60svh] place-items-center">
+      <Loader className="size-12 text-muted-foreground" />
+      <span className="sr-only">Loading</span>
+    </div>
+  )
+}
+
+// A page on its way: true once the router has been loading for 300 ms, so a quick one never flickers
+function usePageLoading() {
+  const loading = useRouterState({ select: (s) => s.isLoading })
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    if (!loading) return
+    const timer = setTimeout(() => setShown(true), 300)
+    return () => {
+      clearTimeout(timer)
+      setShown(false)
+    }
+  }, [loading])
+  return loading && shown
 }
 
 /** A page's title row: the title, what it's about, and its actions at the end (below it on a phone) */
