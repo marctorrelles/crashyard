@@ -1,5 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { useState } from 'react'
 import { ReadOnly, SET_IN_WRANGLER, SettingsCard } from '@/components/settings'
+import { UpdateDialog } from '@/components/update'
 import { getInstanceSettings } from '@/fns'
 
 export const Route = createFileRoute('/settings/general')({
@@ -8,11 +10,14 @@ export const Route = createFileRoute('/settings/general')({
   component: General,
 })
 
+const root = getRouteApi('__root__')
 const DOCS = 'https://github.com/marctorrelles/crashyard/blob/main/docs'
 
 // Where crashyard is reached, its version and its docs
 function General() {
   const { origin, publicUrl, version, update } = Route.useLoaderData()
+  const { role } = root.useLoaderData()
+  const [updating, setUpdating] = useState(false)
   const link = 'font-medium underline underline-offset-2'
   return (
     <>
@@ -27,21 +32,24 @@ function General() {
             label="Version"
             value={version}
             note={
-              update ? (
-                <>
-                  {update.version} is available.{' '}
-                  <a href={update.url} className={link}>
-                    See what’s new
-                  </a>{' '}
-                  or{' '}
-                  <a href={`${DOCS}/upgrading.md`} className={link}>
-                    how to upgrade
-                  </a>
-                  .
-                </>
-              ) : (
-                'This is the newest release.'
-              )
+              <>
+                {update ? (
+                  <>
+                    {update.version} is available.{' '}
+                    <a href={update.url} className={link}>
+                      See what’s new
+                    </a>
+                  </>
+                ) : (
+                  'This is the newest release.'
+                )}{' '}
+                {role === 'owner' && (
+                  <button type="button" className={link} onClick={() => setUpdating(true)}>
+                    {update ? 'Update' : 'Automatic updates'}
+                  </button>
+                )}
+                <UpdateDialog open={updating} onOpenChange={setUpdating} />
+              </>
             }
           />
         </div>

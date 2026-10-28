@@ -24,11 +24,12 @@ import * as status from './data/status'
 import * as suggestions from './data/suggest'
 import * as suspectsData from './data/suspects'
 import * as tokens from './data/tokens'
-import * as updates from './data/updates'
 import * as widgets from './data/widgets'
 import { PRIORITIES, type Priority } from './ingest/priority'
 import { FILTER_LISTS, FILTER_SWITCHES, type Filters } from './ingest/filters'
 import { sentryTarget } from './ingest/forward'
+import * as updates from './update/check'
+import * as installs from './update/install'
 import { parseGroupingRules } from './ingest/rules'
 import { botIdOf, telegramCall, telegramChats, telegramToken, type TelegramConfig } from './notify/channels'
 import { type Metric, METRICS, metricQueryError, WINDOW_HOURS } from './notify/metrics'
@@ -116,7 +117,6 @@ const nullableJson = (v: unknown) => (v === null ? null : json(v))
 export const getOverview = createServerFn().handler(async () => ({
   ...(await projects.overview(env.DB, Date.now())),
   failing: await monitors.failingMonitors(env.DB),
-  update: await updates.update(),
 }))
 
 // The overview's charts: 30 days of events per project, new and resolved issues per day, crash-free per release;
@@ -154,14 +154,17 @@ export const getSidebar = createServerFn().handler(async () => {
       name: null,
       role: null,
       sidebarOpen: true,
+      update: null,
       preferences: settings.PREFERENCES,
       zone: browserZone && ZONES.has(browserZone) ? browserZone : 'UTC',
     }
   const userId = Number(getRequestHeader('x-crashyard-user'))
-  const [list, preferences, user] = await Promise.all([
+  const [list, preferences, user, update] = await Promise.all([
     projects.allProjects(env.DB),
     settings.getPreferences(env.DB, viewer()),
     userId ? people.userById(env.DB, userId) : null,
+    // Owners deploy it, so only they see a newer crashyard
+    people.reaches(role()!, 'owner') ? updates.update() : null,
   ])
   // The theme is the viewer's, the cookies the browser's: a browser that hasn't seen it yet gets it, from its next page
   if ((getCookie('theme') ?? 'system') !== preferences.theme) setThemeCookie('theme', preferences.theme)
@@ -173,6 +176,7 @@ export const getSidebar = createServerFn().handler(async () => {
     name: user?.name ?? null,
     role: role(),
     sidebarOpen: getCookie('sidebar_state') !== 'false',
+    update,
     preferences,
     zone: preferences.timeZone ?? (browserZone && ZONES.has(browserZone) ? browserZone : 'UTC'),
   }
@@ -1420,6 +1424,64 @@ export const getInstanceSettings = createServerFn().handler(async () => {
     update,
   }
 })
+
+// Updates, for owners: the newest release, whether it installs from here, the Cloudflare connection and the daily check
+export const getUpdate = createServerFn()
+  .middleware([owner])
+  .handler(async () => {
+    const [update, connection, auto, failed, plan] = await Promise.all([
+      updates.update(),
+      settings.getSetting<installs.Connection | null>(env.DB, installs.CONNECTION_KEY, null),
+      settings.getSetting(env.DB, installs.AUTO_KEY, false),
+      settings.getSetting<{ version: string; message: string; at: number } | null>(env.DB, installs.FAILED_KEY, null),
+      (await import('./data/plan')).planOf(env.DB, Date.now()),
+    ])
+    return {
+      version,
+      update,
+      refusal: update && installs.refusal(update, null, null, !!env.SYMCACHE_BUILDER),
+      script: connection?.script ?? null,
+      auto,
+      failed,
+      paid: plan?.paid ?? null,
+    }
+  })
+
+export const connectCloudflare = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const token = text(o.token, 200, 'The API token').trim()
+    const script = text(o.script, 63, 'The Worker name').trim()
+    if (!token) throw new Error('Paste the API token first.')
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(script)) throw new Error('A Worker name is lowercase letters, digits and dashes.')
+    return { token, script }
+  })
+  .handler(({ data }) => installs.connect(env.DB, data.token, data.script, viewer()))
+
+export const disconnectCloudflare = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .handler(async () => {
+    await env.DB.prepare('DELETE FROM settings WHERE key IN (?, ?)')
+      .bind(installs.CONNECTION_KEY, installs.AUTO_KEY)
+      .run()
+  })
+
+export const setAutoUpdate = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .validator((d: unknown) => ({ on: object(d).on === true }))
+  .handler(async ({ data }) => {
+    await settings.setSetting(env.DB, installs.AUTO_KEY, data.on, viewer())
+  })
+
+export const installUpdate = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .handler(async () => {
+    const update = await updates.update()
+    if (!update) throw new Error('This is already the newest release.')
+    await installs.install(env, update, Date.now())
+    return { version: update.version }
+  })
 
 export const saveProjectDefaults = createServerFn({ method: 'POST' })
   .middleware([admin])

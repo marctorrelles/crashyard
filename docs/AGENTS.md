@@ -13,7 +13,8 @@ updates it in the same commit.
 - `sentry-compatibility.md`: what of Sentry's SDKs, envelope items, API and CLI works, is partial or ignored, and
   against which versions it was checked. A change to ingest or `src/api/sentry.ts` updates it.
 - `architecture.md`: the worker, D1, R2, the cron and the ingest paths, as one diagram (Mermaid) and a line each.
-- `upgrading.md`: pulling a release into a clone or a button deployment, and rolling back.
+- `upgrading.md`: installing a release from the dashboard (once or daily), pulling one into a clone or a button
+  deployment, the SymCache builder's releases, and rolling back.
 - `images/`: the README's pictures (`pnpm seed`, then the issues list at 1280 × 800, 2×, light and dark, as JPEG).
 - `decisions/`: one short file per big choice (`NNNN-title.md`): the context, the decision, what it costs. Add one for
   any choice a contributor might otherwise argue against.

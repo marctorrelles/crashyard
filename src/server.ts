@@ -296,6 +296,10 @@ async function everyMinute(env: Env, now: number) {
     await job('auto-resolve', async () => (await import('./data/issues')).autoResolve(env.DB, now, deadline))
     await job('notification failures', () => pruneFailures(env.DB, now))
   }
+  // Daily from 03:40 UTC, where an owner turned it on: the newest release installed (src/update/install.ts)
+  const day = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate(), 3, 40)
+  if (await due('update', day, 20 * HOUR))
+    await job('update', async () => (await import('./update/install')).autoUpdate(env, now))
   // Last, with what time is left: envelopes that failed in their request, tried again
   await job('retries', async () => (await import('./ingest/retry')).retryPending(env, now, deadline))
 }

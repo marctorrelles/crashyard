@@ -38,7 +38,7 @@ server, the build, or `tsr generate`): never edit it.
   data centre's cache (`publicStatusPage` in `src/server.ts`), so visitors and open tabs don't each read 30 days of
   results. Made and filled under Monitors, Status pages. On a page's own domain
   (`src/server.ts`) it's the same page, `/` redirecting to it.
-- `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
+- `index.tsx`: the overview: projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
   24 hours and monitors failing as numbers, events per day per project (stacked areas), issues new and resolved per day
   (bars side by side) and crash-free per release (`getOverviewCharts`, 30 days or `?days=14|90`, loaded with the
@@ -107,7 +107,7 @@ server, the build, or `tsr generate`): never edit it.
   project's `keys` to Connect at Client keys, `debug-files` and `source` to Stack traces, `limits` and `filters` to
   Events, `import` to Sentry, `status-page` to Monitors), anything else a 404.
   The deployment's pages, the group "crashyard": `general` (the public URL, read-only, saying it's set in
-  `wrangler.local.json`; the version and a newer release; the docs), `people` (owners only, and only listed for them:
+  `wrangler.local.json`; the version and a newer release, with Update, or Automatic updates when there's none, opening `UpdateDialog` for owners; the docs), `people` (owners only, and only listed for them:
   everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove after a
   confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the invites
   waiting, each with Withdraw invite; Sign in with GitHub: an optional organization and Add Sign in with GitHub,

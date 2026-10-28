@@ -13,7 +13,7 @@
   nothing wider than the screen) and in light and dark.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
   pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications, and at
-  the foot Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`), `Shell` (a page: the top bar with the
+  the foot, for owners while a newer crashyard is out, Update available (tinted, unlike the pages' grey hover; it opens `UpdateDialog`), Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists, `full` for settings: from the sidebar's edge, not centred), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
   section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). `Logo`: the mark, one path (its tiled drawings are `docs/images/logo.svg`, the README's, and `src/favicon.svg`). `Loader`, the sidebar's logo once a page has been loading 300 ms: the mark's centreline, from whole, taken away from its start and drawn back, 3.6 s a round (`.cy-draw` in `src/styles.css`, still with reduced motion); a round always ends, whole again, before it turns back into the logo. The only loader of its kind: elsewhere a Loading… line has Tabler's `IconLoader2` spinning, and charts keep their skeletons. The lists (overview, dashboards, issues, Explore, releases, performance, logs)
@@ -135,6 +135,11 @@
   check's line, a tick or an amber warning, on Usage and Health), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also Defaults for new projects), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
+- `update.tsx`: `UpdateDialog`, for owners, loading `getUpdate` each time it opens: Automatically (Connect Cloudflare,
+  an API token and the Worker's name, `crashyard` by default; once connected, Install <version> unless `refusal` says
+  it needs a deploy, then a reload; the daily switch; the daily check's last failure; Disconnect), and Manually (the
+  clone's three commands, the button copy's tag merge, the builder's Docker line when the update changes it, the
+  upgrading guide). Installing from here needs Workers Paid, so on Free both are disabled with a line saying so.
 - `markdown.tsx`: `Markdown` (no library: paragraphs, line breaks, `**bold**`, http and https links, lists of `-`,
   `*` or `1.`; nothing else, as React elements, no HTML), for markdown widgets and status page posts.
 - `plan.tsx`: `usePlan` (the Workers plan from `getPlan` after the page loads, undefined meanwhile, null when it

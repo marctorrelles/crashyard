@@ -48,7 +48,7 @@ flowchart LR
 - **The scheduled task**, `scheduled` in `src/server.ts`. Every minute it runs uptime checks and looks for missed
   check-ins, in `src/monitors/`, sends alerts held through quiet hours, and tries again the envelopes that failed. Every 5 minutes it checks metric alerts, and every hour
   it looks for slower releases and deletes data past its retention. On Mondays at 07:00 UTC it sends the weekly
-  summary. Every run stops within 40 seconds, and envelopes to try again come last.
+  summary, and each day at 03:40 UTC it installs a newer release, if an owner turned that on, from `src/update/`. Every run stops within 40 seconds, and envelopes to try again come last.
 - **Search**, in `src/search/`. Sentry's query syntax is turned into parameterized SQL, with FTS5 for free text.
 
 The reasons behind these choices are in [decisions/](decisions/).

@@ -143,8 +143,6 @@ helpers (`change`).
   `checkSlowerReleases` (the cron, hourly at :05: a p95 50% longer in the newest release than the one before, 50
   transactions in each at least, told once via `slower_releases`); `prunePerformance` (the hourly cron: summaries after
   90 days, vital buckets too, examples after 30, held spans after a day).
-- `updates.ts`: whether a newer crashyard is out, from the repo's latest GitHub release, asked once a day through
-  the Cache API, for home's banner; nothing about the deployment is sent.
 - `suggest.ts`: the search bar's keys and values from what's stored. Issues: tag keys by how many issues have them, a
   key's values by events (`issue_tag_values`, index `issue_tag_values_key_value`), `type`, `platform` and the release
   columns from `issues`, `project` from the projects; logs: attribute keys and values, `release` and `environment`,

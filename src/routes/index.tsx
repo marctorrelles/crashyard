@@ -45,7 +45,7 @@ function Home() {
   const data = Route.useLoaderData()
   const { project, days } = Route.useSearch()
   const navigate = useNavigate()
-  const { update, now } = data
+  const { now } = data
   const only = <T,>(list: T[], slug: (t: T) => string) => (project ? list.filter((t) => slug(t) === project) : list)
   const projects = only(data.projects, (p) => p.slug)
   const newIssues = only(data.newIssues, (i) => i.project)
@@ -59,22 +59,6 @@ function Home() {
   return (
     <Shell crumbs={name ? [<Link to="/">Overview</Link>, name] : ['Overview']}>
       <PageHeader title="Overview" actions={projects.length > 0 && <NewProject variant="outline" />} />
-      {update && (
-        <p className="mb-4 rounded-xl border bg-muted/40 px-4 py-2.5 text-sm">
-          crashyard {update.version} is available. You’re on {update.current}.{' '}
-          <a href={update.url} className="font-medium underline underline-offset-2">
-            See what’s new
-          </a>{' '}
-          or{' '}
-          <a
-            href="https://github.com/marctorrelles/crashyard/blob/main/docs/upgrading.md"
-            className="font-medium underline underline-offset-2"
-          >
-            how to upgrade
-          </a>
-          .
-        </p>
-      )}
       {projects.length === 0 ? (
         <Empty icon={IconApps} title="No projects yet" action={<NewProject />}>
           Create a project for each app, then give its Sentry SDK the DSN. Crashes start arriving on the next launch.

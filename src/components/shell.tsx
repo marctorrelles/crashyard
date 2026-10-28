@@ -4,6 +4,7 @@
 import { getRouteApi, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   IconActivity,
+  IconCircleArrowUp,
   IconBell,
   IconBug,
   IconCheck,
@@ -59,6 +60,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { UpdateDialog } from '@/components/update'
 import { cn } from '@/lib/utils'
 
 const root = getRouteApi('__root__')
@@ -187,10 +189,11 @@ const SignedIn = ({ name, email }: { name: string | null; email: string | null }
 )
 
 function AppSidebar() {
-  const { viewer, name } = root.useLoaderData()
+  const { viewer, name, update } = root.useLoaderData()
   const { page, projects, project, keep } = useCurrentProject()
   const { setOpenMobile } = useSidebar()
   const close = () => setOpenMobile(false)
+  const [updating, setUpdating] = useState(false)
   const search = { project: project?.slug }
   const at = (...paths: string[]) => paths.some((p) => page.path === p || page.path.startsWith(`${p}/`))
   return (
@@ -277,6 +280,25 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          {update && (
+            <SidebarMenuItem>
+              {/* Tinted, unlike the pages above, whose hover is grey: it's news, not a place */}
+              <SidebarMenuButton
+                tooltip={`crashyard ${update.version} is available`}
+                className="h-auto bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary active:bg-primary/25 active:text-primary"
+                onClick={() => setUpdating(true)}
+              >
+                <IconCircleArrowUp />
+                <span className="grid min-w-0 leading-tight">
+                  <span className="font-medium">Update available</span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">
+                    {update.current} → {update.version}
+                  </span>
+                </span>
+              </SidebarMenuButton>
+              <UpdateDialog open={updating} onOpenChange={setUpdating} />
+            </SidebarMenuItem>
+          )}
           <Item label="Settings" icon={IconSettings} active={at('/settings')}>
             {(c) => (
               <Link to="/settings" onClick={close}>

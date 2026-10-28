@@ -12,7 +12,7 @@ pnpm check               # lint, format, types, knip, tests, build: run it befor
 pnpm test                # vitest, in seconds
 pnpm seed                # a month of made-up crashes in the local database
 pnpm cf-typegen          # worker-configuration.d.ts from wrangler.jsonc, after changing it
-pnpm run deploy          # build, apply migrations to the remote D1, deploy
+pnpm run deploy          # build, refuse a version older than the dashboard installed, apply migrations, deploy
 ```
 
 Where things are:
@@ -26,7 +26,7 @@ Where things are:
   notifications, each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
   slower releases; every 5 minutes at :02, :07…, metric alerts; Mondays at 07:00 UTC, each project's week; hourly at
   :15, retention; hourly at :20, auto-resolve and notification failures past 30 days; hourly at :25, escalation;
-  envelopes to try again last. A job of an hour or a week runs once in its period from its minute on (`claimRun`, `cron.job.<name>` in `settings`,
+  daily from 03:40 UTC, the automatic update, where an owner turned it on; envelopes to try again last. A job of an hour or a week runs once in its period from its minute on (`claimRun`, `cron.job.<name>` in `settings`,
   one upsert), so a minute Cloudflare skipped or ran late is made up by the next, within a grace (a first deploy
   mid-week sends no week's summary). The jobs share one deadline, 40 seconds from the start, `CRON_BUDGET`: each takes
   what's left, and one with under 2 seconds left waits for the next minute). In local dev only, `/__dev/sql`,
@@ -45,6 +45,7 @@ Where things are:
 - `src/data/`: the dashboard's SQL (see its AGENTS.md).
 - `src/search/`: Sentry's search syntax, as SQL (see its AGENTS.md).
 - `src/symbols/`: uploads and readable stacks (see its AGENTS.md).
+- `src/update/`: whether a newer crashyard is out, and installing it from the dashboard (see its AGENTS.md).
 - `src/monitors/`: cron check-ins, uptime checks, incidents (see its AGENTS.md).
 - `src/performance/`: transactions and sessions, summarised at ingest (see its AGENTS.md).
 - `symcache/`: Sentry's symbolic, in Rust, built to `src/symbols/symcache.wasm`, and natively for the SymCache
@@ -64,7 +65,8 @@ Where things are:
   which `vite.config.ts` lays over it, and so is the optional SymCache builder's container (Workers Paid, Docker to
   deploy; `CONTAINERS=1 pnpm dev` runs it locally).
 - `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
-  three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root), issue
+  three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root; a
+  release gets its build, `scripts/release-bundle.mjs`, and a line in its notes when it changes `symcache/`), issue
   and PR templates, Dependabot. Actions are pinned by commit SHA.
 - `tmp/`: plans and scratch notes, git-ignored. Never commit plans.
 

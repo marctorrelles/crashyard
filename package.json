@@ -16,7 +16,7 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite build && vite preview",
-    "deploy": "vite build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "deploy": "vite build && node scripts/deploy-guard.mjs && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm knip && pnpm test && pnpm build",
     "lint": "eslint .",
     "format": "prettier --write .",
