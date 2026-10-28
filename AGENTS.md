@@ -26,7 +26,9 @@ Where things are:
   notifications, each job apart so one that throws doesn't stop the rest; its heartbeat first, `cron.last_run` in `settings`; hourly,
   slower releases; every 5 minutes at :02, :07…, metric alerts; Mondays at 07:00 UTC, each project's week; hourly at
   :15, retention; hourly at :20, auto-resolve and notification failures past 30 days; hourly at :25, escalation;
-  envelopes to try again last. The jobs share one deadline, 40 seconds from the start, `CRON_BUDGET`: each takes
+  envelopes to try again last. A job of an hour or a week runs once in its period from its minute on (`claimRun`, `cron.job.<name>` in `settings`,
+  one upsert), so a minute Cloudflare skipped or ran late is made up by the next, within a grace (a first deploy
+  mid-week sends no week's summary). The jobs share one deadline, 40 seconds from the start, `CRON_BUDGET`: each takes
   what's left, and one with under 2 seconds left waits for the next minute). In local dev only, `/__dev/sql`,
   `/__dev/cron` and `/__dev/tail` let the end-to-end tests reach the database, run the cron and send Worker runs.
 - `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside sign-in, and the MCP server, inside (see its

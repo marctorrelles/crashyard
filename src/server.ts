@@ -192,6 +192,9 @@ export default {
   },
 }
 
+const MINUTE = 60_000
+const HOUR = 60 * MINUTE
+
 /** The cron's whole run, shared by its jobs: each takes what's left, and one with under 2 seconds waits a minute */
 const CRON_BUDGET = 40_000
 const MIN_LEFT = 2_000
@@ -214,6 +217,18 @@ async function everyMinute(env: Env, now: number) {
     }
   }
   const notices: Notice[] = []
+  // A job of an hour or a week runs once in it, from its minute on: a minute Cloudflare skipped or ran late is made up
+  // by the next, within `grace` (a first deploy mid-week sends no week's summary)
+  const hour = Math.floor(now / HOUR) * HOUR
+  const due = async (name: string, start: number, grace: number) => {
+    if (now < start || now - start > grace) return false
+    const { claimRun } = await import('./data/settings')
+    return claimRun(env.DB, name, start, now).catch((error) => {
+      console.error(`cron: couldn't tell whether ${name} ran`, error)
+      return false
+    })
+  }
+  const monday = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate() - ((at.getUTCDay() + 6) % 7), 7)
   // Settings, Health shows the cron as late when this is over 3 minutes old
   await job('heartbeat', async () => {
     const { CRON_KEY, setSetting } = await import('./data/settings')
@@ -223,14 +238,14 @@ async function everyMinute(env: Env, now: number) {
     const { runMonitors } = await import('./monitors/monitors')
     notices.push(...(await runMonitors(env, now, fetch, deadline)))
   })
-  // Hourly, at :05: transactions that got slower in a release
-  if (at.getUTCMinutes() === 5)
+  // Hourly, from :05: transactions that got slower in a release
+  if (await due('slower releases', hour + 5 * MINUTE, 50 * MINUTE))
     await job('slower releases', async () => {
       const { checkSlowerReleases } = await import('./data/performance')
       notices.push(...(await checkSlowerReleases(env.DB, env.PUBLIC_URL ?? '', now)))
     })
-  // Mondays at 07:00 UTC: each project's week
-  if (at.getUTCDay() === 1 && at.getUTCHours() === 7 && at.getUTCMinutes() === 0)
+  // Mondays from 07:00 UTC: each project's week
+  if (await due('weekly summaries', monday, 6 * HOUR))
     await job('weekly summaries', async () => {
       const { weeklySummaries } = await import('./data/projects')
       notices.push(...(await weeklySummaries(env.DB, env.PUBLIC_URL ?? '', now)))
@@ -241,8 +256,8 @@ async function everyMinute(env: Env, now: number) {
       const { evaluateMetricAlerts } = await import('./notify/metrics')
       notices.push(...(await evaluateMetricAlerts(env, now, deadline)))
     })
-  // Hourly, at :25: issues escalating in the hour just ended
-  if (at.getUTCMinutes() === 25)
+  // Hourly, from :25: issues escalating in the hour just ended
+  if (await due('escalation', hour + 25 * MINUTE, 30 * MINUTE))
     await job('escalation', async () => {
       const { checkEscalation } = await import('./data/escalation')
       notices.push(...(await checkEscalation(env.DB, env.PUBLIC_URL ?? '', now, deadline)))
@@ -250,9 +265,9 @@ async function everyMinute(env: Env, now: number) {
   const { dispatch, flushHeld, pruneFailures } = await import('./notify/dispatch')
   await job('notifications', () => dispatch(env, notices, now))
   await job('held notifications', () => flushHeld(env, now))
-  // Hourly, at :15: events, attachments, issues, logs, transactions, check-ins and uptime results past their
+  // Hourly, from :15: events, attachments, issues, logs, transactions, check-ins and uptime results past their
   // retention; what's left goes the next hour
-  if (at.getUTCMinutes() === 15) {
+  if (await due('retention', hour + 15 * MINUTE, 40 * MINUTE)) {
     const [{ pruneEvents }, { pruneLogs }, { pruneMonitors }, { prunePerformance }] = await Promise.all([
       import('./data/projects'),
       import('./data/logs'),
@@ -264,9 +279,9 @@ async function everyMinute(env: Env, now: number) {
     await job('performance retention', () => prunePerformance(env.DB, now))
     await job('monitor retention', () => pruneMonitors(env.DB, now))
   }
-  // Hourly, at :20: sessions and passkey challenges past their end, issues not seen for their project's "Resolve issues
+  // Hourly, from :20: sessions and passkey challenges past their end, issues not seen for their project's "Resolve issues
   // not seen for", and notification failures past 30 days
-  if (at.getUTCMinutes() === 20) {
+  if (await due('hourly cleanup', hour + 20 * MINUTE, 35 * MINUTE)) {
     await job('sign-in', async () => (await import('./data/people')).pruneSignIn(env.DB, now))
     await job('auto-resolve', async () => (await import('./data/issues')).autoResolve(env.DB, now, deadline))
     await job('notification failures', () => pruneFailures(env.DB, now))

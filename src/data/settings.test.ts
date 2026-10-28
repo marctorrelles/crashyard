@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
-import { getPreferences, getSetting, PREFERENCES, projectDefaults, setPreference, setSetting } from './settings'
+import {
+  claimRun,
+  getPreferences,
+  getSetting,
+  PREFERENCES,
+  projectDefaults,
+  setPreference,
+  setSetting,
+} from './settings'
 
 describe('settings', () => {
   it('reads the fallback until a setting is set, then its JSON as written', async () => {
@@ -40,5 +48,16 @@ describe('preferences', () => {
     expect(await getPreferences(db, 'b@example.com')).toEqual({ ...PREFERENCES, clock: '12' })
     await setPreference(db, 'a@example.com', 'timeZone', undefined)
     expect((await getPreferences(db, 'a@example.com')).timeZone).toBeUndefined()
+  })
+})
+
+describe('cron jobs', () => {
+  it('take a period’s run once, whoever asks, and the next period’s again', async () => {
+    const db = sqliteD1()
+    const hour = Date.UTC(2026, 9, 28, 10)
+    expect(await claimRun(db, 'escalation', hour, hour + 1)).toBe(true)
+    expect(await claimRun(db, 'escalation', hour, hour + 60_000)).toBe(false)
+    expect(await claimRun(db, 'retention', hour, hour + 1)).toBe(true)
+    expect(await claimRun(db, 'escalation', hour + 3_600_000, hour + 3_600_000)).toBe(true)
   })
 })

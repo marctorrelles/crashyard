@@ -28,6 +28,22 @@ const DEFAULTS_KEY = 'defaults.project'
 export const SCRUB_KEY = 'privacy.scrub_fields'
 /** When the cron last ran, in ms: written each minute, late on Settings, Health after 3 minutes */
 export const CRON_KEY = 'cron.last_run'
+
+/**
+ * A cron job's run for the period starting at `start` (an hour's, a week's), taken by the first minute's run at or
+ * after it: true once. One upsert, so two cron runs at once can't both take it (`cron.job.<name>`, the start taken)
+ */
+export async function claimRun(db: D1Database, name: string, start: number, now: number) {
+  const row = await db
+    .prepare(
+      `INSERT INTO settings (key, value, updated_by, updated_at) VALUES (?1, ?2, NULL, ?3)
+       ON CONFLICT DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+       WHERE CAST(settings.value AS INTEGER) < ?2 RETURNING key`,
+    )
+    .bind(`cron.job.${name}`, start, now)
+    .first()
+  return !!row
+}
 /** Every Worker whose runs reach `tail()`, by name, with when one was last noted: `{ name: ms }` (src/api/tail.ts) */
 export const WORKERS_KEY = 'tail.workers'
 
