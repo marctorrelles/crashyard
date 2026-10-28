@@ -6,7 +6,10 @@ Cron monitors (jobs that check in, Sentry's way) and uptime checks (URLs the wor
   day fields are restricted, either matches, as cron does) or an interval. `nextRun`, tested in `schedule.test.ts`.
 - `monitors.ts`:
   - `recordCheckIn`: a `check_in` envelope item, from an SDK or over HTTP (`src/api/ingest.ts`). The first one with a
-    `monitor_config` makes the monitor (as Sentry does; without a config, a check-in for an unknown slug is dropped).
+    `monitor_config` makes the monitor (as Sentry does; without a config, a check-in for an unknown slug is dropped),
+    up to `MAX_CRON_MONITORS` (200) a project, never over an uptime check of the same slug (its upsert updates only a
+    cron row, so a DSN can't fake an outage on a status page); a check-in id another monitor already has is left as
+    it is.
     `in_progress` only moves when the next one is due; `ok` and `error` are results. A check-in without an id, or
     Relay's nil id (an HTTP one that named none), finishes the monitor's latest run in progress, as Sentry pairs
     them, else it's its own with the caller's `fallbackId`; finishing a run fills its release and environment when it

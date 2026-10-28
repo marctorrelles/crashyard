@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
 import { getMonitor } from '../data/monitors'
-import { afterResult, atPath, check, recordCheckIn, runMonitors } from './monitors'
+import { afterResult, atPath, check, MAX_CRON_MONITORS, recordCheckIn, runMonitors } from './monitors'
 
 const m = (over: Partial<Parameters<typeof afterResult>[0]> = {}) => ({
   status: 'ok' as const,
@@ -172,6 +172,35 @@ describe('cron monitors', () => {
     for (let i = 0; i < 2; i++)
       await recordCheckIn(env, 1, { monitor_slug: 'job', status: 'error' }, NOW + 2000, 'c'.repeat(32))
     expect(count()).toEqual({ n: 2 })
+  })
+
+  it('never touches an uptime check with the same slug, nor another monitor’s run', async () => {
+    const db = seeded()
+    const env = { DB: db }
+    const uptime = JSON.stringify({ url: 'https://example.com', intervalMinutes: 1 })
+    db.sqlite.exec(`INSERT INTO monitors (id, project_id, slug, name, kind, config, status, created_at)
+      VALUES (7, 1, 'api', 'API', 'uptime', '${uptime}', 'ok', 0)`)
+    const down = await recordCheckIn(env, 1, { monitor_slug: 'api', status: 'error', monitor_config: config }, NOW)
+    expect(down).toBeUndefined()
+    expect(db.sqlite.prepare('SELECT kind, config, status FROM monitors WHERE id = 7').get()).toEqual({
+      kind: 'uptime',
+      config: uptime,
+      status: 'ok',
+    })
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM incidents').get()).toEqual({ n: 0 })
+    // A known check-in id sent for another monitor leaves the first one's run as it was
+    const id = 'd'.repeat(32)
+    await recordCheckIn(env, 1, { monitor_slug: 'one', check_in_id: id, status: 'ok', monitor_config: config }, NOW)
+    await recordCheckIn(env, 1, { monitor_slug: 'two', check_in_id: id, status: 'error', monitor_config: config }, NOW)
+    expect(db.sqlite.prepare('SELECT status FROM check_ins WHERE id = ?').get(id)).toEqual({ status: 'ok' })
+  })
+
+  it('makes at most MAX_CRON_MONITORS monitors from a project’s check-ins', async () => {
+    const db = seeded()
+    const env = { DB: db }
+    for (let i = 0; i < MAX_CRON_MONITORS + 5; i++)
+      await recordCheckIn(env, 1, { monitor_slug: `job-${i}`, status: 'ok', monitor_config: config }, NOW)
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM monitors').get()).toEqual({ n: MAX_CRON_MONITORS })
   })
 
   it('mutes a monitor failing for 14 days, with no alert until it recovers', async () => {

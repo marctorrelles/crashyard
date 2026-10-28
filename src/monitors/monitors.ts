@@ -46,6 +46,8 @@ export type MonitorRow = {
 
 type Env = { DB: D1Database; PUBLIC_URL?: string }
 const MINUTE = 60_000
+/** Cron monitors a project's check-ins can make; past them a new slug's check-in is dropped */
+export const MAX_CRON_MONITORS = 200
 /** A monitor failing this long is muted: no more alerts until it recovers, as Sentry's crons do */
 export const MUTE_AFTER = 14 * 1440 * MINUTE
 
@@ -207,9 +209,16 @@ export async function recordCheckIn(
     payload.monitor_config?.recovery_threshold ?? 1,
   ]
   if (!monitor) {
+    // A project makes at most this many from check-ins, so a DSN can't fill the cron with monitors
+    const made = await env.DB.prepare("SELECT COUNT(*) AS n FROM monitors WHERE project_id = ? AND kind = 'cron'")
+      .bind(projectId)
+      .first<{ n: number }>()
+    if ((made?.n ?? 0) >= MAX_CRON_MONITORS) return undefined
+    // An uptime check with the slug is left alone: no row comes back, and the check-in is dropped
     monitor = await env.DB.prepare(
       `INSERT INTO monitors (project_id, slug, name, kind, config, failure_threshold, recovery_threshold, environment, created_at)
-       VALUES (?, ?, ?, 'cron', ?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET config = excluded.config RETURNING *`,
+       VALUES (?, ?, ?, 'cron', ?, ?, ?, ?, ?)
+       ON CONFLICT (project_id, slug) DO UPDATE SET config = excluded.config WHERE monitors.kind = 'cron' RETURNING *`,
     )
       .bind(
         projectId,
@@ -258,7 +267,8 @@ export async function recordCheckIn(
        duration = COALESCE(excluded.duration, excluded.finished - check_ins.started),
        release = COALESCE(check_ins.release, excluded.release),
        environment = COALESCE(check_ins.environment, excluded.environment),
-       trace_id = COALESCE(check_ins.trace_id, excluded.trace_id)`,
+       trace_id = COALESCE(check_ins.trace_id, excluded.trace_id)
+     WHERE check_ins.monitor_id = excluded.monitor_id`,
     ).bind(
       id,
       monitor.id,
