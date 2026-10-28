@@ -48,6 +48,15 @@ const answer = (body: unknown, status = 200, headers: Record<string, string> = {
   Response.json(body, { status, headers: { ...CORS, ...headers } })
 
 const MAX_ATTACHMENT = 1024 * 1024
+const MB = 1024 * 1024
+/** The largest payload of each kind read as JSON, as Relay's limits (`max_event_size` and its siblings): a bigger one
+ * is refused with the whole envelope (413), before it's held or parsed. Logs and spans come in containers */
+const MAX_ITEM: Record<string, number> = { check_in: 100 * 1024, log: 2 * MB, span: 2 * MB }
+const oversized = (items: EnvelopeItem[]) =>
+  items.find((i) => {
+    const type = i.header.type ?? 'event'
+    return KEPT.has(type) && type !== 'attachment' && i.payload.byteLength > (MAX_ITEM[type] ?? MB)
+  })
 // The kinds of item a route or later phase handles; anything else is accepted and dropped
 const KEPT = new Set([
   'event',
@@ -150,6 +159,8 @@ async function projectFor(db: D1Database, id: number, key: string): Promise<Keye
     project: Object.fromEntries(PROJECT_COLUMNS.split(', ').map((c) => [c, row[c as keyof Project]])) as Project,
     key: { id: row.key_id, enabled: !!row.enabled, daily_limit: row.daily_limit },
   }
+  // ponytail: cleared whole past 1000 entries, so wrong keys can't grow it; an LRU if real keys ever pass 1000
+  if (projects.size >= 1000) projects.clear()
   projects.set(cacheKey, { found, at: Date.now() })
   return found
 }
@@ -206,7 +217,11 @@ export async function handleIngest(
     items = [{ header: { type: 'event' }, payload: body }]
     key = projectKey(request, url)
   }
+  const big = oversized(items)
+  if (big) return answer({ detail: `A ${big.header.type ?? 'event'} item is larger than Sentry allows` }, 413)
   if (!key) return answer({ detail: 'Missing project key' }, 401)
+  // A key is 32 hex characters; anything far longer isn't one, and isn't worth a read or a place in the cache
+  if (key.length > 64) return answer({ detail: 'Invalid DSN' }, 403)
   const found = await projectFor(env.DB, projectId, key)
   if (!found) return answer({ detail: 'Invalid DSN' }, 403)
   // Relay's answer to a key that's turned off

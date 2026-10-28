@@ -5,7 +5,8 @@ order.
 
 - `body.ts`: `readBody` reads the request, gunzipped or inflated, up to 20 MB (`BodyError` carries the status).
 - `envelope.ts`: `parseEnvelope` splits a Sentry envelope (header line, then item header + payload, by `length` or up
-  to the newline). `payloadJson` parses an item.
+  to the newline), at most 100 items (`MAX_ITEMS`) and header lines of 64 KB, else `EnvelopeError`: it runs before
+  the key is checked, so a hostile body can't cost more memory than that. `payloadJson` parses an item.
 - `auth.ts`: `projectKey` finds the DSN key: `X-Sentry-Auth` `sentry_key=`, `?sentry_key=`, `Authorization`, or the
   envelope header's `dsn`.
 - `scrub.ts`: before anything is stored. Values under secret-looking keys become `[Filtered]`; emails, card numbers

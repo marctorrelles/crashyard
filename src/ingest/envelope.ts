@@ -8,6 +8,10 @@ export class EnvelopeError extends Error {}
 
 const NEWLINE = 0x0a
 const text = new TextDecoder()
+// Bounds that keep a hostile envelope from costing memory before its key is even checked: every item is an object,
+// and a header line is a few hundred bytes from any SDK
+export const MAX_ITEMS = 100
+const MAX_HEADER = 64 * 1024
 
 function json(bytes: Uint8Array, what: string): Record<string, unknown> {
   try {
@@ -24,8 +28,12 @@ export function parseEnvelope(body: Uint8Array): Envelope {
     const at = body.indexOf(NEWLINE, from)
     return at < 0 ? body.length : at
   }
+  const headerLine = (from: number, to: number, what: string) => {
+    if (to - from > MAX_HEADER) throw new EnvelopeError(`the ${what} is longer than ${MAX_HEADER} bytes`)
+    return json(body.subarray(from, to), what)
+  }
   let end = lineEnd(0)
-  const header = json(body.subarray(0, end), 'envelope header')
+  const header = headerLine(0, end, 'envelope header')
   const items: EnvelopeItem[] = []
   let pos = end + 1
   while (pos < body.length) {
@@ -34,7 +42,8 @@ export function parseEnvelope(body: Uint8Array): Envelope {
       pos++ // a blank line between items
       continue
     }
-    const itemHeader = json(body.subarray(pos, end), 'item header')
+    if (items.length === MAX_ITEMS) throw new EnvelopeError(`an envelope holds at most ${MAX_ITEMS} items`)
+    const itemHeader = headerLine(pos, end, 'item header')
     pos = end + 1
     const length = itemHeader.length
     let payload: Uint8Array

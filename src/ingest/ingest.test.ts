@@ -5,7 +5,7 @@ import { changeIssues } from '../data/issues'
 import { updateKey } from '../data/projects'
 import { projectKey } from './auth'
 import { readBody } from './body'
-import { EnvelopeError, parseEnvelope, payloadJson } from './envelope'
+import { EnvelopeError, MAX_ITEMS, parseEnvelope, payloadJson } from './envelope'
 import { eventIdOf, normalizeEvent, timestampOf } from './event'
 import { FORWARDED, sentryTarget } from './forward'
 import { fingerprintOf, mask } from './grouping'
@@ -45,6 +45,14 @@ describe('envelopes', () => {
     expect(parseEnvelope(fixture('envelopes/header_only.envelope')).items).toHaveLength(0)
     expect(parseEnvelope(fixture('envelopes/unknown_item.envelope')).items.length).toBeGreaterThan(0)
     expect(() => parseEnvelope(fixture('envelopes/truncated.envelope'))).toThrow(EnvelopeError)
+  })
+
+  it('refuses more items, or longer header lines, than any SDK sends', () => {
+    const items = (n: number) => bytes(`{}\n${'{}\n{}\n'.repeat(n)}`)
+    expect(parseEnvelope(items(MAX_ITEMS)).items).toHaveLength(MAX_ITEMS)
+    expect(() => parseEnvelope(items(MAX_ITEMS + 1))).toThrow('at most 100 items')
+    expect(() => parseEnvelope(bytes(`{"a":"${'x'.repeat(70_000)}"}\n`))).toThrow('longer than')
+    expect(() => parseEnvelope(bytes(`{}\n{"a":"${'x'.repeat(70_000)}"}\n{}\n`))).toThrow('longer than')
   })
 
   it('reads a gzip body', async () => {
@@ -406,6 +414,15 @@ describe('client keys', () => {
       /^\d+:error;default;security;attachment;feedback:key:key_quota$/,
     )
     expect((await send('first')).status).toBe(200)
+  })
+
+  it('refuses an event larger than Sentry allows with a 413, before holding it', async () => {
+    const { env, id } = await setup()
+    const ctx = { waitUntil: () => {} } as unknown as ExecutionContext
+    const body = JSON.stringify({ message: 'x'.repeat(1024 * 1024) })
+    const request = new Request(`https://x/api/${id}/store/?sentry_key=first`, { method: 'POST', body })
+    expect((await handleIngest(request, env, ctx, id, 'store')).status).toBe(413)
+    expect((await env.FILES.list({ prefix: 'pending/' })).objects).toHaveLength(0)
   })
 })
 

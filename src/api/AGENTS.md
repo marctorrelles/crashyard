@@ -19,8 +19,10 @@ signature; `/mcp` comes after sign-in.
   do: the run in progress it finishes, else `stableEventId` of the held key and its index; a retry, at the same
   received time, finds that row again (`recordCheckIn`), so it updates it instead of writing a second. A slug with a
   malformed `%` is 400 with a sentence. In order: CORS
-  (`*`, the browser SDK sends from any origin), body, envelope, key, project and key from `project_keys` (cached a
-  minute per isolate, by project id and key; `projects.public_key` isn't read), a key that's off answers 403 with
+  (`*`, the browser SDK sends from any origin), body, envelope, item sizes (`MAX_ITEM`, Relay's: 1 MB a payload read
+  as JSON, a check-in 100 KB, a log or span container 2 MB; a bigger one refuses the envelope, 413, before it's held
+  or parsed), key (over 64 characters refused unread), project and key from `project_keys` (cached a
+  minute per isolate, by project id and key, cleared whole past 1000 entries; `projects.public_key` isn't read), a key that's off answers 403 with
   Relay's `event submission rejected with_reason: ProjectId` (from Relay's source, not seen live), the project's
   allowed domains (`originAllowed`: the request's `Origin`, else `Referer`, as Relay's `is_valid_origin`; one not
   allowed answers 403 `event submission rejected with_reason: Cors`, Relay's, and its event and transaction items add
