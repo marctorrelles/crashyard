@@ -222,7 +222,14 @@ export async function storeTransaction(db: D1Database, projectId: number, t: Sum
   await db.batch(statements)
 }
 
-type SessionCounts = { started: number; errored: number; abnormal: number; crashed: number; did?: string }
+type SessionCounts = {
+  started: number
+  errored: number
+  abnormal: number
+  crashed: number
+  did?: string
+  sid?: string
+}
 
 // The session's distinct id as the SDK sends it (`did`, often the user id): only ever stored as a salted hash
 const didOf = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : undefined)
@@ -244,6 +251,7 @@ export function sessionCounts(type: 'session' | 'sessions', raw: Json, received:
       abnormal: status === 'abnormal' ? 1 : 0,
       errored: ended && status === 'exited' && Number(raw.errors) > 0 ? 1 : 0,
       did: didOf(raw.did),
+      sid: str(raw.sid)?.slice(0, 64),
     })
   } else {
     for (const a of (Array.isArray(raw.aggregates) ? raw.aggregates : []).map(obj)) {
@@ -272,8 +280,28 @@ export async function didHash(projectId: number, did: string) {
     .slice(0, 32)
 }
 
-export async function storeSessions(db: D1Database, projectId: number, counts: ReturnType<typeof sessionCounts>) {
-  if (!counts.length) return
+export async function storeSessions(
+  db: D1Database,
+  projectId: number,
+  received: ReturnType<typeof sessionCounts>,
+  now = Date.now(),
+) {
+  if (!received.length) return
+  // A crash counts once a session: the browser SDK sends an `unhandled` session again (once the page is idle, or the
+  // user changes), as Relay counts it once by session id
+  const counts = []
+  for (const c of received) {
+    const first =
+      !c.crashed ||
+      !c.sid ||
+      (await db
+        .prepare(
+          'INSERT INTO session_crashes (project_id, sid, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING RETURNING sid',
+        )
+        .bind(projectId, c.sid, now)
+        .first())
+    counts.push(first ? c : { ...c, crashed: 0 })
+  }
   const statements = counts
     .filter((c) => c.started || c.errored || c.abnormal || c.crashed)
     .map((c) =>

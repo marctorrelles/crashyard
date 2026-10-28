@@ -37,6 +37,7 @@ describe('retention', () => {
         (2, ${Math.floor((NOW - 2 * DAY) / 60_000)}, 3), (2, ${Math.floor(NOW / 60_000)}, 1);
       INSERT INTO session_users_daily (project_id, release, environment, day, did_hash) VALUES
         (1, '1.0', 'production', '2026-07-18', 'a'), (1, '1.0', 'production', '2026-10-26', 'a');
+      INSERT INTO session_crashes (project_id, sid, at) VALUES (1, 'old', ${NOW - 3 * DAY}), (1, 'new', ${NOW - DAY});
     `)
     await files.put('attachments/1/old.png', 'x')
     await files.put('attachments/1/new.png', 'x')
@@ -51,13 +52,14 @@ describe('retention', () => {
       hours: 0,
       minutes: 1,
       sessionUsers: 1,
+      sessionCrashes: 1,
     })
     expect(await pruneLogs(db, NOW, deadline)).toEqual({ logs: 12000 })
     expect(Date.now() - started).toBeLessThan(20_000)
 
     expect([count('events'), count('logs'), count('attachments'), count('issues')]).toEqual([1, 1, 1, 1])
     expect([count('issue_days'), count('issue_tag_values'), count('issue_activity')]).toEqual([1, 0, 0])
-    expect([count('issue_minutes'), count('session_users_daily')]).toEqual([1, 1])
+    expect([count('issue_minutes'), count('session_users_daily'), count('session_crashes')]).toEqual([1, 1, 1])
     expect([...files.objects.keys()]).toEqual(['attachments/1/new.png'])
   })
 
@@ -71,6 +73,7 @@ describe('retention', () => {
       hours: 0,
       minutes: 0,
       sessionUsers: 0,
+      sessionCrashes: 0,
     })
   })
 })

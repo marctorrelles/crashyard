@@ -21,7 +21,7 @@ helpers (`change`).
   a batch deletes nothing or the deadline, the cron's shared one (`PRUNE_BUDGET`, 20 s, when called alone); `inBatches`;
   `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
   hour, 1000 a batch, then `issue_minutes` past a day, then
-  `session_users_daily` past the event retention, 1000 a batch each), `dsnOf` (a project id and a key), `seenWorkers` (the `tail.workers` setting, newest run first, each
+  `session_users_daily` past the event retention, then `session_crashes` past two days, 1000 a batch each), `dsnOf` (a project id and a key), `seenWorkers` (the `tail.workers` setting, newest run first, each
   Worker with the projects whose `workers` list it, for Connect an app), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
   Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week

@@ -466,7 +466,19 @@ export async function pruneEvents(db: D1Database, now: number, files?: R2Bucket,
         .run(),
     ),
   )
-  return { events, attachments, issues, hours, minutes, sessionUsers }
+  // Crashed sessions' ids, only needed while the SDK may send the same session again
+  const sessionCrashes = await inBatches(deadline, async () =>
+    changes(
+      await db
+        .prepare(
+          `DELETE FROM session_crashes WHERE (project_id, sid) IN (
+             SELECT project_id, sid FROM session_crashes WHERE at < ? LIMIT 1000)`,
+        )
+        .bind(now - 2 * 86_400_000)
+        .run(),
+    ),
+  )
+  return { events, attachments, issues, hours, minutes, sessionUsers, sessionCrashes }
 }
 
 /**

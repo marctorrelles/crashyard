@@ -38,6 +38,17 @@ describe('sessions with users', () => {
     expect(h.crashFree).toBe(0.8)
   })
 
+  it('count a crash once a session, however often the SDK sends it', async () => {
+    const db = project()
+    const update = (init: boolean, status: string) =>
+      sessionCounts('session', { sid: 's1', did: 'ada', init, status, started, attrs: { release: '1.0' } }, NOW)
+    // The browser SDK: unhandled with the error before the page is idle, then the same session again once it is
+    for (const s of [update(true, 'unhandled'), update(false, 'unhandled'), update(false, 'unhandled')])
+      await storeSessions(db, 1, s)
+    await storeSessions(db, 1, session('bob', 'exited'))
+    expect((await releaseHealth(db, 1, NOW)).get('1.0')).toMatchObject({ sessions: 2, crashed: 1, crashFree: 0.5 })
+  })
+
   it('aggregates carry their did too', () => {
     expect(
       sessionCounts('sessions', { attrs: { release: 'r' }, aggregates: [{ started, did: 'ada', exited: 3 }] }, NOW),

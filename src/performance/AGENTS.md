@@ -17,7 +17,10 @@ plus a row per vital it measured (a browser page load about five, an app start o
   then), `storeTransaction`, `sessionCounts`
   (a `session` update or `sessions` aggregates as counts per release and day; the browser SDK's `unhandled` is a crash;
   each with its `did`, trimmed, 200 characters, none when empty; an update that changes no count still names its user)
-  and `storeSessions` (the counts, and per `did` an upsert into `session_users_daily` of `didHash`, SHA-256 of
+  and `storeSessions` (the counts, a crash once a session: its `sid` into `session_crashes` first, and an update
+  of a session already counted crashed counts nothing, as the browser SDK sends an `unhandled` session again once the
+  page is idle or its user changes (`browserSessionIntegration`, 11.9), as Relay counts it once by session id; and
+  per `did` an upsert into `session_users_daily` of `didHash`, SHA-256 of
   `session:<project>:<did>`, 32 hex, so the id is never stored and the same id in two projects differs; `issue_users`
   hashes user ids unsalted, this salts with the project).
 - `vitals.ts`: `VITALS` (label, `short` for a card, the web vitals by their initials, web or mobile, unit, the scale it's stored at, Sentry's thresholds), `vitalsOf` (a

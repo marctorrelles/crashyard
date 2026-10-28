@@ -90,3 +90,6 @@ in `pnpm run deploy`).
   fails on status pages until the deploy finishes.
 - `0031_events_received.sql`: `events_received`, so Explore over every project reads its window of events by
   `received` instead of scanning them all.
+- `0032_session_crashes.sql`: `session_crashes`, a crashed session's id (`sid`) when first counted, so a crash
+  counts once a session (the browser SDK sends an `unhandled` session again); and `sessions_daily.crashed` cut to
+  `started` where double counts had taken it past (crash-free read below 0%).
