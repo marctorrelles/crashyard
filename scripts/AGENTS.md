@@ -3,7 +3,7 @@
 - `setup.mjs` (`pnpm run setup`): a deployment from a clone: asks for its domain and email, writes
   `wrangler.local.json` (keeping what's there as the defaults), then offers to deploy, makes a setup code for the first
   owner's passkey (put as the worker secret `SETUP_CODE` and printed) and adds the R2 lifecycle rules (envelopes 30
-  days, attachments 90, chunks 1). Answers can be piped in.
+  days, failed envelopes 30, chunks 1; attachments are pruned by the cron at their project's retention). Answers can be piped in.
 - `recovery-code.mjs` (`pnpm run recovery-code <email>`, `--local` for dev): a one-time recovery code for someone
   who lost every passkey and code, inserted as `src/data/people.ts` stores them (SHA-256 of the code without its
   dash) through `wrangler d1 execute`, `RETURNING` to tell an unknown email. Whoever has the Cloudflare account is
