@@ -105,9 +105,12 @@ export function nextCrontab(cron: Crontab, after: number, timeZone = 'UTC'): num
           : cron.anyWeekday
             ? cron.days.has(p.day)
             : cron.days.has(p.day) || cron.weekdays.has(p.weekday)
-    // Skip what can't match: the rest of the day, then of the hour (by wall-clock minutes, so DST is safe)
-    if (!cron.months.has(p.month) || !dayOk) t += ((23 - p.hour) * 60 + (60 - p.minute)) * MINUTE
-    else if (!cron.hours.has(p.hour)) t += (60 - p.minute) * MINUTE
+    // Skip what can't match: the rest of the day, then of the hour, by wall-clock minutes. The day's rest is skipped
+    // an hour short, then that hour: a day of 23 hours (clocks going forward) would otherwise jump past next midnight
+    if (!cron.months.has(p.month) || !dayOk) {
+      const rest = (23 - p.hour) * 60 + (60 - p.minute)
+      t += (rest > 60 ? rest - 60 : rest) * MINUTE
+    } else if (!cron.hours.has(p.hour)) t += (60 - p.minute) * MINUTE
     else if (!cron.minutes.has(p.minute)) t += MINUTE
     else return t
   }

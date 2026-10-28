@@ -20,6 +20,13 @@ describe('schedules', () => {
     expect(next('0 3 * * *', '2026-10-25T00:00:00Z', 'Europe/Madrid')).toBe('2026-10-25T02:00:00.000Z')
   })
 
+  it('skips a day of 23 hours, when the clocks go forward, without skipping the day after', () => {
+    // New York goes forward on Sunday 8 March 2026: Monday's midnight (04:00 UTC) is the next weekday run
+    expect(next('0 0 * * 1-5', '2026-03-06T06:00:00Z', 'America/New_York')).toBe('2026-03-09T04:00:00.000Z')
+    // Berlin goes forward on Sunday 29 March 2026: the Monday after is 30 March, 00:15 CEST
+    expect(next('15 0 * * 1', '2026-03-23T00:00:00Z', 'Europe/Berlin')).toBe('2026-03-29T22:15:00.000Z')
+  })
+
   it('adds intervals, months by the calendar', () => {
     expect(nextRun({ type: 'interval', value: 30, unit: 'minute' }, at('2026-10-25T10:00:00Z'))).toBe(
       at('2026-10-25T10:30:00Z'),
