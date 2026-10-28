@@ -92,25 +92,27 @@ export const listUsers = async (db: D1Database) =>
       .all<User & { passkeys: number }>()
   ).results
 
-const owners = async (db: D1Database) =>
-  ((await db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'owner'").first<{ n: number }>())?.n ?? 0) as number
+// Checked in the statement that changes it, so two owners demoting each other at once can't both pass
+const KEEPS_AN_OWNER = "(role != 'owner' OR (SELECT COUNT(*) FROM users WHERE role = 'owner') > 1)"
+const NO_OWNER = 'crashyard needs an owner. Make someone else an owner first.'
 
 /** A new role, refused when it would leave no owner */
 export async function changeRole(db: D1Database, id: number, role: Role) {
   const user = await userById(db, id)
   if (!user) throw new Error('That person isn’t here anymore.')
-  if (user.role === 'owner' && role !== 'owner' && (await owners(db)) <= 1)
-    throw new Error('crashyard needs an owner. Make someone else an owner first.')
-  await db.prepare('UPDATE users SET role = ? WHERE id = ?').bind(role, id).run()
+  const changed = await db
+    .prepare(`UPDATE users SET role = ?1 WHERE id = ?2 AND (?1 = 'owner' OR ${KEEPS_AN_OWNER})`)
+    .bind(role, id)
+    .run()
+  if (!changed.meta.changes) throw new Error(NO_OWNER)
 }
 
 /** Removing someone ends their sessions and tokens at once (cascade); their name stays on what they did */
 export async function removeUser(db: D1Database, id: number) {
   const user = await userById(db, id)
   if (!user) return
-  if (user.role === 'owner' && (await owners(db)) <= 1)
-    throw new Error('crashyard needs an owner. Make someone else an owner first.')
-  await db.prepare('DELETE FROM users WHERE id = ?').bind(id).run()
+  const removed = await db.prepare(`DELETE FROM users WHERE id = ? AND ${KEEPS_AN_OWNER}`).bind(id).run()
+  if (!removed.meta.changes) throw new Error(NO_OWNER)
 }
 
 // Sessions
