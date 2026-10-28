@@ -677,8 +677,12 @@ async function storeFeedback(
   const message = String(fb.message ?? fb.comments ?? '').slice(0, 5000)
   if (!message) return
   const eventId = eventIdOf(fb.associated_event_id ?? payload.event_id ?? envelopeId)
+  // Only this project's event: another's key can't put words on its issues
   const issue = eventId
-    ? await db.prepare('SELECT issue_id FROM events WHERE id = ?').bind(eventId).first<{ issue_id: number }>()
+    ? await db
+        .prepare('SELECT issue_id FROM events WHERE id = ? AND project_id = ?')
+        .bind(eventId, project.id)
+        .first<{ issue_id: number }>()
     : null
   await db
     .prepare('INSERT INTO feedback (project_id, issue_id, event_id, name, message, at) VALUES (?, ?, ?, ?, ?, ?)')

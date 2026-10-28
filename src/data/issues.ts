@@ -161,8 +161,10 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
   const attachments = row
     ? (
         await db
-          .prepare('SELECT id, filename, content_type, size FROM attachments WHERE event_id = ? ORDER BY id')
-          .bind(row.id)
+          .prepare(
+            'SELECT id, filename, content_type, size FROM attachments WHERE event_id = ? AND project_id = ? ORDER BY id',
+          )
+          .bind(row.id, issue.project_id)
           .all<{ id: number; filename: string; content_type: string | null; size: number }>()
       ).results.map((a) => ({
         id: a.id,

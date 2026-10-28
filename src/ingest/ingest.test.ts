@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { handleIngest } from '../api/ingest'
-import { changeIssues } from '../data/issues'
+import { changeIssues, getIssue } from '../data/issues'
 import { updateKey } from '../data/projects'
 import { projectKey } from './auth'
 import { readBody } from './body'
@@ -700,5 +700,34 @@ describe('what a pass that fails costs', () => {
     expect(await response.json()).toEqual({
       detail: 'The monitor slug in the address isn’t valid. Use letters, numbers, dots, dashes and underscores.',
     })
+  })
+})
+
+describe("another project's key", () => {
+  it("puts no feedback or attachment on another project's event", async () => {
+    const env = { DB: sqliteD1(), FILES: memoryR2() }
+    env.DB.sqlite.exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (95, 'a', 'a', 'ak', 0);
+      INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (96, 'b', 'b', 'bk', 0);`)
+    const send = async (project: number, key: string, lines: unknown[]) => {
+      const waits: Promise<unknown>[] = []
+      const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) } as unknown as ExecutionContext
+      const body = lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n')
+      const request = new Request(`https://x/api/${project}/envelope/?sentry_key=${key}`, { method: 'POST', body })
+      const response = await handleIngest(request, env, ctx, project, 'envelope')
+      await Promise.all(waits)
+      return response.status
+    }
+    const eventId = 'e'.repeat(32)
+    expect(await send(95, 'ak', [{ event_id: eventId }, { type: 'event' }, { message: 'mine' }])).toBe(200)
+    const feedback = { event_id: eventId, name: 'Eve', comments: 'not yours' }
+    expect(await send(96, 'bk', [{ event_id: eventId }, { type: 'user_report' }, feedback])).toBe(200)
+    expect(
+      await send(96, 'bk', [{ event_id: eventId }, { type: 'attachment', filename: 'x.txt', length: 2 }, 'hi']),
+    ).toBe(200)
+    expect(env.DB.sqlite.prepare('SELECT project_id, issue_id FROM feedback').all()).toEqual([
+      { project_id: 96, issue_id: null },
+    ])
+    const { issue_id } = env.DB.sqlite.prepare('SELECT issue_id FROM events').get() as { issue_id: number }
+    expect((await getIssue(env.DB, issue_id, eventId, Date.now()))!.attachments).toEqual([])
   })
 })

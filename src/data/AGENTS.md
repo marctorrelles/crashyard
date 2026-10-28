@@ -29,7 +29,7 @@ helpers (`change`).
   a tenth so a crash never reads 100%; one batch of four).
 - `issues.ts`: `listIssues` (a search from `src/search/`, with the viewer for `assigned:me`, `is:bookmarked` and
   `is:unread`, sorted, 50 a page, with a 14-day series each and the viewer's `bookmarked` and `unread`), `getIssue`
-  (the project's releases with events, newest first, 50, for the release picker, from `event_hours`; tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
+  (the project's releases with events, newest first, 50, for the release picker, from `event_hours`; tags' top values, the latest 100 events, the chosen event as JSON text, its attachments (the issue's project's only) with whether each is an
   image, `attachmentType`, feedback, activity), `changeIssues`
   (resolve, now, in the next release, in the current release (`current`: each issue's `last_release`, read first so
   the activity names it) or in a chosen one (`release`), the last two as `fixed_in_release`; ignore, for good, for N events or until a date; reopen; delete, and with

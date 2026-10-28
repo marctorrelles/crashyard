@@ -49,7 +49,9 @@ signature; `/mcp` comes after sign-in.
   what was accepted) and skips the quota (what's held was let in). The raw envelope goes
   to R2 once an envelope (`envelopes/<project>/<day>/<envelope id, else its first stored event's>`). An attachment (1 MB at most) goes to
   `attachments/<project>/<event>/<item index>-<filename>`, its row inserted `ON CONFLICT (event_id, r2_key) DO NOTHING`
-  (0019's unique index), so two files of one name both stay and a whole-envelope retry writes no second row. Notices are dispatched after the response (`ctx.waitUntil`). A crash
+  (0019's unique index), so two files of one name both stay and a whole-envelope retry writes no second row. Feedback
+  joins the issue of its event only when that event is the project's own, and the issue page lists only the
+  project's attachments of an event, so another project's key can't add either to an event whose id it knows. Notices are dispatched after the response (`ctx.waitUntil`). A crash
   tagged `distribution: app_review` or `testflight` also sends `review_crash`, once per issue. Each event reads the
   routes with a `frequency` for its project, and a `frequency` notice goes for each whose limit it reached
   (`src/notify/rules.ts`); notices carry the event's tags for routes' tag filters.
