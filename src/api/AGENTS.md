@@ -98,7 +98,7 @@ signature; `/mcp` comes after sign-in.
   JSON for the end-to-end test. `tail.test.ts` and `test/ingest.e2e.test.ts`.
 - `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`, each answering
   text an agent reads well (times in ISO 8601 UTC, ids to pass to the next tool). Reading: `list_projects`
-  (`overview`), `search_issues`, `get_issue` (with events per day over 14 UTC days from its `series`),
+  (`overview`), `search_issues` (as the token's person: `assigned:me`, `is:bookmarked` and `is:unread` are theirs), `get_issue` (with events per day over 14 UTC days from its `series`),
   `list_issue_events` (`exploreEvents` with `issueId`, tags as columns, the `older` cursor), `search_events` (one
   `COUNT` over `whereOf` without a group, else `exploreChart`'s `groups`, the 10 biggest over the whole range, so
   users count exactly), `get_trace` (`traceOf`), `search_logs`, `list_releases` and `get_release` (`releaseDiff`,

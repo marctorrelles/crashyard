@@ -152,15 +152,17 @@ const TOOLS: Tool[] = [
       project: string('project slug, to search only one'),
       sort: { type: 'string', enum: Object.keys(issues.SORTS), description: 'defaults to lastSeen' },
     }),
-    run: async (a, { db }) => {
+    run: async (a, { db, viewer }) => {
       const sort = (argString(a.sort) as issues.Sort | undefined) ?? 'lastSeen'
       const list = await issues.listIssues(
         db,
         {
           query: argString(a.query) ?? 'is:unresolved',
           projectId: await projectId(db, a.project),
-          sort: sort in issues.SORTS ? sort : 'lastSeen',
+          sort: Object.hasOwn(issues.SORTS, sort) ? sort : 'lastSeen',
           page: 0,
+          // `assigned:me`, `is:bookmarked` and `is:unread` are the token's person's
+          viewer,
         },
         Date.now(),
       )

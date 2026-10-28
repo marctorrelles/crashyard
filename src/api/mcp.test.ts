@@ -117,6 +117,17 @@ describe('MCP for agents', () => {
     expect((await call(db, 'list_releases', { project: 'nope' })).text).toMatch(/No project nope/)
   })
 
+  it("searches issues as the token's person: is:bookmarked and assigned:me are theirs", async () => {
+    const { db, ids } = await seeded()
+    db.sqlite.exec(`INSERT INTO bookmarks (email, issue_id) VALUES ('ada@example.com', ${ids[1]})`)
+    db.sqlite.exec(`UPDATE issues SET assignee = 'ada@example.com' WHERE id = ${ids[2]}`)
+    const bookmarked = await call(db, 'search_issues', { query: 'is:bookmarked' }, 'viewer')
+    expect(bookmarked.text).toMatch(new RegExp(`^#${ids[1]} .*bang ·`))
+    expect(bookmarked.text.split('\n')).toHaveLength(1)
+    expect((await call(db, 'search_issues', { query: 'assigned:me' }, 'viewer')).text).toMatch(/bang 2/)
+    expect((await call(db, 'search_issues', { sort: 'constructor' }, 'viewer')).error).toBe(false)
+  })
+
   it('triages issues and posts to a status page, and a read token can do none of it', async () => {
     const { db, ids } = await seeded()
     const changes: [string, Record<string, unknown>][] = [
