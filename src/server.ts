@@ -19,6 +19,28 @@ function outsideHeaders(request: Request) {
   return headers
 }
 
+/**
+ * A status page as anyone signed out sees it, kept a minute in the data centre's cache: each render reads 30 days of
+ * results for every check on it, and the page reloads itself each minute, so open tabs and visitors would otherwise
+ * read that again and again. Only for a visitor without cookies (theirs carry no theme or time zone of their own),
+ * rendered with none (`outsideHeaders`). The Cache API does nothing on workers.dev
+ */
+async function publicStatusPage(request: Request, ctx: ExecutionContext) {
+  const cache = (caches as unknown as { default: Cache }).default
+  const cacheable = !request.headers.has('Cookie')
+  const key = new Request(request.url)
+  if (cacheable) {
+    const hit = await cache.match(key)
+    if (hit) return hit
+  }
+  const response = await start(new Request(request, { headers: outsideHeaders(request) }))
+  if (!cacheable || response.status !== 200) return response
+  const kept = new Response(response.body, response)
+  kept.headers.set('Cache-Control', 'public, max-age=60')
+  ctx.waitUntil(cache.put(key, kept.clone()))
+  return kept
+}
+
 const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
 
 export default {
@@ -84,9 +106,12 @@ export default {
         if (request.method === 'GET' && url.pathname === '/') return Response.redirect(new URL(page, url), 302)
         if (request.method !== 'GET' || url.pathname.replace(/\/$/, '') !== page)
           return new Response('Not found', { status: 404 })
-        return start(new Request(request, { headers: outsideHeaders(request) }))
+        return publicStatusPage(request, ctx)
       }
     }
+    // A status page for a visitor with no cookies: the same for all of them, so cached a minute
+    if (request.method === 'GET' && STATUS_PAGE.test(url.pathname) && !request.headers.has('Cookie'))
+      return publicStatusPage(request, ctx)
 
     // Everything else is the dashboard: signed in with a passkey, or with GitHub
     const now = Date.now()

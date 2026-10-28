@@ -34,7 +34,9 @@ server, the build, or `tsr generate`): never edit it.
   an open post affects reads Major outage, Degraded or Under maintenance unless it's down. The page's branding: a
   bar of its colour on top, its logo, title and description, Go to its website (under them on a phone). A page with no check shown and no
   post is a 404, as one that doesn't exist. Loads again each minute
-  with a meta refresh, no script. Made and filled under Monitors, Status pages. On a page's own domain
+  with a meta refresh, no script. For a visitor without cookies it's rendered signed out and kept a minute in the
+  data centre's cache (`publicStatusPage` in `src/server.ts`), so visitors and open tabs don't each read 30 days of
+  results. Made and filled under Monitors, Status pages. On a page's own domain
   (`src/server.ts`) it's the same page, `/` redirecting to it.
 - `index.tsx`: the overview: a banner when a newer crashyard is out, projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
