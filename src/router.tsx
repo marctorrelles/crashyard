@@ -7,6 +7,9 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,
+    // A page opened with other params is a new page: the issue, dashboard or project switched to never shows, nor
+    // saves, what was typed or picked on the one before (Start keeps a route's component mounted otherwise)
+    defaultRemountDeps: ({ params }) => params,
   })
 
   return router

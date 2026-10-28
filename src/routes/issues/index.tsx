@@ -72,11 +72,14 @@ function Issues() {
   const status = tokenize(query).find((t) => t.key === 'is' && !t.negate)?.value
   const project = projects.find((p) => p.slug === search.project)
   const name = project?.name ?? search.project
-  const [selected, setSelected] = useState<number[]>([])
-  const go = (change: Partial<Search>) => {
-    setSelected([])
-    void navigate({ search: (s) => ({ ...s, page: undefined, ...change }) })
-  }
+  // Picked issues belong to the list they were picked in: another search, page or project (the sidebar's, or back and
+  // forward) starts with none, so an action never reaches issues no longer on screen
+  const list = JSON.stringify(search)
+  const [picked, setPicked] = useState<{ list: string; ids: number[] }>({ list, ids: [] })
+  const selected = picked.list === list ? picked.ids.filter((id) => issues.some((i) => i.id === id)) : []
+  const setSelected = (next: number[] | ((ids: number[]) => number[])) =>
+    setPicked({ list, ids: typeof next === 'function' ? next(selected) : next })
+  const go = (change: Partial<Search>) => void navigate({ search: (s) => ({ ...s, page: undefined, ...change }) })
   const chosen = issues.filter((i) => selected.includes(i.id))
   const oneProject = new Set(chosen.map((i) => i.project_id)).size === 1
   return (

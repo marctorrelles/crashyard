@@ -62,7 +62,8 @@ server, the build, or `tsr generate`): never edit it.
   on a phone; sort by priority too; each row has its priority's menu. Saved searches beside the bar (`getSavedSearches`, loaded first): with no
   `query` in the URL the viewer's pinned search opens instead of `is:unresolved`. A row's project and release are menus to show only or exclude that value. An unread row's title is bolder with a
   sky dot after it, a bookmarked one has a star, and its assignee shows beside the culprit. Bulk resolve,
-  ignore, merge and delete: picking issues turns the list's header into "N selected" and the actions, sticky under
+  ignore, merge and delete: picked issues belong to the list they were picked in and are only those shown (another
+  search, page or project starts with none); picking issues turns the list's header into "N selected" and the actions, sticky under
   the top bar, `min-h-12` so nothing moves; on a phone the actions are a bar fixed at the screen's foot instead,
   with room after the list for it.
 - `issues/$issueId.tsx`: one issue (opening it marks it read for the viewer; its events under "The latest 50 events",
@@ -220,6 +221,9 @@ server, the build, or `tsr generate`): never edit it.
   type or else name) inline as that type; everything else, SVG and HTML included, `application/octet-stream` as
   `attachment`. Every answer has `nosniff` and `Content-Security-Policy: sandbox; default-src 'none'`; the e2e test
   checks them.
+- `src/router.tsx` sets `defaultRemountDeps` to the params: a page opened with other params (the sidebar's project
+  switch on a project's settings page, another issue, dashboard or monitor) is mounted anew, so it never shows or
+  saves what was typed on the one before.
 - Times on a page are relative to the `now` its loader returns, so the server and the browser render the same text;
   dates and times go through `<Time>` or `formatTime` (`src/components/time.tsx`), in the viewer's zone and clock,
   the same on both sides.
