@@ -74,6 +74,16 @@ export const channelOf = (db: D1Database, id: number) =>
 export const deleteChannel = (db: D1Database, id: number) =>
   db.prepare('DELETE FROM channels WHERE id = ?').bind(id).run()
 
+/** A channel into every route that hasn't got it, for a channel that gets no alerts yet */
+export const addToEveryRoute = (db: D1Database, id: number) =>
+  db
+    .prepare(
+      `UPDATE routes SET channel_ids = json_insert(channel_ids, '$[#]', ?1)
+       WHERE NOT EXISTS (SELECT 1 FROM json_each(routes.channel_ids) WHERE value = ?1)`,
+    )
+    .bind(id)
+    .run()
+
 /** Every Telegram channel's id and settings: a bot's channels share its one webhook and its secret */
 export async function telegramChannels(db: D1Database) {
   const { results } = await db

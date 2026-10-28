@@ -805,6 +805,13 @@ export const deleteChannel = createServerFn({ method: 'POST' })
       await telegramCall(gone, 'deleteWebhook', {}).catch(() => {})
   })
 
+export const addChannelToRoutes = createServerFn({ method: 'POST' })
+  .middleware([admin])
+  .validator((d: unknown) => ({ id: int(object(d).id) }))
+  .handler(async ({ data }) => {
+    await notifications.addToEveryRoute(env.DB, data.id)
+  })
+
 export const saveRoute = createServerFn({ method: 'POST' })
   .middleware([admin])
   .validator((d: unknown): notifications.RouteInput => {

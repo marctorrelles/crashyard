@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi, useNavigate, useRouter } from '@tanstack/react-router'
 import {
   IconBrandDiscord,
   IconBrandSlack,
@@ -7,6 +7,7 @@ import {
   IconPencil,
   IconPlus,
   IconSearch,
+  IconAlertTriangle,
   IconBellRinging,
   IconChartLine,
   IconTrash,
@@ -19,6 +20,8 @@ import { Ago } from '@/components/bits'
 import { SearchBar } from '@/components/search-bar'
 import { useTimePrefs } from '@/components/time'
 import { Empty, PageHeader, Shell } from '@/components/shell'
+import { useSave } from '@/components/settings'
+import { reaches } from '@/data/people'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -30,7 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Push } from '@/components/push'
+import { deviceName, PushControls, PushHint, usePushDevice } from '@/components/push'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -39,6 +42,7 @@ import {
   deleteMetricAlert,
   deleteRoute,
   findTelegramChats,
+  addChannelToRoutes,
   getNotifications,
   getPush,
   saveChannel,
@@ -76,7 +80,7 @@ export const Route = createFileRoute('/notifications')({
   component: Notifications,
 })
 
-type Data = Awaited<ReturnType<typeof getNotifications>>
+type Data = Awaited<ReturnType<typeof getNotifications>> & { push: Awaited<ReturnType<typeof getPush>> }
 const ICONS = {
   telegram: IconBrandTelegram,
   slack: IconBrandSlack,
@@ -89,7 +93,6 @@ const list = <T,>(json: string | null): T[] => (json ? (JSON.parse(json) as T[])
 
 function Notifications() {
   const d = Route.useLoaderData()
-  const { zone } = useTimePrefs()
   const [channel, setChannel] = useState<Channel | 'new' | null>(null)
   const [route, setRoute] = useState<NotifyRoute | 'new' | null>(null)
   const search = Route.useSearch()
@@ -105,13 +108,7 @@ function Notifications() {
     : undefined
   return (
     <Shell crumbs={['Notifications']}>
-      <PageHeader title="Notifications">
-        Channels are where alerts are delivered. Routes decide which alerts go to which channels.
-      </PageHeader>
-
-      <div className="mb-8">
-        <Push push={d.push} here />
-      </div>
+      <PageHeader title="Notifications">Choose where alerts go, and which ones each place gets.</PageHeader>
 
       <section className="mb-8">
         <div className="mb-2 flex items-center justify-between">
@@ -121,33 +118,18 @@ function Notifications() {
             Add a channel
           </Button>
         </div>
-        {d.channels.length === 0 ? (
+        {d.channels.length === 0 && !d.push.channel ? (
           <Empty compact icon={IconBellRinging} title="No channels yet">
             Nobody hears about a crash until you add one. A Telegram bot takes about a minute to set up.
           </Empty>
         ) : (
           <ul className="divide-y rounded-xl border">
-            {d.channels.map((c) => {
-              const Icon = ICONS[choiceOf(c)]
-              return (
-                <li key={c.id} className="flex items-center gap-3 px-4 py-3">
-                  <Icon className="size-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{c.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {summary(c)}
-                      {c.quiet_from !== null && c.quiet_to !== null && quietLine(c, zone)}
-                    </p>
-                  </div>
-                  <TestButton label={`Send a test to ${c.name}`} send={() => testChannel({ data: { id: c.id } })} />
-                  <Button size="icon-sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => setChannel(c)}>
-                    <IconPencil />
-                  </Button>
-                </li>
-              )
-            })}
+            {d.channels.map((c) => (
+              <ChannelRow key={c.id} channel={c} d={d} onEdit={() => setChannel(c)} />
+            ))}
           </ul>
         )}
+        {!d.push.channel && <PushOffer push={d.push} />}
       </section>
 
       <section>
@@ -207,6 +189,7 @@ function Notifications() {
       {channel && (
         <ChannelDialog
           channel={channel === 'new' ? undefined : channel}
+          push={channel !== 'new' && channel.id === d.push.channel?.id ? d.push : undefined}
           emailFrom={d.emailFrom}
           onClose={() => setChannel(null)}
         />
@@ -254,11 +237,130 @@ const minutesOf = (value: string) => {
   return h * 60 + m
 }
 
+const root = getRouteApi('__root__')
+const useAdmin = () => {
+  const { role } = root.useLoaderData()
+  return !!role && reaches(role, 'admin')
+}
+
+/** An amber line under a row: something there doesn't work as it is */
+const Warning = ({ children }: { children: React.ReactNode }) => (
+  <p className="mt-1 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+    <IconAlertTriangle className="mt-px size-3.5 shrink-0" />
+    <span>{children}</span>
+  </p>
+)
+
+// A channel, and what it gets: the routes sending to it, or that none do with a way to fix it. The viewer's own push
+// channel lists their devices and turns this one on
+function ChannelRow({ channel: c, d, onEdit }: { channel: Channel; d: Data; onEdit: () => void }) {
+  const admin = useAdmin()
+  const { save, saving } = useSave()
+  const Icon = ICONS[choiceOf(c)]
+  const routes = d.routes.filter((r) => list<number>(r.channel_ids).includes(c.id))
+  const kinds = new Set(routes.flatMap((r) => list<string>(r.kinds))).size
+  const projects = new Set(routes.map((r) => r.project_id))
+  const from = projects.has(null)
+    ? 'every project'
+    : projects.size === 1
+      ? (d.projects.find((p) => projects.has(p.id))?.name ?? 'a deleted project')
+      : `${projects.size} projects`
+  const own = c.id === d.push.channel?.id
+  const { zone } = useTimePrefs()
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <Icon className="mt-0.5 size-4 shrink-0 self-start text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{c.name}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {summary(c)}
+          {c.quiet_from !== null && c.quiet_to !== null && quietLine(c, zone)}
+        </p>
+        {own && <OwnDevices push={d.push} />}
+        {routes.length ? (
+          <p className="text-xs text-muted-foreground">
+            Gets {kinds} {kinds === 1 ? 'kind' : 'kinds'} of alert from {from}
+          </p>
+        ) : (
+          <Warning>
+            Gets no alerts yet.{' '}
+            {admin &&
+              (d.routes.length ? (
+                <button
+                  type="button"
+                  disabled={saving}
+                  className="font-medium underline underline-offset-2"
+                  onClick={() =>
+                    void save(() => addChannelToRoutes({ data: { id: c.id } }), `${c.name} is in every route`)
+                  }
+                >
+                  Add it to every route
+                </button>
+              ) : (
+                'Add a route to it below.'
+              ))}
+          </Warning>
+        )}
+      </div>
+      <TestButton label={`Send a test to ${c.name}`} send={() => testChannel({ data: { id: c.id } })} />
+      <Button size="icon-sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={onEdit}>
+        <IconPencil />
+      </Button>
+    </li>
+  )
+}
+
+/** The viewer's devices on their push channel's row, with this one's switch when it's off */
+function OwnDevices({ push }: { push: Data['push'] }) {
+  const { state, endpoint, turnOn, saving } = usePushDevice(push)
+  return (
+    <>
+      <p className="truncate text-xs text-muted-foreground">
+        {push.devices.map((x) => `${deviceName(x)}${x.endpoint === endpoint ? ' (this device)' : ''}`).join(', ') ||
+          'No devices yet'}
+      </p>
+      {state === 'off' && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={saving}
+          className="my-1.5 max-sm:h-10"
+          onClick={() => void turnOn()}
+        >
+          Turn on for this device
+        </Button>
+      )}
+    </>
+  )
+}
+
+/** Before the viewer has a push channel: push offered as one more place for alerts */
+function PushOffer({ push }: { push: Data['push'] }) {
+  const { state, turnOn, saving } = usePushDevice(push)
+  if (state === 'loading' || state === 'unsupported') return null
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-dashed px-4 py-3">
+      <IconDeviceMobileMessage className="size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">Push to your devices</p>
+        <p className="text-xs text-muted-foreground">Alerts on this device, even while crashyard is closed.</p>
+        {state !== 'off' && <PushHint state={state} />}
+      </div>
+      {state === 'off' && (
+        <Button size="sm" disabled={saving} className="max-sm:h-10" onClick={() => void turnOn()}>
+          Turn on for this device
+        </Button>
+      )}
+    </div>
+  )
+}
+
 /** A list in prose: a, b and c */
 const and = (items: string[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
 
 function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit: () => void }) {
+  const admin = useAdmin()
   const project =
     r.project_id === null
       ? 'Every project'
@@ -272,6 +374,8 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
   const channels = list<number>(r.channel_ids)
     .map((id) => d.channels.find((c) => c.id === id)?.name)
     .filter(Boolean)
+  const [open, setOpen] = useState(false)
+  const folded = kinds.length > 3 && !open
   const envs = list<string>(r.environments)
   const levels = list<string>(r.levels)
   const f = frequencyOf(r.frequency)
@@ -293,12 +397,34 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
           {project} → {channels.join(', ') || 'no channel'}
         </p>
         <p className="text-xs text-muted-foreground">
-          {kinds.join(', ')}
+          {folded ? `${kinds.length} kinds of alert` : kinds.join(', ')}
           {' · '}
           {envs.length ? and(envs) : 'all environments'}
           {levels.length > 0 && ` · ${levels.join(', ')}`}
           {extra.length > 0 && ` · ${extra.join(' · ')}`}
+          {kinds.length > 3 && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2 max-sm:py-2.5"
+                onClick={() => setOpen(!open)}
+              >
+                {open ? 'Hide the kinds' : 'Show the kinds'}
+              </button>
+            </>
+          )}
         </p>
+        {!channels.length && (
+          <Warning>
+            Sends nowhere. {list<number>(r.channel_ids).length ? 'Its channel was deleted. ' : ''}
+            {admin && (
+              <button type="button" className="font-medium underline underline-offset-2" onClick={onEdit}>
+                Choose a channel
+              </button>
+            )}
+          </Warning>
+        )}
       </div>
       <TestButton label="Send a test" send={() => testRoute({ data: { id: r.id } })} />
       <Button size="icon-sm" variant="ghost" aria-label="Edit route" onClick={onEdit}>
@@ -349,10 +475,12 @@ function choiceOf(c?: Channel): Choice {
 
 function ChannelDialog({
   channel,
+  push,
   emailFrom,
   onClose,
 }: {
   channel?: Channel
+  push?: Data['push'] // the viewer's own push channel: their devices, to manage here
   emailFrom: string | null
   onClose: () => void
 }) {
@@ -415,10 +543,12 @@ function ChannelDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {choice === 'push' ? (
+            {choice === 'push' && push ? (
+              <PushControls push={push} />
+            ) : choice === 'push' ? (
               <p className="text-sm text-muted-foreground">
-                Push notifications to {config.email}’s devices. They turn them on, and see their devices, in Settings,
-                Preferences.
+                Push notifications to {config.email}’s devices. They turn them on, and see their devices, on this page
+                or in Settings, Preferences.
               </p>
             ) : (
               <div className="grid gap-2">
@@ -437,8 +567,8 @@ function ChannelDialog({
                 </Select>
                 {!channel && (
                   <p className="text-xs text-muted-foreground">
-                    For push notifications, each person turns them on for their device at the top of this page, or in
-                    Settings, Preferences.
+                    For push notifications, each person turns them on for their own device, on this page or in Settings,
+                    Preferences.
                   </p>
                 )}
               </div>

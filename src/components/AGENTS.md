@@ -135,8 +135,10 @@
   check's line, a tick or an amber warning, on Usage and Health), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also Defaults for new projects), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
-- `push.tsx`: `Push`, push notifications on the viewer's devices (`getPush`'s data as `push`: the VAPID key, the
-  devices and their channel), on Preferences and on top of Notifications (`here`): this browser's state, read in the
+- `push.tsx`: `usePushDevice` (this browser's state, Turn on and off), `PushHint`, `PushControls` (also in the push
+  channel's dialog on Notifications) and `Push`, Preferences' card of them with whether a route sends to the viewer's
+  channel; push notifications on the viewer's devices (`getPush`'s data as `push`: the VAPID key, the devices and
+  their channel): this browser's state, read in the
   browser (no push API: on an iPhone or iPad outside the Home Screen app, how to add it, else that it can't; blocked;
   off; on), Turn on notifications (`subscribe`: permission asked first, straight from the tap, as Safari needs, then
   `/sw.js` registered and subscribed, `savePushDevice`), Send test notification (`testPush`, this device only), Turn

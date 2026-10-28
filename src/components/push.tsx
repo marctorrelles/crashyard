@@ -54,9 +54,8 @@ async function subscribe(key: string) {
   return sub.endpoint
 }
 
-// Push notifications on the viewer's own devices: this one on or off, a test, and the list (src/notify/push.ts).
-// `here` on Notifications, whose routes are on the same page
-export function Push({ push, here }: { push: Data; here?: boolean }) {
+/** This browser's push: its state, and turning it on or off (src/notify/push.ts) */
+export function usePushDevice(push: Data) {
   const { save, saving } = useSave()
   const [state, setState] = useState<State>('loading')
   const [endpoint, setEndpoint] = useState<string | null>(null)
@@ -88,106 +87,110 @@ export function Push({ push, here }: { push: Data; here?: boolean }) {
       setState('off')
     }, 'Notifications are off for this device')
 
+  return { state, endpoint, turnOn, turnOff, save, saving }
+}
+
+/** Why this browser can't turn push on, when it can't */
+export function PushHint({ state }: { state: State }) {
+  if (state === 'homescreen')
+    return <Hint>Add crashyard to your Home Screen from the Share menu, then open it from there to turn them on.</Hint>
+  if (state === 'unsupported') return <Hint>This browser can’t show notifications.</Hint>
+  if (state === 'denied')
+    return <Hint>Notifications are blocked for crashyard. Allow them in this browser’s settings, then reload.</Hint>
+  return null
+}
+
+// This device on or off, a test, and the viewer's devices with Remove: Preferences' card and the push channel's
+// dialog on Notifications
+export function PushControls({ push }: { push: Data }) {
+  const { state, endpoint, turnOn, turnOff, save, saving } = usePushDevice(push)
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {state === 'on' ? (
+          <>
+            <Button
+              variant="outline"
+              disabled={saving}
+              className="max-sm:h-10"
+              onClick={() => void save(() => testPush({ data: { endpoint: endpoint! } }), 'Test notification sent')}
+            >
+              Send test notification
+            </Button>
+            <Button variant="ghost" disabled={saving} className="max-sm:h-10" onClick={() => void turnOff()}>
+              Turn off on this device
+            </Button>
+          </>
+        ) : (
+          <Button disabled={saving || state !== 'off'} className="max-sm:h-10" onClick={() => void turnOn()}>
+            Turn on for this device
+          </Button>
+        )}
+      </div>
+      <PushHint state={state} />
+
+      {push.devices.length > 0 && (
+        <ul className="divide-y rounded-xl border text-sm">
+          {push.devices.map((d) => {
+            const Icon = /iPhone|Android/.test(d.name) ? IconDeviceMobile : IconDeviceDesktop
+            return (
+              <li key={d.id} className="flex min-h-14 items-center gap-3 px-3 py-2">
+                <Icon className="size-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-2 truncate font-medium">
+                    {deviceName(d)}
+                    {d.endpoint === endpoint && <Badge variant="secondary">This device</Badge>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Added <Ago at={d.created_at} now={push.now} />
+                    {d.last_sent_at && (
+                      <>
+                        {' · '}last alert <Ago at={d.last_sent_at} now={push.now} />
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={saving}
+                  className="max-sm:h-10"
+                  onClick={() =>
+                    void (d.endpoint === endpoint
+                      ? turnOff()
+                      : save(() => deletePushDevice({ data: { id: d.id } }), 'Device removed'))
+                  }
+                >
+                  Remove
+                </Button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export const deviceName = (d: { name: string }) => (d.name === 'Passkey' ? 'Unknown browser' : d.name)
+
+// Preferences' card: the controls, and whether a route sends to the viewer's channel
+export function Push({ push }: { push: Data }) {
   return (
     <SettingsCard
       title="Push notifications"
       description="Alerts on this device, even while crashyard is closed. Turn them on on each device you want them on."
     >
       <div className="grid gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {state === 'on' ? (
-            <>
-              <Button
-                variant="outline"
-                disabled={saving}
-                className="max-sm:h-10"
-                onClick={() => void save(() => testPush({ data: { endpoint: endpoint! } }), 'Test notification sent')}
-              >
-                Send test notification
-              </Button>
-              <Button variant="ghost" disabled={saving} className="max-sm:h-10" onClick={() => void turnOff()}>
-                Turn off on this device
-              </Button>
-            </>
-          ) : (
-            <Button disabled={saving || state !== 'off'} className="max-sm:h-10" onClick={() => void turnOn()}>
-              Turn on notifications
-            </Button>
-          )}
-        </div>
-        {state === 'homescreen' && (
-          <Hint>Add crashyard to your Home Screen from the Share menu, then open it from there to turn them on.</Hint>
-        )}
-        {state === 'unsupported' && <Hint>This browser can’t show notifications.</Hint>}
-        {state === 'denied' && (
-          <Hint>Notifications are blocked for crashyard. Allow them in this browser’s settings, then reload.</Hint>
-        )}
-
-        {push.devices.length > 0 && (
-          <ul className="divide-y rounded-xl border text-sm">
-            {push.devices.map((d) => {
-              const Icon = /iPhone|Android/.test(d.name) ? IconDeviceMobile : IconDeviceDesktop
-              return (
-                <li key={d.id} className="flex min-h-14 items-center gap-3 px-3 py-2">
-                  <Icon className="size-5 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 truncate font-medium">
-                      {d.name === 'Passkey' ? 'Unknown browser' : d.name}
-                      {d.endpoint === endpoint && <Badge variant="secondary">This device</Badge>}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Added <Ago at={d.created_at} now={push.now} />
-                      {d.last_sent_at && (
-                        <>
-                          {' · '}last alert <Ago at={d.last_sent_at} now={push.now} />
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={saving}
-                    className="max-sm:h-10"
-                    onClick={() =>
-                      void (d.endpoint === endpoint
-                        ? turnOff()
-                        : save(() => deletePushDevice({ data: { id: d.id } }), 'Device removed'))
-                    }
-                  >
-                    Remove
-                  </Button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-
+        <PushControls push={push} />
         {push.channel && (
           <Hint>
-            {here ? (
-              push.channel.routes > 0 ? (
-                <>Routes below send alerts to {push.channel.name}.</>
-              ) : (
-                <>{push.channel.name} isn’t in a route yet, so no alerts arrive. An admin adds it to one below.</>
-              )
-            ) : push.channel.routes > 0 ? (
-              <>
-                Routes send alerts to {push.channel.name}.{' '}
-                <Link to="/notifications" className="underline underline-offset-2">
-                  See them on Notifications
-                </Link>
-                .
-              </>
-            ) : (
-              <>
-                {push.channel.name} isn’t in a route yet, so no alerts arrive. An admin adds it to one on{' '}
-                <Link to="/notifications" className="underline underline-offset-2">
-                  Notifications
-                </Link>
-                .
-              </>
-            )}
+            {push.channel.routes > 0 ? 'Routes send alerts to ' : `${push.channel.name} isn’t in a route yet. `}
+            {push.channel.routes > 0 && `${push.channel.name}. `}
+            <Link to="/notifications" className="underline underline-offset-2">
+              {push.channel.routes > 0 ? 'See them on Notifications' : 'Add it to one on Notifications'}
+            </Link>
+            .
           </Hint>
         )}
       </div>
