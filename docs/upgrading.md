@@ -17,6 +17,7 @@ as they are. This needs the Workers Paid plan.
 2. **Connect it.** Open **Update available**, or Settings, General, then **Automatic updates**. Paste the token, check
    the Worker's name, which is `crashyard` unless you renamed it, and choose **Connect Cloudflare**.
 3. **Install.** Choose **Install** and keep the page open for up to a minute. The page reloads on the new version.
+   Anyone else with crashyard open sees a message that a new version is ready, with a button to reload.
 
 Turn on **Install updates automatically** and crashyard installs each new release every day at 03:40 UTC. A new major
 version always waits for you, as it can change how crashyard works. If an automatic update can't install, the

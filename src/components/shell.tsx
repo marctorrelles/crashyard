@@ -60,6 +60,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { NewVersion } from '@/components/new-version'
 import { PushPrompt } from '@/components/push'
 import { UpdateDialog } from '@/components/update'
 import { cn } from '@/lib/utils'
@@ -81,6 +82,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <SidebarProvider defaultOpen={sidebarOpen}>
       <AppSidebar />
       <PushPrompt />
+      <NewVersion />
       <SidebarInset className="min-w-0">{children}</SidebarInset>
     </SidebarProvider>
   )

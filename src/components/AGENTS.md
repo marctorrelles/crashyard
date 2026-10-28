@@ -146,6 +146,10 @@
 standalone`) with push and permission not asked yet, Get alerts on this device, Turn on notifications or Not now;
   either keeps `crashyard.push-prompted` in localStorage. No vite-plugin-pwa: its prompts are for a new service worker,
   not push, and it would replace `sw.js`.
+- `new-version.tsx`: `NewVersion`, in `Layout`: an open page, an installed app above all, asks `/version.json` for
+  the deployed build on coming back to the front and every 15 minutes (`vite.config.ts` writes it, and the same id
+  into the page as `__BUILD__`); a different one shows A new version of crashyard is ready, with Reload and a close
+  button, until closed. A dev server has no `version.json`, so it never shows there.
 - `update.tsx`: `UpdateDialog`, for owners, loading `getUpdate` each time it opens: Automatically (Connect Cloudflare,
   an API token and the Worker's name, `crashyard` by default; once connected, Install <version> unless `refusal` says
   it needs a deploy, then a reload; the daily switch; the daily check's last failure; Disconnect), and Manually (the
