@@ -54,7 +54,8 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
   alert: in the chat on Telegram, in one tap on crashyard from the others.
 - **Moving from Sentry.** Bring a project's issues over with their latest event, counts, status and comments. Events
   from the SDK keep coming to the same issues. Until you switch, every event can go on to Sentry too.
-- **MCP server.** Lets an AI agent search issues and logs, read a stack trace, resolve issues and add notes. See
+- **MCP server.** Lets an AI agent read issues, events, logs, traces, releases, performance and monitors, triage issues
+  and post to status pages. See
   [docs/mcp.md](docs/mcp.md).
 - **People and sign-in.** Passkeys, invites and four roles, from owner to viewer, with recovery codes and an optional
   Sign in with GitHub.

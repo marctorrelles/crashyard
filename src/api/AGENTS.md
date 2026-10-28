@@ -92,10 +92,23 @@ signature; `/mcp` comes after sign-in.
   shows their wrangler line works. Each event goes through `handleIngest` as an envelope with the project's first key
   that's on, so quotas, filters, grouping, notices and retries are ingest's. `/__dev/tail` (dev only) takes runs as
   JSON for the end-to-end test. `tail.test.ts` and `test/ingest.e2e.test.ts`.
-- `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`. It's behind
+- `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON): tools over `src/data/`, each answering
+  text an agent reads well (times in ISO 8601 UTC, ids to pass to the next tool). Reading: `list_projects`
+  (`overview`), `search_issues`, `get_issue` (with events per day over 14 UTC days from its `series`),
+  `list_issue_events` (`exploreEvents` with `issueId`, tags as columns, the `older` cursor), `search_events` (one
+  `COUNT` over `whereOf` without a group, else `exploreChart`'s `groups`, the 10 biggest over the whole range, so
+  users count exactly), `get_trace` (`traceOf`), `search_logs`, `list_releases` and `get_release` (`releaseDiff`,
+  `releaseHealth`, `deploysOf`, `releaseCommits`), `list_transactions` and `get_transaction` (`transactions`,
+  `transaction`), `list_monitors` and `get_monitor`, `list_status_pages` (`pagesOf`, `checksOf`, `postsOf`).
+  Changing (`changes`): `resolve_issue` (`in_release` as `release`, `fixed_in_release`), `ignore_issue` and
+  `reopen_issue`, each by `id` or `ids` (100), `set_priority`, `assign_issue` (`me` is the agent's person),
+  `merge_issues` (one project, the first id kept), `link_issue` (http or https), `add_note`, `post_status_update`
+  (public: opens a post on a page by slug, or adds an update to one by id, as `createPost` and `addUpdate`; its
+  description says it's public). No admin tool: a change token tops out at member. It's behind
   sign-in (routed after it in `src/server.ts`, as the dashboard), `handleMcp(request, db, { email, role })`; JSON only
   and never cross-site, so a web page can't call it with someone's cookie. An agent sends
   `Authorization: Bearer cyp_…` (Settings, Agent tokens; `userTokenOf`), acting as its person with
-  `tokenRole`: a read token is a viewer, a change token at most a member. The tools marked `changes`
-  (`resolve_issue`, `ignore_issue`, `add_note`) answer an `isError` result for a role below member, saying so
-  (`mcp.test.ts`). See docs/mcp.md. `get_issue` ends with the issue's suspect commits (`suspectCommits`), when there are any.
+  `tokenRole`: a read token is a viewer, a change token at most a member. The tools marked `changes` answer an
+  `isError` result for a role below member, saying so. `mcp.test.ts`: every read tool on a small database and on an
+  empty one, every change tool refused to a read token and applied for a member. See docs/mcp.md. `get_issue` ends
+  with the issue's suspect commits (`suspectCommits`), when there are any.

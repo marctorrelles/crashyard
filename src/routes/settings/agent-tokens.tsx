@@ -17,7 +17,7 @@ export const Route = createFileRoute('/settings/agent-tokens')({
   component: AgentTokens,
 })
 
-const SCOPES = { read: 'Read only', change: 'Read and change issues' } as const
+const SCOPES = { read: 'Read only', change: 'Read and change' } as const
 const EXPIRY = { '30': '30 days', '90': '90 days', '365': 'A year', never: 'Never' } as const
 
 // The tokens your agents reach crashyard with over MCP, acting as you
@@ -104,7 +104,10 @@ function AgentTokens() {
               Create token
             </Button>
           </form>
-          <Hint>Read and change issues lets it resolve, ignore and add notes, if your role allows it.</Hint>
+          <Hint>
+            Read and change lets it triage issues and post to status pages, if your role allows it. Status pages are
+            public.
+          </Hint>
           {tokens.length === 0 ? (
             <Empty icon={IconRobot} title="No agent tokens yet" compact>
               Create one for each agent, so you can delete one without the others.

@@ -142,7 +142,7 @@ server, the build, or `tsr generate`): never edit it.
   `forward_dsn` by `updateProject`, empty for none). The viewer's own, the group "You": `account`
   (`getSignIn`: passkeys with Rename and Remove, Add passkey; recovery codes left and Make new
   codes, shown once; where they're signed in, This browser, Sign out each and Sign out everywhere else),
-  `agent-tokens` (`getAgentTokens`: a person's `cyp_` tokens for MCP with a name, Read only or Read and change issues,
+  `agent-tokens` (`getAgentTokens`: a person's `cyp_` tokens for MCP with a name, Read only or Read and change,
   and an expiry, the token and the `claude mcp add` command shown once, Delete), `appearance` (the theme, `STYLES` in
   `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to preview
   it, and System, Light, Dark, both applied at once) and `preferences`; both save each change at once through
