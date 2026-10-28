@@ -221,7 +221,8 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   writes v2; over an existing one it puts the widget list it had first in `revisions` (10 at most, `MAX_REVISIONS`,
   `{ widgets, by, at }`, the widgets as stored, v1 too) when the widgets changed, written `WHERE updated = <read>` so two
   saves at once can't drop a revision (the loser is told to open it again). `dashboardHistory`, `revisionWidgets` (read
-  as stored widgets are), `addWidget` (the logs page's, at the end, through `parseWidgets`), `filterOptions` (the
+  as stored widgets are), `addWidget` (the logs page's, at the end, through `parseWidgets`, saved over the version it read, `saveDashboard`'s
+  `basedOn`: a save made meanwhile is read again, up to three tries, never overwritten), `filterOptions` (the
   filter bar's environments and releases of the last 30 days from `event_hours`, by count, 50 each).
   `listDashboards` counts widgets only of valid JSON (else `null`). Plan: the list by `dashboards_updated`; a dashboard
   by its primary key.

@@ -125,4 +125,16 @@ describe('revisions', () => {
     expect(await revisionWidgets(db, 1, 0)).toEqual([upgraded])
     await expect(addWidget(db, 1, upgraded, 'm', 300)).rejects.toThrow('share an id')
   })
+
+  it('never writes over a save made since the version a change was made on', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO dashboards (id, name, widgets, updated, updated_by)
+      VALUES (1, 'Crashes', '${JSON.stringify([widget])}', 100, 'marc@example.com')`)
+    await saveDashboard(db, { id: 1, name: 'Crashes', widgets: [{ ...upgraded, title: 'Theirs' }] }, 'ana', 150)
+    const stale = saveDashboard(db, { id: 1, name: 'Crashes', widgets: [upgraded] }, 'marc', 160, 100)
+    await expect(stale).rejects.toThrow('Someone saved this dashboard just now')
+    // Adding a widget reads the dashboard as it is now, so their save stays
+    await addWidget(db, 1, { ...upgraded, id: '00000009', title: 'More' }, 'marc', 170)
+    expect((await getDashboard(db, 1))?.widgets.map((w) => w.title)).toEqual(['Theirs', 'More'])
+  })
 })

@@ -35,6 +35,8 @@ export async function saveDashboard(
   d: { id?: number; name: string; widgets: Widget[] },
   by: string,
   now: number,
+  // The version the change was made on (its `updated`): a dashboard saved since is refused, not overwritten
+  basedOn?: number,
 ) {
   const widgets = JSON.stringify(d.widgets)
   if (d.id === undefined) {
@@ -49,6 +51,7 @@ export async function saveDashboard(
     .bind(d.id)
     .first<{ widgets: string; updated: number; updated_by: string; revisions: string }>()
   if (!old) throw new Error('This dashboard no longer exists.')
+  if (basedOn !== undefined && old.updated !== basedOn) throw new Error(SAVED_MEANWHILE)
   let revisions = revisionsOf(old.revisions)
   if (old.widgets !== widgets) {
     let before: unknown = old.widgets
@@ -67,7 +70,7 @@ export async function saveDashboard(
     )
     .bind(d.name, widgets, now, by, JSON.stringify(revisions), d.id, old.updated)
     .first<{ id: number }>()
-  if (!row) throw new Error('Someone saved this dashboard just now. Open it again to see their changes.')
+  if (!row) throw new Error(SAVED_MEANWHILE)
   return row.id
 }
 
@@ -99,14 +102,26 @@ export async function revisionWidgets(db: D1Database, id: number, index: number)
   return readWidgets(typeof revision.widgets === 'string' ? revision.widgets : JSON.stringify(revision.widgets))
 }
 
-/** One widget added at the end of a dashboard (from the logs page), saved as a whole */
+const SAVED_MEANWHILE = 'Someone saved this dashboard just now. Open it again to see their changes.'
+
+/**
+ * One widget added at the end of a dashboard (from the logs page), saved as a whole over the version it was added to:
+ * a save made meanwhile is read again and the widget added to it, never overwritten
+ */
 export async function addWidget(db: D1Database, id: number, widget: Widget, by: string, now: number) {
-  const d = await getDashboard(db, id)
-  if (!d) throw new Error('This dashboard no longer exists.')
-  if (d.widgets.length >= MAX_WIDGETS) throw new Error(`${d.name} holds ${MAX_WIDGETS} widgets already.`)
-  if (d.widgets.some((w) => w.invalid))
-    throw new Error(`Remove or redo the widgets of ${d.name} that can’t be read first.`)
-  return saveDashboard(db, { id, name: d.name, widgets: parseWidgets([...d.widgets, widget]) }, by, now)
+  for (let attempt = 0; ; attempt++) {
+    const d = await getDashboard(db, id)
+    if (!d) throw new Error('This dashboard no longer exists.')
+    if (d.widgets.length >= MAX_WIDGETS) throw new Error(`${d.name} holds ${MAX_WIDGETS} widgets already.`)
+    if (d.widgets.some((w) => w.invalid))
+      throw new Error(`Remove or redo the widgets of ${d.name} that can’t be read first.`)
+    try {
+      const widgets = parseWidgets([...d.widgets, widget])
+      return await saveDashboard(db, { id, name: d.name, widgets }, by, now, d.updated)
+    } catch (error) {
+      if (attempt === 2 || !(error instanceof Error) || error.message !== SAVED_MEANWHILE) throw error
+    }
+  }
 }
 
 export async function deleteDashboard(db: D1Database, id: number) {
