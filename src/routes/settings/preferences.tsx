@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { Push } from '@/components/push'
 import { getPush } from '@/fns'
 import { DateAndTime } from './-date-and-time'
 import { Home } from './-home'
-import { Push } from './-push'
 import { StackTraces } from './-stack-traces'
 
 export const Route = createFileRoute('/settings/preferences')({
@@ -14,12 +14,13 @@ export const Route = createFileRoute('/settings/preferences')({
 
 // How crashyard reads for you: time, stack traces and what opens first
 function PreferencesPage() {
+  const { push } = Route.useLoaderData()
   return (
     <>
       <DateAndTime />
       <StackTraces />
       <Home />
-      <Push />
+      <Push push={push} />
     </>
   )
 }

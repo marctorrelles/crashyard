@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Push } from '@/components/push'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -39,6 +40,7 @@ import {
   deleteRoute,
   findTelegramChats,
   getNotifications,
+  getPush,
   saveChannel,
   saveMetricAlert,
   saveRoute,
@@ -69,7 +71,7 @@ export const Route = createFileRoute('/notifications')({
     query: typeof s.query === 'string' && s.query.length <= 1000 ? s.query : undefined,
     project: typeof s.project === 'string' && s.project.length <= 60 ? s.project : undefined,
   }),
-  loader: () => getNotifications(),
+  loader: async () => ({ ...(await getNotifications()), push: await getPush() }),
   head: () => ({ meta: [{ title: 'Notifications · crashyard' }] }),
   component: Notifications,
 })
@@ -106,6 +108,10 @@ function Notifications() {
       <PageHeader title="Notifications">
         Channels are where alerts are delivered. Routes decide which alerts go to which channels.
       </PageHeader>
+
+      <div className="mb-8">
+        <Push push={d.push} here />
+      </div>
 
       <section className="mb-8">
         <div className="mb-2 flex items-center justify-between">
@@ -431,7 +437,8 @@ function ChannelDialog({
                 </Select>
                 {!channel && (
                   <p className="text-xs text-muted-foreground">
-                    For push notifications, each person turns them on in Settings, Preferences.
+                    For push notifications, each person turns them on for their device at the top of this page, or in
+                    Settings, Preferences.
                   </p>
                 )}
               </div>

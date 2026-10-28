@@ -135,6 +135,17 @@
   check's line, a tick or an amber warning, on Usage and Health), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also Defaults for new projects), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
+- `push.tsx`: `Push`, push notifications on the viewer's devices (`getPush`'s data as `push`: the VAPID key, the
+  devices and their channel), on Preferences and on top of Notifications (`here`): this browser's state, read in the
+  browser (no push API: on an iPhone or iPad outside the Home Screen app, how to add it, else that it can't; blocked;
+  off; on), Turn on notifications (`subscribe`: permission asked first, straight from the tap, as Safari needs, then
+  `/sw.js` registered and subscribed, `savePushDevice`), Send test notification (`testPush`, this device only), Turn
+  off on this device, the devices with Remove, and whether a route sends to their channel. A subscription the server
+  doesn't know is saved again on opening it, as a push service may move a browser to a new address (Safari fires no
+  `pushsubscriptionchange`). `PushPrompt`, in `Layout`: once per device, in the installed app (`display-mode:
+standalone`) with push and permission not asked yet, Get alerts on this device, Turn on notifications or Not now;
+  either keeps `crashyard.push-prompted` in localStorage. No vite-plugin-pwa: its prompts are for a new service worker,
+  not push, and it would replace `sw.js`.
 - `update.tsx`: `UpdateDialog`, for owners, loading `getUpdate` each time it opens: Automatically (Connect Cloudflare,
   an API token and the Worker's name, `crashyard` by default; once connected, Install <version> unless `refusal` says
   it needs a deploy, then a reload; the daily switch; the daily check's last failure; Disconnect), and Manually (the

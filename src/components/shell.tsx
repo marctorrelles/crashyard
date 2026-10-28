@@ -60,6 +60,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { PushPrompt } from '@/components/push'
 import { UpdateDialog } from '@/components/update'
 import { cn } from '@/lib/utils'
 
@@ -79,6 +80,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
       <AppSidebar />
+      <PushPrompt />
       <SidebarInset className="min-w-0">{children}</SidebarInset>
     </SidebarProvider>
   )

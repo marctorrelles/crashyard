@@ -153,13 +153,7 @@ server, the build, or `tsr generate`): never edit it.
   it, and System, Light, Dark, both applied at once) and `preferences`; both save each change at once through
   `savePreference` and read from the root's loader. Preferences: `-date-and-time`, a time zone from `Intl.supportedValuesOf`, empty for the browser's, and a
   12 or 24-hour clock; `-stack-traces`, newest or oldest frame first, other frames open or not; `-home`, the
-  overview's project and range; `-push`, Push notifications (`getPush`, in the page's loader: the VAPID key, the
-  viewer's devices and their channel): this browser's state, read in the browser (no push API: on an iPhone or iPad
-  outside the Home Screen app, how to add it, else that it can't; blocked; off; on), Turn on notifications
-  (permission asked first, straight from the tap, as Safari needs, then `/sw.js` registered and subscribed,
-  `savePushDevice`), Send test notification (`testPush`, this device only), Turn off on this device, the devices with
-  Remove, and whether a route sends to their channel. A subscription the server doesn't know is saved again on opening
-  it, as a push service may move a browser to a new address (Safari fires no `pushsubscriptionchange`). Each page saves only its own fields through `updateProject`, whose checks are per
+  overview's project and range; Push notifications, `src/components/push.tsx`'s `Push` with `getPush` in the page's loader (Notifications has it too, on top). Each page saves only its own fields through `updateProject`, whose checks are per
   field. `projects/$slug/settings.tsx` redirects to the project's General.
 - `explore.tsx`: Explore, events across issues. The search lives in the URL (`project`, `query`, `range`, `columns`,
   comma-separated, `groupBy`, `users`, `before`): `SearchBar` scope `events`, saved searches of page `explore` (the
@@ -211,10 +205,10 @@ server, the build, or `tsr generate`): never edit it.
   and address, `updateStatusPage`, admin: name, address (the slug, opening the page at the new one), page title, brand
   colour, a picker and its hex, description, logo and website, https only, and the custom domain with how to add it to
   the Worker in Cloudflare; Delete status page after a confirmation, `deleteStatusPage`, admin).
-- `notifications.tsx` (`getNotifications` keeps channel secrets on the server: Telegram's webhook secret for everyone,
+- `notifications.tsx` (`getPush` too, for `Push` above the channels, `here`: its route hint says below; `getNotifications` keeps channel secrets on the server: Telegram's webhook secret for everyone,
   bot tokens and webhook addresses for anyone below admin): channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, with the address it's sent from, or what to set up first
-  while the deployment has no `EMAIL_FROM`; a JSON webhook; a person's push channel, made by their first device, only renamed, given quiet hours or deleted here (`saveChannel` takes `push` only for an existing one, keeping its config), Add a channel saying each person turns push on in Preferences; quiet hours, entered and kept in the channel's
+  while the deployment has no `EMAIL_FROM`; a JSON webhook; a person's push channel, made by their first device, only renamed, given quiet hours or deleted here (`saveChannel` takes `push` only for an existing one, keeping its config), Add a channel saying each person turns push on at the top of this page or in Preferences; quiet hours, entered and kept in the channel's
   `quiet_zone`, else the viewer's zone from `useTimePrefs`, and saved in it; one from before 0020, in UTC, shows in
   the viewer's zone at today's offset; the row names the zone when it isn't the viewer's), routes, each with a
   test send (with Frequency reached, "Only when an issue gets" N events or users in a window, its hint saying it

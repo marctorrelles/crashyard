@@ -1,13 +1,22 @@
-import { getRouteApi, Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { IconDeviceDesktop, IconDeviceMobile } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { Ago } from '@/components/bits'
 import { Hint, SettingsCard, useSave } from '@/components/settings'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { deletePushDevice, savePushDevice, testPush } from '@/fns'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { deletePushDevice, getPush, savePushDevice, testPush } from '@/fns'
 
-const route = getRouteApi('/settings/preferences')
+type Data = Awaited<ReturnType<typeof getPush>>
 
 /** What this browser can do: known only in the browser, so the server renders `loading` */
 type State = 'loading' | 'unsupported' | 'homescreen' | 'denied' | 'off' | 'on'
@@ -34,9 +43,20 @@ async function browserState(devices: { endpoint: string }[]): Promise<{ state: S
   return { state: 'on', endpoint: sub.endpoint }
 }
 
-// Push notifications on the viewer's own devices: this one on or off, a test, and the list (src/notify/push.ts)
-export function Push() {
-  const { push } = route.useLoaderData()
+/** Asks, subscribes and saves this browser; call it straight from a tap, as Safari only asks from one */
+async function subscribe(key: string) {
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') throw new Error('Notifications weren’t allowed, so none can be sent here.')
+  const reg = await navigator.serviceWorker.register('/sw.js')
+  await navigator.serviceWorker.ready
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) })
+  await saveSubscription(sub)
+  return sub.endpoint
+}
+
+// Push notifications on the viewer's own devices: this one on or off, a test, and the list (src/notify/push.ts).
+// `here` on Notifications, whose routes are on the same page
+export function Push({ push, here }: { push: Data; here?: boolean }) {
   const { save, saving } = useSave()
   const [state, setState] = useState<State>('loading')
   const [endpoint, setEndpoint] = useState<string | null>(null)
@@ -50,18 +70,13 @@ export function Push() {
 
   const turnOn = () =>
     save(async () => {
-      // Asked first, straight from the tap: Safari only asks from one
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        setState(permission === 'denied' ? 'denied' : 'off')
-        throw new Error('Notifications weren’t allowed, so none can be sent here.')
+      try {
+        setEndpoint(await subscribe(push.key))
+        setState('on')
+      } catch (error) {
+        if (Notification.permission === 'denied') setState('denied')
+        throw error
       }
-      const reg = await navigator.serviceWorker.register('/sw.js')
-      await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(push.key) })
-      await saveSubscription(sub)
-      setEndpoint(sub.endpoint)
-      setState('on')
     }, 'Notifications are on for this device')
 
   const turnOff = () =>
@@ -150,7 +165,13 @@ export function Push() {
 
         {push.channel && (
           <Hint>
-            {push.channel.routes > 0 ? (
+            {here ? (
+              push.channel.routes > 0 ? (
+                <>Routes below send alerts to {push.channel.name}.</>
+              ) : (
+                <>{push.channel.name} isn’t in a route yet, so no alerts arrive. An admin adds it to one below.</>
+              )
+            ) : push.channel.routes > 0 ? (
               <>
                 Routes send alerts to {push.channel.name}.{' '}
                 <Link to="/notifications" className="underline underline-offset-2">
@@ -171,5 +192,72 @@ export function Push() {
         )}
       </div>
     </SettingsCard>
+  )
+}
+
+const PROMPTED = 'crashyard.push-prompted'
+
+/** Once, in the app added to the Home Screen or installed: offers push when this device can take it and hasn't
+ *  been asked. Dismissed for good on this device, in localStorage */
+export function PushPrompt() {
+  const router = useRouter()
+  const [key, setKey] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(PROMPTED)) return
+    } catch {
+      return
+    }
+    if (!matchMedia('(display-mode: standalone)').matches) return
+    if (!('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window)) return
+    if (Notification.permission !== 'default') return
+    void getPush().then((p) => setKey(p.key))
+  }, [])
+
+  const close = () => {
+    try {
+      localStorage.setItem(PROMPTED, '1')
+    } catch {
+      // ponytail: no storage (a private window) asks again next launch
+    }
+    setKey(null)
+  }
+  const turnOn = async () => {
+    setBusy(true)
+    try {
+      await subscribe(key!)
+      toast.success('Notifications are on for this device')
+      close()
+      await router.invalidate()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'That couldn’t be saved. Try again.')
+      if (Notification.permission === 'denied') close()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open={!!key} onOpenChange={(open) => !open && close()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Get alerts on this device</DialogTitle>
+          <DialogDescription>
+            Turn on notifications to hear about new issues, regressions and monitors going down, even while crashyard is
+            closed. You can change this later in Settings, Preferences.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} className="max-sm:h-10" onClick={close}>
+            Not now
+          </Button>
+          <Button disabled={busy} className="max-sm:h-10" onClick={() => void turnOn()}>
+            Turn on notifications
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

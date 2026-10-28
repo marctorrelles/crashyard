@@ -143,7 +143,7 @@ A Telegram channel's Resolve, Ignore and Assign to me buttons work once `PUBLIC_
 Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, which needs no sign-in, with a secret only crashyard and
 Telegram know.
 
-Push notifications need no setup either. Each person turns them on in Settings, Preferences, on each device they want
+Push notifications need no setup either. Each person turns them on at the top of Notifications, or in Settings, Preferences, on each device they want
 them on. That gives them a channel of their own, which an admin adds to routes like any other. On an iPhone or iPad
 they work in the app added to the Home Screen, on iOS 16.4 or later: open crashyard in Safari, choose Share, then Add
 to Home Screen, and turn them on from there.
