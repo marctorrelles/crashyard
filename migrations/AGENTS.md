@@ -88,3 +88,5 @@ in `pnpm run deploy`).
   `project_id`, the old tables dropped children first so nothing cascades, the new renamed (SQLite rewrites the
   foreign keys). `projects.status_page`, `projects.status_domain` and `monitors.public` dropped. A worker from before
   fails on status pages until the deploy finishes.
+- `0031_events_received.sql`: `events_received`, so Explore over every project reads its window of events by
+  `received` instead of scanning them all.

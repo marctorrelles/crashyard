@@ -29,7 +29,7 @@ helpers (`change`).
   a tenth so a crash never reads 100%; one batch of four).
 - `issues.ts`: `listIssues` (a search from `src/search/`, with the viewer for `assigned:me`, `is:bookmarked` and
   `is:unread`, sorted, 50 a page, with a 14-day series each and the viewer's `bookmarked` and `unread`), `getIssue`
-  (the project's releases with events, newest first, 50, for the release picker; tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
+  (the project's releases with events, newest first, 50, for the release picker, from `event_hours`; tags' top values, the latest 100 events, the chosen event as JSON text, its attachments with whether each is an
   image, `attachmentType`, feedback, activity), `changeIssues`
   (resolve, now, in the next release, in the current release (`current`: each issue's `last_release`, read first so
   the activity names it) or in a chosen one (`release`), the last two as `fixed_in_release`; ignore, for good, for N events or until a date; reopen; delete, and with
@@ -73,7 +73,8 @@ helpers (`change`).
   entry (`{ count, hour, wasIgnored }`) and an `escalating` notice with the hour's most common release, environment
   and level. Escalating issues with no `escalating` entry in 7 days go back to `ongoing` first (index
   `issues_escalating`). `escalation.test.ts` on `test/fakes.ts`.
-- `releases.ts`: releases from events (kept within retention) and from sessions (a release with sessions and no events
+- `releases.ts`: releases from `event_hours` (events counted, spike-protected ones too, issues, first and last seen to
+  the hour; kept within retention) and from sessions (a release with sessions and no events
   is one too, its first and last seen the start of its first and last session days), newest first, and the release
   diff: new in it, came back in it, still happening, and gone since the release before. `releaseHealth`: each
   release's sessions and crashed, users and crashed users (`session_users_daily`, distinct hashes over every day and
@@ -170,8 +171,8 @@ helpers (`change`).
   or `count_unique(user)`, distinct `user_hash` per bucket, per bucket of `intervalFor` the range; with `groupBy`, a
   built-in or a tag, the 10 biggest values, `GROUPS`, each a series, events without the tag in none), `traceOf` (a
   trace's events with their issue and project, 200, by `events_trace`; its logs, 500, by `logs_trace`; its stored
-  transaction examples with their spans, 20). Plans: the window by `events_project` for a project, else a scan of the
-  window's events; tags by `event_tags`' primary key. `explore.test.ts` on `test/fakes.ts`.
+  transaction examples with their spans, 20). Plans: the window by `events_project` for a project, else by
+  `events_received` (0031); tags by `event_tags`' primary key. `explore.test.ts` on `test/fakes.ts`.
 - `widgets.ts`: dashboard widgets, schema v2 (`Widget`): a dataset (`DATASETS`: issues, events, logs, transactions,
   sessions, monitors, releases, markdown), a display it has (`DISPLAYS`; markdown is `text`), 1 to 3 queries
   (`MAX_QUERIES`) each a search, an aggregate and a label (40), up to 2 group-by fields (`GROUPS`; logs also any

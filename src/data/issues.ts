@@ -191,12 +191,13 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
     }[],
     activity: activity.results as Activity[],
     merged: (merged.results[0] as { n: number }).n, // fingerprints merged into it, for Unmerge
-    // The project's releases with events, newest first, for "Resolve in a release…"
+    // The project's releases with events, newest first, for "Resolve in a release…": from the hourly counts, a few
+    // rows a release and hour, not every event the project kept
     releases: (
       await db
         .prepare(
-          `SELECT release FROM events WHERE project_id = ? AND release IS NOT NULL GROUP BY release
-           ORDER BY MAX(received) DESC LIMIT 50`,
+          `SELECT release FROM event_hours WHERE project_id = ? AND release != '' GROUP BY release
+           ORDER BY MAX(hour) DESC LIMIT 50`,
         )
         .bind(issue.project_id)
         .all<{ release: string }>()

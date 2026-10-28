@@ -7,14 +7,15 @@ const DAY = 864e5
 const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 const dayStart = (day: string) => Date.parse(`${day}T00:00:00Z`)
 
-// ponytail: read from events (kept 90 days) and sessions, so older releases drop off; a releases table comes with uploads (phase 5)
+// ponytail: read from the hourly event counts (kept as long as events) and sessions, so older releases drop off, and
+// first and last seen are to the hour; a releases table if that misleads
 /** Releases with events or sessions, newest first by when they were first seen; a release with sessions alone has no issues */
 export async function listReleases(db: D1Database, projectId: number) {
   const [events, sessions] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        `SELECT release, COUNT(*) AS events, COUNT(DISTINCT issue_id) AS issues, MIN(received) AS first, MAX(received) AS last
-         FROM events WHERE project_id = ? AND release IS NOT NULL GROUP BY release ORDER BY first DESC LIMIT 100`,
+        `SELECT release, SUM(count) AS events, COUNT(DISTINCT issue_id) AS issues, MIN(hour) AS first, MAX(hour) AS last
+         FROM event_hours WHERE project_id = ? AND release != '' GROUP BY release ORDER BY first DESC LIMIT 100`,
       )
       .bind(projectId),
     db
