@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
-import { csvField, exportLogs, MAX_LINES, toCsv, toJsonLines } from './export'
+import { csvField, exportLogs, MAX_LINES } from './export'
 import { hourly, readsHours } from './logs'
 
 const HOUR = 36e5
@@ -59,13 +59,26 @@ describe('export', () => {
     expect(csvField('two\nlines')).toBe('"two\nlines"')
     expect(csvField('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`)
     expect(csvField(null)).toBe('')
-    expect(toCsv(['a', 'b'], [{ a: 1, b: 'x\r\ny' }])).toBe('a,b\r\n1,"x\r\ny"\r\n')
   })
 
-  it('stops at 10,000 lines', () => {
-    const rows = Array.from({ length: MAX_LINES + 5 }, (_, i) => ({ a: i }))
-    expect(toCsv(['a'], rows).trimEnd().split('\r\n')).toHaveLength(MAX_LINES + 1)
-    expect(toJsonLines(rows).trimEnd().split('\n')).toHaveLength(MAX_LINES)
+  it('streams the newest 10,000 lines, a thousand at a time, none twice', async () => {
+    const db = sqliteD1()
+    const now = Date.UTC(2026, 9, 26, 12)
+    // Several logs a millisecond, so pages break between logs of the same time
+    db.sqlite.exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'p', 'p', 'k', 0);
+      WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${MAX_LINES + 5})
+        INSERT INTO logs (project_id, timestamp, received, level, body, attributes)
+        SELECT 1, ${now - 10_000} + i / 3, 0, 'info', 'line ' || i, '{}' FROM n;`)
+    const text = (format: 'csv' | 'jsonl') =>
+      exportLogs(db, { query: '', window: { range: '24h' } }, format, now).then((s) => new Response(s).text())
+    const csv = (await text('csv')).trimEnd().split('\r\n')
+    expect(csv).toHaveLength(MAX_LINES + 1)
+    const bodies = (await text('jsonl'))
+      .trimEnd()
+      .split('\n')
+      .map((l) => JSON.parse(l).body)
+    expect(new Set(bodies).size).toBe(MAX_LINES)
+    expect(bodies[0]).toBe(`line ${MAX_LINES + 5}`)
   })
 
   it('writes the newest logs of a search, times in UTC', async () => {
@@ -77,12 +90,13 @@ describe('export', () => {
         (1, ${now - 60e3}, 0, 'error', 'Export failed, "disk full"', '{"song":42}'),
         (1, ${now - 120e3}, 0, 'info', 'Saved', '{}'),
         (1, ${now - 2 * DAY}, 0, 'error', 'Too old', '{}')`)
-    const csv = await exportLogs(db, { query: 'level:error', window: { range: '24h' } }, 'csv', now)
+    const read = (stream: ReadableStream<Uint8Array>) => new Response(stream).text()
+    const csv = await read(await exportLogs(db, { query: 'level:error', window: { range: '24h' } }, 'csv', now))
     expect(csv).toBe(
       'timestamp,level,project,release,environment,trace_id,body,attributes\r\n' +
         '2026-10-26T11:59:00.000Z,error,pocketband,,,,"Export failed, ""disk full""","{""song"":42}"\r\n',
     )
-    const lines = await exportLogs(db, { query: '', window: { range: '24h' } }, 'jsonl', now)
+    const lines = await read(await exportLogs(db, { query: '', window: { range: '24h' } }, 'jsonl', now))
     expect(
       lines
         .trimEnd()

@@ -224,9 +224,11 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
 - `templates.ts`: `TEMPLATES`, the prebuilt dashboards "New dashboard" offers: Crashes (`STARTER`, as before), Mobile app
   health (with crash-free users, cold and warm starts, slow and frozen frames), Web app (with LCP, INP and CLS), Backend
   and logs, Uptime and crons.
-- `export.ts`: the logs page's export: `exportLogs`, the newest 10,000 (`MAX_LINES`) logs of a search, times in UTC;
-  `toCsv` (a header, then a record a row: fields with a quote, comma or line break quoted and their quotes doubled;
-  one starting `=` `+` `-` `@`, a tab or a return gets a `'` first so a spreadsheet runs nothing) and `toJsonLines`.
+- `export.ts`: the logs page's export: `exportLogs`, the newest 10,000 (`MAX_LINES`) logs of a search, times in UTC,
+  as a stream read a thousand at a time by the `(timestamp, id)` cursor (the first page before the stream, so a search
+  D1 refuses fails the request), so the file never sits whole in memory: CSV (a header, then a record a row:
+  `csvField`, fields with a quote, comma or line break quoted and their quotes doubled; one starting `=` `+` `-` `@`,
+  a tab or a return gets a `'` first so a spreadsheet runs nothing) or JSON Lines.
   Tested in `logs.test.ts`.
 - `searches.ts`: saved searches (`saved_searches`) of a page (`PAGES`: issues, logs, explore): the viewer's own and
   everyone's shared ones, theirs pinned first, then by name, 100 at most (`saved_searches_page`); a pin is its

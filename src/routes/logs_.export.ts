@@ -25,7 +25,7 @@ export const Route = createFileRoute('/logs_/export')({
         const slug = get('project')
         const projectId = slug ? ((await projectBySlug(env.DB, slug))?.id ?? -1) : undefined
         const now = Date.now()
-        let body: string
+        let body: ReadableStream<Uint8Array>
         try {
           body = await exportLogs(env.DB, { query, projectId, window }, format, now)
         } catch (error) {
