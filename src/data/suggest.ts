@@ -1,5 +1,7 @@
 // The search bar's suggestions from what's stored: keys and their values, by how often they're seen. Every query is
 // bounded: keys LIMIT 50, values LIMIT 20; logs read only the newest 5000 in the range.
+import { own } from '../search/query'
+
 const KEYS = 50
 const VALUES = 20
 const LOG_SAMPLE = 5000
@@ -66,7 +68,7 @@ export async function issueValues(
         .all<ValueCount>()
     ).results
   }
-  const column = ISSUE_COLUMNS[key]
+  const column = own(ISSUE_COLUMNS, key)
   if (column) {
     return (
       await db
@@ -133,7 +135,7 @@ export async function logValues(
         .all<ValueCount>()
     ).results
   }
-  const column = LOG_COLUMNS[key]
+  const column = own(LOG_COLUMNS, key)
   if (column) {
     return (
       await db

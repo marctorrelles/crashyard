@@ -2,6 +2,10 @@
 // `is:unresolved level:error release:1.0.1 device:iPad* "audio engine" !os:Android times:>10 lastSeen:-24h has:user`
 import { userMatch } from './user'
 
+/** A key's entry in one of the maps below, only its own: a search for `toString:` or `constructor:` names no column */
+export const own = <T>(map: Record<string, T>, key: string): T | undefined =>
+  Object.hasOwn(map, key) ? map[key] : undefined
+
 /** How long an issue reads as new, as Sentry's */
 export const NEW_FOR = 7 * 864e5
 
@@ -105,7 +109,7 @@ const SENTRY_COLUMNS: Record<string, string> = { 'sentry.release': 'release', 's
  * no other `sentry.*` (ingest doesn't store them in log_attributes), nor a reserved name, nor one the grammar can't write
  */
 export function logAttributeKey(key: string): string | undefined {
-  if (key.startsWith('sentry.')) return SENTRY_COLUMNS[key]
+  if (key.startsWith('sentry.')) return own(SENTRY_COLUMNS, key)
   return isSearchableKey(key) && !LOG_RESERVED.has(key) ? key : undefined
 }
 
@@ -393,14 +397,16 @@ export function issueFilter(query: string, now: number, viewer?: string): Filter
       add(`EXISTS (SELECT 1 FROM issue_tag_values v WHERE v.issue_id = i.id AND ${sql})`, t.negate, ...keys)
       continue
     }
-    if (NUMBERS[key]) {
+    const number = own(NUMBERS, key)
+    if (number) {
       const n = Number(t.value)
-      if (!t.values && Number.isFinite(n)) add(`${NUMBERS[key]} ${SQL_OP[t.op]} ?`, t.negate, n)
+      if (!t.values && Number.isFinite(n)) add(`${number} ${SQL_OP[t.op]} ?`, t.negate, n)
       continue
     }
-    if (TIMES[key]) {
+    const time = own(TIMES, key)
+    if (time) {
       const at = t.values ? undefined : timeOf(t.value, now)
-      if (at !== undefined) add(`${TIMES[key]} ${timeOp(t)} ?`, t.negate, at)
+      if (at !== undefined) add(`${time} ${timeOp(t)} ?`, t.negate, at)
       continue
     }
     if (key === 'assigned') {
@@ -432,8 +438,9 @@ export function issueFilter(query: string, now: number, viewer?: string): Filter
       )
       continue
     }
-    if (COLUMNS[key]) {
-      const [sql, matched] = matchAny(COLUMNS[key], values)
+    const column = own(COLUMNS, key)
+    if (column) {
+      const [sql, matched] = matchAny(column, values)
       add(sql, t.negate, ...matched)
       continue
     }
@@ -506,9 +513,10 @@ export function logFilter(query: string, now: number): Filter {
       add(`EXISTS (SELECT 1 FROM log_attributes a WHERE a.log_id = l.id AND ${sql})`, t.negate, ...keys)
       continue
     }
-    if (LOG_COLUMNS[key]) {
+    const logColumn = own(LOG_COLUMNS, key)
+    if (logColumn) {
       const [sql, matched] = matchAny(
-        LOG_COLUMNS[key],
+        logColumn,
         key === 'level' ? values.map((v) => LOG_LEVEL_ALIASES[v] ?? v) : values,
       )
       add(sql, t.negate, ...matched)
@@ -589,8 +597,9 @@ export function eventFilter(query: string, now: number): Filter {
       add(`EXISTS (SELECT 1 FROM event_tags t WHERE t.event_id = e.id AND ${sql})`, t.negate, ...keys)
       continue
     }
-    if (EVENT_COLUMNS[key]) {
-      const [sql, matched] = matchAny(EVENT_COLUMNS[key], values)
+    const eventColumn = own(EVENT_COLUMNS, key)
+    if (eventColumn) {
+      const [sql, matched] = matchAny(eventColumn, values)
       add(sql, t.negate, ...matched)
       continue
     }
@@ -616,4 +625,4 @@ const EXAMPLES: Record<string, string> = {
   transaction: '"GET /api/users"',
 }
 /** `key:value` with a value that fits the key, as an example */
-export const filterExample = (key: string) => `${key}:${EXAMPLES[key] ?? 'value'}`
+export const filterExample = (key: string) => `${key}:${own(EXAMPLES, key) ?? 'value'}`

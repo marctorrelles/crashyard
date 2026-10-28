@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   addValue,
+  eventFilter,
+  filterExample,
   isSearchableKey,
   issueFilter,
   logAttributeKey,
@@ -253,5 +255,16 @@ describe('search', () => {
       const others = (ts: Token[]) => ts.filter((t) => t.key !== key)
       expect(others(tokenize(addValue(q, key, value(), random() < 0.5))), q).toEqual(others(tokens))
     }
+  })
+})
+
+describe('keys that name an object’s own properties', () => {
+  it('read as tags, never as a column', () => {
+    for (const key of ['toString', 'constructor', 'hasOwnProperty', '__proto__']) {
+      expect(issueFilter(`${key}:>3`, 0).where.join(' '), key).not.toContain('function')
+      expect(logFilter(`${key}:x`, 0).where.join(' '), key).not.toContain('function')
+      expect(eventFilter(`${key}:x`, 0).where.join(' '), key).not.toContain('function')
+    }
+    expect(filterExample('constructor')).toBe('constructor:value')
   })
 })

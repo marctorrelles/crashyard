@@ -215,7 +215,7 @@ const TOOLS: Tool[] = [
         {
           query: argString(a.query) ?? '',
           projectId: await projectId(db, a.project),
-          window: { range: range in RANGES ? range : '24h' },
+          window: { range: Object.hasOwn(RANGES, range) ? range : '24h' },
         },
         Date.now(),
       )

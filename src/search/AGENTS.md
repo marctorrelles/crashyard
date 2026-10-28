@@ -18,6 +18,8 @@ filter errors.
   any other key (`song name`, `sentry:user`) leaves the query as it is, and pages offer no + or − for it.
   `logAttributeKey`: the key a log attribute is searched by: `sentry.release` and `sentry.environment` by their columns,
   none for the other `sentry.*` (ingest doesn't store them as attributes) or the reserved names (`level`, `release`, …).
+- A typed key reads a column map only through `own` (`Object.hasOwn`), so `toString:` or `constructor:` is a tag,
+  never a function's text in the SQL; `suggest.ts` and `filterExample` too.
 - `ISSUE_KEYS` and `LOG_KEYS`: the built-in keys for the bar, each with a description, a kind (`enum`, `text`,
   `number`, `time`, `tag`) and, for enums and times, its values.
 - Lists in SQL: `col IN (SELECT value FROM json_each(?))`, the list as one JSON value as D1 binds 100 values a statement (for a tag, `v.value IN`), or an `OR` of matches when one has a `*`; `is:[…]` is an `OR`
