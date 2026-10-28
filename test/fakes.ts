@@ -68,14 +68,40 @@ export function memoryR2(): R2Bucket & { objects: Map<string, Stored> } {
       })
       return { key }
     },
-    get: async (key: string) => {
+    get: async (key: string, options?: { range?: { offset?: number; length?: number } }) => {
       const o = objects.get(key)
       if (!o) return null
+      const from = options?.range?.offset ?? 0
+      const body = o.body.slice(from, options?.range?.length === undefined ? undefined : from + options.range.length)
       return {
         key,
+        size: o.body.length,
         customMetadata: o.customMetadata,
         uploaded: o.uploaded,
-        arrayBuffer: async () => o.body.slice().buffer,
+        arrayBuffer: async () => body.slice().buffer,
+        get body() {
+          return new Blob([body]).stream()
+        },
+      }
+    },
+    head: async (key: string) => {
+      const o = objects.get(key)
+      return o ? { key, size: o.body.length, customMetadata: o.customMetadata, uploaded: o.uploaded } : null
+    },
+    // Parts kept apart until complete joins them in the order given
+    createMultipartUpload: async (key: string) => {
+      const parts = new Map<number, Uint8Array<ArrayBuffer>>()
+      return {
+        uploadPart: async (n: number, value: unknown) => {
+          parts.set(n, (await bytes(value)).slice())
+          return { partNumber: n, etag: String(n) }
+        },
+        complete: async (done: { partNumber: number }[]) => {
+          const joined = new Uint8Array(await new Blob(done.map((p) => parts.get(p.partNumber)!)).arrayBuffer())
+          objects.set(key, { body: joined, customMetadata: {}, uploaded: new Date() })
+          return { key }
+        },
+        abort: async () => parts.clear(),
       }
     },
     delete: async (keys: string | string[]) => {

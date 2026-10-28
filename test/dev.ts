@@ -55,7 +55,11 @@ export async function startDev(port: number, state: string) {
     stdio: 'ignore',
   })
   const origin = `http://localhost:${port}`
-  await waitFor(async () => (await fetch(origin).catch(() => null))?.ok, 30_000)
+  // With the container on, it builds the SymCache builder's image first
+  await waitFor(
+    async () => (await fetch(origin).catch(() => null))?.ok,
+    process.env.CONTAINERS === '1' ? 600_000 : 30_000,
+  )
   const db = remoteD1(origin)
   await db
     .prepare(

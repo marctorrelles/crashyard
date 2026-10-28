@@ -43,6 +43,9 @@ async function publicStatusPage(request: Request, ctx: ExecutionContext) {
 
 const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
 
+// The SymCache builder's Durable Object, bound only where wrangler.local.json adds its container
+export { SymcacheBuilder } from './symbols/builder'
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
@@ -82,6 +85,13 @@ export default {
         env,
         ctx,
         symbolic: freshSymbolic,
+        // One builder for the deployment, so uploads take turns in its container
+        build: env.SYMCACHE_BUILDER
+          ? (path, body, size) =>
+              env
+                .SYMCACHE_BUILDER!.get(env.SYMCACHE_BUILDER!.idFromName('builder'))
+                .fetch(`http://builder${path}`, { method: 'POST', body, headers: { 'content-length': String(size) } })
+          : undefined,
         // After the answer, in waitUntil: a failure would vanish unlogged
         reprocess: (projectId, debugIds) =>
           reprocess(env, sharedSymbolic, projectId, debugIds).catch((error) =>

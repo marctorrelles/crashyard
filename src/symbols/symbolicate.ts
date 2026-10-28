@@ -6,7 +6,7 @@
 // - JavaScript: positions through the source map found by the file's debug id, or else its URL.
 // What it can't map stays as it came, and the debug files it lacked are listed on the event.
 import { culpritOf, type Frame, type NormalizedEvent } from '../ingest/event'
-import type { Symbolic, SymbolFrame } from './symcache'
+import type { Loaded, Symbolic, SymbolFrame } from './symcache'
 
 export type SymbolEnv = { DB: D1Database; FILES: R2Bucket }
 
@@ -36,6 +36,47 @@ async function remember<T>(key: string, size: (v: T) => number, load: () => Prom
   cached += n
   return value
 }
+
+// SymCaches are kept in the module's own memory instead, read there straight from R2, so a big one (40 MB for a
+// 107 MB dSYM) is never held twice. Its key names its file's checksum, so it never goes stale. A lookup pins what it
+// uses until it's done: a load for another event, between its awaits, can't free it under it
+// ponytail: first in first out within 64 MB, one alone may be bigger; an LRU if hit rates matter
+const KEPT_BUDGET = 64 * 1024 * 1024
+type Kept = Loaded & { pins: number }
+const kept = new WeakMap<
+  Symbolic,
+  { loaded: Map<string, Kept>; loading: Map<string, Promise<Kept | null>>; size: number }
+>()
+async function pinSymcache(s: Symbolic, files: R2Bucket, key: string): Promise<Kept | null> {
+  let k = kept.get(s)
+  if (!k) kept.set(s, (k = { loaded: new Map(), loading: new Map(), size: 0 }))
+  const store = k
+  const hit = store.loaded.get(key)
+  if (hit) return (hit.pins++, hit)
+  let pending = store.loading.get(key)
+  if (!pending) {
+    pending = (async () => {
+      const object = await files.get(key)
+      if (!object) return null
+      for (const [old, entry] of store.loaded) {
+        if (store.size + object.size <= KEPT_BUDGET) break
+        if (entry.pins) continue
+        store.loaded.delete(old)
+        store.size -= entry.len
+        s.free(entry)
+      }
+      const entry: Kept = { ...(await s.load(object.size, object.body)), pins: 0 }
+      store.loaded.set(key, entry)
+      store.size += entry.len
+      return entry
+    })().finally(() => store.loading.delete(key))
+    store.loading.set(key, pending)
+  }
+  const entry = await pending
+  if (entry) entry.pins++
+  return entry
+}
+
 const r2Bytes = async (files: R2Bucket, key: string) => {
   const object = await files.get(key)
   return object ? new Uint8Array(await object.arrayBuffer()) : null
@@ -94,52 +135,50 @@ export async function symbolicate(
     const s = await symbolic()
     // Each frame's image and address first, then one lookup per image with all of them: a SymCache goes into Wasm
     // once an event, not once a frame
-    const byImage = new Map<string, { bytes: Uint8Array | null; addresses: bigint[]; found: SymbolFrame[][] }>()
+    const byImage = new Map<string, { symcache: Kept | null; addresses: bigint[]; found: SymbolFrame[][] }>()
     const asks: ({ image: string; at: number } | undefined)[][] = []
-    for (const frames of stacks) {
-      const asked: (typeof asks)[number] = []
-      asks.push(asked)
-      for (const [index, frame] of frames.entries()) {
-        const addr = hex(frame.instructionAddr)
-        const image =
-          addr === undefined
-            ? undefined
-            : native.find((i) =>
-                frame.imageAddr
-                  ? hex(frame.imageAddr) === i.start
-                  : addr >= i.start && (i.end === undefined || addr < i.end),
-              )
-        if (!image || addr === undefined || frame.symbolicated) {
-          asked.push(undefined)
-          continue
+    try {
+      for (const frames of stacks) {
+        const asked: (typeof asks)[number] = []
+        asks.push(asked)
+        for (const [index, frame] of frames.entries()) {
+          const addr = hex(frame.instructionAddr)
+          const image =
+            addr === undefined
+              ? undefined
+              : native.find((i) =>
+                  frame.imageAddr
+                    ? hex(frame.imageAddr) === i.start
+                    : addr >= i.start && (i.end === undefined || addr < i.end),
+                )
+          if (!image || addr === undefined || frame.symbolicated) {
+            asked.push(undefined)
+            continue
+          }
+          const debugId = image.debugId!.toLowerCase()
+          let lookup = byImage.get(debugId)
+          if (!lookup) {
+            const row = fileOf.get(debugId)
+            const symcache = row?.symcache_key ? await pinSymcache(s, env.FILES, row.symcache_key) : null
+            lookup = { symcache, addresses: [], found: [] }
+            byImage.set(debugId, lookup)
+          }
+          if (!lookup.symcache) {
+            if ((!frame.function || frame.function === '<redacted>') && !isSystemImage(image.codeFile))
+              missing.set(debugId, { debugId, codeFile: image.codeFile, type: image.type })
+            asked.push(undefined)
+            continue
+          }
+          // The crashing frame (the last) points at the instruction; the rest at return addresses
+          const relative = addr - image.start - (index === frames.length - 1 ? 0n : 1n)
+          asked.push({ image: debugId, at: lookup.addresses.push(relative) - 1 })
         }
-        const debugId = image.debugId!.toLowerCase()
-        let lookup = byImage.get(debugId)
-        if (!lookup) {
-          const row = fileOf.get(debugId)
-          const bytes = row?.symcache_key
-            ? await remember<Uint8Array>(
-                `sc:${row.symcache_key}`,
-                (b) => b.length,
-                () => r2Bytes(env.FILES, row.symcache_key!),
-              )
-            : null
-          lookup = { bytes, addresses: [], found: [] }
-          byImage.set(debugId, lookup)
-        }
-        if (!lookup.bytes) {
-          if ((!frame.function || frame.function === '<redacted>') && !isSystemImage(image.codeFile))
-            missing.set(debugId, { debugId, codeFile: image.codeFile, type: image.type })
-          asked.push(undefined)
-          continue
-        }
-        // The crashing frame (the last) points at the instruction; the rest at return addresses
-        const relative = addr - image.start - (index === frames.length - 1 ? 0n : 1n)
-        asked.push({ image: debugId, at: lookup.addresses.push(relative) - 1 })
       }
+      for (const lookup of byImage.values())
+        if (lookup.symcache && lookup.addresses.length) lookup.found = s.lookup(lookup.symcache, lookup.addresses)
+    } finally {
+      for (const lookup of byImage.values()) if (lookup.symcache) lookup.symcache.pins--
     }
-    for (const lookup of byImage.values())
-      if (lookup.bytes && lookup.addresses.length) lookup.found = s.lookup(lookup.bytes, lookup.addresses)
     for (const [n, frames] of stacks.entries()) {
       stacks[n] = frames.flatMap((frame, i) => {
         const ask = asks[n][i]

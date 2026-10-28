@@ -9,14 +9,19 @@ import { tokenOf } from '../data/tokens'
 import { forgetMissing } from '../symbols/symbolicate'
 import type { Symbolic } from '../symbols/symcache'
 import {
+  BIG_FILE,
+  type Build,
   CHUNK_SIZE,
   chunkKey,
+  chunksSize,
   joinChunks,
   MAX_FILE,
   missingChunks,
   sha1,
+  storeBigDebugFile,
   storeBundle,
   storeDebugFile,
+  WORKER_FILE,
   type DebugFileRow,
 } from '../symbols/uploads'
 
@@ -25,6 +30,8 @@ type Ctx = {
   env: SentryApiEnv
   ctx: ExecutionContext
   symbolic: () => Promise<Symbolic>
+  // The SymCache builder's container, when the deployment has one (src/symbols/builder.ts)
+  build?: Build
   reprocess: (projectId: number, debugIds: string[]) => Promise<void>
 }
 
@@ -62,7 +69,10 @@ const difOf = (row: DebugFileRow) => ({
   data: { features: row.kind === 'proguard' ? ['mapping'] : ['debug', 'symtab', 'unwind'] },
 })
 
-export async function handleSentryApi(request: Request, { env, ctx, symbolic, reprocess }: Ctx): Promise<Response> {
+export async function handleSentryApi(
+  request: Request,
+  { env, ctx, symbolic, build, reprocess }: Ctx,
+): Promise<Response> {
   const url = new URL(request.url)
   const path = url.pathname.replace(/\/?$/, '/')
   const now = Date.now()
@@ -80,7 +90,8 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
       url: `${url.origin}/api/0/organizations/${m[1]}/chunk-upload/`,
       chunkSize: CHUNK_SIZE,
       chunksPerRequest: 8,
-      maxFileSize: MAX_FILE,
+      // Bundles and ProGuard mappings stay within MAX_FILE whatever this says (joinChunks)
+      maxFileSize: build ? BIG_FILE : MAX_FILE,
       maxRequestSize: 64 * 1024 * 1024,
       concurrency: 4,
       hashAlgorithm: 'sha1',
@@ -140,8 +151,22 @@ export async function handleSentryApi(request: Request, { env, ctx, symbolic, re
         continue
       }
       try {
-        const bytes = await joinChunks(env.FILES, chunks, checksum)
-        const rows = await storeDebugFile(env, symbolic, id, checksum, file.name ?? checksum, file.debug_id, bytes, now)
+        const size = await chunksSize(env.FILES, chunks)
+        const name = file.name ?? checksum
+        if (build && size > BIG_FILE) throw new Error(`Debug files can be up to ${BIG_FILE / 1024 / 1024} MB.`)
+        const rows =
+          build && size > WORKER_FILE
+            ? await storeBigDebugFile(env, build, id, checksum, name, chunks, size, now)
+            : await storeDebugFile(
+                env,
+                symbolic,
+                id,
+                checksum,
+                name,
+                file.debug_id,
+                await joinChunks(env.FILES, chunks, checksum),
+                now,
+              )
         ctx.waitUntil(env.FILES.delete(chunks.map(chunkKey)))
         fresh.push(...rows.map((r) => r.debug_id))
         out[checksum] = { state: 'ok', missingChunks: [], dif: difOf(rows[0]) }

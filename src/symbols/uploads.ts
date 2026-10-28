@@ -1,13 +1,19 @@
 // Sentry's chunked uploads: sentry-cli and the build plugins send a file as chunks named by their SHA-1, then ask
 // to assemble them. A debug file becomes one row per object (architecture) with its SymCache; a ProGuard mapping is
 // kept as it is; an artifact bundle (a zip of minified files and source maps) is indexed by its files' debug ids.
+import { createHash } from 'node:crypto'
 import { unzipSync, strFromU8 } from 'fflate'
 import type { Symbolic } from './symcache'
 
 export const CHUNK_SIZE = 8 * 1024 * 1024
-// ponytail: what a 128 MB isolate can assemble: the file, then its copy in the Wasm module that makes the SymCache.
-// Larger needs the file streamed into the module instead of held whole
+// What a 128 MB isolate can assemble and convert itself: the file, then its copy in the Wasm module that makes the
+// SymCache, which grows to about three times the file (a 16 MB dSYM took 44 MB, a 107 MB one 328 MB)
 export const MAX_FILE = 48 * 1024 * 1024
+// With the SymCache builder (builder.ts), debug files past WORKER_FILE go to it, up to BIG_FILE: its container has 4 GB
+export const WORKER_FILE = 16 * 1024 * 1024
+export const BIG_FILE = 512 * 1024 * 1024
+/** Asks the builder's container: a path and the file as the body */
+export type Build = (path: string, body: ReadableStream, size: number) => Promise<Response>
 
 export const chunkKey = (sha1: string) => `chunks/${sha1}`
 
@@ -37,7 +43,10 @@ export async function joinChunks(
     }),
   )
   const size = objects.reduce((n, o) => n + o.size, 0)
-  if (size > MAX_FILE) throw new Error('file too large')
+  if (size > MAX_FILE)
+    throw new Error(
+      `This file is over ${MAX_FILE / 1024 / 1024} MB, the most crashyard can process here. Debug files can be bigger with the SymCache builder (docs/deploying.md).`,
+    )
   const file = new Uint8Array(size)
   let at = 0
   for (const c of chunks) {
@@ -50,6 +59,38 @@ export async function joinChunks(
   }
   if ((await sha1(file)) !== checksum) throw new Error('the chunks don’t add up to the checksum')
   return file
+}
+
+/** The size of the file the chunks make, from their heads */
+export async function chunksSize(files: R2Bucket, chunks: string[]) {
+  const heads = await Promise.all(chunks.map((c) => files.head(chunkKey(c))))
+  return heads.reduce((n, h, i) => {
+    if (!h) throw new Error(`chunk ${chunks[i]} is gone`)
+    return n + h.size
+  }, 0)
+}
+
+/** The chunks joined straight into R2 as a multipart upload, never whole in memory, and checked against the file's
+ *  SHA-1; a file that doesn't add up is aborted. sentry-cli's chunks are all CHUNK_SIZE but the last, as R2's parts
+ *  must be */
+export async function assembleInto(files: R2Bucket, chunks: string[], checksum: string, key: string) {
+  const hash = createHash('sha1')
+  const upload = await files.createMultipartUpload(key)
+  try {
+    const parts: R2UploadedPart[] = []
+    for (const [i, c] of chunks.entries()) {
+      const object = await files.get(chunkKey(c))
+      if (!object) throw new Error(`chunk ${c} is gone`)
+      const part = new Uint8Array(await object.arrayBuffer())
+      hash.update(part)
+      parts.push(await upload.uploadPart(i + 1, part))
+    }
+    if (hash.digest('hex') !== checksum) throw new Error('the chunks don’t add up to the checksum')
+    await upload.complete(parts)
+  } catch (error) {
+    await upload.abort().catch(() => {})
+    throw error
+  }
 }
 
 // A ProGuard (R8) mapping: lines of `original.Class -> obfuscated:`, with comments
@@ -116,14 +157,94 @@ export async function storeDebugFile(
     if (!rows.length) throw new Error('nothing to symbolicate with in this file: no debug info, no symbols')
   }
   await Promise.all([env.FILES.put(fileKey, file), ...caches.map(([key, bytes]) => env.FILES.put(key, bytes))])
+  return insertRows(env.DB, projectId, checksum, fileKey, rows, now)
+}
+
+/**
+ * A debug file too big for the worker, its chunks joined into R2 and its SymCaches made by the builder's container,
+ * each streamed from R2 to it and back: the worker never holds the file. Not for a ProGuard mapping, which lookups
+ * would have to hold
+ */
+export async function storeBigDebugFile(
+  env: { DB: D1Database; FILES: R2Bucket },
+  build: Build,
+  projectId: number,
+  checksum: string,
+  name: string,
+  chunks: string[],
+  size: number,
+  now: number,
+): Promise<DebugFileRow[]> {
+  const fileKey = `debug-files/${projectId}/${checksum}`
+  await assembleInto(env.FILES, chunks, checksum, fileKey)
+  try {
+    const head = await env.FILES.get(fileKey, { range: { offset: 0, length: 4096 } })
+    if (head && isProguard(new Uint8Array(await head.arrayBuffer())))
+      throw new Error(`ProGuard mappings can be up to ${MAX_FILE / 1024 / 1024} MB`)
+    const ask = async (path: string) => {
+      const object = await env.FILES.get(fileKey)
+      if (!object) throw new Error('the assembled file is gone')
+      const answer = await build(path, object.body, size)
+      if (!answer.ok) {
+        const why = (await answer.json().catch(() => null)) as { error?: string } | null
+        throw new Error(why?.error ?? `the SymCache builder answered HTTP ${answer.status}`)
+      }
+      return answer
+    }
+    const objects = (await (await ask('/objects')).json()) as {
+      debugId: string
+      codeId: string | null
+      arch: string
+      fileFormat: string
+      hasDebugInfo: boolean
+      hasSymbols: boolean
+    }[]
+    const rows: Omit<DebugFileRow, 'id'>[] = []
+    for (const object of objects.filter((o) => o.hasDebugInfo || o.hasSymbols)) {
+      const debugId = object.debugId.toLowerCase()
+      const answer = await ask(`/symcache?id=${encodeURIComponent(object.debugId)}`)
+      const length = Number(answer.headers.get('x-length'))
+      if (!length || !answer.body) throw new Error('the SymCache builder sent no SymCache')
+      // Straight on to R2, at its length
+      const { readable, writable } = new FixedLengthStream(length)
+      const piped = answer.body.pipeTo(writable)
+      await Promise.all([env.FILES.put(`symcaches/${projectId}/${debugId}/${checksum}`, readable), piped])
+      rows.push({
+        debug_id: debugId,
+        code_id: object.codeId,
+        arch: object.arch,
+        kind: object.fileFormat,
+        name,
+        checksum,
+        size,
+        created_at: now,
+      })
+    }
+    if (!rows.length) throw new Error('nothing to symbolicate with in this file: no debug info, no symbols')
+    return insertRows(env.DB, projectId, checksum, fileKey, rows, now)
+  } catch (error) {
+    await env.FILES.delete(fileKey)
+    throw error
+  }
+}
+
+async function insertRows(
+  db: D1Database,
+  projectId: number,
+  checksum: string,
+  fileKey: string,
+  rows: Omit<DebugFileRow, 'id'>[],
+  now: number,
+) {
   const stored: DebugFileRow[] = []
   for (const row of rows) {
     const symcacheKey = row.kind === 'proguard' ? null : `symcaches/${projectId}/${row.debug_id}/${checksum}`
-    const r = await env.DB.prepare(
-      `INSERT INTO debug_files (project_id, checksum, name, debug_id, code_id, arch, kind, file_key, symcache_key, size, created_at)
+    const r = await db
+      .prepare(
+        `INSERT INTO debug_files (project_id, checksum, name, debug_id, code_id, arch, kind, file_key, symcache_key, size, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (project_id, debug_id, checksum) DO UPDATE SET name = excluded.name RETURNING *`,
-    )
+      )
       .bind(
         projectId,
         checksum,

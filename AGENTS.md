@@ -47,7 +47,8 @@ Where things are:
 - `src/symbols/`: uploads and readable stacks (see its AGENTS.md).
 - `src/monitors/`: cron check-ins, uptime checks, incidents (see its AGENTS.md).
 - `src/performance/`: transactions and sessions, summarised at ingest (see its AGENTS.md).
-- `symcache/`: Sentry's symbolic, in Rust, built to `src/symbols/symcache.wasm` (see its AGENTS.md).
+- `symcache/`: Sentry's symbolic, in Rust, built to `src/symbols/symcache.wasm`, and natively for the SymCache
+  builder's container, `symcache/Dockerfile` (see its AGENTS.md).
 - `src/routes/`: pages and API routes, file-based (see its AGENTS.md).
 - `src/components/`: shadcn/ui and our own components (see its AGENTS.md).
 - `public/`: served as they are, before the worker and so signed out: `sw.js`, the service worker for push
@@ -60,7 +61,8 @@ Where things are:
 - `scripts/`: `pnpm seed` for a local database with data in it (see its AGENTS.md).
 - `wrangler.jsonc`: the worker, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and empty `vars`, generic so
   anyone can deploy it; a deployment's own domain and values are in the git-ignored `wrangler.local.json`,
-  which `vite.config.ts` lays over it.
+  which `vite.config.ts` lays over it, and so is the optional SymCache builder's container (Workers Paid, Docker to
+  deploy; `CONTAINERS=1 pnpm dev` runs it locally).
 - `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
   three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root), issue
   and PR templates, Dependabot. Actions are pinned by commit SHA.

@@ -17,5 +17,11 @@ The built file is committed, so deploying needs no Rust; rebuild it after changi
 - On macOS, rustup's `rust-lld` looks for `libLLVM.dylib` beside itself; `build.sh` points it at the toolchain's.
 - Proven 2026-10-25 on pocketband's 16 MB dSYM: a 5.9 MB SymCache in about 200 ms and 44 MB of memory; lookups
   match `atos`, Swift names demangled.
-- Licences: symbolic and proguard are MIT and BSD-3-Clause; Swift's demangler is Apache-2.0 with the runtime
+- `src/bin/builder.rs` (feature `builder`, with `tiny_http`): the same `list_objects` and `make_symcache`, native,
+  over HTTP on 8080 (`/health`, `/objects`, `/symcache?id=`, the SymCache's length in `x-length`) for the SymCache
+  builder's container (`src/symbols/builder.ts`). `Dockerfile` builds it on Debian; wrangler builds the image on
+  deploy for linux/amd64 (under emulation on Apple silicon, a few minutes the first time). `cargo build --release
+--features builder --bin builder` runs it locally. Caliu's 107 MB dSYM: 1.5 s natively, 2.4 s in the amd64 image
+  under emulation, the same SymCache byte for byte.
+- Licences: symbolic and proguard are MIT and BSD-3-Clause, tiny_http MIT or Apache-2.0; Swift's demangler is Apache-2.0 with the runtime
   library exception.

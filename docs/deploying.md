@@ -148,6 +148,29 @@ them on. That gives them a channel of their own, which an admin adds to routes l
 they work in the app added to the Home Screen, on iOS 16.4 or later: open crashyard in Safari, choose Share, then Add
 to Home Screen, and turn them on from there.
 
+## Debug files over 48 MB
+
+This step is optional. crashyard turns debug files into lookup tables itself, up to 48 MB a file. A big app's dSYM can
+be larger, and sentry-cli then refuses to upload it. To take files up to 512 MB, add the SymCache builder, a small
+Cloudflare Container that does this work for the bigger files. It needs the Workers Paid plan and Docker on the
+machine you deploy from.
+
+1. Add this to `wrangler.local.json`:
+
+   ```json
+   "containers": [
+     { "class_name": "SymcacheBuilder", "image": "./symcache/Dockerfile", "max_instances": 1, "instance_type": "standard-1" }
+   ],
+   "durable_objects": { "bindings": [{ "name": "SYMCACHE_BUILDER", "class_name": "SymcacheBuilder" }] },
+   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SymcacheBuilder"] }]
+   ```
+
+2. Start Docker, then deploy with `pnpm run deploy`. The first deploy builds the container's image, which takes a few
+   minutes.
+
+The container starts when a big file arrives and stops a minute after, so it costs a few seconds of container time per
+upload. Files over 16 MB go to it, and smaller ones stay with crashyard itself.
+
 ## Upload tokens
 
 sentry-cli and the build plugins need a token to upload debug files and source maps. Create one in Settings, then

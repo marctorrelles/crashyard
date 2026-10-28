@@ -44,6 +44,9 @@ export type SourceLocation = {
   post: string[]
 } | null
 
+/** Bytes kept in the module's memory (`load`) */
+export type Loaded = { ptr: number; len: number }
+
 export type JavaFrame = { module: string; function: string; lineno?: number; file?: string | null }
 
 const EBADF = 8
@@ -140,17 +143,37 @@ export async function symbolic(module: WebAssembly.Module) {
         w.dealloc(idPtr, idLen)
       }
     },
+    /** A stream of `size` bytes read straight into the module's memory and kept there until `free`: a SymCache isn't
+     *  held twice, once in JavaScript and once here */
+    async load(size: number, stream: ReadableStream<Uint8Array>): Promise<Loaded> {
+      const ptr = w.alloc(size)
+      let at = 0
+      try {
+        for await (const chunk of stream) {
+          if (at + chunk.length > size) throw new Error('longer than its size')
+          // The buffer is read anew each time: another call may have grown the memory meanwhile
+          new Uint8Array(w.memory.buffer, ptr + at, chunk.length).set(chunk)
+          at += chunk.length
+        }
+        if (at !== size) throw new Error('shorter than its size')
+      } catch (error) {
+        w.dealloc(ptr, size)
+        throw error
+      }
+      return { ptr, len: size }
+    },
+    free(loaded: Loaded) {
+      w.dealloc(loaded.ptr, loaded.len)
+    },
     /** Each address (relative to the image) to its frames, innermost (inlined) first; [] when not found */
-    lookup(symcache: Uint8Array, addresses: bigint[]): SymbolFrame[][] {
+    lookup(symcache: Loaded, addresses: bigint[]): SymbolFrame[][] {
       const raw = new Uint8Array(addresses.length * 8)
       const view = new DataView(raw.buffer)
       addresses.forEach((a, i) => view.setBigUint64(i * 8, a, true))
-      const [ptr, len] = put(symcache)
       const [aPtr, aLen] = put(raw)
       try {
-        return json(take(w.lookup(ptr, len, aPtr, aLen)))
+        return json(take(w.lookup(symcache.ptr, symcache.len, aPtr, aLen)))
       } finally {
-        w.dealloc(ptr, len)
         w.dealloc(aPtr, aLen)
       }
     },

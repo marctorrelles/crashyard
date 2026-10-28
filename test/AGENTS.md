@@ -10,7 +10,8 @@ Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
   under 30 seconds.
 - `fakes.ts`: for unit tests, `sqliteD1()` (node:sqlite in memory with every migration, `.sqlite` for seeding; a
   statement binding more than 100 values throws, as D1's do) and
-  `memoryR2()` (a map with `customMetadata`, `.objects`): only what `src/` calls.
+  `memoryR2()` (a map with `customMetadata`, `.objects`, `head`, ranges, `body` as a stream, and multipart uploads):
+  only what `src/` calls.
 - `dev.ts`: `startDev(port, state)`: a dev server with its own state, wiped each run, and project 1 (`e2e`), whose
   key `KEY` 0013's trigger puts in `project_keys`.
 - `uploads.e2e.test.ts`: sentry-cli 3.8 uploading a dSYM (after the crash that needed it: re-symbolicated and
@@ -19,6 +20,10 @@ Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
   each commit's files and their A or D land in `commit_files`), `deploys new` and `deploys list` (`-t` as start and
   finish), and a
   token of one project refused for another's upload; port 3997.
+- `big-dsym.e2e.test.ts`: opt-in (`BIG_DSYM=<a dSYM over 48 MB> CONTAINERS=1`, Docker running; skipped otherwise):
+  sentry-cli uploads it through the SymCache builder's container, and a crash at an address reads as the SymCache
+  the Wasm module makes in Node says; port 3996. With `CONTAINERS=1`, `startDev` waits up to 10 minutes, the
+  image's build. Checked with Caliu's 107 MB macOS dSYM.
 - `fixtures/native`: `crash.c` and its dSYM (`clang -g -O0 -arch arm64 -c`, link, `dsymutil`): `render_voice` at
   0x460 (crash.c:5), `main` at 0x47c. `fixtures/web`: `app.ts` and its esbuild bundle and map.
   `fixtures/proguard`: a mapping with an inlined call (the test retraces a thread and an exception class too).
