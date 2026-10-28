@@ -170,8 +170,8 @@ standalone`) with push and permission not asked yet, Get alerts on this device, 
   204.", header contains, JSON path equals) with Add assertion; the dialog is wider for it. A cron monitor its slug,
   schedule, grace period and runtime. Each input has the `min`, `max` or `maxLength` `saveMonitor` checks.
   `settings.tsx`'s `LimitInputs` likewise.
-- `uploads.tsx`: `UploadSteps`, the variables sentry-cli reads and each platform's upload steps, on Debug files; `size`.
-- `new-project.tsx`, `linking.tsx` (the SDK snippets per platform; `docs/linking.md` says the
+- `uploads.tsx`: `UploadSteps`, the variables sentry-cli reads and each SDK's upload steps as tabs, on Debug files; `size`.
+- `new-project.tsx`, `linking.tsx` (the SDK snippets as tabs, `PlatformTabs`; `docs/linking.md` says the
   same, keep them in step). `Code`, its copyable block, is every DSN and snippet's (Client keys, Connect an app, Debug
   files, Source code, tokens): the copy button sits in its own column beside the text, which scrolls sideways, never
   under it.

@@ -37,7 +37,7 @@ export function DebugFiles() {
             more than the 10 ms a request gets on Free. Until you move to Workers Paid, stack traces stay as the app
             sent them.
           </NeedsPaid>
-          <UploadSteps slug={project.slug} platform={project.platform} origin={origin} />
+          <UploadSteps slug={project.slug} origin={origin} />
         </div>
       </SettingsCard>
 

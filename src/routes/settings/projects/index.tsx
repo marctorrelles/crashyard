@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { IconChevronRight, IconFolder } from '@tabler/icons-react'
-import { NewProject, PLATFORM_NAMES } from '@/components/new-project'
+import { NewProject } from '@/components/new-project'
 import { LimitInputs, SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { Empty, useProjects } from '@/components/shell'
 import { getInstanceSettings, saveProjectDefaults } from '@/fns'
@@ -42,9 +42,7 @@ function List() {
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{p.name}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {PLATFORM_NAMES[p.platform]} · {p.slug}
-              </p>
+              <p className="truncate font-mono text-xs text-muted-foreground">{p.slug}</p>
             </div>
             <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
           </Link>

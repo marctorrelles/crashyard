@@ -3,7 +3,7 @@ import { IconApps } from '@tabler/icons-react'
 import { incidentReason } from '@/components/beats'
 import { Ago, count, Level, percent, Sparkline } from '@/components/bits'
 import { BarList, BigNumber, PALETTE, TimeChart } from '@/components/charts'
-import { NewProject, PLATFORM_NAMES } from '@/components/new-project'
+import { NewProject } from '@/components/new-project'
 import { Empty, PageHeader, Shell } from '@/components/shell'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CHART_DAYS, change, type ChartDays } from '@/data/charts'
@@ -74,7 +74,6 @@ function Home() {
             >
               <div className="flex items-baseline justify-between gap-2">
                 <h2 className="truncate font-medium">{p.name}</h2>
-                <span className="shrink-0 text-xs text-muted-foreground">{PLATFORM_NAMES[p.platform]}</span>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <dl className="flex gap-5 text-sm">

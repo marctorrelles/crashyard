@@ -1,10 +1,8 @@
 import { createFileRoute, getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { PLATFORM_NAMES } from '@/components/new-project'
 import { Hint, SaveButton, SettingsCard, useSave } from '@/components/settings'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { updateProject } from '@/fns'
 import { Delete } from './-delete'
 
@@ -26,7 +24,6 @@ function General() {
   const { project } = parent.useLoaderData()
   const navigate = useNavigate()
   const { save, saving } = useSave()
-  const [platform, setPlatform] = useState(project.platform)
   const [slug, setSlug] = useState(project.slug)
   return (
     <SettingsCard
@@ -38,7 +35,7 @@ function General() {
         onSubmit={async (e) => {
           e.preventDefault()
           const name = new FormData(e.currentTarget).get('name')
-          const saved = await save(() => updateProject({ data: { id: project.id, name, slug, platform } }))
+          const saved = await save(() => updateProject({ data: { id: project.id, name, slug } }))
           if (saved && slug !== project.slug)
             await navigate({ to: '/settings/projects/$slug/general', params: { slug }, replace: true })
         }}
@@ -46,22 +43,6 @@ function General() {
         <div className="grid gap-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" name="name" defaultValue={project.name} required maxLength={80} />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="platform">Platform</Label>
-          <Select value={platform} onValueChange={(v) => setPlatform(v as typeof platform)}>
-            <SelectTrigger id="platform" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(PLATFORM_NAMES).map(([value, name]) => (
-                <SelectItem key={value} value={value}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Hint>Which setup guide Connect an app shows.</Hint>
         </div>
         <div className="grid gap-2 @xl:col-span-2">
           <Label htmlFor="slug">Slug</Label>

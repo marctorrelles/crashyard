@@ -237,7 +237,7 @@ const TOOLS: Tool[] = [
   {
     name: 'list_projects',
     description:
-      'The projects: slug (what every project argument takes), name, platform, unresolved issues, events in the last 24 hours and the newest release with its share of sessions.',
+      'The projects: slug (what every project argument takes), name, unresolved issues, events in the last 24 hours and the newest release with its share of sessions.',
     inputSchema: schema({}),
     run: async (_, { db }) => {
       const { projects } = await overview(db, Date.now())
@@ -245,7 +245,7 @@ const TOOLS: Tool[] = [
       return projects
         .map(
           (p) =>
-            `${p.slug} · ${p.name} · ${p.platform} · ${p.unresolved} unresolved · ${p.today} events in 24h${p.newest ? ` · newest release ${p.newest.release} (${pct(p.newest.adoption)} of sessions)` : ''}`,
+            `${p.slug} · ${p.name} · ${p.unresolved} unresolved · ${p.today} events in 24h${p.newest ? ` · newest release ${p.newest.release} (${pct(p.newest.adoption)} of sessions)` : ''}`,
         )
         .join('\n')
     },

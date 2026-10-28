@@ -120,11 +120,11 @@ server, the build, or `tsr generate`): never edit it.
   Workers Paid or Free, when checked, Check again, and what needs Paid, `PAID_FEATURES`; the database against 10 GB,
   warning from 80%; stored files) and `health` (`getHealth`, each line a `Status`: the cron, late after 3 minutes; failed notifications, each by its kind's label from `KINDS`, "Metric alert" for any
   metric kind; envelopes pending and failed; the pruning backlog). The email sender is on Notifications, in an email
-  channel's form. `projects/index.tsx`, Projects: every project, its platform and slug, each opening its General;
+  channel's form. `projects/index.tsx`, Projects: every project and its slug, each opening its General;
   New project in the header; then Defaults for new projects, their limits and retention, `defaults.project`
   (`getInstanceSettings`). A project's pages, listed under Projects in the nav only while one is open:
   `projects/$slug/route.tsx` loads its settings once (`getProjectSettings`: the project, its keys with their DSNs,
-  the DSN of the first key that's on, uploads). `general` (name, platform, slug, a changed slug warning that
+  the DSN of the first key that's on, uploads). `general` (name, slug, a changed slug warning that
   `SENTRY_PROJECT` must change and moving the page to the new slug; then `-delete`), `connect` (the
   DSN and `Linking`; Cloudflare Workers: the `tail_consumers` line, the Workers sending runs, `workersSeen`,
   `NeedsPaid`, each with Watch Worker, the list to watch and uncaught exceptions too; then under Client keys,

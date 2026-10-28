@@ -186,11 +186,11 @@ export const createProject = createServerFn({ method: 'POST' })
   .middleware([admin])
   .validator((d: unknown) => {
     const o = object(d)
-    return { name: text(o.name, 80, 'The project name').trim(), platform: oneOf(projects.PLATFORMS)(o.platform) }
+    return { name: text(o.name, 80, 'The project name').trim() }
   })
   .handler(({ data }) => {
     if (!data.name) throw new Error('Give the project a name.')
-    return projects.createProject(env.DB, data.name, data.platform, Date.now())
+    return projects.createProject(env.DB, data.name, Date.now())
   })
 
 export const getProjectSettings = createServerFn()
@@ -243,7 +243,6 @@ const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => p
       throw new Error('A slug is lowercase letters, numbers and dashes, and starts with a letter or number.')
     return slug
   },
-  platform: oneOf(projects.PLATFORMS),
   ...LIMITS,
   repo_url: (v) => source.repoUrl(text(v ?? '', 300, 'The repository address')),
   auto_resolve_days: (v) => (v === null || v === '' ? null : int(v, 1, 3650, 'Days without events')),

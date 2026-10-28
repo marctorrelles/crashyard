@@ -1,8 +1,8 @@
 # Connecting an app
 
 crashyard speaks Sentry's protocol, so an app connects with the official Sentry SDK pointed at a crashyard DSN. Create a
-project with **New project** on the overview. Its settings, under Connect, show the DSN and the steps below with
-the DSN already filled in. A project can have several keys, one per app or build, under Client keys on the same page.
+project for each app with **New project** on the overview. An app on several platforms can share one project. Its
+settings, under Connect, show the DSN and the steps below for each SDK, with the DSN already filled in. A project can have several keys, one per app or build, under Client keys on the same page.
 
 A DSN looks like `https://<public key>@crashyard.example.com/<project id>`. The key is public by design. It ships inside
 your apps and only allows sending events.
@@ -63,6 +63,24 @@ Sentry.init({ dsn: '<your DSN>', environment: process.env.NODE_ENV ?? 'productio
 
 ## Cloudflare Workers
 
+```sh
+pnpm add @sentry/cloudflare
+```
+
+Wrap the Worker's handler. The Worker needs the `nodejs_als` or `nodejs_compat` compatibility flag.
+
+```js
+import * as Sentry from '@sentry/cloudflare'
+
+export default Sentry.withSentry(() => ({ dsn: '<your DSN>', sendDefaultPii: false }), {
+  async fetch(request, env, ctx) {
+    /* … */
+  },
+})
+```
+
+### Runs the SDK can't send
+
 A Worker that runs out of CPU time or memory is stopped before its Sentry SDK can send anything. crashyard can catch
 those runs as a Tail Worker. This needs the Workers Paid plan, and the Worker must be on the same Cloudflare account as
 crashyard.
@@ -80,9 +98,40 @@ A run that runs out of CPU time or memory becomes an issue for that Worker, with
 as breadcrumbs, and its CPU time. Uncaught exceptions come in too if you turn on "Report uncaught exceptions too". Leave
 it off when the Worker already uses the Sentry SDK, or each error arrives twice.
 
+## React Native
+
+```sh
+pnpm add @sentry/react-native
+```
+
+```js
+import * as Sentry from '@sentry/react-native'
+
+Sentry.init({ dsn: '<your DSN>', sendDefaultPii: false })
+
+export default Sentry.wrap(App)
+```
+
+## Flutter
+
+```sh
+flutter pub add sentry_flutter
+```
+
+```dart
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+Future<void> main() async {
+  await SentryFlutter.init(
+    (options) => options.dsn = '<your DSN>',
+    appRunner: () => runApp(const MyApp()),
+  );
+}
+```
+
 ## Other platforms
 
-Any Sentry SDK works. Set its DSN to the one crashyard gives you.
+Any Sentry SDK works, such as Python, Go, Ruby, PHP, Java or .NET. Set its DSN to the one crashyard gives you.
 
 ## Check that events arrive
 

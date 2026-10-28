@@ -1,4 +1,4 @@
-// "New project": a name and a platform, then its settings page with the DSN and how to link the app.
+// "New project": a name, then its settings page with the DSN and how to link the app.
 import { useNavigate } from '@tanstack/react-router'
 import { IconPlus } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -15,21 +15,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createProject } from '@/fns'
-
-export const PLATFORM_NAMES = {
-  apple: 'Apple',
-  android: 'Android',
-  javascript: 'Browser',
-  node: 'Node.js',
-  other: 'Other',
-} as const
 
 export function NewProject({ variant = 'default' }: { variant?: 'default' | 'outline' }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const [platform, setPlatform] = useState<keyof typeof PLATFORM_NAMES>('apple')
   const [busy, setBusy] = useState(false)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -47,7 +37,7 @@ export function NewProject({ variant = 'default' }: { variant?: 'default' | 'out
             setBusy(true)
             try {
               const name = String(new FormData(e.currentTarget).get('name'))
-              const project = await createProject({ data: { name, platform } })
+              const project = await createProject({ data: { name } })
               setOpen(false)
               await navigate({ to: '/projects/$slug/settings', params: { slug: project.slug } })
             } catch (error) {
@@ -64,21 +54,6 @@ export function NewProject({ variant = 'default' }: { variant?: 'default' | 'out
           <div className="grid gap-2">
             <Label htmlFor="project-name">Name</Label>
             <Input id="project-name" name="name" required maxLength={80} placeholder="pocketband" autoComplete="off" />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="project-platform">Platform</Label>
-            <Select value={platform} onValueChange={(v) => setPlatform(v as typeof platform)}>
-              <SelectTrigger id="project-platform" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(PLATFORM_NAMES).map(([value, name]) => (
-                  <SelectItem key={value} value={value}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={busy}>

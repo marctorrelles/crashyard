@@ -4,14 +4,10 @@ import type { Notice } from '../notify/notice'
 import { topWithOther } from './charts'
 import { projectDefaults } from './settings'
 
-export const PLATFORMS = ['apple', 'android', 'javascript', 'node', 'other'] as const
-export type Platform = (typeof PLATFORMS)[number]
-
 export type ProjectRow = {
   id: number
   slug: string
   name: string
-  platform: Platform
   public_key: string // its first key; ingest reads project_keys
   daily_event_quota: number
   event_retention_days: number
@@ -56,7 +52,7 @@ export const slugOf = (name: string) =>
 export async function overview(db: D1Database, now: number) {
   const days = lastDays(14, now)
   const [projects, unresolved, counts, fresh, recent] = await db.batch<Record<string, unknown>>([
-    db.prepare('SELECT id, slug, name, platform FROM projects ORDER BY name'),
+    db.prepare('SELECT id, slug, name FROM projects ORDER BY name'),
     db.prepare("SELECT project_id, COUNT(*) AS n FROM issues WHERE status = 'unresolved' GROUP BY project_id"),
     db.prepare('SELECT project_id, day, events FROM project_days WHERE day >= ?').bind(days[0]),
     db
@@ -89,7 +85,7 @@ export async function overview(db: D1Database, now: number) {
     return { release: r.release, adoption: r.n / total }
   }
   return {
-    projects: (projects.results as Pick<ProjectRow, 'id' | 'slug' | 'name' | 'platform'>[]).map((p) => {
+    projects: (projects.results as Pick<ProjectRow, 'id' | 'slug' | 'name'>[]).map((p) => {
       const byDay = new Map(
         counts.results.filter((c) => c.project_id === p.id).map((c) => [c.day as string, c.events as number]),
       )
@@ -219,11 +215,11 @@ export const filteredSince = async (db: D1Database, projectId: number, days: num
 export const allProjects = async (db: D1Database) =>
   (
     await db
-      .prepare('SELECT id, slug, name, platform FROM projects ORDER BY name')
-      .all<Pick<ProjectRow, 'id' | 'slug' | 'name' | 'platform'>>()
+      .prepare('SELECT id, slug, name FROM projects ORDER BY name')
+      .all<Pick<ProjectRow, 'id' | 'slug' | 'name'>>()
   ).results
 
-export async function createProject(db: D1Database, name: string, platform: Platform, now: number) {
+export async function createProject(db: D1Database, name: string, now: number) {
   const base = slugOf(name)
   const taken = new Set(
     (
@@ -239,13 +235,12 @@ export async function createProject(db: D1Database, name: string, platform: Plat
   // Its first key, in project_keys too, by the trigger of migration 0013
   return (await db
     .prepare(
-      `INSERT INTO projects (slug, name, platform, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota,
-         event_retention_days, log_retention_days, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      `INSERT INTO projects (slug, name, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota,
+         event_retention_days, log_retention_days, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     )
     .bind(
       slug,
       name,
-      platform,
       newKey(),
       d.daily_event_quota,
       d.daily_log_quota,
@@ -261,7 +256,6 @@ export async function createProject(db: D1Database, name: string, platform: Plat
 export const PROJECT_FIELDS = [
   'name',
   'slug',
-  'platform',
   'daily_event_quota',
   'event_retention_days',
   'daily_log_quota',

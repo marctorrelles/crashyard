@@ -1,12 +1,14 @@
-// How an app links to a project, per platform: the SDK and its init with this project's DSN. docs/linking.md says the
+// How an app links to a project, per SDK: the SDK and its init with this project's DSN. docs/linking.md says the
 // same; keep them in step.
 import { IconCheck, IconCopy } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { Platform } from '@/data/projects'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-const GUIDES: Record<Platform, { steps: string; code: (dsn: string) => string }[]> = {
-  apple: [
+type Step = { steps: string; code: (dsn: string) => string }
+
+const GUIDES: Record<string, Step[]> = {
+  Apple: [
     {
       steps: 'Add sentry-cocoa with Swift Package Manager from https://github.com/getsentry/sentry-cocoa.',
       code: () => '',
@@ -24,7 +26,7 @@ SentrySDK.start { options in
 }`,
     },
   ],
-  android: [
+  Android: [
     {
       steps: 'Add the SDK to your app’s build.gradle.kts:',
       code: () => 'implementation("io.sentry:sentry-android:8.+")',
@@ -35,7 +37,7 @@ SentrySDK.start { options in
 <meta-data android:name="io.sentry.send-default-pii" android:value="false" />`,
     },
   ],
-  javascript: [
+  Browser: [
     { steps: 'Install the SDK:', code: () => 'pnpm add @sentry/browser' },
     {
       steps: 'Start it before your app renders:',
@@ -48,7 +50,7 @@ Sentry.init({
 })`,
     },
   ],
-  node: [
+  'Node.js': [
     { steps: 'Install the SDK:', code: () => 'pnpm add @sentry/node' },
     {
       steps: 'Start it before anything else runs:',
@@ -60,17 +62,57 @@ Sentry.init({
 })`,
     },
   ],
-  other: [{ steps: 'Any Sentry SDK works: set its DSN to this one.', code: () => '' }],
+  'Cloudflare Workers': [
+    { steps: 'Install the SDK:', code: () => 'pnpm add @sentry/cloudflare' },
+    {
+      steps: 'Wrap the Worker’s handler. The Worker needs the nodejs_als or nodejs_compat compatibility flag.',
+      code: (dsn) => `import * as Sentry from '@sentry/cloudflare'
+
+export default Sentry.withSentry(
+  () => ({ dsn: '${dsn}', sendDefaultPii: false }),
+  { async fetch(request, env, ctx) { /* … */ } },
+)`,
+    },
+  ],
+  'React Native': [
+    { steps: 'Install the SDK:', code: () => 'pnpm add @sentry/react-native' },
+    {
+      steps: 'Start it in your app’s entry file, and wrap the root component:',
+      code: (dsn) => `import * as Sentry from '@sentry/react-native'
+
+Sentry.init({ dsn: '${dsn}', sendDefaultPii: false })
+
+export default Sentry.wrap(App)`,
+    },
+  ],
+  Flutter: [
+    { steps: 'Add the SDK:', code: () => 'flutter pub add sentry_flutter' },
+    {
+      steps: 'Start it in main(), running your app inside it:',
+      code: (dsn) => `import 'package:sentry_flutter/sentry_flutter.dart';
+
+Future<void> main() async {
+  await SentryFlutter.init(
+    (options) => options.dsn = '${dsn}',
+    appRunner: () => runApp(const MyApp()),
+  );
+}`,
+    },
+  ],
+  Other: [
+    {
+      steps: 'Any Sentry SDK works, such as Python, Go, Ruby, PHP, Java or .NET: set its DSN to this one.',
+      code: () => '',
+    },
+  ],
 }
 
 export function Linking({
-  platform,
   dsn,
   origin,
   id,
   publicKey,
 }: {
-  platform: Platform
   dsn: string
   origin: string
   id: number
@@ -79,18 +121,46 @@ export function Linking({
   const test = `curl -X POST '${origin}/api/${id}/envelope/?sentry_key=${publicKey}' \\
   --data-binary $'{}\\n{"type":"event"}\\n{"message":"Hello from curl","level":"info"}\\n'`
   return (
-    <ol className="grid gap-4">
-      {GUIDES[platform].map((g, i) => (
-        <li key={i} className="grid min-w-0 gap-2">
-          <p className="text-sm">{g.steps}</p>
-          {g.code(dsn) && <Code text={g.code(dsn)} />}
-        </li>
-      ))}
-      <li className="grid min-w-0 gap-2">
+    <div className="grid gap-4">
+      <PlatformTabs
+        tabs={GUIDES}
+        render={(steps) => (
+          <ol className="grid gap-4">
+            {steps.map((g, i) => (
+              <li key={i} className="grid min-w-0 gap-2">
+                <p className="text-sm">{g.steps}</p>
+                {g.code(dsn) && <Code text={g.code(dsn)} />}
+              </li>
+            ))}
+          </ol>
+        )}
+      />
+      <div className="grid min-w-0 gap-2">
         <p className="text-sm">To check the connection, send a test message. It appears under Issues.</p>
         <Code text={test} />
-      </li>
-    </ol>
+      </div>
+    </div>
+  )
+}
+
+/** One tab per SDK, by name; the row scrolls sideways on a phone */
+export function PlatformTabs<T>({ tabs, render }: { tabs: Record<string, T>; render: (tab: T) => React.ReactNode }) {
+  const names = Object.keys(tabs)
+  return (
+    <Tabs defaultValue={names[0]} className="min-w-0">
+      <TabsList variant="line" className="max-w-full justify-start overflow-x-auto">
+        {names.map((n) => (
+          <TabsTrigger key={n} value={n} className="flex-none">
+            {n}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {names.map((n) => (
+        <TabsContent key={n} value={n} className="pt-2">
+          {render(tabs[n])}
+        </TabsContent>
+      ))}
+    </Tabs>
   )
 }
 

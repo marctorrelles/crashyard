@@ -48,7 +48,7 @@ function App({ project, dsn, publicKey, origin }: Pick<Loaded, 'project' | 'dsn'
         <Label>DSN</Label>
         <Code text={dsn} />
       </div>
-      <Linking platform={project.platform} dsn={dsn} origin={origin} id={project.id} publicKey={publicKey} />
+      <Linking dsn={dsn} origin={origin} id={project.id} publicKey={publicKey} />
     </SettingsCard>
   )
 }
