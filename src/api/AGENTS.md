@@ -76,8 +76,10 @@ signature; `/mcp` comes after sign-in.
 - `telegram.ts`: `POST /api/telegram/<bot id>`, a bot's webhook (set by saving a Telegram channel,
   `src/notify/AGENTS.md`). Let in only with `X-Telegram-Bot-Api-Secret-Token` equal to a secret of that bot's
   channels (compared as SHA-256 digests), else 403; then always 200, or Telegram sends the update again. A
-  `callback_query` from a channel's own chat acts on the issue as the channel's `owner` (else "@name on Telegram"):
-  `r` resolves, `i` ignores until it escalates, `a` assigns to the owner, through `changeIssues` and `assignIssue`,
+  `callback_query` from a channel's own chat acts on the issue: in the owner's private chat with the bot (the tapper's
+  id is the chat's) as the channel's `owner`; in a group, which anyone in it can tap, as "@name on Telegram", and
+  assigning there only answers "Open crashyard to assign it". `r` resolves, `i` ignores until it escalates, `a`
+  assigns to the owner, through `changeIssues` and `assignIssue`,
   so the activity names who; `answerCallbackQuery` with a toast ("Resolved", "That issue no longer exists"), and
   `editMessageReplyMarkup` turns the button into "✓ Resolved" (resolving or ignoring takes the whole row; assigning
   only its button). `telegram.test.ts` on `test/fakes.ts` with `fetch` stubbed.

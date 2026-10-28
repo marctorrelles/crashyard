@@ -23,7 +23,15 @@ function setup() {
       return Response.json({ ok: true, result: true })
     }),
   )
-  const tap = (data: string, { secret = 'right', chat = 42, bot = '111' } = {}) =>
+  const tap = (
+    data: string,
+    {
+      secret = 'right',
+      chat = 42,
+      bot = '111',
+      from,
+    }: { secret?: string; chat?: number; bot?: string; from?: object } = {},
+  ) =>
     handleTelegram(
       new Request(`https://x/api/telegram/${bot}`, {
         method: 'POST',
@@ -32,7 +40,7 @@ function setup() {
           callback_query: {
             id: 'q1',
             data,
-            from: { first_name: 'Marc' },
+            from: from ?? { id: chat, first_name: 'Marc' },
             message: {
               message_id: 5,
               chat: { id: chat },
@@ -102,6 +110,19 @@ describe('Telegram’s buttons', () => {
       { kind: 'assigned', by: 'marc@example.com' },
       { kind: 'ignored', by: 'marc@example.com' },
       { kind: 'resolved', by: 'marc@example.com' },
+    ])
+  })
+
+  it('in a group, name who tapped, and leave assigning to the owner’s own chat', async () => {
+    const { db, tap, calls, issue } = setup()
+    db.sqlite.exec(`UPDATE channels SET config = json_set(config, '$.chat', '-100') WHERE name = 'Mine'`)
+    await tap('a:7', { chat: -100, from: { id: 9, username: 'ana' } })
+    expect(issue()).toMatchObject({ assignee: null })
+    expect(calls.at(-1)?.body).toMatchObject({ text: 'Open crashyard to assign it' })
+    await tap('r:7', { chat: -100, from: { id: 9, username: 'ana' } })
+    expect(issue()).toMatchObject({ status: 'resolved' })
+    expect(db.sqlite.prepare('SELECT kind, by FROM issue_activity WHERE issue_id = 7').all()).toEqual([
+      { kind: 'resolved', by: '@ana on Telegram' },
     ])
   })
 

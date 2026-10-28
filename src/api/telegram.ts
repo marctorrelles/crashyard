@@ -1,5 +1,6 @@
 // POST /api/telegram/<bot id>: Telegram's webhook for a bot's buttons (src/notify/channels.ts), outside sign-in, so
-// the secret Telegram sends back with every update is what lets it in. A tap acts on the issue as the channel's owner,
+// the secret Telegram sends back with every update is what lets it in. A tap in the owner's own chat acts as them, in
+// a group as the Telegram user who tapped,
 // answers with a toast and turns the buttons into what happened.
 import { assignIssue, changeIssues } from '../data/issues'
 import {
@@ -15,7 +16,7 @@ type Update = {
   callback_query?: {
     id: string
     data?: string
-    from: { first_name?: string; username?: string }
+    from: { id?: number; first_name?: string; username?: string }
     message?: { message_id: number; chat: { id: number }; reply_markup?: { inline_keyboard: Button[][] } }
   }
 }
@@ -63,8 +64,15 @@ export async function handleTelegram(request: Request, db: D1Database, botId: st
     return new Response('')
   }
   const issueId = Number(m[2])
-  const { owner } = channel.settings
+  // The owner's own chat with the bot is only theirs (a private chat's id is its person's): there a tap is the owner's.
+  // In a group anyone in it can tap, so the activity names who did, and only the owner's chat assigns to the owner
+  const own = !!channel.settings.owner && tap.from.id === message.chat.id
+  const owner = own ? channel.settings.owner : undefined
   const by = owner ?? `${tap.from.username ? `@${tap.from.username}` : (tap.from.first_name ?? 'Someone')} on Telegram`
+  if (action === 'assign' && !owner) {
+    await answer('Open crashyard to assign it')
+    return new Response('')
+  }
   try {
     const exists = await db.prepare('SELECT 1 FROM issues WHERE id = ?').bind(issueId).first()
     if (!exists) {
