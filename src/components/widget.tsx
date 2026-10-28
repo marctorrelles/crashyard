@@ -6,8 +6,6 @@ import {
   IconArrowDown,
   IconArrowsMaximize,
   IconArrowUp,
-  IconChevronLeft,
-  IconChevronRight,
   IconCopy,
   IconGripVertical,
   IconPencil,
@@ -16,7 +14,7 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
-import { count, Level, percent } from '@/components/bits'
+import { count, Level, Pager, percent } from '@/components/bits'
 import { Markdown } from '@/components/markdown'
 import { BigNumber, LEVEL_COLORS, PALETTE, type Series, TimeChart } from '@/components/charts'
 import { ms } from '@/components/performance'
@@ -657,33 +655,7 @@ export function WidgetViewer({
                 </TableBody>
               </Table>
             </div>
-            {pages > 1 && (
-              <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
-                <span className="tabular-nums">
-                  Page {page + 1} of {pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  className="max-sm:size-10"
-                  aria-label="Previous page"
-                  disabled={page === 0}
-                  onClick={() => setPage(page - 1)}
-                >
-                  <IconChevronLeft />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  className="max-sm:size-10"
-                  aria-label="Next page"
-                  disabled={page >= pages - 1}
-                  onClick={() => setPage(page + 1)}
-                >
-                  <IconChevronRight />
-                </Button>
-              </div>
-            )}
+            <Pager page={page} pages={pages} onPage={setPage} />
           </div>
         )}
         <DialogFooter>

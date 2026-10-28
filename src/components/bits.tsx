@@ -1,5 +1,7 @@
-// Small pieces the pages share: a sparkline, "3h ago", an issue's level.
+// Small pieces the pages share: a sparkline, "3h ago", an issue's level, a list's pages.
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { formatTime, useTimePrefs } from '@/components/time'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /** Bars for a count per day, oldest first; `label` says what they are when they aren't events per day */
@@ -90,3 +92,35 @@ export const count = (n: number) =>
 /** A rate as a percentage, with the decimals a crash-free rate needs: 99.95%, 87.3% */
 export const percent = (r: number) =>
   r === 1 ? '100%' : `${r >= 0.99 ? (Math.floor(r * 10000) / 100).toFixed(2) : (r * 100).toFixed(1)}%`
+
+/** "Page 2 of 5" and its two arrows, at the end of a list paged in the browser; nothing when it fits on one */
+export function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (page: number) => void }) {
+  if (pages <= 1) return null
+  return (
+    <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+      <span className="tabular-nums">
+        Page {page + 1} of {pages}
+      </span>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        className="max-sm:size-10"
+        aria-label="Previous page"
+        disabled={page === 0}
+        onClick={() => onPage(page - 1)}
+      >
+        <IconChevronLeft />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        className="max-sm:size-10"
+        aria-label="Next page"
+        disabled={page >= pages - 1}
+        onClick={() => onPage(page + 1)}
+      >
+        <IconChevronRight />
+      </Button>
+    </div>
+  )
+}

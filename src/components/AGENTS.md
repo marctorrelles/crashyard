@@ -23,7 +23,7 @@
   picked project's settings (`/settings/projects/<slug>/general`); picking a project on one of its settings pages
   keeps the page for the new project, and All projects goes to Settings, Projects.
 - `bits.tsx`: `Sparkline` (SVG bars, no chart library; `label` for what they are when not events per day), `Ago`
-  (relative to a `now` from the loader, the whole date in its title), `Level`, `count`, `percent`.
+  (relative to a `now` from the loader, the whole date in its title), `Level`, `count`, `percent`, `Pager` ("Page 2 of 5" and two arrows under a list paged in the browser, nothing when it fits on one; the releases' lists and the widget viewer's table).
 - `time.tsx`: `formatTime(at, { zone, clock }, style)` (`Intl.DateTimeFormat` in English, `hourCycle` from the clock,
   formats cached; an unknown zone writes UTC), `useTimePrefs` and `<Time>`. Every date or time the app shows goes
   through them, so the server and the browser write the same text.

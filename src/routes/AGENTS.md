@@ -81,9 +81,11 @@ server, the build, or `tsr generate`): never edit it.
   issues with or without that value), events (the latest, and a `SearchBar` of scope `events` that searches this
   issue's events through `getIssueEvents`, the newest 50 that match, an answer to a search typed before the last dropped), feedback, activity and notes.
 - `releases.tsx`: releases, a section per project for every project, each with its adoption stage, and on a desktop
-  its adoption, sessions, users and crash-free users (crash-free sessions under its issues); sorted by `?sort=`
-  (sessions, users, adoption, crashFree, crashFreeUsers, highest first, a release without the number last; newest
-  when unset, sorted in the page). `projects/$slug/releases/$release.tsx`: one release, Healthy or Unhealthy by the
+  its adoption, sessions, users and crash-free users (crash-free sessions under its issues), in columns every row
+  shares (`COLUMNS`), so values line up whatever a release's name and badge; sorted by `?sort=` (sessions, users,
+  adoption, crashFree, crashFreeUsers, highest first, a release without the number last; newest when unset, sorted in
+  the page); a project picker beside the sort (All projects, or one: `?project=`, the sidebar's filter too); each
+  project's list 10 a page with `Pager`, back to its first page on a new sort. `projects/$slug/releases/$release.tsx`: one release, Healthy or Unhealthy by the
   project's thresholds (none without them), crash-free sessions and users, sessions and active users in 24 hours,
   adoption, its share of each day's sessions over 30 days as a line, its deploys (environment, name linked to its
   URL, when finished), its commits since the one before (from set-commits, each opening on the repository when the
