@@ -8,7 +8,8 @@ Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
   `events`, stored once by the cron's retry); check-ins over HTTP (a JSON POST with
   `monitor_config`, then curl's GETs) and CSP reports in both shapes; a watched Worker's run out of CPU time through `/__dev/tail`. Seeds rows through `getPlatformProxy`. Keep it
   under 30 seconds.
-- `fakes.ts`: for unit tests, `sqliteD1()` (node:sqlite in memory with every migration, `.sqlite` for seeding) and
+- `fakes.ts`: for unit tests, `sqliteD1()` (node:sqlite in memory with every migration, `.sqlite` for seeding; a
+  statement binding more than 100 values throws, as D1's do) and
   `memoryR2()` (a map with `customMetadata`, `.objects`): only what `src/` calls.
 - `dev.ts`: `startDev(port, state)`: a dev server with its own state, wiped each run, and project 1 (`e2e`), whose
   key `KEY` 0013's trigger puts in `project_keys`.

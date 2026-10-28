@@ -381,8 +381,8 @@ export async function pruneEvents(db: D1Database, now: number, files?: R2Bucket,
     if (!results.length) return 0
     await files?.delete(results.map((r) => r.r2_key))
     await db
-      .prepare(`DELETE FROM attachments WHERE id IN (${results.map(() => '?').join(',')})`)
-      .bind(...results.map((r) => r.id))
+      .prepare('DELETE FROM attachments WHERE id IN (SELECT value FROM json_each(?))')
+      .bind(JSON.stringify(results.map((r) => r.id)))
       .run()
     return results.length
   })

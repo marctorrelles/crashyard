@@ -60,7 +60,11 @@ export default {
         env,
         ctx,
         symbolic: freshSymbolic,
-        reprocess: (projectId, debugIds) => reprocess(env, sharedSymbolic, projectId, debugIds),
+        // After the answer, in waitUntil: a failure would vanish unlogged
+        reprocess: (projectId, debugIds) =>
+          reprocess(env, sharedSymbolic, projectId, debugIds).catch((error) =>
+            console.error(`reprocess: project ${projectId} failed`, error),
+          ),
       })
     }
     // A Telegram bot's buttons, checked by the secret saving its channel gave Telegram (src/api/telegram.ts)

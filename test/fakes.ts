@@ -12,6 +12,8 @@ export function sqliteD1(): D1Database & { sqlite: DatabaseSync } {
     .sort())
     sqlite.exec(readFileSync(new URL(file, MIGRATIONS), 'utf8'))
   const result = (sql: string, params: unknown[]) => {
+    // D1's own limit, which node:sqlite doesn't have (32,766): a statement binding more fails here as it would there
+    if (params.length > 100) throw new Error(`D1 binds 100 values at most, this statement binds ${params.length}`)
     const statement = sqlite.prepare(sql)
     const values = params.map((p) => (p === undefined ? null : p)) as SQLInputValue[]
     if (statement.columns().length) return { results: statement.all(...values), meta: { changes: 0 }, success: true }

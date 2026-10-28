@@ -45,14 +45,16 @@ export type IssueRow = {
   external_url: string | null
 }
 
-const marks = (n: number) => Array(n).fill('?').join(',')
+// A list of ids as one bound JSON value, `IN (SELECT value FROM json_each(?))`: D1 binds 100 values at most a statement
+const IN_LIST = 'IN (SELECT value FROM json_each(?))'
+const list = (ids: number[]) => JSON.stringify(ids)
 
 async function seriesOf(db: D1Database, ids: number[], days: string[]) {
   if (!ids.length) return new Map<number, number[]>()
   const rows = (
     await db
-      .prepare(`SELECT issue_id, day, count FROM issue_days WHERE day >= ? AND issue_id IN (${marks(ids.length)})`)
-      .bind(days[0], ...ids)
+      .prepare(`SELECT issue_id, day, count FROM issue_days WHERE day >= ? AND issue_id ${IN_LIST}`)
+      .bind(days[0], list(ids))
       .all<{ issue_id: number; day: string; count: number }>()
   ).results
   return new Map(
@@ -213,22 +215,19 @@ export type IssueChange =
 export async function changeIssues(db: D1Database, ids: number[], change: IssueChange, by: string, now: number) {
   if (!ids.length) return
   if (change.action === 'delete') {
-    const m = marks(ids.length)
-    // Discarding keeps every fingerprint of the issues, merged ones too, so ingest drops their events from now on;
-    // 40 issues a statement, as D1 binds 100 values at most
+    // Discarding keeps every fingerprint of the issues, merged ones too, so ingest drops their events from now on
     const discard = change.discard
-      ? Array.from({ length: Math.ceil(ids.length / 40) }, (_, i) => {
-          const part = ids.slice(i * 40, i * 40 + 40)
-          return db
+      ? [
+          db
             .prepare(
               `INSERT OR IGNORE INTO discarded_fingerprints (project_id, fingerprint, at)
-               SELECT project_id, fingerprint, ?1 FROM issues WHERE id IN (${marks(part.length)})
-               UNION SELECT project_id, fingerprint, ?1 FROM issue_fingerprints WHERE issue_id IN (${marks(part.length)})`,
+               SELECT project_id, fingerprint, ?1 FROM issues WHERE id IN (SELECT value FROM json_each(?2))
+               UNION SELECT project_id, fingerprint, ?1 FROM issue_fingerprints WHERE issue_id IN (SELECT value FROM json_each(?2))`,
             )
-            .bind(now, ...part, ...part)
-        })
+            .bind(now, list(ids)),
+        ]
       : []
-    await db.batch([...discard, db.prepare(`DELETE FROM issues WHERE id IN (${m})`).bind(...ids)])
+    await db.batch([...discard, db.prepare(`DELETE FROM issues WHERE id ${IN_LIST}`).bind(list(ids))])
     return
   }
   const statements: D1PreparedStatement[] = []
@@ -238,8 +237,8 @@ export async function changeIssues(db: D1Database, ids: number[], change: IssueC
       ? new Map(
           (
             await db
-              .prepare(`SELECT id, last_release FROM issues WHERE id IN (${marks(ids.length)})`)
-              .bind(...ids)
+              .prepare(`SELECT id, last_release FROM issues WHERE id ${IN_LIST}`)
+              .bind(list(ids))
               .all<{ id: number; last_release: string | null }>()
           ).results.map((r) => [r.id, r.last_release]),
         )
@@ -324,66 +323,66 @@ export async function mergeIssues(db: D1Database, ids: number[], by: string, now
   if (!rest.length) return
   const all = (
     await db
-      .prepare(`SELECT id, project_id, fingerprint, title FROM issues WHERE id IN (${marks(ids.length)})`)
-      .bind(...ids)
+      .prepare(`SELECT id, project_id, fingerprint, title FROM issues WHERE id ${IN_LIST}`)
+      .bind(list(ids))
       .all<{ id: number; project_id: number; fingerprint: string; title: string }>()
   ).results
   const target = all.find((i) => i.id === into)
   const from = all.filter((i) => i.id !== into)
   if (!target || from.some((i) => i.project_id !== target.project_id))
     throw new Error('Only issues from the same project can be merged.')
-  const m = marks(from.length)
-  const fromIds = from.map((i) => i.id)
+  const m = '(SELECT value FROM json_each(?))'
+  const fromIds = list(from.map((i) => i.id))
   await db.batch([
-    db.prepare(`UPDATE events SET issue_id = ? WHERE issue_id IN (${m})`).bind(into, ...fromIds),
-    db.prepare(`UPDATE feedback SET issue_id = ? WHERE issue_id IN (${m})`).bind(into, ...fromIds),
+    db.prepare(`UPDATE events SET issue_id = ? WHERE issue_id IN ${m}`).bind(into, fromIds),
+    db.prepare(`UPDATE feedback SET issue_id = ? WHERE issue_id IN ${m}`).bind(into, fromIds),
     db
       .prepare(
         `INSERT INTO event_hours (project_id, issue_id, hour, level, release, environment, count)
-         SELECT project_id, ?, hour, level, release, environment, SUM(count) FROM event_hours WHERE issue_id IN (${m})
+         SELECT project_id, ?, hour, level, release, environment, SUM(count) FROM event_hours WHERE issue_id IN ${m}
          GROUP BY project_id, hour, level, release, environment
          ON CONFLICT DO UPDATE SET count = count + excluded.count`,
       )
-      .bind(into, ...fromIds),
+      .bind(into, fromIds),
     db
       .prepare(
-        `INSERT INTO issue_days (issue_id, day, count) SELECT ?, day, SUM(count) FROM issue_days WHERE issue_id IN (${m}) GROUP BY day
+        `INSERT INTO issue_days (issue_id, day, count) SELECT ?, day, SUM(count) FROM issue_days WHERE issue_id IN ${m} GROUP BY day
          ON CONFLICT DO UPDATE SET count = count + excluded.count`,
       )
-      .bind(into, ...fromIds),
+      .bind(into, fromIds),
     db
       .prepare(
         `INSERT INTO issue_tag_values (issue_id, key, value, count, last_seen)
-         SELECT ?, key, value, SUM(count), MAX(last_seen) FROM issue_tag_values WHERE issue_id IN (${m}) GROUP BY key, value
+         SELECT ?, key, value, SUM(count), MAX(last_seen) FROM issue_tag_values WHERE issue_id IN ${m} GROUP BY key, value
          ON CONFLICT DO UPDATE SET count = count + excluded.count, last_seen = MAX(last_seen, excluded.last_seen)`,
       )
-      .bind(into, ...fromIds),
+      .bind(into, fromIds),
     db
       .prepare(
-        `INSERT OR IGNORE INTO issue_users (issue_id, user_hash) SELECT ?, user_hash FROM issue_users WHERE issue_id IN (${m})`,
+        `INSERT OR IGNORE INTO issue_users (issue_id, user_hash) SELECT ?, user_hash FROM issue_users WHERE issue_id IN ${m}`,
       )
-      .bind(into, ...fromIds),
+      .bind(into, fromIds),
     // Fingerprints merged into the merged issues come along
-    db.prepare(`UPDATE issue_fingerprints SET issue_id = ? WHERE issue_id IN (${m})`).bind(into, ...fromIds),
+    db.prepare(`UPDATE issue_fingerprints SET issue_id = ? WHERE issue_id IN ${m}`).bind(into, fromIds),
     db
       .prepare(
-        `INSERT OR REPLACE INTO issue_fingerprints (project_id, fingerprint, issue_id) SELECT project_id, fingerprint, ? FROM issues WHERE id IN (${m})`,
+        `INSERT OR REPLACE INTO issue_fingerprints (project_id, fingerprint, issue_id) SELECT project_id, fingerprint, ? FROM issues WHERE id IN ${m}`,
       )
-      .bind(into, ...fromIds),
+      .bind(into, fromIds),
     db
       .prepare(
         `UPDATE issues SET
-           count = count + (SELECT SUM(count) FROM issues WHERE id IN (${m})),
-           first_seen = MIN(first_seen, (SELECT MIN(first_seen) FROM issues WHERE id IN (${m}))),
-           last_seen = MAX(last_seen, (SELECT MAX(last_seen) FROM issues WHERE id IN (${m}))),
+           count = count + (SELECT SUM(count) FROM issues WHERE id IN ${m}),
+           first_seen = MIN(first_seen, (SELECT MIN(first_seen) FROM issues WHERE id IN ${m})),
+           last_seen = MAX(last_seen, (SELECT MAX(last_seen) FROM issues WHERE id IN ${m})),
            user_count = (SELECT COUNT(*) FROM issue_users WHERE issue_id = ?)
          WHERE id = ?`,
       )
-      .bind(...fromIds, ...fromIds, ...fromIds, into, into),
+      .bind(fromIds, fromIds, fromIds, into, into),
     db
       .prepare('INSERT INTO issue_activity (issue_id, kind, data, by, at) VALUES (?, ?, ?, ?, ?)')
       .bind(into, 'merged', JSON.stringify({ issues: from.map((i) => ({ id: i.id, title: i.title })) }), by, now),
-    db.prepare(`DELETE FROM issues WHERE id IN (${m})`).bind(...fromIds),
+    db.prepare(`DELETE FROM issues WHERE id IN ${m}`).bind(fromIds),
   ])
 }
 
@@ -408,9 +407,9 @@ export async function autoResolve(db: D1Database, now: number, deadline = Date.n
       db
         .prepare(
           `UPDATE issues SET status = 'resolved', substatus = NULL, resolved_in_release = NULL, ignore_until = NULL,
-           ignore_until_count = NULL, ignore_until_users = NULL WHERE id IN (${ids.map(() => '?').join(',')})`,
+           ignore_until_count = NULL, ignore_until_users = NULL WHERE id ${IN_LIST}`,
         )
-        .bind(...ids),
+        .bind(list(ids)),
       ...results.map((r) =>
         db
           .prepare("INSERT INTO issue_activity (issue_id, kind, data, at) VALUES (?, 'auto_resolved', ?, ?)")
@@ -472,8 +471,8 @@ async function backfillBatch(
       const part = ids.slice(i, i + 90)
       statements.push(
         db
-          .prepare(`UPDATE events SET fingerprint = ?, grouping_version = 1 WHERE id IN (${marks(part.length)})`)
-          .bind(print, ...part),
+          .prepare(`UPDATE events SET fingerprint = ?, grouping_version = 1 WHERE id ${IN_LIST}`)
+          .bind(print, JSON.stringify(part)),
       )
     }
   if (statements.length) await db.batch(statements)

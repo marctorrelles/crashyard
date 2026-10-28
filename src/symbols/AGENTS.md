@@ -18,7 +18,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   `missingDebugFiles`, shown on the event; the OS's own libraries (`/usr/lib/`, `/System/`, Android's `/system/`,
   `/apex/`…) never do, as no one can upload theirs. Checked against a real sentry-cocoa 9.31 crash on macOS. What it reads is cached in the isolate for ten minutes (48 MB budget);
   an upload forgets the negative lookups of its project.
-- `reprocess.ts`: after an upload, the project's events of the last 30 days that named its debug ids are mapped
+- `reprocess.ts`: after an upload, the project's events of the last 30 days that named its debug ids (one JSON value,
+  a bundle has hundreds; failures logged, as it runs after the answer) are mapped
   again, grouped as ingest groups them (`groupingFor` in `src/ingest/store.ts`: the project's grouping rules, then its
   grouping version, each event's `fingerprint` and `grouping_version` rewritten), and their issues regrouped (the new
   fingerprint, or a merge into the issue that already has it). `reprocess.test.ts` keeps a rule's fingerprint.

@@ -8,6 +8,7 @@ import {
   assignIssue,
   attachmentType,
   bookmarkIssue,
+  changeIssues,
   listIssues,
   markViewed,
   mergedFingerprints,
@@ -27,6 +28,39 @@ describe('attachments', () => {
       ['trick.svg', 'image/png;x'],
     ])
       expect(attachmentType(name, type), name).toBeNull()
+  })
+})
+
+describe('many issues at once', () => {
+  // D1 binds 100 values a statement at most: a page of 50 picked, or an agent's 100, go as one JSON value
+  const seeded = (n: number) => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0);
+      WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${n})
+        INSERT INTO issues (id, project_id, fingerprint, title, first_seen, last_seen, count, last_release)
+        SELECT i, 1, 'f' || i, 'Issue ' || i, i, i, 1, '1.' || i FROM n;`)
+    return { db, ids: Array.from({ length: n }, (_, i) => i + 1) }
+  }
+  const one = (db: ReturnType<typeof sqliteD1>, sql: string) => db.sqlite.prepare(sql).get()
+
+  it('merges 40 issues into one', async () => {
+    const { db, ids } = seeded(40)
+    await mergeIssues(db, ids, 'me', 0)
+    expect(one(db, 'SELECT COUNT(*) AS n, MAX(count) AS count FROM issues')).toEqual({ n: 1, count: 40 })
+    expect(one(db, 'SELECT COUNT(*) AS n FROM issue_fingerprints')).toEqual({ n: 39 })
+  })
+
+  it('resolves 120 issues in their current release, and deletes and discards 120', async () => {
+    const { db, ids } = seeded(120)
+    await changeIssues(db, ids, { action: 'resolve', current: true }, 'me', 0)
+    expect(
+      one(db, "SELECT COUNT(*) AS n FROM issues WHERE status = 'resolved' AND fixed_in_release = last_release"),
+    ).toEqual({
+      n: 120,
+    })
+    await changeIssues(db, ids, { action: 'delete', discard: true }, 'me', 0)
+    expect(one(db, 'SELECT COUNT(*) AS n FROM issues')).toEqual({ n: 0 })
+    expect(one(db, 'SELECT COUNT(*) AS n FROM discarded_fingerprints')).toEqual({ n: 120 })
   })
 })
 

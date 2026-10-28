@@ -71,10 +71,10 @@ export async function symbolicate(
   const rows = ids.length
     ? (
         await env.DB.prepare(
-          `SELECT debug_id, kind, file_key, symcache_key FROM debug_files WHERE project_id = ? AND debug_id IN (${ids.map(() => '?').join(',')})
+          `SELECT debug_id, kind, file_key, symcache_key FROM debug_files WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
            ORDER BY created_at DESC`,
         )
-          .bind(projectId, ...ids)
+          .bind(projectId, JSON.stringify(ids))
           .all<DebugRow>()
       ).results
     : []

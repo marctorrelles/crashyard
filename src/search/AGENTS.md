@@ -20,7 +20,7 @@ filter errors.
   none for the other `sentry.*` (ingest doesn't store them as attributes) or the reserved names (`level`, `release`, …).
 - `ISSUE_KEYS` and `LOG_KEYS`: the built-in keys for the bar, each with a description, a kind (`enum`, `text`,
   `number`, `time`, `tag`) and, for enums and times, its values.
-- Lists in SQL: `col IN (?,…)` (for a tag, `v.value IN`), or an `OR` of matches when one has a `*`; `is:[…]` is an `OR`
+- Lists in SQL: `col IN (SELECT value FROM json_each(?))`, the list as one JSON value as D1 binds 100 values a statement (for a tag, `v.value IN`), or an `OR` of matches when one has a `*`; `is:[…]` is an `OR`
   of the statuses, `project:[…]` adds every slug, `has:[…]` any of the keys, `message:[…]` any of the phrases (FTS5
   `OR`); numbers and times ignore a list. Every value is a `?` bind.
 - Keys: `is:` (`unresolved`, `resolved`, `ignored`, `new`, `regressed`, `escalating`, `ongoing`, `assigned`,

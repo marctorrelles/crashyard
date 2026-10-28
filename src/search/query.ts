@@ -288,7 +288,9 @@ export function matchAny(column: string, values: string[]): [string, unknown[]] 
     const [sql, value] = match(column, values[0])
     return [sql, [value]]
   }
-  if (!values.some((v) => v.includes('*'))) return [`${column} IN (${values.map(() => '?').join(',')})`, values]
+  // A list as one JSON value: D1 binds 100 values a statement at most, and a list is whatever was typed
+  if (!values.some((v) => v.includes('*')))
+    return [`${column} IN (SELECT value FROM json_each(?))`, [JSON.stringify(values)]]
   return [`(${values.map((v) => match(column, v)[0]).join(' OR ')})`, values]
 }
 
@@ -574,7 +576,7 @@ export function eventFilter(query: string, now: number): Filter {
     }
     if (key === 'issue' || key === 'issue.id') {
       const ids = values.map(Number).filter(Number.isInteger)
-      if (ids.length) add(`e.issue_id IN (${ids.map(() => '?').join(',')})`, t.negate, ...ids)
+      if (ids.length) add('e.issue_id IN (SELECT value FROM json_each(?))', t.negate, JSON.stringify(ids))
       continue
     }
     if (key === 'timestamp') {

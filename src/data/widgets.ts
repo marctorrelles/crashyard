@@ -615,10 +615,10 @@ async function compute(
   only?: string[],
 ): Promise<Cell[]> {
   const key = keyOf(groupBy)
-  const k = only ? `CASE WHEN ${key} IN (${only.map(() => '?').join(',') || 'NULL'}) THEN ${key} END` : key
+  const k = only ? `CASE WHEN ${key} IN (SELECT value FROM json_each(?)) THEN ${key} END` : key
   const at = size ? `ts - ts % ${Math.round(size)}` : '0'
   const rows = `WITH src AS (${src.sql}), k AS (SELECT ${at} AS at, ${k} AS k, s, n, e, u, b FROM src)`
-  const params = [...src.params, ...(only ?? [])]
+  const params = [...src.params, ...(only ? [JSON.stringify(only)] : [])]
   const { fn } = parseAggregate(aggregate)
   const pct = /^p(\d\d)$/.exec(fn)
   if (pct && src.histogram) {

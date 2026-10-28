@@ -146,18 +146,20 @@ describe('search', () => {
     expect(addValue('times:>5', 'times', '7', false)).toBe('times:>5 times:7')
   })
 
-  it('turns lists into IN, or an OR of matches with a *', () => {
+  it('turns lists into IN over one JSON value, or an OR of matches with a *', () => {
     expect(issueFilter('level:[error,fatal]', NOW)).toMatchObject({
-      where: ['i.level IN (?,?)'],
-      params: ['error', 'fatal'],
+      where: ['i.level IN (SELECT value FROM json_each(?))'],
+      params: ['["error","fatal"]'],
     })
     expect(issueFilter('!level:[error,fatal]', NOW)).toMatchObject({
-      where: ['NOT (i.level IN (?,?))'],
-      params: ['error', 'fatal'],
+      where: ['NOT (i.level IN (SELECT value FROM json_each(?)))'],
+      params: ['["error","fatal"]'],
     })
     expect(issueFilter('device:[iPad,"iPhone 15"]', NOW)).toMatchObject({
-      where: ['EXISTS (SELECT 1 FROM issue_tag_values v WHERE v.issue_id = i.id AND v.key = ? AND v.value IN (?,?))'],
-      params: ['device', 'iPad', 'iPhone 15'],
+      where: [
+        'EXISTS (SELECT 1 FROM issue_tag_values v WHERE v.issue_id = i.id AND v.key = ? AND v.value IN (SELECT value FROM json_each(?)))',
+      ],
+      params: ['device', '["iPad","iPhone 15"]'],
     })
     expect(issueFilter('device:[iPad*,Mac]', NOW).where).toEqual([
       'EXISTS (SELECT 1 FROM issue_tag_values v WHERE v.issue_id = i.id AND v.key = ? AND (v.value GLOB ? OR v.value = ?))',
@@ -168,23 +170,26 @@ describe('search', () => {
     })
     expect(issueFilter('project:[a,b] !project:[c,d]', NOW)).toMatchObject({
       projectSlugs: ['a', 'b'],
-      where: ['i.project_id NOT IN (SELECT id FROM projects WHERE slug IN (?,?))'],
-      params: ['c', 'd'],
+      where: ['i.project_id NOT IN (SELECT id FROM projects WHERE slug IN (SELECT value FROM json_each(?)))'],
+      params: ['["c","d"]'],
     })
     expect(issueFilter('times:[1,2]', NOW).where).toEqual([])
     expect(issueFilter('is:escalating priority:[high,medium]', NOW)).toMatchObject({
-      where: ["i.status = 'unresolved' AND i.substatus = 'escalating'", 'i.priority IN (?,?)'],
-      params: ['high', 'medium'],
+      where: [
+        "i.status = 'unresolved' AND i.substatus = 'escalating'",
+        'i.priority IN (SELECT value FROM json_each(?))',
+      ],
+      params: ['["high","medium"]'],
     })
   })
 
-  it('turns log lists into IN, with level aliases on each', () => {
+  it('turns log lists into IN over one JSON value, with level aliases on each', () => {
     expect(logFilter('level:[warning,error] !mode:[live,"two words"]', NOW)).toMatchObject({
       where: [
-        'l.level IN (?,?)',
-        'NOT (EXISTS (SELECT 1 FROM log_attributes a WHERE a.log_id = l.id AND a.key = ? AND a.value IN (?,?)))',
+        'l.level IN (SELECT value FROM json_each(?))',
+        'NOT (EXISTS (SELECT 1 FROM log_attributes a WHERE a.log_id = l.id AND a.key = ? AND a.value IN (SELECT value FROM json_each(?))))',
       ],
-      params: ['warn', 'error', 'mode', 'live', 'two words'],
+      params: ['["warn","error"]', 'mode', '["live","two words"]'],
     })
     expect(logFilter('message:["slow export",crash]', NOW)).toMatchObject({
       where: ['l.id IN (SELECT rowid FROM logs_fts WHERE logs_fts MATCH ?)'],

@@ -30,6 +30,9 @@ describe('retention', () => {
       INSERT INTO attachments (event_id, project_id, filename, size, r2_key, received) VALUES
         ('${'0'.repeat(31)}1', 1, 'old.png', 1, 'attachments/1/old.png', ${old}),
         ('${'f'.repeat(32)}', 1, 'new.png', 1, 'attachments/1/new.png', ${NOW});
+      WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 199)
+        INSERT INTO attachments (event_id, project_id, filename, size, r2_key, received)
+        SELECT printf('%032x', i + 1), 1, 'old.png', 1, printf('attachments/1/%d.png', i), ${old} FROM n;
       INSERT INTO issue_minutes (issue_id, minute, count) VALUES
         (2, ${Math.floor((NOW - 2 * DAY) / 60_000)}, 3), (2, ${Math.floor(NOW / 60_000)}, 1);
       INSERT INTO session_users_daily (project_id, release, environment, day, did_hash) VALUES
@@ -43,7 +46,7 @@ describe('retention', () => {
     const deadline = started + 20_000
     expect(await pruneEvents(db, NOW, files, deadline)).toEqual({
       events: 12000,
-      attachments: 1,
+      attachments: 200,
       issues: 1,
       hours: 0,
       minutes: 1,

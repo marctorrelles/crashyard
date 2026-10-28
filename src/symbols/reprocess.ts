@@ -18,13 +18,15 @@ export async function reprocess(
   now = Date.now(),
 ) {
   if (!debugIds.length) return
-  const like = debugIds.map(() => 'data LIKE ?').join(' OR ')
-  // Debug ids are stored as the SDK sent them, which may be upper case; LIKE is case-insensitive for ASCII
+  // Debug ids are stored as the SDK sent them, which may be upper case; LIKE is case-insensitive for ASCII. The ids go
+  // as one JSON value: a bundle has hundreds, and D1 binds 100 values at most
   const events = (
     await env.DB.prepare(
-      `SELECT id, issue_id, data FROM events WHERE project_id = ? AND received >= ? AND (${like}) ORDER BY received DESC LIMIT ${LIMIT}`,
+      `SELECT id, issue_id, data FROM events WHERE project_id = ? AND received >= ?
+         AND EXISTS (SELECT 1 FROM json_each(?) j WHERE events.data LIKE '%' || j.value || '%')
+       ORDER BY received DESC LIMIT ${LIMIT}`,
     )
-      .bind(projectId, now - DAYS * 864e5, ...debugIds.map((d) => `%${d}%`))
+      .bind(projectId, now - DAYS * 864e5, JSON.stringify(debugIds))
       .all<{ id: string; issue_id: number; data: string }>()
   ).results
   if (!events.length) return
