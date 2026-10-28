@@ -192,7 +192,7 @@ async function everyMinute(env: Env, now: number) {
   })
   await job('monitors', async () => {
     const { runMonitors } = await import('./monitors/monitors')
-    notices.push(...(await runMonitors(env, now)))
+    notices.push(...(await runMonitors(env, now, fetch, deadline)))
   })
   // Hourly, at :05: transactions that got slower in a release
   if (at.getUTCMinutes() === 5)

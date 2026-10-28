@@ -46,6 +46,10 @@ export type MonitorRow = {
 
 type Env = { DB: D1Database; PUBLIC_URL?: string }
 const MINUTE = 60_000
+/** Uptime checks in flight at once, under the 6 connections a Worker keeps open */
+const UPTIME_AT_ONCE = 5
+/** The most of a response an uptime check reads, for text it must contain or a JSON path */
+const MAX_BODY = 1024 * 1024
 /** Cron monitors a project's check-ins can make; past them a new slug's check-in is dropped */
 export const MAX_CRON_MONITORS = 200
 /** A monitor failing this long is muted: no more alerts until it recovers, as Sentry's crons do */
@@ -297,6 +301,28 @@ export async function recordCheckIn(
   return apply(env, monitor, status === 'ok', status, now, nextDue)
 }
 
+/** A response's text up to `max` bytes, the rest never read */
+async function textUpTo(response: Response, max: number) {
+  if (!response.body) return ''
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  while (size < max) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+    size += value.byteLength
+  }
+  await reader.cancel()
+  const all = new Uint8Array(Math.min(size, max))
+  let at = 0
+  for (const c of chunks) {
+    all.set(c.subarray(0, all.length - at), at)
+    at += Math.min(c.byteLength, all.length - at)
+  }
+  return new TextDecoder().decode(all)
+}
+
 const hex = (bytes: number) =>
   [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('')
 
@@ -358,7 +384,7 @@ export async function check(config: UptimeConfig, fetcher: typeof fetch = fetch)
         : response.ok
     let error = statusOk ? undefined : `returned HTTP ${response.status}`
     const needsBody = !!config.mustContain || assertions.some((a) => a.kind === 'json')
-    const body = needsBody && method !== 'HEAD' ? (await response.text()).slice(0, 1024 * 1024) : undefined
+    const body = needsBody && method !== 'HEAD' ? await textUpTo(response, MAX_BODY) : undefined
     if (!needsBody) await response.body?.cancel()
     if (!error && config.mustContain && !body?.includes(config.mustContain))
       error = `the response didn’t contain “${config.mustContain}”`
@@ -386,7 +412,14 @@ export async function check(config: UptimeConfig, fetcher: typeof fetch = fetch)
 }
 
 /** The minute's job: missed check-ins, runs that took too long, and the uptime checks due. Returns notices */
-export async function runMonitors(env: Env, now: number, fetcher: typeof fetch = fetch): Promise<Notice[]> {
+export async function runMonitors(
+  env: Env,
+  now: number,
+  fetcher: typeof fetch = fetch,
+  deadline = Date.now() + 40_000,
+): Promise<Notice[]> {
+  // What's left past the cron's deadline stays due, and runs next minute
+  const late = () => Date.now() > deadline
   const notices: Notice[] = []
   const due = (
     await env.DB.prepare("SELECT * FROM monitors WHERE status != 'paused' AND next_due IS NOT NULL AND next_due <= ?")
@@ -395,6 +428,7 @@ export async function runMonitors(env: Env, now: number, fetcher: typeof fetch =
   ).results
 
   for (const monitor of due.filter((m) => m.kind === 'cron')) {
+    if (late()) break
     const cron = JSON.parse(monitor.config) as CronConfig
     await env.DB.prepare("INSERT INTO check_ins (id, monitor_id, status, started) VALUES (?, ?, 'missed', ?)")
       .bind(crypto.randomUUID().replace(/-/g, ''), monitor.id, monitor.next_due)
@@ -413,6 +447,7 @@ export async function runMonitors(env: Env, now: number, fetcher: typeof fetch =
       .all<MonitorRow & { check_in: string; started: number }>()
   ).results
   for (const row of open) {
+    if (late()) break
     const maxRuntime = ((JSON.parse(row.config) as CronConfig).maxRuntime ?? 30) * MINUTE
     if (now - row.started < maxRuntime) continue
     await env.DB.prepare("UPDATE check_ins SET status = 'timeout', finished = ? WHERE id = ?")
@@ -432,22 +467,25 @@ export async function runMonitors(env: Env, now: number, fetcher: typeof fetch =
     .bind(now, now - MUTE_AFTER)
     .run()
 
-  // ponytail: every due check at once; a concurrency limit if a deployment has hundreds
-  const results = await Promise.all(
-    due
-      .filter((m) => m.kind === 'uptime')
-      .map(async (monitor) => {
-        const config = JSON.parse(monitor.config) as UptimeConfig
-        const result = await check(config, fetcher)
-        await env.DB.prepare(
-          'INSERT OR REPLACE INTO uptime_results (monitor_id, at, ok, status, ms, error) VALUES (?, ?, ?, ?, ?, ?)',
-        )
-          .bind(monitor.id, now, result.ok ? 1 : 0, result.status, result.ms, result.error ?? null)
-          .run()
-        return apply(env, monitor, result.ok, result.error ?? 'ok', now, now + config.intervalMinutes * MINUTE)
-      }),
+  // A few at a time: a Worker keeps 6 connections open and queues the rest, and a check's time and timeout start
+  // when its request does, so one waiting behind slow sites isn't timed out
+  const uptime = due.filter((m) => m.kind === 'uptime')
+  const one = async (monitor: MonitorRow) => {
+    const config = JSON.parse(monitor.config) as UptimeConfig
+    const result = await check(config, fetcher)
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO uptime_results (monitor_id, at, ok, status, ms, error) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+      .bind(monitor.id, now, result.ok ? 1 : 0, result.status, result.ms, result.error ?? null)
+      .run()
+    const n = await apply(env, monitor, result.ok, result.error ?? 'ok', now, now + config.intervalMinutes * MINUTE)
+    if (n) notices.push(n)
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(UPTIME_AT_ONCE, uptime.length) }, async () => {
+      for (let m = uptime.shift(); m && !late(); m = uptime.shift()) await one(m)
+    }),
   )
-  notices.push(...results.filter((n): n is Notice => !!n))
   return notices
 }
 

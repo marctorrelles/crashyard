@@ -195,6 +195,28 @@ describe('cron monitors', () => {
     expect(db.sqlite.prepare('SELECT status FROM check_ins WHERE id = ?').get(id)).toEqual({ status: 'ok' })
   })
 
+  it('runs uptime checks five at a time, and leaves what the deadline doesn’t reach for the next minute', async () => {
+    const db = seeded()
+    const env = { DB: db }
+    const uptime = JSON.stringify({ url: 'https://example.com', intervalMinutes: 1 })
+    for (let id = 1; id <= 8; id++)
+      db.sqlite.exec(`INSERT INTO monitors (id, project_id, slug, name, kind, config, status, next_due, created_at)
+        VALUES (${id}, 1, 'u${id}', 'U', 'uptime', '${uptime}', 'ok', 0, 0)`)
+    let open = 0
+    let most = 0
+    const fetcher = (async () => {
+      most = Math.max(most, ++open)
+      await new Promise((r) => setTimeout(r, 5))
+      open--
+      return new Response('ok')
+    }) as unknown as typeof fetch
+    await runMonitors(env, NOW, fetcher, Date.now() - 1)
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM uptime_results').get()).toEqual({ n: 0 })
+    await runMonitors(env, NOW, fetcher)
+    expect(most).toBe(5)
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM uptime_results').get()).toEqual({ n: 8 })
+  })
+
   it('makes at most MAX_CRON_MONITORS monitors from a project’s check-ins', async () => {
     const db = seeded()
     const env = { DB: db }
