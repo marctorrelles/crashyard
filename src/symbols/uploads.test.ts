@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
-import { type Build, chunkKey, chunksSize, storeBigDebugFile } from './uploads'
+import { type Build, chunkKey, chunksSize, MAX_PROGUARD_CACHE, storeBigDebugFile } from './uploads'
 
 // The Workers runtime's FixedLengthStream, as a plain pass-through
 class FixedLengthStream extends TransformStream {
@@ -56,6 +56,10 @@ function builder(file: Uint8Array) {
     expect(got).toEqual(file)
     expect(size).toBe(file.length)
     if (path === '/objects') return Response.json(OBJECTS)
+    if (path === '/proguardcache') {
+      const cache = new TextEncoder().encode('proguardcache')
+      return new Response(cache, { headers: { 'x-length': String(cache.length) } })
+    }
     const cache = new TextEncoder().encode(`symcache of ${new URL(path, 'http://x').searchParams.get('id')}`)
     return new Response(cache, { headers: { 'x-length': String(cache.length) } })
   }
@@ -71,7 +75,7 @@ describe('debug files too big for the worker', () => {
     const { env, chunks, checksum } = await setup(file)
     expect(await chunksSize(env.FILES, chunks)).toBe(file.length)
     const { build, asked } = builder(file)
-    const rows = await storeBigDebugFile(env, build, 1, checksum, 'Caliu', chunks, file.length, 5)
+    const rows = await storeBigDebugFile(env, build, 1, checksum, 'Caliu', undefined, chunks, file.length, 5)
 
     expect(asked).toEqual(['/objects', '/symcache?id=ABCDEF01-0000-0000-0000-000000000001'])
     expect(rows).toMatchObject([
@@ -86,18 +90,45 @@ describe('debug files too big for the worker', () => {
     const file = new TextEncoder().encode('a dSYM, in three chunks')
     const { env, chunks } = await setup(file)
     const wrong = '0'.repeat(40)
-    await expect(storeBigDebugFile(env, builder(file).build, 1, wrong, 'x', chunks, file.length, 5)).rejects.toThrow(
-      'don’t add up',
-    )
+    await expect(
+      storeBigDebugFile(env, builder(file).build, 1, wrong, 'x', undefined, chunks, file.length, 5),
+    ).rejects.toThrow('don’t add up')
     expect(env.FILES.objects.has(`debug-files/1/${wrong}`)).toBe(false)
   })
 
-  it('refuses a big ProGuard mapping, which lookups would have to hold, and deletes it', async () => {
+  it('stores a big ProGuard mapping with the ProguardCache the builder made', async () => {
+    vi.stubGlobal('FixedLengthStream', FixedLengthStream)
     const file = new TextEncoder().encode('com.example.Player -> a.a:\n    void play() -> a\n')
     const { env, chunks, checksum } = await setup(file)
+    const uuid = '4ca1e3ac-b295-3795-bab3-bc52869ebc57'
+    const { build, asked } = builder(file)
+    const rows = await storeBigDebugFile(
+      env,
+      build,
+      1,
+      checksum,
+      `/proguard/${uuid}.txt`,
+      undefined,
+      chunks,
+      file.length,
+      5,
+    )
+
+    expect(asked).toEqual(['/proguardcache'])
+    expect(rows).toMatchObject([
+      { debug_id: uuid, kind: 'proguard', symcache_key: `symcaches/1/${uuid}/${checksum}`, size: file.length },
+    ])
+    const cache = env.FILES.objects.get(`symcaches/1/${uuid}/${checksum}`)!.body
+    expect(new TextDecoder().decode(cache)).toBe('proguardcache')
+  })
+
+  it('refuses a mapping whose ProguardCache a lookup couldn’t hold, and deletes it', async () => {
+    const file = new TextEncoder().encode('com.example.Player -> a.a:\n    void play() -> a\n')
+    const { env, chunks, checksum } = await setup(file)
+    const build: Build = async () => new Response('x', { headers: { 'x-length': String(MAX_PROGUARD_CACHE + 1) } })
     await expect(
-      storeBigDebugFile(env, builder(file).build, 1, checksum, 'mapping.txt', chunks, file.length, 5),
-    ).rejects.toThrow('ProGuard mappings can be up to 48 MB')
+      storeBigDebugFile(env, build, 1, checksum, 'mapping.txt', 'aa-bb', chunks, file.length, 5),
+    ).rejects.toThrow('too big to read crash reports with')
     expect(env.FILES.objects.has(`debug-files/1/${checksum}`)).toBe(false)
   })
 
@@ -105,7 +136,7 @@ describe('debug files too big for the worker', () => {
     const file = new TextEncoder().encode('not a debug file at all')
     const { env, chunks, checksum } = await setup(file)
     const build: Build = async () => Response.json({ error: 'unknown file format' }, { status: 422 })
-    await expect(storeBigDebugFile(env, build, 1, checksum, 'x', chunks, file.length, 5)).rejects.toThrow(
+    await expect(storeBigDebugFile(env, build, 1, checksum, 'x', undefined, chunks, file.length, 5)).rejects.toThrow(
       'unknown file format',
     )
   })

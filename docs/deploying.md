@@ -150,9 +150,10 @@ to Home Screen, and turn them on from there.
 
 ## Debug files over 48 MB
 
-This step is optional. crashyard turns debug files into lookup tables itself, up to 48 MB a file. A big app's dSYM can
-be larger, and sentry-cli then refuses to upload it. To take files up to 512 MB, add the SymCache builder, a small
-Cloudflare Container that does this work for the bigger files. It needs the Workers Paid plan and Docker on the
+This step is optional. crashyard turns debug files into lookup tables itself, up to 48 MB a file, and ProGuard
+mappings up to 8 MB. A big app's dSYM or R8 mapping can be larger, and sentry-cli or crashyard then refuses to upload
+it. To take files up to 512 MB, add the SymCache builder, a small Cloudflare Container that does this work for the
+bigger files. A mapping's lookup table has to fit in 64 MB, which is a mapping of about 140 MB. It needs the Workers Paid plan and Docker on the
 machine you deploy from.
 
 1. Add this to `wrangler.local.json`:
@@ -169,7 +170,7 @@ machine you deploy from.
    minutes.
 
 The container starts when a big file arrives and stops a minute after, so it costs a few seconds of container time per
-upload. Files over 16 MB go to it, and smaller ones stay with crashyard itself.
+upload. Debug files over 16 MB and ProGuard mappings over 8 MB go to it, and smaller ones stay with crashyard itself.
 
 ## Upload tokens
 

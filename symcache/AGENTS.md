@@ -9,7 +9,8 @@ The built file is committed, so deploying needs no Rust; rebuild it after changi
 
 - `src/lib.rs`: a plain C ABI (no wasm-bindgen): `alloc`/`dealloc`, and functions that take bytes and return
   `ptr << 32 | len`. `objects`, `symcache`, `lookup` (native), `sourcemapcache`, `sourcemap_lookup` (JavaScript, with
-  the enclosing function's name from the minified file's scopes), `proguard` (Android, inlined frames included).
+  the enclosing function's name from the minified file's scopes), `proguardcache` (a mapping as the proguard crate's
+  ProguardCache) and `proguard` (Android frames through one, inlined frames included).
   Errors come back as JSON `{ "error" }`.
 - WASI, not `wasm32-unknown-unknown`: Swift's demangler is C++, and needs wasi-sdk's libc++ (built without
   exceptions: `-fno-exceptions`, the `noeh` libraries). Its few WASI imports are stubbed in `src/symbols/symcache.ts`.
@@ -17,8 +18,9 @@ The built file is committed, so deploying needs no Rust; rebuild it after changi
 - On macOS, rustup's `rust-lld` looks for `libLLVM.dylib` beside itself; `build.sh` points it at the toolchain's.
 - Proven 2026-10-25 on pocketband's 16 MB dSYM: a 5.9 MB SymCache in about 200 ms and 44 MB of memory; lookups
   match `atos`, Swift names demangled.
-- `src/bin/builder.rs` (feature `builder`, with `tiny_http`): the same `list_objects` and `make_symcache`, native,
-  over HTTP on 8080 (`/health`, `/objects`, `/symcache?id=`, the SymCache's length in `x-length`) for the SymCache
+- `src/bin/builder.rs` (feature `builder`, with `tiny_http`): the same `list_objects`, `make_symcache` and
+  `make_proguard_cache`, native, over HTTP on 8080 (`/health`, `/objects`, `/symcache?id=`, `/proguardcache`, the
+  cache's length in `x-length`) for the SymCache
   builder's container (`src/symbols/builder.ts`). `Dockerfile` builds it on Debian; wrangler builds the image on
   deploy for linux/amd64 (under emulation on Apple silicon, a few minutes the first time). `cargo build --release
 --features builder --bin builder` runs it locally. Caliu's 107 MB dSYM: 1.5 s natively, 2.4 s in the amd64 image

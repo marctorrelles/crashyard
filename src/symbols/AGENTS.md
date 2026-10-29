@@ -21,24 +21,29 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   upload (`assembleInto`, SHA-1 by `node:crypto` as the parts go; R2's parts must be one size but the last, as
   sentry-cli's chunks are), then streamed from R2 to the container twice, `/objects` and each object's `/symcache`,
   the SymCache streamed back to R2 at the length the container sends in `x-length` (a Durable Object drops
-  Content-Length); the worker never holds the file. A big ProGuard mapping is refused, as lookups would hold it;
-  bundles stay within 48 MB. Measured on Caliu's 107 MB arm64 dSYM: the Wasm module grew to 328 MB in Node, the
+  Content-Length); the worker never holds the file. Bundles stay within 48 MB. A ProGuard mapping becomes a
+  ProguardCache (the proguard crate's, read in place as a SymCache is, about 45% of the mapping), stored where a
+  SymCache goes: made in the worker up to `PROGUARD_WORKER`, 8 MB (making one takes about 4.4 times the mapping in
+  Wasm), past it by the builder's `/proguardcache` (from memory in `storeDebugFile`, from R2 in `storeBigDebugFile`),
+  and refused without a builder; a cache over `MAX_PROGUARD_CACHE`, 64 MB, is refused, as a lookup holds it. Measured
+  2026-10-29 on Caliu's 112 MB R8 mapping: a 48 MB cache in 0.85 s natively, read in 50 MB of Wasm, a lookup in 3 ms
+  (building the old `ProguardMapper` took 561 MB and 0.5 s). Measured on Caliu's 107 MB arm64 dSYM: the Wasm module grew to 328 MB in Node, the
   native builder made the same 40 MB SymCache in 1.5 s. `uploads.test.ts` (a fake builder: assembled, stored,
-  checksum refused, a big mapping refused, the builder's error said) and `test/big-dsym.e2e.test.ts` (opt-in). A
+  checksum refused, a big mapping's cache stored, one too big to read refused, the builder's error said) and `test/big-dsym.e2e.test.ts` (opt-in). A
   debug file becomes a row per object with its
-  SymCache (`symcaches/…`); a ProGuard mapping is kept as it is (its UUID from sentry-cli); an artifact bundle (zip
+  SymCache (`symcaches/…`); a ProGuard mapping one row (its UUID from sentry-cli) with its ProguardCache; an artifact bundle (zip
   with `manifest.json`) becomes a SourceMapCache per minified file and its map, found by debug id or URL (`~/path`).
 - `symbolicate.ts`: on each event, before grouping, every stack: the exceptions', then each thread's, with the same
   caches. Native frames by address within their image (the crashing
   frame as is, the others one byte back: return addresses), inlined calls as frames of their own; Android frames and
-  obfuscated exception classes through ProGuard; JavaScript through SourceMapCaches, with context lines. Each image's
-  addresses go in one SymCache lookup, and each mapping's frames, every stack's and the classes, in one ProGuard call,
-  so a mapping's mapper is built once an event (an ANR's 30 threads made it 30 times). Mapped
+  obfuscated exception classes through the mapping's ProguardCache, pinned as SymCaches are (a row without one is
+  missing); JavaScript through SourceMapCaches, with context lines. Each image's
+  addresses go in one SymCache lookup, and each mapping's frames, every stack's and the classes, in one ProGuard call. Mapped
   frames are marked `symbolicated` so a second pass leaves them be. Debug files an event lacked go in
   `missingDebugFiles`, shown on the event; the OS's own libraries (`/usr/lib/`, `/System/`, Android's `/system/`,
   `/apex/`…) never do, as no one can upload theirs. Checked against a real sentry-cocoa 9.31 crash on macOS. What it reads is cached in the isolate for ten minutes (48 MB budget);
   an upload forgets the negative lookups of its project. SymCaches are kept in the shared module's memory instead
-  (`pinSymcache`, 64 MB, first in first out, one alone may be bigger: Caliu's is 40 MB), read there straight from R2,
+  (`pinSymcache`, 64 MB, first in first out, one alone may be bigger: Caliu's is 40 MB), and ProguardCaches with them, read there straight from R2,
   never stale as their key names the file's checksum; a lookup pins those it uses until it's done, so a load for
   another event between its awaits can't free them.
 - `reprocess.ts`: after an upload, the project's events of the last 30 days that named its debug ids (one JSON value,

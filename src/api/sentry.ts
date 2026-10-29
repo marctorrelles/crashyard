@@ -90,7 +90,7 @@ export async function handleSentryApi(
       url: `${url.origin}/api/0/organizations/${m[1]}/chunk-upload/`,
       chunkSize: CHUNK_SIZE,
       chunksPerRequest: 8,
-      // Bundles and ProGuard mappings stay within MAX_FILE whatever this says (joinChunks)
+      // Bundles stay within MAX_FILE whatever this says (joinChunks)
       maxFileSize: build ? BIG_FILE : MAX_FILE,
       maxRequestSize: 64 * 1024 * 1024,
       concurrency: 4,
@@ -156,10 +156,11 @@ export async function handleSentryApi(
         if (build && size > BIG_FILE) throw new Error(`Debug files can be up to ${BIG_FILE / 1024 / 1024} MB.`)
         const rows =
           build && size > WORKER_FILE
-            ? await storeBigDebugFile(env, build, id, checksum, name, chunks, size, now)
+            ? await storeBigDebugFile(env, build, id, checksum, name, file.debug_id, chunks, size, now)
             : await storeDebugFile(
                 env,
                 symbolic,
+                build,
                 id,
                 checksum,
                 name,

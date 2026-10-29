@@ -1,6 +1,6 @@
 // Sentry's chunked uploads: sentry-cli and the build plugins send a file as chunks named by their SHA-1, then ask
-// to assemble them. A debug file becomes one row per object (architecture) with its SymCache; a ProGuard mapping is
-// kept as it is; an artifact bundle (a zip of minified files and source maps) is indexed by its files' debug ids.
+// to assemble them. A debug file becomes one row per object (architecture) with its SymCache; a ProGuard mapping one
+// row with its ProguardCache; an artifact bundle (a zip of minified files and source maps) is indexed by its files' debug ids.
 import { createHash } from 'node:crypto'
 import { unzipSync, strFromU8 } from 'fflate'
 import type { Symbolic } from './symcache'
@@ -12,6 +12,11 @@ export const MAX_FILE = 48 * 1024 * 1024
 // With the SymCache builder (builder.ts), debug files past WORKER_FILE go to it, up to BIG_FILE: its container has 4 GB
 export const WORKER_FILE = 16 * 1024 * 1024
 export const BIG_FILE = 512 * 1024 * 1024
+// A ProGuard mapping's ProguardCache, read in place at lookup, is about 45% of the mapping; making one takes about
+// 4.4 times the mapping in Wasm (8 MB took 36 MB), so past PROGUARD_WORKER it's the builder's. A lookup holds the
+// cache in the isolate, so it stops at MAX_PROGUARD_CACHE: Caliu's 112 MB mapping makes 48 MB, read in 50 MB of Wasm
+export const PROGUARD_WORKER = 8 * 1024 * 1024
+export const MAX_PROGUARD_CACHE = 64 * 1024 * 1024
 /** Asks the builder's container: a path and the file as the body */
 export type Build = (path: string, body: ReadableStream, size: number) => Promise<Response>
 
@@ -97,6 +102,37 @@ export async function assembleInto(files: R2Bucket, chunks: string[], checksum: 
 const isProguard = (file: Uint8Array) =>
   /^(?:#[^\n]*\n)*[\w.$]+ -> [\w.$]+:\s*$/m.test(strFromU8(file.subarray(0, 4096)).split('\n').slice(0, 40).join('\n'))
 
+const mappingId = (claimed: string | undefined, name: string) => {
+  const debugId = claimed?.toLowerCase() ?? name.match(/[0-9a-f-]{36}/i)?.[0].toLowerCase()
+  if (!debugId) throw new Error('a ProGuard mapping needs its UUID (sentry-cli upload-proguard sets it)')
+  return debugId
+}
+
+/** Asks the builder's container, and says what it refused */
+async function ask(build: Build, path: string, body: ReadableStream, size: number) {
+  const answer = await build(path, body, size)
+  if (!answer.ok) {
+    const why = (await answer.json().catch(() => null)) as { error?: string } | null
+    throw new Error(why?.error ?? `the SymCache builder answered HTTP ${answer.status}`)
+  }
+  return answer
+}
+
+/** What the builder made, straight on to R2 at the length it sent in `x-length` */
+async function putBuilt(files: R2Bucket, key: string, answer: Response, max = Infinity) {
+  const length = Number(answer.headers.get('x-length'))
+  if (!length || !answer.body) throw new Error('the SymCache builder sent no SymCache')
+  if (length > max) {
+    await answer.body.cancel()
+    throw new Error(
+      `This ProGuard mapping is too big to read crash reports with. Its lookup table is ${Math.ceil(length / 1024 / 1024)} MB and crashyard can hold ${max / 1024 / 1024} MB.`,
+    )
+  }
+  const { readable, writable } = new FixedLengthStream(length)
+  const piped = answer.body.pipeTo(writable)
+  await Promise.all([files.put(key, readable), piped])
+}
+
 export type DebugFileRow = {
   id: number
   debug_id: string
@@ -109,23 +145,37 @@ export type DebugFileRow = {
   created_at: number
 }
 
-/** Stores an assembled debug file: one row per object, its SymCache beside it. Returns the rows */
+/** Stores an assembled debug file: one row per object, its SymCache beside it. Returns the rows. A ProGuard mapping
+ *  past PROGUARD_WORKER goes to the builder, when there's one */
 export async function storeDebugFile(
   env: { DB: D1Database; FILES: R2Bucket },
   symbolic: () => Promise<Symbolic>,
+  build: Build | undefined,
   projectId: number,
   checksum: string,
   name: string,
   claimedDebugId: string | undefined,
-  file: Uint8Array,
+  file: Uint8Array<ArrayBuffer>,
   now: number,
 ): Promise<DebugFileRow[]> {
   const fileKey = `debug-files/${projectId}/${checksum}`
   const rows: Omit<DebugFileRow, 'id'>[] = []
   const caches: [string, Uint8Array][] = []
   if (isProguard(file)) {
-    const debugId = claimedDebugId?.toLowerCase() ?? name.match(/[0-9a-f-]{36}/i)?.[0].toLowerCase()
-    if (!debugId) throw new Error('a ProGuard mapping needs its UUID (sentry-cli upload-proguard sets it)')
+    const debugId = mappingId(claimedDebugId, name)
+    const key = `symcaches/${projectId}/${debugId}/${checksum}`
+    if (file.length <= PROGUARD_WORKER) caches.push([key, (await symbolic()).proguardCache(file)])
+    else if (build)
+      await putBuilt(
+        env.FILES,
+        key,
+        await ask(build, '/proguardcache', new Blob([file]).stream(), file.length),
+        MAX_PROGUARD_CACHE,
+      )
+    else
+      throw new Error(
+        `ProGuard mappings over ${PROGUARD_WORKER / 1024 / 1024} MB need the SymCache builder. See docs/deploying.md.`,
+      )
     rows.push({
       debug_id: debugId,
       code_id: null,
@@ -161,9 +211,9 @@ export async function storeDebugFile(
 }
 
 /**
- * A debug file too big for the worker, its chunks joined into R2 and its SymCaches made by the builder's container,
- * each streamed from R2 to it and back: the worker never holds the file. Not for a ProGuard mapping, which lookups
- * would have to hold
+ * A debug file too big for the worker, its chunks joined into R2 and its SymCaches (a ProGuard mapping's
+ * ProguardCache) made by the builder's container, each streamed from R2 to it and back: the worker never holds the
+ * file
  */
 export async function storeBigDebugFile(
   env: { DB: D1Database; FILES: R2Bucket },
@@ -171,6 +221,7 @@ export async function storeBigDebugFile(
   projectId: number,
   checksum: string,
   name: string,
+  claimedDebugId: string | undefined,
   chunks: string[],
   size: number,
   now: number,
@@ -178,20 +229,29 @@ export async function storeBigDebugFile(
   const fileKey = `debug-files/${projectId}/${checksum}`
   await assembleInto(env.FILES, chunks, checksum, fileKey)
   try {
-    const head = await env.FILES.get(fileKey, { range: { offset: 0, length: 4096 } })
-    if (head && isProguard(new Uint8Array(await head.arrayBuffer())))
-      throw new Error(`ProGuard mappings can be up to ${MAX_FILE / 1024 / 1024} MB`)
-    const ask = async (path: string) => {
+    const send = async (path: string) => {
       const object = await env.FILES.get(fileKey)
       if (!object) throw new Error('the assembled file is gone')
-      const answer = await build(path, object.body, size)
-      if (!answer.ok) {
-        const why = (await answer.json().catch(() => null)) as { error?: string } | null
-        throw new Error(why?.error ?? `the SymCache builder answered HTTP ${answer.status}`)
-      }
-      return answer
+      return ask(build, path, object.body, size)
     }
-    const objects = (await (await ask('/objects')).json()) as {
+    const head = await env.FILES.get(fileKey, { range: { offset: 0, length: 4096 } })
+    if (head && isProguard(new Uint8Array(await head.arrayBuffer()))) {
+      const debugId = mappingId(claimedDebugId, name)
+      const cache = await send('/proguardcache')
+      await putBuilt(env.FILES, `symcaches/${projectId}/${debugId}/${checksum}`, cache, MAX_PROGUARD_CACHE)
+      const row = {
+        debug_id: debugId,
+        code_id: null,
+        arch: null,
+        kind: 'proguard',
+        name,
+        checksum,
+        size,
+        created_at: now,
+      }
+      return await insertRows(env.DB, projectId, checksum, fileKey, [row], now)
+    }
+    const objects = (await (await send('/objects')).json()) as {
       debugId: string
       codeId: string | null
       arch: string
@@ -202,13 +262,8 @@ export async function storeBigDebugFile(
     const rows: Omit<DebugFileRow, 'id'>[] = []
     for (const object of objects.filter((o) => o.hasDebugInfo || o.hasSymbols)) {
       const debugId = object.debugId.toLowerCase()
-      const answer = await ask(`/symcache?id=${encodeURIComponent(object.debugId)}`)
-      const length = Number(answer.headers.get('x-length'))
-      if (!length || !answer.body) throw new Error('the SymCache builder sent no SymCache')
-      // Straight on to R2, at its length
-      const { readable, writable } = new FixedLengthStream(length)
-      const piped = answer.body.pipeTo(writable)
-      await Promise.all([env.FILES.put(`symcaches/${projectId}/${debugId}/${checksum}`, readable), piped])
+      const answer = await send(`/symcache?id=${encodeURIComponent(object.debugId)}`)
+      await putBuilt(env.FILES, `symcaches/${projectId}/${debugId}/${checksum}`, answer)
       rows.push({
         debug_id: debugId,
         code_id: object.codeId,
@@ -238,7 +293,7 @@ async function insertRows(
 ) {
   const stored: DebugFileRow[] = []
   for (const row of rows) {
-    const symcacheKey = row.kind === 'proguard' ? null : `symcaches/${projectId}/${row.debug_id}/${checksum}`
+    const symcacheKey = `symcaches/${projectId}/${row.debug_id}/${checksum}`
     const r = await db
       .prepare(
         `INSERT INTO debug_files (project_id, checksum, name, debug_id, code_id, arch, kind, file_key, symcache_key, size, created_at)

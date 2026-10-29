@@ -10,7 +10,7 @@ import type { Loaded, Symbolic, SymbolFrame } from './symcache'
 
 export type SymbolEnv = { DB: D1Database; FILES: R2Bucket }
 
-// What lookups read, kept in the isolate: SymCaches, mappings, SourceMapCaches, and which file a debug id names
+// What lookups read, kept in the isolate: SourceMapCaches and which file a debug id names
 // (for ten minutes, so an upload is seen by every isolate soon after)
 // ponytail: one byte budget for all, first in first out; an LRU if hit rates matter
 const BUDGET = 48 * 1024 * 1024
@@ -37,8 +37,8 @@ async function remember<T>(key: string, size: (v: T) => number, load: () => Prom
   return value
 }
 
-// SymCaches are kept in the module's own memory instead, read there straight from R2, so a big one (40 MB for a
-// 107 MB dSYM) is never held twice. Its key names its file's checksum, so it never goes stale. A lookup pins what it
+// SymCaches and ProguardCaches are kept in the module's own memory instead, read there straight from R2, so a big one
+// (40 MB for a 107 MB dSYM, 48 MB for a 112 MB mapping) is never held twice. Its key names its file's checksum, so it never goes stale. A lookup pins what it
 // uses until it's done: a load for another event, between its awaits, can't free it under it
 // ponytail: first in first out within 64 MB, one alone may be bigger; an LRU if hit rates matter
 const KEPT_BUDGET = 64 * 1024 * 1024
@@ -199,19 +199,16 @@ export async function symbolicate(
   }
 
   // Android
-  const proguard = images.filter((i) => i.type === 'proguard').map((i) => fileOf.get(i.debugId!.toLowerCase()) ?? i)
-  for (const p of proguard) {
-    if (!('file_key' in p)) {
-      missing.set(p.debugId!.toLowerCase(), { debugId: p.debugId!.toLowerCase(), type: 'proguard' })
+  const proguard = images.filter((i) => i.type === 'proguard').map((i) => i.debugId!.toLowerCase())
+  for (const debugId of new Set(proguard)) {
+    const key = fileOf.get(debugId)?.symcache_key
+    if (!key) {
+      missing.set(debugId, { debugId, type: 'proguard' })
       continue
     }
-    const mapping = await remember<Uint8Array>(
-      `pg:${p.file_key}`,
-      (b) => b.length,
-      () => r2Bytes(env.FILES, p.file_key),
-    )
-    if (!mapping) continue
     const s = await symbolic()
+    const cache = await pinSymcache(s, env.FILES, key)
+    if (!cache) continue
     // Every stack's frames and every exception's class in one call: the mapper is built once a mapping, not once a
     // stack, which for a large mapping and an ANR's every thread was most of the work
     const java = stacks.map((frames) =>
@@ -222,7 +219,12 @@ export async function symbolicate(
       })),
     )
     const classes = event.exceptions.map((e) => (e.module ? `${e.module}.${e.type}` : e.type))
-    const all = s.proguard(mapping, [...java.flat(), ...classes.map((module) => ({ module, function: '' }))])
+    let all: ReturnType<Symbolic['proguard']>
+    try {
+      all = s.proguard(cache, [...java.flat(), ...classes.map((module) => ({ module, function: '' }))])
+    } finally {
+      cache.pins--
+    }
     let at = 0
     for (const [n, frames] of stacks.entries()) {
       const remapped = all.slice(at, (at += frames.length))

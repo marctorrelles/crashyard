@@ -28,6 +28,7 @@ type Exports = {
   objects(ptr: number, len: number): bigint
   symcache(ptr: number, len: number, idPtr: number, idLen: number): bigint
   lookup(ptr: number, len: number, addrPtr: number, addrLen: number): bigint
+  proguardcache(ptr: number, len: number): bigint
   proguard(ptr: number, len: number, framesPtr: number, framesLen: number): bigint
   sourcemapcache(ptr: number, len: number, mapPtr: number, mapLen: number): bigint
   sourcemap_lookup(ptr: number, len: number, posPtr: number, posLen: number): bigint
@@ -207,14 +208,24 @@ export async function symbolic(module: WebAssembly.Module) {
         w.dealloc(pPtr, pLen)
       }
     },
-    /** Android frames back to the source's: each to its frames, inlined ones first; [] when the class isn't mapped */
-    proguard(mapping: Uint8Array, frames: JavaFrame[]): JavaFrame[][] {
+    /** A ProGuard mapping as a ProguardCache, which lookups read in place */
+    proguardCache(mapping: Uint8Array): Uint8Array {
       const [ptr, len] = put(mapping)
-      const [fPtr, fLen] = put(new TextEncoder().encode(JSON.stringify(frames)))
       try {
-        return json(take(w.proguard(ptr, len, fPtr, fLen)))
+        const out = take(w.proguardcache(ptr, len))
+        if (out[0] !== 0) json(out.subarray(1))
+        return out.subarray(1)
       } finally {
         w.dealloc(ptr, len)
+      }
+    },
+    /** Android frames back to the source's through a loaded ProguardCache: each to its frames, inlined ones first;
+     *  [] when the class isn't mapped */
+    proguard(cache: Loaded, frames: JavaFrame[]): JavaFrame[][] {
+      const [fPtr, fLen] = put(new TextEncoder().encode(JSON.stringify(frames)))
+      try {
+        return json(take(w.proguard(cache.ptr, cache.len, fPtr, fLen)))
+      } finally {
         w.dealloc(fPtr, fLen)
       }
     },

@@ -5,8 +5,9 @@
 //! - `POST /objects`, the file as the body: its objects, as `objects()` gives them.
 //! - `POST /symcache?id=<debug id>`, the file as the body: that object's SymCache, its length in `x-length`, or 422
 //!   with `{"error"}`.
+//! - `POST /proguardcache`, a ProGuard mapping as the body: its ProguardCache, the same way.
 
-use crashyard_symcache::{list_objects, make_symcache};
+use crashyard_symcache::{list_objects, make_proguard_cache, make_symcache};
 use tiny_http::{Header, Method, Response, Server};
 
 fn main() {
@@ -27,18 +28,25 @@ fn main() {
             },
             (Method::Post, "/symcache") => {
                 let id = query.strip_prefix("id=").unwrap_or("").to_string();
-                match read(&mut request).map_err(|e| e.to_string()).and_then(|b| make_symcache(&b, &id)) {
-                    // Its length again in a header of its own: Content-Length doesn't survive the Durable Object
-                    Ok(cache) => {
-                        let length = Header::from_bytes("x-length", cache.len().to_string()).unwrap();
-                        Response::from_data(cache).with_header(length).boxed()
-                    }
-                    Err(e) => failed(&e, &json),
-                }
+                cached(read(&mut request).map_err(|e| e.to_string()).and_then(|b| make_symcache(&b, &id)), &json)
+            }
+            (Method::Post, "/proguardcache") => {
+                cached(read(&mut request).map_err(|e| e.to_string()).and_then(|b| make_proguard_cache(&b)), &json)
             }
             _ => Response::from_string("not found").with_status_code(404).boxed(),
         };
         let _ = request.respond(answer);
+    }
+}
+
+fn cached(cache: Result<Vec<u8>, String>, json: &Header) -> tiny_http::ResponseBox {
+    match cache {
+        // Its length again in a header of its own: Content-Length doesn't survive the Durable Object
+        Ok(cache) => {
+            let length = Header::from_bytes("x-length", cache.len().to_string()).unwrap();
+            Response::from_data(cache).with_header(length).boxed()
+        }
+        Err(e) => failed(&e, json),
     }
 }
 

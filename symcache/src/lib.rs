@@ -8,9 +8,10 @@
 //! - `sourcemapcache(minified, map)`: a minified file and its source map as a SourceMapCache, which also knows each
 //!   position's enclosing function (its scope), as Sentry names JavaScript frames.
 //! - `sourcemap_lookup(cache, positions)`: 0-based line and column to the original file, line, column and function.
-//! - `proguard(mapping, frames)`: Android frames (class, method, line) back to the source's, inlined ones included.
+//! - `proguardcache(mapping)`: a ProGuard mapping as a ProguardCache, read in place as a SymCache is.
+//! - `proguard(cache, frames)`: Android frames (class, method, line) back to the source's, inlined ones included.
 //!
-//! Errors come back as JSON `{"error": "..."}`; a SymCache comes back as raw bytes prefixed by one byte, 0 for ok.
+//! Errors come back as JSON `{"error": "..."}`; a cache comes back as raw bytes prefixed by one byte, 0 for ok.
 
 use std::str::FromStr;
 
@@ -155,19 +156,25 @@ pub extern "C" fn lookup(ptr: *const u8, len: usize, addr_ptr: *const u8, addr_l
     })
 }
 
-pub fn remap_proguard(mapping: &[u8], frames: &serde_json::Value) -> Result<serde_json::Value, String> {
+pub fn make_proguard_cache(mapping: &[u8]) -> Result<Vec<u8>, String> {
     let mapping = proguard::ProguardMapping::new(mapping);
     if !mapping.is_valid() {
         return Err("not a ProGuard mapping".into());
     }
-    let mapper = proguard::ProguardMapper::new(mapping);
+    let mut out = Vec::new();
+    proguard::ProguardCache::write(&mapping, &mut out).map_err(|e| e.to_string())?;
+    Ok(out)
+}
+
+pub fn remap_proguard(cache: &[u8], frames: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let cache = proguard::ProguardCache::parse(cache).map_err(|e| e.to_string())?;
     let frames = frames.as_array().ok_or("frames must be a list")?;
     let mut out = Vec::new();
     for frame in frames {
         let class = frame["module"].as_str().unwrap_or("");
         let method = frame["function"].as_str().unwrap_or("");
         let line = frame["lineno"].as_u64().unwrap_or(0) as usize;
-        let remapped: Vec<_> = mapper
+        let remapped: Vec<_> = cache
             .remap_frame(&proguard::StackFrame::new(class, method, line))
             .map(|f| {
                 serde_json::json!({ "module": f.class(), "function": f.method(), "lineno": f.line(), "file": f.file() })
@@ -175,7 +182,7 @@ pub fn remap_proguard(mapping: &[u8], frames: &serde_json::Value) -> Result<serd
             .collect();
         if remapped.is_empty() {
             // A class mapped without its method (or a frame without a line): at least its class
-            out.push(match mapper.remap_class(class) {
+            out.push(match cache.remap_class(class) {
                 Some(original) => serde_json::json!([{ "module": original, "function": method, "lineno": line }]),
                 None => serde_json::json!([]),
             });
@@ -186,12 +193,30 @@ pub fn remap_proguard(mapping: &[u8], frames: &serde_json::Value) -> Result<serd
     Ok(serde_json::Value::Array(out))
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn proguardcache(ptr: *const u8, len: usize) -> u64 {
+    let mapping = unsafe { input(ptr, len) };
+    give(match make_proguard_cache(mapping) {
+        Ok(bytes) => {
+            let mut out = Vec::with_capacity(bytes.len() + 1);
+            out.push(0);
+            out.extend(bytes);
+            out
+        }
+        Err(e) => {
+            let mut out = vec![1];
+            out.extend(error(e));
+            out
+        }
+    })
+}
+
 /// `frames`: JSON `[{ module, function, lineno }]`
 #[unsafe(no_mangle)]
 pub extern "C" fn proguard(ptr: *const u8, len: usize, frames_ptr: *const u8, frames_len: usize) -> u64 {
-    let mapping = unsafe { input(ptr, len) };
+    let cache = unsafe { input(ptr, len) };
     let frames = serde_json::from_slice(unsafe { input(frames_ptr, frames_len) }).unwrap_or(serde_json::Value::Null);
-    give(match remap_proguard(mapping, &frames) {
+    give(match remap_proguard(cache, &frames) {
         Ok(json) => json.to_string().into_bytes(),
         Err(e) => error(e),
     })
