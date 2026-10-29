@@ -3,7 +3,10 @@
 - `ui/`: shadcn/ui (`radio-group` for the template picker among them; style `radix-nova`, neutral, `components.json` at the root). Added with
   `yes n | pnpm dlx shadcn@latest add <name>` (the `n` keeps the files it would overwrite); kept as upstream writes
   them, so they can be re-added with `--overwrite`. After adding one, fix its `cn` import to `@/lib/utils` if the CLI
-  wrote `"cn"` (and `pnpm remove cn` if it added that package). The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
+  wrote `"cn"` (and `pnpm remove cn` if it added that package). One change from upstream: `dropdown-menu`'s content and sub content
+  are `w-max` up to the room on screen (`max-w-(--radix-dropdown-menu-content-available-width)`), not the trigger's
+  width, so a menu off a small trigger keeps each item on one line, and keep 8 px from the screen's edges
+  (`collisionPadding`); keep both after a re-add. The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
   (font, radius, `--spacing`, colours, light and dark) so one can nest in another. A colour in a component is a
   theme variable, never a fixed shade, except the level and palette colours of `charts.tsx`; in the sidebar, the
   `sidebar-*` ones, which Hazard makes dark in light mode too.

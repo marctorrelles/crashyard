@@ -316,7 +316,7 @@ export function IssueMoreMenu({
             More
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align="end" className="min-w-64">
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <IconFlag />
