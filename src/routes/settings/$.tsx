@@ -2,7 +2,7 @@ import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 
 // Settings pages that moved or were merged into others: their old addresses open where they went
 const MOVED: Record<string, string> = {
-  email: '/notifications',
+  email: '/settings/notifications',
   data: '/settings/privacy',
   defaults: '/settings/projects',
   about: '/settings/general',

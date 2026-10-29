@@ -137,13 +137,13 @@ there.
 3. In the `vars` of `wrangler.local.json`, set `EMAIL_FROM` to an address on your domain, such as
    `crashyard@example.com`. The address doesn't need to exist. Then deploy again.
 
-To check it, add an email channel under Notifications with the address you verified, then choose its test button.
+To check it, add an email channel in Settings, Notifications, with the address you verified, then choose its test button.
 Telegram, Slack, Discord and webhook channels need no setup here.
 A Telegram channel's Resolve, Ignore and Assign to me buttons work once `PUBLIC_URL` is set: saving the channel tells
 Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, which needs no sign-in, with a secret only crashyard and
 Telegram know.
 
-Push notifications need no setup either. Each person turns them on from Notifications, or in Settings, Preferences, on each device they want
+Push notifications need no setup either. Each person turns them on in Settings, Notifications or Preferences, on each device they want
 them on. That gives them a channel of their own, which an admin adds to routes like any other. On an iPhone or iPad
 they work in the app added to the Home Screen, on iOS 16.4 or later: open crashyard in Safari, choose Share, then Add
 to Home Screen, and turn them on from there.

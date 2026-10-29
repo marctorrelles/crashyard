@@ -103,10 +103,10 @@ server, the build, or `tsr generate`): never edit it.
   `@container`, so settings pages lay out with container variants (`@xl:` where a page elsewhere says `sm:`, `@3xl:`
   for `lg:`); `max-sm:` stays for a phone's 40 px taps. `index.tsx` goes to General. Pages that join others are
   `-name.tsx` modules (the router skips them) exporting their component, which reads the joined page's loader with
-  `getRouteApi`. `$.tsx` and `projects/$slug/$.tsx` send the old addresses of joined pages where they went (a
-  project's `keys` to Connect at Client keys, `debug-files` and `source` to Stack traces, `limits` and `filters` to
+  `getRouteApi`. `$.tsx` and `projects/$slug/$.tsx` send the old addresses of joined pages where they went (`email`
+  to Notifications; a project's `keys` to Connect at Client keys, `debug-files` and `source` to Stack traces, `limits` and `filters` to
   Events, `import` to Sentry, `status-page` to Monitors), anything else a 404.
-  The deployment's pages, the group "crashyard": `general` (the public URL, read-only, saying it's set in
+  The deployment's pages, the group "crashyard": `notifications` (below), `general` (the public URL, read-only, saying it's set in
   `wrangler.local.json`; the version and a newer release, with Update, or Automatic updates when there's none, opening `UpdateDialog` for owners; the docs), `people` (owners only, and only listed for them:
   everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove after a
   confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the invites
@@ -185,7 +185,7 @@ server, the build, or `tsr generate`): never edit it.
   above, the rest charts through `getLogMaths` (a logs widget each, `WidgetView`). `?groupBy=` takes 2 fields,
   comma-separated (By, Then); with two, or with more functions than a count, the table is a row per group and a column
   per function (`getLogMaths`' table) instead of the groups table. Each chart's menu: Add to dashboard (a dashboard
-  and a title, `addWidget`), Create metric alert for a count (`/notifications?metric=log_count&query=…&project=…`), Remove
+  and a title, `addWidget`), Create metric alert for a count (`/settings/notifications?metric=log_count&query=…&project=…`), Remove
   chart. Export: CSV or JSON Lines of the current search, through `logs_.export.ts`. Saved searches beside the bar: with no `query` in the
   URL the viewer's pinned one opens, so a search cleared while one is pinned stays in the URL as `query=`.
 - `monitors/`: the monitors (status, schedule or URL, the last 30 results as bars; `getMonitors` and `getMonitor`
@@ -205,7 +205,11 @@ server, the build, or `tsr generate`): never edit it.
   and address, `updateStatusPage`, admin: name, address (the slug, opening the page at the new one), page title, brand
   colour, a picker and its hex, description, logo and website, https only, and the custom domain with how to add it to
   the Worker in Cloudflare; Delete status page after a confirmation, `deleteStatusPage`, admin).
-- `notifications.tsx` (`getPush` too. Each channel row says what it gets, from the routes naming it: how many kinds of alert from which projects, or an amber Gets no alerts yet with Add it to every route, `addChannelToRoutes`, for admins; the viewer's own push channel lists their devices, Turn on for this device when this one is off, and its dialog has `PushControls`; with no push channel yet, Push to your devices, dashed, below the list. A route folds more than three kinds into "N kinds of alert" with Show the kinds, and one whose channels are all gone says Sends nowhere, with Choose a channel. `getNotifications` keeps channel secrets on the server: Telegram's webhook secret for everyone,
+- `notifications.tsx`: what crashyard sent in the last 30 days, newest first (`getSentNotifications`, the newest 100):
+  each notice's icon by kind, title linking to its page, `noticeLine`, when, and a badge a channel (held for quiet
+  hours, or red and not sent with the error under it); Notification settings in the header; Nothing sent yet with Set
+  up notifications.
+- `settings/notifications.tsx`, the group "crashyard" (`getPush` too. Each channel row says what it gets, from the routes naming it: how many kinds of alert from which projects, or an amber Gets no alerts yet with Add it to every route, `addChannelToRoutes`, for admins; the viewer's own push channel lists their devices, Turn on for this device when this one is off, and its dialog has `PushControls`; with no push channel yet, Push to your devices, dashed, below the list. A route folds more than three kinds into "N kinds of alert" with Show the kinds, and one whose channels are all gone says Sends nowhere, with Choose a channel. `getNotifications` keeps channel secrets on the server: Telegram's webhook secret for everyone,
   bot tokens and webhook addresses for anyone below admin): channels (Telegram, its chat found from the bot's latest messages; Slack and Discord, webhooks
   in their formats, each with where its URL comes from and checked against its host; email, with the address it's sent from, or what to set up first
   while the deployment has no `EMAIL_FROM`; a JSON webhook; a person's push channel, made by their first device, only renamed, given quiet hours or deleted here (`saveChannel` takes `push` only for an existing one, keeping its config), Add a channel saying each person turns push on for their own device, on this page or in Preferences; quiet hours, entered and kept in the channel's

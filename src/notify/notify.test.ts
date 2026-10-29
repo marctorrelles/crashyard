@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
 import { isQuiet, telegramError, telegramRequest, telegramToken, webhookBody } from './channels'
-import { flushHeld } from './dispatch'
+import { dispatch, flushHeld } from './dispatch'
 
 // dispatch reaches email.ts, which imports the Workers runtime's email module: not in Node, and not sent here
 vi.mock('cloudflare:email', () => ({ EmailMessage: class {} }))
@@ -186,8 +186,12 @@ describe('held notifications', () => {
       db.sqlite
         .prepare('INSERT INTO held_notifications (channel_id, payload, at) VALUES (1, ?, ?)')
         .run(JSON.stringify(n), at)
+    db.sqlite.exec(
+      `INSERT INTO sent_notifications (id, at, payload, deliveries) VALUES (5, 2, '{}', '{"1":{"state":"held"}}')`,
+    )
     held(notice({ kind: 'monitor_down', issue: { ...notice().issue, title: 'API' } }), 1)
     held(notice(), 2)
+    db.sqlite.exec('UPDATE held_notifications SET sent_id = 5 WHERE at = 2')
     const sent: { kind: string; issue: { title: string } }[] = []
     vi.stubGlobal('fetch', async (_: string, init: RequestInit) => {
       sent.push(JSON.parse(String(init.body)))
@@ -200,5 +204,37 @@ describe('held notifications', () => {
     }
     expect(sent.map((s) => [s.kind, s.issue.title])).toEqual([['monitor_down', 'API']])
     expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM held_notifications').get()).toEqual({ n: 0 })
+    expect(db.sqlite.prepare('SELECT deliveries FROM sent_notifications').get()).toEqual({
+      deliveries: '{"1":{"state":"sent"}}',
+    })
+  })
+})
+
+describe('sent notifications', () => {
+  it('keep one row a notice, with what each channel did: sent, refused or held', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec(`INSERT INTO channels (id, kind, name, config, created_at, quiet_from, quiet_to) VALUES
+      (1, 'webhook', 'Up', '{"url":"https://up.example","format":"json"}', 0, NULL, NULL),
+      (2, 'webhook', 'Down', '{"url":"https://down.example","format":"json"}', 0, NULL, NULL),
+      (3, 'webhook', 'Asleep', '{"url":"https://up.example","format":"json"}', 0, 0, 1439)`)
+    db.sqlite.exec(`INSERT INTO routes (project_id, kinds, thresholds, channel_ids, created_at)
+      VALUES (NULL, '["new"]', '[]', '[1,2,3,9]', 0)`)
+    vi.stubGlobal('fetch', async (url: string) => new Response('no', { status: url.includes('down') ? 500 : 200 }))
+    try {
+      await dispatch({ DB: db }, [notice()], 1000)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+    const rows = db.sqlite.prepare('SELECT * FROM sent_notifications').all() as { id: number; deliveries: string }[]
+    expect(rows).toHaveLength(1)
+    const deliveries = JSON.parse(rows[0].deliveries)
+    expect(Object.keys(deliveries)).toEqual(['1', '2', '3'])
+    expect(deliveries[1]).toEqual({ state: 'sent' })
+    expect(deliveries[2].state).toBe('failed')
+    expect(deliveries[2].error).toMatch(/500/)
+    expect(deliveries[3]).toEqual({ state: 'held' })
+    expect(db.sqlite.prepare('SELECT channel_id, sent_id FROM held_notifications').all()).toEqual([
+      { channel_id: 3, sent_id: rows[0].id },
+    ])
   })
 })

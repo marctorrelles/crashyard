@@ -15,7 +15,8 @@
 - Our own components sit beside `ui/`, built from those. Every one works on a phone (touch targets of 40 px or more,
   nothing wider than the screen) and in light and dark.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
-  pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications, and at
+  pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications
+  (what was sent; its settings are in Settings), and at
   the foot, for owners while a newer crashyard is out, Update available (tinted, unlike the pages' grey hover; it opens `UpdateDialog`), Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists, `full` for settings: from the sidebar's edge, not centred), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
@@ -129,7 +130,7 @@
   columns, Copy and Download as a text file), `Problem` (an error under a form), `GITHUB_ERRORS` (`?error=` from GitHub sign-in in words), `Or` and `NewPerson` (setup and invite:
   the page's own fields, name, email or the invite's fixed one, Create passkey; then the recovery codes and
   Continue to crashyard, a whole page load; `alternative` under it, the invite's Join with GitHub).
-- `settings.tsx`: the settings area's pages (`INSTANCE`, `PROJECTS`, the open project's `PROJECT`: General,
+- `settings.tsx`: the settings area's pages (`INSTANCE`, Notifications among them, `PROJECTS`, the open project's `PROJECT`: General,
   Connect, Stack traces, Events, Issues, Sentry, and `PERSONAL`), `SettingsNav` (the list: crashyard's pages, Projects, and
   while a project's page is open its name and pages indented under Projects, then You; with too little room beside
   the page, `@3xl/settings`, one `Select` of the same, labelled Settings page; no project picker of its own, the

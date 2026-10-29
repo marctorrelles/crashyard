@@ -27,6 +27,7 @@ type Page = { label: string; path: string; owners?: boolean }
 const INSTANCE: Page[] = [
   { label: 'General', path: '/settings/general' },
   { label: 'People', path: '/settings/people', owners: true },
+  { label: 'Notifications', path: '/settings/notifications' },
   { label: 'Privacy', path: '/settings/privacy' },
   { label: 'Tokens', path: '/settings/tokens' },
   { label: 'Usage', path: '/settings/usage' },

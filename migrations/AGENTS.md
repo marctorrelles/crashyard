@@ -96,3 +96,7 @@ in `pnpm run deploy`).
 - `0033_push.sql`: `push_devices`, each person's devices with push on, by email as preferences are (endpoint unique,
   the browser's `p256dh` and `auth`, a name, when last sent to), and `users_push_delete`, a trigger taking someone's
   devices and push channel with them when they're removed.
+- `0034_sent_notifications.sql`: `sent_notifications`, each notice a route sent (its `payload`, and `deliveries`, what
+  each channel did with it by channel id: sent, held or failed with the error), by `at`, pruned after 30 days; and
+  `held_notifications.sent_id`, the row a held send settles once quiet hours end. A worker from before writes neither,
+  so Notifications lists nothing it sent.

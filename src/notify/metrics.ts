@@ -257,7 +257,7 @@ export async function evaluateMetricAlerts(
         count: 0,
       },
       event: { level: LEVEL[state] },
-      url: `${env.PUBLIC_URL ?? ''}/notifications`,
+      url: `${env.PUBLIC_URL ?? ''}/settings/notifications`,
     })
   }
   return notices

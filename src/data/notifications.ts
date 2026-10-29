@@ -1,7 +1,9 @@
-// Notification settings: channels (where to), routes (what goes where), and a test send through a route.
+// Notification settings: channels (where to), routes (what goes where), and a test send through a route; and what was
+// sent.
 import { type Channel, send, type TelegramConfig } from '../notify/channels'
 import { mailerOf } from '../notify/email'
 import type { MetricAlert } from '../notify/metrics'
+import type { Delivery } from '../notify/dispatch'
 import { channelIds, type Notice, type Route } from '../notify/notice'
 
 export type ChannelInput = Omit<Channel, 'id'> & { id?: number }
@@ -23,6 +25,31 @@ export async function settings(db: D1Database) {
     routes: routes.results as Route[],
     metricAlerts: metricAlerts.results as MetricAlert[],
   }
+}
+
+// ponytail: the newest 100 of the 30 days kept; a "Show more" by `at` when that's too few
+/** The newest notifications sent, each with what its channels did with it, deleted channels named null */
+export async function sent(db: D1Database) {
+  const [rows, channels] = await db.batch<Record<string, unknown>>([
+    db.prepare('SELECT * FROM sent_notifications ORDER BY at DESC LIMIT 100'),
+    db.prepare('SELECT id, name, kind FROM channels'),
+  ])
+  const byId = new Map((channels.results as Pick<Channel, 'id' | 'name' | 'kind'>[]).map((c) => [c.id, c]))
+  return (rows.results as { id: number; at: number; payload: string; deliveries: string }[]).map((r) => {
+    const notice = JSON.parse(r.payload) as Notice
+    const url = new URL(notice.url, 'http://crashyard')
+    return {
+      id: r.id,
+      at: r.at,
+      notice,
+      path: url.pathname + url.search, // the page it's about, on this deployment whatever PUBLIC_URL said
+      deliveries: Object.entries(JSON.parse(r.deliveries) as Record<string, Delivery>).map(([id, d]) => ({
+        ...d,
+        channel: byId.get(Number(id))?.name ?? null,
+        kind: byId.get(Number(id))?.kind ?? null,
+      })),
+    }
+  })
 }
 
 /** Saving starts an alert again from ok: its next read alerts if it's still past a value */

@@ -6,23 +6,27 @@ import { throttled } from './rules'
 
 export type NotifyEnv = { DB: D1Database; EMAIL?: SendEmail; EMAIL_FROM?: string }
 
+/** What a channel did with a notice, in `sent_notifications.deliveries` */
+export type Delivery = { state: 'sent' | 'held' | 'failed'; error?: string }
+
 /** A send a channel refused, for Settings, Health; never throws, so one failure doesn't stop the rest */
 async function failed(db: D1Database, channel: Channel, notice: Notice, error: unknown, now: number) {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = (error instanceof Error ? error.message : String(error)).slice(0, 500)
   console.error(`notify: ${channel.kind} channel ${channel.name}: ${message}`)
   await db
     .prepare('INSERT INTO notification_failures (channel_id, kind, error, at) VALUES (?, ?, ?, ?)')
-    .bind(channel.id, notice.kind, message.slice(0, 500), now)
+    .bind(channel.id, notice.kind, message, now)
     .run()
     .catch(() => {})
+  return { state: 'failed', error: message } satisfies Delivery
 }
 
-/** The hourly cron: failures older than 30 days */
+/** The hourly cron: failures and sent notifications older than 30 days */
 export const pruneFailures = (db: D1Database, now: number) =>
-  db
-    .prepare('DELETE FROM notification_failures WHERE at < ?')
-    .bind(now - 30 * 864e5)
-    .run()
+  db.batch([
+    db.prepare('DELETE FROM notification_failures WHERE at < ?').bind(now - 30 * 864e5),
+    db.prepare('DELETE FROM sent_notifications WHERE at < ?').bind(now - 30 * 864e5),
+  ])
 
 export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now()): Promise<void> {
   if (!notices.length) return
@@ -41,26 +45,46 @@ export async function dispatch(env: NotifyEnv, notices: Notice[], now = Date.now
         candidate.kind === 'threshold' ? { ...candidate, threshold: thresholdFor(route, candidate) } : candidate
       for (const id of channelIds(route)) if (!targets.has(id)) targets.set(id, notice)
     }
+    const live = [...targets].filter(([id]) => channels.has(id))
+    if (!live.length) continue
     // Its channels at once, each on its own: a slow one doesn't hold the others back (each send times out)
-    await Promise.all(
-      [...targets].map(async ([id, notice]) => {
-        const channel = channels.get(id)
-        if (!channel) return
-        if (isQuiet(channel, now)) {
-          await env.DB.prepare('INSERT INTO held_notifications (channel_id, payload, at) VALUES (?, ?, ?)')
-            .bind(id, JSON.stringify(notice), now)
-            .run()
-          return
-        }
+    const deliveries: [number, Delivery][] = await Promise.all(
+      live.map(async ([id, notice]): Promise<[number, Delivery]> => {
+        const channel = channels.get(id)!
+        if (isQuiet(channel, now)) return [id, { state: 'held' }]
         try {
           await send(channel, notice, mailer, env.EMAIL_FROM || undefined, env.DB)
+          return [id, { state: 'sent' }]
         } catch (error) {
-          await failed(env.DB, channel, notice, error, now)
+          return [id, await failed(env.DB, channel, notice, error, now)]
         }
       }),
     )
+    // One row for Notifications' list, then the held sends, each pointing at it to say how it went later
+    const sent = await env.DB.prepare(
+      'INSERT INTO sent_notifications (at, payload, deliveries) VALUES (?, ?, ?) RETURNING id',
+    )
+      .bind(now, JSON.stringify(live[0][1]), JSON.stringify(Object.fromEntries(deliveries)))
+      .first<{ id: number }>()
+    const held = live.filter((_, i) => deliveries[i][1].state === 'held')
+    for (const [id, notice] of held)
+      await env.DB.prepare('INSERT INTO held_notifications (channel_id, payload, at, sent_id) VALUES (?, ?, ?, ?)')
+        .bind(id, JSON.stringify(notice), now, sent?.id ?? null)
+        .run()
   }
 }
+
+/** A held send's outcome, on every sent notification it came from */
+const settle = (db: D1Database, channelId: number, sentIds: number[], delivery: Delivery) =>
+  sentIds.length
+    ? db
+        .prepare(
+          `UPDATE sent_notifications SET deliveries = json_set(deliveries, '$."' || ? || '"', json(?))
+           WHERE id IN (SELECT value FROM json_each(?))`,
+        )
+        .bind(String(channelId), JSON.stringify(delivery), JSON.stringify(sentIds))
+        .run()
+    : undefined
 
 // Held notices that matter most, sent over a newer one: an outage still going on mustn't hide behind a new issue
 const URGENT = ['monitor_down', 'metric_critical']
@@ -73,6 +97,7 @@ export async function flushHeld(env: NotifyEnv, now = Date.now()): Promise<void>
       id: number
       channel_id: number
       payload: string
+      sent_id: number | null
     }>()
   ).results
   if (!held.length) return
@@ -94,10 +119,13 @@ export async function flushHeld(env: NotifyEnv, now = Date.now()): Promise<void>
     const notices = rows.filter((r) => mine.has(r.id)).map((r) => JSON.parse(r.payload) as Notice)
     const first = notices.findLast((n) => URGENT.includes(n.kind)) ?? notices.at(-1)!
     const notice = notices.length > 1 ? { ...first, heldMore: notices.length - 1 } : first
+    let delivery: Delivery = { state: 'sent' }
     try {
       await send(channel, notice, mailer, env.EMAIL_FROM || undefined, env.DB)
     } catch (error) {
-      await failed(env.DB, channel, notice, error, now)
+      delivery = await failed(env.DB, channel, notice, error, now)
     }
+    const sentIds = rows.flatMap((r) => (mine.has(r.id) && r.sent_id !== null ? [r.sent_id] : []))
+    await settle(env.DB, id, sentIds, delivery)
   }
 }

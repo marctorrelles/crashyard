@@ -208,7 +208,7 @@ function Logs() {
         fn === 'count'
           ? () =>
               void navigate({
-                to: '/notifications',
+                to: '/settings/notifications',
                 search: { metric: 'log_count', query: query || undefined, project: search.project },
               })
           : undefined

@@ -51,7 +51,8 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 - **Performance.** Transactions by p95, how each release changed them, and the slowest ones with their spans.
 - **Notifications.** Alerts through Telegram, Slack, Discord, email or a JSON webhook, routed by alert type, project,
   level and environment, with quiet hours and a weekly summary. Resolve, ignore or assign an issue right from its
-  alert: in the chat on Telegram, in one tap on crashyard from the others.
+  alert: in the chat on Telegram, in one tap on crashyard from the others. Every alert sent in the last 30 days is
+  listed, with where it went.
 - **Moving from Sentry.** Bring a project's issues over with their latest event, counts, status and comments. Events
   from the SDK keep coming to the same issues. Until you switch, every event can go on to Sentry too.
 - **MCP server.** Lets an AI agent read issues, events, logs, traces, releases, performance and monitors, triage issues

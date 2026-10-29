@@ -187,7 +187,7 @@ export function Push({ push }: { push: Data }) {
           <Hint>
             {push.channel.routes > 0 ? 'Routes send alerts to ' : `${push.channel.name} isn’t in a route yet. `}
             {push.channel.routes > 0 && `${push.channel.name}. `}
-            <Link to="/notifications" className="underline underline-offset-2">
+            <Link to="/settings/notifications" className="underline underline-offset-2">
               {push.channel.routes > 0 ? 'See them on Notifications' : 'Add it to one on Notifications'}
             </Link>
             .

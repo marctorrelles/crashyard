@@ -295,7 +295,8 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   else signed in on it, is one device, theirs; it makes the person's push channel, "<name>'s devices", `kind` push,
   config `{ email }`, with the first), `deletePushDevice` (one's own, by id or endpoint), `pushChannel` (theirs and how
   many routes send to it, for Preferences).
-- `notifications.ts`: channels (`channelOf`, one by id), routes (with `frequency`, `releases`, `query`, `interval_minutes`) and metric alerts
+- `notifications.ts`: `sent`, the newest 100 sent notifications with each channel's name and what it did (a deleted
+  channel's name null) and the notice's page as a path on this deployment; channels (`channelOf`, one by id), routes (with `frequency`, `releases`, `query`, `interval_minutes`) and metric alerts
   (`saveMetricAlert`: saving starts it again from ok, so its next read alerts if it's still past a value), `addToEveryRoute` (a channel into each route without it, `json_insert`, for a channel that gets nothing; `notifications.test.ts`), and `testRoute` and `testChannel`, which send a made-up notice now through a
   route's channels or one channel and say how each went.
 

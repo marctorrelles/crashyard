@@ -85,8 +85,12 @@ environment, each with its own thresholds, and send them to channels.
   (`DELETE … RETURNING`) before sending, so two runs at once send them once. A notice's channels are sent at once,
   each send timing out after 10 seconds (`SEND_TIMEOUT`, Telegram's and webhooks'). A failing channel
   is logged, written to `notification_failures` (channel, the notice's kind, the error's first 500 characters; for
-  Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them after 30 days.
+  Settings, Health) and doesn't stop the others; `pruneFailures` (the hourly cron, at :20) deletes them and sent
+  notifications after 30 days. Each notice that reached a channel is one `sent_notifications` row, for Notifications'
+  list: the notice (the first channel's, a threshold's per route) and `deliveries` by channel id, `Delivery`: `sent`,
+  `failed` with its error, or `held`, its `held_notifications` rows carrying `sent_id`; `flushHeld` sets those to
+  sent or failed (`settle`, `json_set`, the id bound as text so the path is `$."3"`). A test send isn't logged.
 
 `push.test.ts`: RFC 8291's example, the VAPID token verified by its key, one key pair, the payload, dead devices dropped and all failing throws, the channel made once and removed with its person. `notify.test.ts` covers routes, thresholds, frequency and metric kinds, filters, channel formats, quiet hours and the
-signed links. `rules.test.ts` (the gate: 50 events in 10 minutes fire once, 365 one a day never; out of order and past spike
+signed links, and what `sent_notifications` keeps of a dispatch and a flush. `rules.test.ts` (the gate: 50 events in 10 minutes fire once, 365 one a day never; out of order and past spike
 protection, once each; users; the wait; filters) and `metrics.test.ts` (crossing, staying, recovering, below, logs) run on `test/fakes.ts`.

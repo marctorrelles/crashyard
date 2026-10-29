@@ -717,6 +717,11 @@ export const getNotifications = createServerFn().handler(async () => ({
   now: Date.now(),
 }))
 
+export const getSentNotifications = createServerFn().handler(async () => ({
+  sent: await notifications.sent(env.DB),
+  now: Date.now(),
+}))
+
 const minuteOfDay = optional((v) => int(v, 0, 1439))
 export const saveChannel = createServerFn({ method: 'POST' })
   .middleware([admin])
