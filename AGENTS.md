@@ -33,7 +33,7 @@ Where things are:
   `/__dev/cron` and `/__dev/tail` let the end-to-end tests reach the database, run the cron and send Worker runs.
 - `src/demo.ts`: the public demo's read-only mode, on only where a deployment's `vars` set `DEMO=1` (never a
   self-hoster's): `demoGate`, ahead of everything in `fetch`, and the refusal every changing server function gives
-  there (`src/auth/AGENTS.md`, Demo).
+  there, and a minute's cache of GET server functions, as everyone there is one viewer (`src/auth/AGENTS.md`, Demo).
 - `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside sign-in, and the MCP server, inside (see its
   AGENTS.md).
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).

@@ -51,3 +51,45 @@ export async function demoGate(request: Request, env: Env): Promise<Response | n
   }
   return null
 }
+
+// The cookies server functions read: the theme and style, the browser's time zone, the project picked last, the
+// sidebar folded. Every visitor is the same viewer, so these are all that tells one answer from another
+const VARIES = ['theme', 'style', 'tz', 'crashyard_project', 'sidebar_state']
+
+/** What a server function's answer is kept under: its URL, with the values of the cookies it can read */
+export function demoCacheKey(request: Request) {
+  const cookies = new Map(
+    (request.headers.get('Cookie') ?? '')
+      .split(/;\s*/)
+      .map((c) => [c.slice(0, c.indexOf('=')), c.slice(c.indexOf('=') + 1)]),
+  )
+  const key = new URL(request.url)
+  key.searchParams.set('__demo', VARIES.map((name) => `${name}=${cookies.get(name) ?? ''}`).join(';'))
+  return key.toString()
+}
+
+/**
+ * A GET server function in the demo, kept a minute in the data centre's cache: everyone is one viewer and the data
+ * changes a minute at a time, so a crowd reads D1 once a minute per call instead of once a visit. Navigating in the
+ * dashboard only: a first page, rendered on the server, still reads D1. The Cache API does nothing on workers.dev
+ */
+export async function demoCache(request: Request, ctx: ExecutionContext, answer: () => Response | Promise<Response>) {
+  const cache = (caches as unknown as { default: Cache }).default
+  const key = new Request(demoCacheKey(request))
+  const hit = await cache.match(key)
+  if (hit) return fresh(hit, 'hit')
+  const response = await answer()
+  if (response.status !== 200 || response.headers.has('Set-Cookie')) return response
+  const kept = new Response(response.body, response)
+  kept.headers.set('Cache-Control', 'public, max-age=60')
+  ctx.waitUntil(cache.put(key, kept.clone()))
+  return fresh(kept, 'miss')
+}
+
+// The browser keeps none of it: its cookies can change under the same URL. A dev server says whether it was kept
+function fresh(response: Response, how: 'hit' | 'miss') {
+  const out = new Response(response.body, response)
+  out.headers.set('Cache-Control', 'no-store')
+  if (import.meta.env.DEV) out.headers.set('x-crashyard-demo-cache', how)
+  return out
+}

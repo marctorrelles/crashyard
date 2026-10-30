@@ -42,8 +42,11 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
   `src/fns.ts`, `as()` refuses every server function in the demo (`DEMO_REFUSAL`, whatever the role) but `reads`, for
   GETs that need someone signed in and the three POSTs that only read or set the viewer's cookies: `previewWidget`,
   `getPlan`, `savePreference` (theme and style, in cookies only; `getSidebar` reads them back from there and writes
-  none). `getIssue` marks nothing viewed, `getPush` makes no keys. `demo.test.ts`: the gate's answers, that it's
-  asked only in the demo, and the refusal for every role; `sign-in.test.ts`: `whoIs` in and out of it, and the exact
+  none). `getIssue` marks nothing viewed, `getPush` makes no keys. `demoCache`: a GET server function's answer, for
+  the demo's viewer, kept a minute in the Cache API, keyed by its URL and the cookies server functions read (`theme`,
+  `style`, `tz`, `crashyard_project`, `sidebar_state`), `no-store` to the browser, `x-crashyard-demo-cache` on a dev
+  server; a first page's server render isn't. `demo.test.ts`: the gate's answers, that it's
+  asked only in the demo, the refusal for every role, and the cache's key; `sign-in.test.ts`: `whoIs` in and out of it, and the exact
   `reads` list.
 - `github.ts`: Sign in with GitHub, optional, GETs under `/auth/github/` routed by `src/server.ts`.
   The owner creates a private GitHub App from `manifest(base)` (name `crashyard <host>`, at most 34 characters;

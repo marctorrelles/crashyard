@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { sqliteD1 } from '../test/fakes'
-import { DEMO_INGEST, DEMO_REFUSAL, demoGate, demoRefuses } from './demo'
+import { DEMO_INGEST, DEMO_REFUSAL, demoCacheKey, demoGate, demoRefuses } from './demo'
 
 // The gate reads ingest's doors from src/api/ingest.ts, which loads the Wasm module Node can't
 vi.mock('./symbols/module', () => ({ sharedSymbolic: () => Promise.reject(new Error('no symbols in tests')) }))
@@ -102,5 +102,18 @@ describe('the demo’s gate', () => {
     expect(readFileSync('src/fns.ts', 'utf8')).toMatch(
       /\.server\(\(\{ next \}\) => \{\n\s*if \(demoRefuses\(env, readOnly\)\) throw new Error\(DEMO_REFUSAL\)\n\s*const r = role\(\)/,
     )
+  })
+})
+
+describe('the demo’s cache of server functions', () => {
+  const key = (cookie: string, path = '/_serverFn/abc?payload=1') =>
+    demoCacheKey(new Request(`${SITE}${path}`, { headers: { Cookie: cookie } }))
+
+  it('keeps one answer for the same call and the cookies it reads, whatever else is sent', () => {
+    const a = key('theme=dark; tz=Europe/Madrid; crashyard_demo=1')
+    expect(key('tz=Europe/Madrid; theme=dark; crashyard_demo=1; _ga=x')).toBe(a)
+    expect(key('theme=dark; tz=America/New_York; crashyard_demo=1')).not.toBe(a)
+    expect(key('theme=dark; tz=Europe/Madrid; crashyard_project=web')).not.toBe(a)
+    expect(key('theme=dark; tz=Europe/Madrid', '/_serverFn/abc?payload=2')).not.toBe(a)
   })
 })

@@ -1,7 +1,7 @@
 import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/server'
 import { handleIngest, INGEST } from './api/ingest'
 import { whoIs } from './auth/session'
-import { demoGate, isDemo } from './demo'
+import { demoCache, demoGate, isDemo } from './demo'
 import type { Notice } from './notify/notice'
 
 const start = createStartHandler(defaultStreamHandler)
@@ -189,6 +189,10 @@ export default {
       headers.set('x-crashyard-role', who.role)
       if (who.userId) headers.set('x-crashyard-user', String(who.userId))
       if (who.session) headers.set('x-crashyard-session', who.session)
+    }
+    // The demo's one viewer gets the same answers: a server function's is kept a minute (src/demo.ts)
+    if (isDemo(env) && who && request.method === 'GET' && url.pathname.startsWith('/_serverFn/')) {
+      return demoCache(request, ctx, () => start(new Request(request, { headers })))
     }
     const response = await start(new Request(request, { headers }))
     if (!who?.cookie) return response
