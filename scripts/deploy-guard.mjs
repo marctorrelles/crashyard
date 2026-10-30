@@ -5,11 +5,16 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
+// The built config, with wrangler.local.json laid over it: d1 commands otherwise read wrangler.jsonc alone, so a
+// database renamed there would be missed
+const CONFIG = 'dist/server/wrangler.json'
 const wrangler = (args) =>
-  execFileSync('pnpm', ['exec', 'wrangler', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  execFileSync('pnpm', ['exec', 'wrangler', ...args, '-c', CONFIG], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
 
-// The built config, so a renamed database or one given by id is respected
-const db = JSON.parse(readFileSync('dist/server/wrangler.json', 'utf8')).d1_databases[0]
+const db = JSON.parse(readFileSync(CONFIG, 'utf8')).d1_databases[0]
 if (!db.database_id) {
   try {
     wrangler(['d1', 'info', db.database_name, '--json'])
