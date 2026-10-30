@@ -3,7 +3,17 @@
 What the worker answers itself, ahead of Start. Under `/api/`, outside sign-in, each checks its own key or
 signature; `/mcp` comes after sign-in.
 
-- `ingest.ts`: its four doors as `INGEST` (`src/server.ts` routes by it, the demo's gate closes them) and their `CORS`.
+- `feed.ts`: `DemoFeed`, a named entrypoint (`export`ed from `src/server.ts`), so only a Worker with a service
+  binding to it reaches it, never the internet: the demo's feeder (crashyard-demo) sends `send({ project, door,
+path?, query?, method?, headers?, body, received })`, an envelope, event, report or check-in as an SDK sent it. It
+  finds the project by slug and its first key that's on (as `tail.ts`), sets that key in `x-sentry-auth` (a check-in's
+  key in the path and a `sentry_key` in the query dropped), keeps only `content-type`, `content-encoding` and
+  `user-agent`, marks it `FORWARDED`, and calls `handleIngest` with `received`, the status as the answer. 403 unless
+  `DEMO` is set, 404 for an unknown project, 400 for a time ahead of now. Add to its input, never change it: the
+  feeder lives in another repo. `feed.test.ts`: three days back lands on that day, sessions alone aren't held, the
+  refusals, a check-in by slug.
+- `ingest.ts`: its four doors as `INGEST` (`src/server.ts` routes by it, the demo's gate closes them) and their `CORS`. `handleIngest`'s last argument,
+  `received`, is now unless `feed.ts` replays at another time; every step after takes it as `now`.
   `/api/<project>/envelope/` and `/api/<project>/store/`, what the Sentry SDKs send to, and the two that
   come without an SDK, checked against Relay's `endpoints/monitor.rs` and `endpoints/security_report.rs` (master,
   2026-10-27): `/api/<project>/security/` (POST only; `application/json`, `application/csp-report` or

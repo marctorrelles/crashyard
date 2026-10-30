@@ -34,8 +34,8 @@ Where things are:
 - `src/demo.ts`: the public demo's read-only mode, on only where a deployment's `vars` set `DEMO=1` (never a
   self-hoster's): `demoGate`, ahead of everything in `fetch`, and the refusal every changing server function gives
   there, and a minute's cache of GET server functions, as everyone there is one viewer (`src/auth/AGENTS.md`, Demo).
-- `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside sign-in, and the MCP server, inside (see its
-  AGENTS.md).
+- `src/api/`: ingest and Sentry's upload API (`/api/0/`), outside sign-in, the MCP server, inside, and the demo's
+  `DemoFeed` entrypoint, reached by service binding only (see its AGENTS.md).
 - `src/ingest/`: envelopes, events, grouping, scrubbing, storing (see its AGENTS.md).
 - `src/notify/`: routes (frequency, filters, a wait), metric alerts, channels (Telegram, email, webhooks), quiet hours
   (see its AGENTS.md).

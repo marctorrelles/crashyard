@@ -178,6 +178,8 @@ export async function handleIngest(
   projectId: number,
   door: Door,
   path: string[] = [],
+  // When it arrived: now, but for the demo's replays (src/api/feed.ts), which land at the time they say
+  received = Date.now(),
 ) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
   const allowed = door === 'cron' ? ['GET', 'POST'] : ['POST']
@@ -185,7 +187,7 @@ export async function handleIngest(
   if ((door === 'cron' ? path.length < 1 : path.length > 0) || path.length > 2)
     return answer({ detail: 'Not found' }, 404)
   const url = new URL(request.url)
-  const now = Date.now()
+  const now = received
 
   let body: Uint8Array
   try {
