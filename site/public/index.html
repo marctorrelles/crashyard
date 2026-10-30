@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>crashyard: crash reporting on your own Cloudflare account</title>
+<meta name="description" content="crashyard is an open-source, Sentry-compatible crash, error and log reporter you deploy to your own Cloudflare account.">
+<meta property="og:title" content="crashyard">
+<meta property="og:description" content="Crash reporting on your own Cloudflare account. Keep the official Sentry SDKs and change one line.">
+<meta property="og:url" content="https://crashyard.dev">
+<meta name="theme-color" content="#F86111">
+<link rel="icon" href="/images/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Geist and Geist Mono, served from this site (SIL Open Font License, fonts/LICENSE-geist.txt) */
+@font-face { font-family: 'Geist'; src: url('/fonts/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Geist Mono'; src: url('/fonts/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+</style>
+<style>
+/* Hazard, crashyard's default theme (src/styles.css): steel neutrals, safety orange as the one accent.
+   Code panels stay dark in both modes, as the app's sidebar does. */
+:root {
+  --bg: oklch(0.985 0.002 260);
+  --bg-2: oklch(0.965 0.004 260);
+  --card: oklch(1 0 0);
+  --fg: oklch(0.2 0.01 260);
+  --fg-2: oklch(0.45 0.015 260);
+  --fg-3: oklch(0.58 0.012 260);
+  --border: oklch(0.9 0.006 260);
+  --border-2: oklch(0.84 0.008 260);
+  --accent: oklch(0.68 0.2 42);
+  --accent-hover: oklch(0.63 0.2 40);
+  --accent-fg: oklch(0.16 0.01 260);
+  --accent-text: oklch(0.55 0.19 40);
+  --accent-soft: oklch(0.95 0.04 60);
+  --ok: oklch(0.6 0.15 155);
+  --no: oklch(0.62 0.02 260);
+  --code-bg: oklch(0.2 0.01 260);
+  --code-bar: oklch(0.24 0.012 260);
+  --code-fg: oklch(0.93 0.004 260);
+  --code-dim: oklch(0.66 0.012 260);
+  --code-line: oklch(1 0 0 / 8%);
+  --code-key: oklch(0.8 0.1 250);
+  --code-str: oklch(0.83 0.12 60);
+  --code-rm-bg: oklch(0.6 0.2 25 / 17%);
+  --code-rm: oklch(0.75 0.14 25);
+  --code-add-bg: oklch(0.65 0.15 155 / 17%);
+  --code-add: oklch(0.82 0.13 155);
+  --shadow: 0 1px 2px oklch(0.2 0.01 260 / 6%), 0 12px 32px -12px oklch(0.2 0.01 260 / 18%);
+  --show-light: block;
+  --show-dark: none;
+  --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.155 0.007 260);
+    --bg-2: oklch(0.18 0.008 260);
+    --card: oklch(0.2 0.009 260);
+    --fg: oklch(0.96 0.003 260);
+    --fg-2: oklch(0.74 0.01 260);
+    --fg-3: oklch(0.6 0.01 260);
+    --border: oklch(1 0 0 / 9%);
+    --border-2: oklch(1 0 0 / 15%);
+    --accent: oklch(0.73 0.19 46);
+    --accent-hover: oklch(0.78 0.17 48);
+    --accent-text: oklch(0.78 0.16 50);
+    --accent-soft: oklch(0.27 0.04 50);
+    --ok: oklch(0.72 0.15 155);
+    --code-bg: oklch(0.12 0.006 260);
+    --code-bar: oklch(0.15 0.007 260);
+    --shadow: 0 0 0 1px oklch(1 0 0 / 4%), 0 16px 40px -16px oklch(0 0 0 / 60%);
+    --show-light: none;
+    --show-dark: block;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: oklch(0.155 0.007 260);
+  --bg-2: oklch(0.18 0.008 260);
+  --card: oklch(0.2 0.009 260);
+  --fg: oklch(0.96 0.003 260);
+  --fg-2: oklch(0.74 0.01 260);
+  --fg-3: oklch(0.6 0.01 260);
+  --border: oklch(1 0 0 / 9%);
+  --border-2: oklch(1 0 0 / 15%);
+  --accent: oklch(0.73 0.19 46);
+  --accent-hover: oklch(0.78 0.17 48);
+  --accent-text: oklch(0.78 0.16 50);
+  --accent-soft: oklch(0.27 0.04 50);
+  --ok: oklch(0.72 0.15 155);
+  --code-bg: oklch(0.12 0.006 260);
+  --code-bar: oklch(0.15 0.007 260);
+  --shadow: 0 0 0 1px oklch(1 0 0 / 4%), 0 16px 40px -16px oklch(0 0 0 / 60%);
+  --show-light: none;
+  --show-dark: block;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 72px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01';
+}
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; }
+p { margin: 0; }
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.025em; text-wrap: balance; }
+code, pre, kbd { font-family: var(--mono); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.only-light { display: var(--show-light); }
+.only-dark { display: var(--show-dark); }
+
+.wrap {
+  max-width: 1200px; margin: 0 auto;
+  padding-left: max(var(--gutter-l), 24px); padding-right: max(var(--gutter-r), 24px);
+}
+@media (max-width: 640px) {
+  .wrap { padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 42px; padding: 0 16px; border-radius: 8px;
+  font: 550 15px/1 var(--sans); text-decoration: none; white-space: nowrap;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background-color 120ms, border-color 120ms;
+}
+.btn-primary { background: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--card); color: var(--fg); border-color: var(--border-2); }
+.btn-secondary:hover { border-color: var(--fg-3); }
+.btn-ghost { color: var(--fg-2); }
+.btn-ghost:hover { color: var(--fg); }
+.btn-sm { height: 34px; padding: 0 12px; font-size: 14px; border-radius: 7px; }
+
+/* Nav */
+.nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: color-mix(in oklch, var(--bg), transparent 8%);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 650; font-size: 17px; letter-spacing: -0.02em; text-decoration: none; }
+.brand img { width: 26px; height: 26px; }
+.nav-links { display: flex; gap: 22px; font-size: 14.5px; color: var(--fg-2); }
+.nav-links a { text-decoration: none; }
+.nav-links a:hover { color: var(--fg); }
+.nav-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.gh { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; color: var(--fg-2); text-decoration: none; font-size: 14px; }
+.gh:hover { color: var(--fg); }
+@media (max-width: 820px) { .nav-links { display: none; } }
+@media (max-width: 420px) { .gh span { display: none; } }
+
+/* Hero */
+.hero { padding: 72px 0 0; }
+.hero-grid { display: grid; gap: 40px; align-items: center; }
+@media (min-width: 1000px) { .hero-grid { grid-template-columns: 1.05fr 1fr; gap: 56px; } }
+.hero-copy { display: grid; gap: 22px; }
+.hero h1 { font-size: clamp(38px, 5.4vw, 60px); line-height: 1.04; letter-spacing: -0.035em; }
+.lede { font-size: clamp(17px, 1.5vw, 19px); line-height: 1.55; color: var(--fg-2); max-width: 56ch; }
+.lede strong { color: var(--fg); font-weight: 550; }
+.ctas { display: flex; flex-wrap: wrap; gap: 10px; }
+.plan-note { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--fg-2); max-width: 54ch; }
+.plan-note .icon { margin-top: 2px; color: var(--accent-text); width: 16px; height: 16px; }
+.plan-note a { color: var(--fg); text-underline-offset: 3px; }
+
+/* Code panels */
+.code {
+  background: var(--code-bg); color: var(--code-fg); border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--code-line); box-shadow: var(--shadow); min-width: 0;
+}
+.code-bar { display: flex; align-items: center; gap: 2px; padding: 6px 6px 6px 8px; background: var(--code-bar); border-bottom: 1px solid var(--code-line); overflow-x: auto; scrollbar-width: none; }
+.code-bar .file { font: 13px/1 var(--mono); color: var(--code-dim); padding: 0 8px; white-space: nowrap; }
+.tab {
+  font: 500 13px/1 var(--sans); color: var(--code-dim); background: none; border: 0; cursor: pointer;
+  height: 30px; padding: 0 11px; border-radius: 6px; white-space: nowrap;
+}
+.tab:hover { color: var(--code-fg); }
+.tab[aria-selected="true"] { color: var(--code-fg); background: oklch(1 0 0 / 9%); }
+.copy {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 6px;
+  font: 500 12.5px/1 var(--sans); color: var(--code-dim); background: none; border: 0; cursor: pointer; height: 30px; padding: 0 10px; border-radius: 6px;
+}
+.copy:hover { color: var(--code-fg); background: oklch(1 0 0 / 7%); }
+.copy .icon { width: 15px; height: 15px; }
+pre { margin: 0; padding: 18px 0; overflow-x: auto; font-size: 13.5px; line-height: 1.75; tab-size: 2; }
+pre > span { display: block; padding: 0 20px; white-space: pre; min-width: max-content; }
+pre .c { color: var(--code-dim); }
+pre .k { color: var(--code-key); }
+pre .s { color: var(--code-str); }
+pre .p { color: var(--code-dim); user-select: none; }
+pre .rm { background: var(--code-rm-bg); }
+pre .rm, pre .rm .s { color: var(--code-rm); }
+pre .add { background: var(--code-add-bg); }
+pre .add, pre .add .s { color: var(--code-add); }
+pre .ok { color: var(--code-add); }
+.code-foot { padding: 11px 20px; border-top: 1px solid var(--code-line); font-size: 13px; color: var(--code-dim); }
+
+/* Screenshots */
+.frame {
+  border-radius: 14px; overflow: hidden; background: var(--card);
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.frame-bar { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--border); background: var(--bg-2); }
+.frame-bar .dots { display: flex; gap: 6px; }
+.frame-bar .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--border-2); }
+.frame-bar .url { margin: 0 auto; font: 12.5px/1 var(--mono); color: var(--fg-3); padding: 6px 12px; border-radius: 6px; background: var(--card); border: 1px solid var(--border); max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frame img { width: 100%; }
+.hero-shot { margin-top: 64px; }
+@media (max-width: 640px) {
+  .frame .crop { aspect-ratio: 4 / 3.7; overflow: hidden; }
+  .frame .crop img { height: 100%; object-fit: cover; object-position: 0 0; }
+  .frame-bar .dots { display: none; }
+  .frame-bar .url { max-width: 100%; }
+}
+
+/* SDK strip */
+.sdks { margin-top: 56px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; color: var(--fg-3); font-size: 14px; }
+.sdks b { color: var(--fg-2); font-weight: 500; margin-right: 4px; }
+.sdks ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font: 500 14px/1 var(--mono); color: var(--fg-2); }
+
+/* Sections */
+section { padding: 120px 0 0; }
+@media (max-width: 640px) { section { padding-top: 88px; } .hero { padding-top: 44px; } }
+.head { display: grid; gap: 14px; max-width: 680px; margin-bottom: 44px; }
+.head h2 { font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; }
+.head p { color: var(--fg-2); font-size: 17px; }
+.split { display: grid; gap: 40px; align-items: start; }
+@media (min-width: 1000px) { .split { grid-template-columns: 1fr 1.1fr; gap: 64px; } .split.flip { grid-template-columns: 1.1fr 1fr; } }
+.split > * { min-width: 0; }
+.points { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 18px; }
+.points li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; }
+.points .icon { color: var(--accent-text); margin-top: 3px; }
+.points b { display: block; font-weight: 600; }
+.points span { color: var(--fg-2); }
+.paid { display: inline-flex; align-items: center; gap: 6px; margin-top: 24px; font-size: 13.5px; color: var(--fg-2); background: var(--accent-soft); padding: 6px 10px; border-radius: 6px; }
+.paid .icon { width: 15px; height: 15px; color: var(--accent-text); }
+
+/* Product tour */
+.tour-tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; width: max-content; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.tour-tabs button {
+  display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 7px;
+  font: 500 14.5px/1 var(--sans); color: var(--fg-2); background: none; border: 0; cursor: pointer; white-space: nowrap;
+}
+.tour-tabs button:hover { color: var(--fg); }
+.tour-tabs button[aria-selected="true"] { background: var(--card); color: var(--fg); box-shadow: 0 1px 2px oklch(0 0 0 / 10%); }
+.tour-panel { margin-top: 24px; display: grid; gap: 24px; }
+@media (min-width: 1000px) { .tour-panel { grid-template-columns: 300px 1fr; gap: 40px; align-items: start; } }
+.tour-panel[hidden] { display: none; }
+.tour-text { display: grid; gap: 12px; padding-top: 8px; }
+.tour-text h3 { font-size: 21px; letter-spacing: -0.02em; }
+.tour-text p { color: var(--fg-2); }
+.tour-text ul { margin: 4px 0 0; padding-left: 18px; color: var(--fg-2); display: grid; gap: 6px; font-size: 15px; }
+.tour-text li::marker { color: var(--accent); }
+.frame.short .crop { aspect-ratio: 2560 / 820; overflow: hidden; }
+.frame.short .crop img { height: 100%; object-fit: cover; object-position: 0 0; }
+
+/* Alerts + MCP */
+.channels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.channels span { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-2); font-size: 14px; background: var(--card); }
+.channels .icon { width: 16px; height: 16px; color: var(--fg-2); }
+.alert-card { margin-top: 28px; border: 1px solid var(--border); background: var(--card); border-radius: 12px; padding: 16px; display: grid; gap: 10px; max-width: 520px; box-shadow: var(--shadow); }
+.alert-who { display: flex; gap: 10px; align-items: center; font-size: 14px; font-weight: 600; }
+.alert-who img { width: 28px; height: 28px; border-radius: 50%; }
+.alert-who span { font-weight: 400; color: var(--fg-3); }
+.alert-body { display: grid; gap: 3px; font-size: 14.5px; }
+.alert-body b { font-weight: 600; overflow-wrap: anywhere; }
+.alert-body .meta { color: var(--fg-2); }
+.alert-body .held { color: var(--fg-3); font-size: 13.5px; display: flex; gap: 6px; align-items: center; }
+.alert-body .held .icon { width: 15px; height: 15px; }
+.alert-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.alert-btns span { text-align: center; font-size: 13.5px; font-weight: 550; padding: 8px 4px; border-radius: 7px; background: var(--bg-2); border: 1px solid var(--border); }
+
+/* Feature list */
+.features { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+@media (min-width: 640px) { .features { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1000px) { .features { grid-template-columns: repeat(3, 1fr); } }
+.feature { background: var(--card); padding: 24px; display: grid; gap: 8px; align-content: start; }
+.feature h3 { font-size: 16px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 9px; }
+.feature h3 .icon { color: var(--fg-2); }
+.feature p { color: var(--fg-2); font-size: 15px; }
+
+/* Plans table */
+.table-wrap { border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; background: var(--card); }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+@media (max-width: 640px) { th, td { padding: 12px 12px; } td .yes span, td .no span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } thead th + th, tbody td { width: 64px; } }
+th, td { text-align: left; padding: 14px 20px; border-bottom: 1px solid var(--border); vertical-align: top; }
+thead th { font-weight: 600; font-size: 14px; color: var(--fg-2); background: var(--bg-2); }
+thead th + th, tbody td { width: 22%; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+tbody th { font-weight: 500; }
+tbody th small { display: block; color: var(--fg-3); font-weight: 400; font-size: 13.5px; margin-top: 2px; }
+td .yes, td .no { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+td .yes { color: var(--ok); }
+td .no { color: var(--no); }
+td .icon { width: 16px; height: 16px; }
+.why { margin-top: 24px; display: grid; gap: 24px; }
+@media (min-width: 900px) { .why { grid-template-columns: 1fr 1fr; gap: 48px; } }
+.why h3 { font-size: 16px; margin-bottom: 6px; letter-spacing: -0.01em; }
+.why p, .why li { color: var(--fg-2); font-size: 15px; }
+.why ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.why a { color: var(--fg); text-underline-offset: 3px; }
+
+/* Compare */
+.compare { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+@media (min-width: 900px) { .compare { grid-template-columns: 1.2fr 1fr 1fr 1fr; } }
+.compare > div { background: var(--card); padding: 24px; display: grid; gap: 10px; align-content: start; }
+.compare .us { background: var(--accent-soft); }
+.compare h3 { font-size: 16px; letter-spacing: -0.01em; }
+.compare .kind { font-size: 13.5px; color: var(--fg-3); }
+.compare p { font-size: 15px; color: var(--fg-2); }
+.compare .us p { color: var(--fg); }
+.compare ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14.5px; }
+.compare ul li { display: grid; grid-template-columns: 18px 1fr; gap: 8px; }
+.compare ul .icon { width: 16px; height: 16px; margin-top: 3px; color: var(--accent-text); }
+.compare-note { margin-top: 18px; color: var(--fg-2); font-size: 15px; }
+
+/* Final call */
+.final { margin-top: 120px; border-top: 1px solid var(--border); background: var(--bg-2); padding: 96px 0; }
+.final-grid { display: grid; gap: 40px; align-items: center; }
+@media (min-width: 1000px) { .final-grid { grid-template-columns: 1fr 1.1fr; gap: 64px; } }
+.final h2 { font-size: clamp(30px, 3.8vw, 44px); line-height: 1.08; }
+.final .lede { margin-top: 16px; }
+.final .ctas { margin-top: 28px; }
+
+footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 14px; color: var(--fg-2); }
+.foot { display: grid; gap: 20px; }
+@media (min-width: 900px) { .foot { grid-template-columns: 1fr auto; align-items: center; } }
+.foot-links { display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: center; }
+.foot-links a { text-decoration: none; }
+.foot-links a:hover { color: var(--fg); }
+.theme { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; }
+.theme button { display: grid; place-items: center; width: 30px; height: 26px; border: 0; border-radius: 5px; background: none; color: var(--fg-3); cursor: pointer; }
+.theme button:hover { color: var(--fg); }
+.theme button[aria-pressed="true"] { background: var(--bg-2); color: var(--fg); }
+.theme .icon { width: 15px; height: 15px; }
+
+@media (prefers-reduced-motion: reduce) { .btn, .tab, .copy { transition: none; } }
+</style>
+<script>try{var t=localStorage.getItem("crashyard-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cloudflare" viewBox="0 0 24 24"><path d="M13.031 7.007c2.469 -.007 3.295 1.293 3.969 2.993c4 0 4.994 3.825 5 6h-20c-.001 -1.64 1.36 -2.954 3 -3c0 -1.5 1 -3 3 -3c.66 -1.942 2.562 -2.986 5.031 -2.993"/><path d="M12 13h6"/><path d="M17 10l-2.5 6"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13 -8l-13 -8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6l0 13"/><path d="M12 6l0 13"/><path d="M21 6l0 13"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12l14 0"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></symbol>
+  <symbol id="i-file-code" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/><path d="M10 13l-1 2l1 2"/><path d="M14 13l1 2l-1 2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></symbol>
+  <symbol id="i-commit" viewBox="0 0 24 24"><path d="M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M12 3l0 6"/><path d="M12 15l0 6"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><path d="M9 9v-1a3 3 0 0 1 6 0v1"/><path d="M8 9h8a6 6 0 0 1 1 3v3a5 5 0 0 1 -10 0v-3a6 6 0 0 1 1 -3"/><path d="M3 13l4 0"/><path d="M17 13l4 0"/><path d="M12 20l0 -6"/><path d="M4 19l3.35 -2"/><path d="M20 19l-3.35 -2"/><path d="M4 7l3.75 2.4"/><path d="M20 7l-3.75 2.4"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M6.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M13 5h8"/><path d="M13 9h5"/><path d="M13 15h8"/><path d="M13 19h5"/><path d="M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/><path d="M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3 8l4 -16l3 8h4"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M13.41 10.59l2.59 -2.59"/><path d="M7 12a5 5 0 0 1 5 -5"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><path d="M4 4h6v8h-6z"/><path d="M4 16h6v4h-6z"/><path d="M14 12h6v8h-6z"/><path d="M14 4h6v4h-6z"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><path d="M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12"/><path d="M9 9h6v6h-6l0 -6"/><path d="M3 10h2"/><path d="M3 14h2"/><path d="M10 3v2"/><path d="M14 3v2"/><path d="M21 10h-2"/><path d="M21 14h-2"/><path d="M14 21v-2"/><path d="M10 21v-2"/></symbol>
+  <symbol id="i-fingerprint" viewBox="0 0 24 24"><path d="M18.9 7a8 8 0 0 1 1.1 5v1a6 6 0 0 0 .8 3"/><path d="M8 11a4 4 0 0 1 8 0v1a10 10 0 0 0 2 6"/><path d="M12 11v2a14 14 0 0 0 2.5 8"/><path d="M8 15a18 18 0 0 0 1.8 6"/><path d="M4.9 19a22 22 0 0 1 -.9 -7v-1a8 8 0 0 1 12 -6.95"/></symbol>
+  <symbol id="i-device" viewBox="0 0 24 24"><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"/><path d="M11 4h2"/><path d="M12 17v.01"/></symbol>
+  <symbol id="i-exchange" viewBox="0 0 24 24"><path d="M7 10h14l-4 -4"/><path d="M17 14h-14l4 4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></symbol>
+  <symbol id="i-telegram" viewBox="0 0 24 24"><path d="M15 10l-4 4l6 6l4 -16l-18 7l4 2l2 6l3 -4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z"/><path d="M3 7l9 6l9 -6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></symbol>
+  <symbol id="i-webhook" viewBox="0 0 24 24"><path d="M4.876 13.61a4 4 0 1 0 6.124 3.39h6"/><path d="M15.066 20.502a4 4 0 1 0 1.934 -7.502c-.706 0 -1.424 .179 -2 .5l-3 -5.5"/><path d="M16 8a4 4 0 1 0 -8 0c0 1.506 .77 2.818 2 3.5l-3 5.5"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><path d="M5 9l14 0"/><path d="M5 15l14 0"/><path d="M11 4l-4 16"/><path d="M17 4l-4 16"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10"/><path d="M7 20h10"/><path d="M9 16v4"/><path d="M15 16v4"/></symbol>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/images/logo.svg" alt="" width="26" height="26">crashyard</a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="#symbols">Stack traces</a>
+      <a href="#tour">Product</a>
+      <a href="#plans">Cloudflare plans</a>
+      <a href="https://github.com/marctorrelles/crashyard/tree/main/docs">Docs</a>
+      <a href="https://demo.crashyard.dev">Demo</a>
+    </nav>
+    <div class="nav-end">
+      <a class="gh" href="https://github.com/marctorrelles/crashyard"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg><span>GitHub</span></a>
+      <a class="btn btn-primary btn-sm" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard">Deploy</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <h1>Crash reporting on your own Cloudflare account</h1>
+          <p class="lede">crashyard is an open-source, Sentry-compatible crash, error and log reporter. It runs as one Worker with D1 and R2 that you deploy in a click. <strong>Your apps keep the official Sentry SDKs and only change their DSN.</strong></p>
+          <div class="ctas">
+            <a class="btn btn-primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="icon" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
+            <a class="btn btn-secondary" href="https://demo.crashyard.dev"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Try the demo</a>
+            <a class="btn btn-ghost" href="https://github.com/marctorrelles/crashyard/tree/main/docs"><svg class="icon" aria-hidden="true"><use href="#i-book"/></svg>Read the docs</a>
+          </div>
+          <p class="plan-note"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><span>Cloudflare's free plan handles a few thousand events a day. Native crashes and source maps need Workers Paid. <a href="#plans">See why</a>.</span></p>
+        </div>
+
+        <div class="code" data-tabs>
+          <div class="code-bar" role="tablist" aria-label="SDK">
+            <button class="tab" role="tab" aria-selected="true" data-tab="js">JavaScript</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="swift">Swift</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="android">Android</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="python">Python</button>
+            <button class="copy" type="button" data-copy><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button>
+          </div>
+<pre data-panel="js"><span class="c">// app.ts</span><span><span class="k">import</span> * <span class="k">as</span> Sentry <span class="k">from</span> <span class="s">'@sentry/browser'</span></span><span> </span><span>Sentry.init({</span><span class="rm">-  dsn: <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/451'</span>,</span><span class="add" data-keep>+  dsn: <span class="s">'https://8b41d2f09c@crashyard.example.com/3'</span>,</span><span>   release: import.meta.env.VITE_RELEASE,</span><span>})</span></pre>
+<pre data-panel="swift" hidden><span class="c">// AppDelegate.swift</span><span><span class="k">import</span> Sentry</span><span> </span><span>SentrySDK.start { options <span class="k">in</span></span><span class="rm">-   options.dsn = <span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/452"</span></span><span class="add" data-keep>+   options.dsn = <span class="s">"https://2c7f90e1a4@crashyard.example.com/1"</span></span><span>    options.sendDefaultPii = <span class="k">false</span></span><span>}</span></pre>
+<pre data-panel="android" hidden><span class="c">&lt;!-- AndroidManifest.xml, inside &lt;application&gt; --&gt;</span><span>&lt;meta-data android:name=<span class="s">"io.sentry.dsn"</span></span><span class="rm">-  android:value=<span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/453"</span> /&gt;</span><span class="add" data-keep>+  android:value=<span class="s">"https://71d3c4b8e2@crashyard.example.com/4"</span> /&gt;</span><span>&lt;meta-data android:name=<span class="s">"io.sentry.send-default-pii"</span></span><span>  android:value=<span class="s">"false"</span> /&gt;</span></pre>
+<pre data-panel="python" hidden><span class="c"># app.py</span><span><span class="k">import</span> sentry_sdk</span><span> </span><span>sentry_sdk.init(</span><span class="rm">-   dsn=<span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/454"</span>,</span><span class="add" data-keep>+   dsn=<span class="s">"https://4f02a9d6c1@crashyard.example.com/2"</span>,</span><span>    traces_sample_rate=1.0,</span><span>)</span></pre>
+          <p class="code-foot">The same one-line change for every official Sentry SDK.</p>
+        </div>
+      </div>
+
+      <figure class="frame hero-shot" style="margin-left:0;margin-right:0;margin-bottom:0">
+        <div class="frame-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="url">crashyard.example.com/issues/3</span></div>
+        <div class="crop">
+          <img class="only-light" src="/images/issue-light.jpg" width="2560" height="1600" alt="An iOS crash in crashyard: EXC_BAD_ACCESS in acme-ios 1.0 (10), with its stack trace read back to Voice.swift line 41, its events over time and its tags">
+          <img class="only-dark" src="/images/issue-dark.jpg" width="2560" height="1600" alt="An iOS crash in crashyard: EXC_BAD_ACCESS in acme-ios 1.0 (10), with its stack trace read back to Voice.swift line 41, its events over time and its tags">
+        </div>
+      </figure>
+
+      <div class="sdks"><b>Works with the official Sentry SDKs for</b>
+        <ul><li>Apple</li><li>Android</li><li>JavaScript</li><li>Node.js</li><li>Python</li><li>Ruby</li><li>PHP</li><li>Go</li><li>Java</li><li>.NET</li><li>Elixir</li><li>Rust</li><li>Dart</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <section id="symbols">
+    <div class="wrap split">
+      <div>
+        <div class="head" style="margin-bottom:0">
+          <h2>Readable stack traces from the files you already upload</h2>
+          <p>Point sentry-cli, the Xcode build phase, the Gradle plugin or <code>@sentry/vite-plugin</code> at crashyard. It reads dSYMs, R8 mappings, native libraries and source maps with Sentry's own symbolic library, built to WebAssembly.</p>
+        </div>
+        <ul class="points">
+          <li><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg><div><b>Crashes that came first are read again</b><span>Anything from the last 30 days that arrived before its files is processed once they're uploaded.</span></div></li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-file-code"/></svg><div><b>Each frame opens its line</b><span>On GitHub or GitLab, at the release's commit. Private repositories need no token.</span></div></li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-commit"/></svg><div><b>Suspect commits</b><span>An issue lists the commits in its first release that changed a file in its stack. <code>Fixes CRASHYARD-42</code> in a message resolves it.</span></div></li>
+        </ul>
+        <p class="paid"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>Uploads need Workers Paid.</p>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="file">Terminal</span><button class="copy" type="button" data-copy><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre data-panel><span class="c"># Point Sentry's own tools at crashyard</span><span data-keep>export SENTRY_URL=https://crashyard.example.com/</span><span data-keep>export SENTRY_ORG=crashyard</span><span data-keep>export SENTRY_PROJECT=acme-ios</span><span data-keep>export SENTRY_AUTH_TOKEN=cy_…</span><span> </span><span class="c"># After archiving the iOS app</span><span><span class="p">$ </span><span data-keep>sentry-cli debug-files upload --include-sources ./dSYMs</span></span><span> </span><span class="c"># Send the release's commits for suspect commits and links</span><span><span class="p">$ </span><span data-keep>sentry-cli releases set-commits "1.0 (10)" --local</span></span></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="tour">
+    <div class="wrap">
+      <div class="head">
+        <h2>Everything a small team uses Sentry for</h2>
+        <p>Issues, releases, logs, traces and monitors in one dashboard, light or dark, on a desktop or a phone.</p>
+      </div>
+      <div class="tour-tabs" role="tablist" aria-label="Product">
+        <button role="tab" aria-selected="true" aria-controls="t-issues" id="tb-issues"><svg class="icon" aria-hidden="true"><use href="#i-bug"/></svg>Issues</button>
+        <button role="tab" aria-selected="false" aria-controls="t-releases" id="tb-releases" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-tag"/></svg>Releases</button>
+        <button role="tab" aria-selected="false" aria-controls="t-logs" id="tb-logs" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg>Logs</button>
+        <button role="tab" aria-selected="false" aria-controls="t-monitors" id="tb-monitors" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-activity"/></svg>Monitors</button>
+      </div>
+
+      <div class="tour-panel" role="tabpanel" id="t-issues" aria-labelledby="tb-issues">
+        <div class="tour-text">
+          <h3>Issues</h3>
+          <p>Crashes and errors grouped the way Sentry groups them, searchable with Sentry's query syntax.</p>
+          <ul><li>Resolve now or in the next release</li><li>Regressions flagged when an issue comes back</li><li>Merge, ignore, assign and add notes</li><li>Crashes from App Review and TestFlight called out</li></ul>
+        </div>
+        <div class="frame"><div class="crop">
+          <img class="only-light" src="/images/issues-light.jpg" width="2560" height="1600" loading="lazy" alt="The issues list: events per day for 14 days, then issues from acme-ios, acme-web and sync with their counts">
+          <img class="only-dark" src="/images/issues-dark.jpg" width="2560" height="1600" loading="lazy" alt="The issues list: events per day for 14 days, then issues from acme-ios, acme-web and sync with their counts">
+        </div></div>
+      </div>
+      <div class="tour-panel" role="tabpanel" id="t-releases" aria-labelledby="tb-releases" hidden>
+        <div class="tour-text">
+          <h3>Releases</h3>
+          <p>What is new, what regressed and what is gone in each release, against the one before.</p>
+          <ul><li>Crash-free sessions and users</li><li>Adoption over the last 30 days</li><li>The commits each release shipped</li></ul>
+        </div>
+        <div class="frame"><div class="crop">
+          <img class="only-light" src="/images/release-light.jpg" width="2560" height="1600" loading="lazy" alt="Release 1.0 (10) of acme-ios: crash-free sessions, adoption, and its new and regressed issues">
+          <img class="only-dark" src="/images/release-dark.jpg" width="2560" height="1600" loading="lazy" alt="Release 1.0 (10) of acme-ios: crash-free sessions, adoption, and its new and regressed issues">
+        </div></div>
+      </div>
+      <div class="tour-panel" role="tabpanel" id="t-logs" aria-labelledby="tb-logs" hidden>
+        <div class="tour-text">
+          <h3>Logs and traces</h3>
+          <p>Sentry logs, searchable by any attribute, grouped, charted and followed live.</p>
+          <ul><li>Jump from a log to the issue in the same trace</li><li>Transactions by p95, per release</li><li>The slowest runs with their spans</li></ul>
+        </div>
+        <div class="frame"><div class="crop">
+          <img class="only-light" src="/images/logs-light.jpg" width="2560" height="1600" loading="lazy" alt="Logs from three apps over 24 hours, with counts by level and attribute">
+          <img class="only-dark" src="/images/logs-dark.jpg" width="2560" height="1600" loading="lazy" alt="Logs from three apps over 24 hours, with counts by level and attribute">
+        </div></div>
+      </div>
+      <div class="tour-panel" role="tabpanel" id="t-monitors" aria-labelledby="tb-monitors" hidden>
+        <div class="tour-text">
+          <h3>Monitors and status pages</h3>
+          <p>Cron monitors for scheduled jobs and uptime checks for URLs. Each failure opens an incident.</p>
+          <ul><li>Check in from the SDK, sentry-cli or curl</li><li>Public status pages on your own domain</li><li>Post incidents, notices and maintenance</li></ul>
+        </div>
+        <div class="frame short"><div class="crop">
+          <img class="only-light" src="/images/monitors-light.jpg" width="2560" height="1600" loading="lazy" alt="Monitors: a failing nightly export and two uptime checks that are up">
+          <img class="only-dark" src="/images/monitors-dark.jpg" width="2560" height="1600" loading="lazy" alt="Monitors: a failing nightly export and two uptime checks that are up">
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="alerts">
+    <div class="wrap split flip">
+      <div>
+        <div class="head" style="margin-bottom:0">
+          <h2>Alerts where you already are</h2>
+          <p>Route each alert by type, project, level and environment. Quiet hours hold the ones that can wait until morning, and a weekly summary lands on Monday.</p>
+        </div>
+        <div class="channels">
+          <span><svg class="icon" aria-hidden="true"><use href="#i-telegram"/></svg>Telegram</span>
+          <span><svg class="icon" aria-hidden="true"><use href="#i-hash"/></svg>Slack</span>
+          <span><svg class="icon" aria-hidden="true"><use href="#i-hash"/></svg>Discord</span>
+          <span><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg>Email</span>
+          <span><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg>Web push</span>
+          <span><svg class="icon" aria-hidden="true"><use href="#i-webhook"/></svg>Webhook</span>
+        </div>
+        <div class="alert-card" aria-label="A crashyard alert in Telegram">
+          <div class="alert-who"><img src="/images/logo.svg" alt=""><div>crashyard <span>bot</span></div></div>
+          <div class="alert-body">
+            <b>EXC_BAD_ACCESS: KERN_INVALID_ADDRESS at 0x10</b>
+            <span class="meta">acme-ios · 1.0 (10) · Reached 100 events</span>
+            <span class="held"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg>Held for quiet hours, sent at 08:00</span>
+          </div>
+          <div class="alert-btns"><span>Resolve</span><span>Ignore</span><span>Assign to me</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="head" style="margin-bottom:24px">
+          <h2>Triage from your agent</h2>
+          <p>An MCP server at <code>/mcp</code> lets an agent such as Claude Code read issues, events, logs, traces and releases, and resolve, assign or merge what it finds. A token acts as you and never does more than your role allows.</p>
+        </div>
+        <div class="code">
+          <div class="code-bar"><span class="file">Terminal</span><button class="copy" type="button" data-copy><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre data-panel><span class="c"># The token comes from Settings, then Agent tokens</span><span><span class="p">$ </span><span data-keep>claude mcp add --transport http crashyard \</span></span><span data-keep>    https://crashyard.example.com/mcp \</span><span data-keep>    --header "Authorization: Bearer cyp_…"</span><span> </span><span class="c"># Then ask: why did acme-ios 1.0 (10) start</span><span class="c"># crashing in Voice.next()?</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="more">
+    <div class="wrap">
+      <div class="head">
+        <h2>The rest of the job, in the same Worker</h2>
+      </div>
+      <div class="features">
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-gauge"/></svg>Performance</h3><p>Transactions by p95, how each release changed them, and web and mobile vitals.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-layout"/></svg>Dashboards</h3><p>Charts, numbers and tables from issues, events and logs, or the Crashes template.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-cpu"/></svg>Worker runs</h3><p>Catches Workers that run out of CPU time or memory, which their own SDK never gets to send.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-fingerprint"/></svg>Passkeys</h3><p>No passwords. Four roles from owner to viewer, invites, recovery codes, and Sign in with GitHub if you want it.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Updates from GitHub releases</h3><p>crashyard checks for new releases daily and installs one from the dashboard, or every night.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-device"/></svg>Installable app</h3><p>Add it to your phone's home screen, with push notifications on iOS 16.4 and later.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-exchange"/></svg>Next to Sentry</h3><p>Forward every event on to Sentry too, so you can compare the two until you switch.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>Private by default</h3><p>No telemetry, no IP addresses. Passwords, tokens and emails are scrubbed before storing.</p></div>
+        <div class="feature"><h3><svg class="icon" aria-hidden="true"><use href="#i-monitor"/></svg>Moving from Sentry</h3><p>Import a project's issues with their latest event, counts, status and comments. New events land on the same issues.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="plans">
+    <div class="wrap">
+      <div class="head">
+        <h2>What runs on which Cloudflare plan</h2>
+        <p>crashyard runs in your account, so Cloudflare's plan is the only bill. Cloudflare's free plan handles a few thousand events a day.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Paid</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Issues, alerts, logs, traces and performance</th><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+            <tr><th scope="row">Releases, sessions and crash-free rates</th><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+            <tr><th scope="row">Monitors, uptime checks and status pages</th><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+            <tr><th scope="row">Stack traces readable as sent<small>Node.js, Python, Ruby, PHP, Go, Java, .NET</small></th><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+            <tr><th scope="row">Native crashes from iOS and Android<small>dSYMs, R8 mappings and native libraries</small></th><td><span class="no"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg><span>No</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+            <tr><th scope="row">Source maps for browser JavaScript</th><td><span class="no"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg><span>No</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+            <tr><th scope="row">Installing updates from the dashboard</th><td><span class="no"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg><span>No</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+            <tr><th scope="row">Debug files up to 512 MB<small>With the optional SymCache builder container</small></th><td><span class="no"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg><span>No</span></span></td><td><span class="yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Yes</span></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="why">
+        <div>
+          <h3>Why native crashes need Paid</h3>
+          <p>Turning a stack trace back into code takes more processing time than the free plan's 10 ms a request. crashyard finds which plan your account is on by itself, and the pages that need Paid say so.</p>
+        </div>
+        <div>
+          <h3>Not there yet</h3>
+          <ul>
+            <li>React Native with Hermes, obfuscated Flutter and Unity with IL2CPP arrive grouped, with raw frames.</li>
+            <li>Profiles and session replays are accepted and dropped.</li>
+          </ul>
+          <p style="margin-top:8px"><a href="https://github.com/marctorrelles/crashyard/blob/main/docs/sentry-compatibility.md">Everything that works, checked against each SDK</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="compare">
+    <div class="wrap">
+      <div class="head">
+        <h2>How it compares</h2>
+        <p>Other projects keep crash reports yourself too. Here's where crashyard differs.</p>
+      </div>
+      <div class="compare">
+        <div class="us">
+          <h3>crashyard</h3>
+          <p>One Worker in your Cloudflare account, with no server to run.</p>
+          <ul>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Everything the Sentry SDK sends</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Native symbols through sentry-cli</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Alert routes with quiet hours</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Uptime checks and incidents</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Passkeys and an MCP server</li>
+          </ul>
+        </div>
+        <div><span class="kind">Also on Workers</span><h3>Bicho, Workers Sentinel</h3><p>Take errors through an API, without performance data, sessions, logs, monitors or alerts.</p></div>
+        <div><span class="kind">In containers</span><h3>GlitchTip, Bugsink, OpenFault</h3><p>Speak Sentry's protocol too, and need a server and a database that you keep running.</p></div>
+        <div><span class="kind">Hosted</span><h3>FlareLog</h3><p>Runs on its own servers, and your apps send with its own SDK instead of Sentry's.</p></div>
+      </div>
+      <p class="compare-note">Need session replays or profiling? Use Sentry. crashyard can forward every event there while you compare.</p>
+    </div>
+  </section>
+
+  <div class="final">
+    <div class="wrap final-grid">
+      <div>
+        <h2>Running in about fifteen minutes</h2>
+        <p class="lede">The button copies crashyard to your GitHub account, creates the D1 database and the R2 bucket, and deploys. Add a setup code, create your owner passkey, and give each app's SDK its project's DSN.</p>
+        <div class="ctas">
+          <a class="btn btn-primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="icon" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
+          <a class="btn btn-secondary" href="https://github.com/marctorrelles/crashyard/blob/main/docs/deploying.md"><svg class="icon" aria-hidden="true"><use href="#i-book"/></svg>Read the deploy guide</a>
+          <a class="btn btn-secondary" href="https://github.com/marctorrelles/crashyard"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
+        </div>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="file">Or deploy from a clone</span><button class="copy" type="button" data-copy><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre data-panel><span><span class="p">$ </span><span data-keep>git clone https://github.com/marctorrelles/crashyard</span></span><span><span class="p">$ </span><span data-keep>cd crashyard &amp;&amp; pnpm install</span></span><span><span class="p">$ </span><span data-keep>pnpm run setup</span></span><span class="c"># Asks for your domain and email, deploys,</span><span class="c"># and prints the setup code for your owner passkey</span></pre>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div style="display:grid;gap:6px">
+      <a class="brand" href="/"><img src="/images/logo.svg" alt="" width="22" height="22">crashyard</a>
+      <p>Open source under the MIT license. crashyard speaks Sentry's protocol and isn't affiliated with Sentry. Made by Marc Torrelles.</p>
+    </div>
+    <div class="foot-links">
+      <a href="https://github.com/marctorrelles/crashyard/tree/main/docs">Docs</a>
+      <a href="https://demo.crashyard.dev">Demo</a>
+      <a href="https://github.com/marctorrelles/crashyard">GitHub</a>
+      <a href="https://github.com/marctorrelles/crashyard/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/marctorrelles/crashyard/blob/main/SECURITY.md">Security</a>
+      <div class="theme" role="group" aria-label="Theme">
+        <button type="button" data-theme-set="light" aria-label="Light" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg></button>
+        <button type="button" data-theme-set="system" aria-label="System" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-monitor"/></svg></button>
+        <button type="button" data-theme-set="dark" aria-label="Dark" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // SDK tabs in the hero's code panel
+  document.querySelectorAll('[data-tabs]').forEach((box) => {
+    const tabs = [...box.querySelectorAll('[role="tab"]')]
+    tabs.forEach((tab) => tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)))
+      box.querySelectorAll('pre[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab })
+    }))
+  })
+
+  // Copy: the lines marked data-keep of the visible panel, without prompts or output
+  document.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
+    const pre = [...btn.closest('.code').querySelectorAll('pre')].find((p) => !p.hidden)
+    const text = [...pre.querySelectorAll('[data-keep]')].map((l) => l.textContent.replace(/^\+\s{0,2}/, '  ')).join('\n')
+    const label = btn.querySelector('span')
+    try { await navigator.clipboard.writeText(text); label.textContent = 'Copied' } catch { label.textContent = 'Select to copy' }
+    setTimeout(() => { label.textContent = 'Copy' }, 1600)
+  }))
+
+  // Product tour tabs, with arrow keys
+  const tourTabs = [...document.querySelectorAll('#tour [role="tab"]')]
+  const select = (tab) => {
+    tourTabs.forEach((t) => {
+      const on = t === tab
+      t.setAttribute('aria-selected', String(on))
+      t.tabIndex = on ? 0 : -1
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on
+    })
+  }
+  tourTabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab))
+    tab.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+      if (!d) return
+      const next = tourTabs[(i + d + tourTabs.length) % tourTabs.length]
+      select(next); next.focus()
+    })
+  })
+
+  // Theme: system, light or dark, remembered in this browser when it can be
+  const root = document.documentElement
+  const buttons = [...document.querySelectorAll('[data-theme-set]')]
+  const apply = (v) => {
+    if (v === 'light' || v === 'dark') root.dataset.theme = v
+    else delete root.dataset.theme
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === (v || 'system'))))
+  }
+  let saved = null
+  try { saved = localStorage.getItem('crashyard-theme') } catch {}
+  apply(saved)
+  buttons.forEach((b) => b.addEventListener('click', () => {
+    apply(b.dataset.themeSet)
+    try { localStorage.setItem('crashyard-theme', b.dataset.themeSet) } catch {}
+  }))
+})()
+</script>
+</body>
+</html>

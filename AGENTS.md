@@ -68,6 +68,7 @@ Where things are:
   three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root; a
   release gets its build, `scripts/release-bundle.mjs`, and a line in its notes when it changes `symcache/`), issue
   and PR templates, Dependabot. Actions are pinned by commit SHA.
+- `site/`: crashyard.dev, the landing page, static files on their own Worker (see its AGENTS.md).
 - `tmp/`: plans and scratch notes, git-ignored. Never commit plans.
 
 ## Rules
