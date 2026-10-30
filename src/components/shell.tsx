@@ -7,6 +7,7 @@ import {
   IconArrowUpRight,
   IconCircleArrowUp,
   IconBell,
+  IconBroadcast,
   IconBug,
   IconCheck,
   IconCompass,
@@ -325,6 +326,13 @@ function AppSidebar() {
             <Item label="Monitors" icon={IconActivity} active={at('/monitors')}>
               {(c) => (
                 <Link to="/monitors" onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Status pages" icon={IconBroadcast} active={at('/status-pages')}>
+              {(c) => (
+                <Link to="/status-pages" onClick={close}>
                   {c}
                 </Link>
               )}

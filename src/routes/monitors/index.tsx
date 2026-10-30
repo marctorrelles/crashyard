@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { IconBroadcast, IconClock, IconHeartbeat, IconPlus, IconWorld } from '@tabler/icons-react'
+import { IconClock, IconHeartbeat, IconPlus, IconWorld } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago } from '@/components/bits'
 import { Beats, MonitorStatus } from '@/components/beats'
@@ -25,12 +25,6 @@ function Monitors() {
         actions={
           projects.length > 0 && (
             <>
-              <Button variant="outline" asChild>
-                <Link to="/monitors/status-pages">
-                  <IconBroadcast data-icon="inline-start" />
-                  Status pages
-                </Link>
-              </Button>
               <Button variant="outline" onClick={() => setEditing({ kind: 'uptime' })}>
                 <IconPlus data-icon="inline-start" />
                 Add uptime check

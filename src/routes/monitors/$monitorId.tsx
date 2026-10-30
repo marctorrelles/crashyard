@@ -102,7 +102,7 @@ function MonitorPage() {
                 <span key={p.slug}>
                   {i > 0 && (i === d.statusPages.length - 1 ? ' and ' : ', ')}
                   <Link
-                    to="/monitors/status-pages/$slug"
+                    to="/status-pages/$slug"
                     params={{ slug: p.slug }}
                     className="font-medium text-foreground underline underline-offset-2"
                   >
@@ -115,7 +115,7 @@ function MonitorPage() {
           ) : (
             <>
               Not on any status page. Add it to one under{' '}
-              <Link to="/monitors/status-pages" className="font-medium text-foreground underline underline-offset-2">
+              <Link to="/status-pages" className="font-medium text-foreground underline underline-offset-2">
                 Status pages
               </Link>
               .

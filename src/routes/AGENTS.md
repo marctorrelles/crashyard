@@ -37,7 +37,7 @@ server, the build, or `tsr generate`): never edit it.
   post is a 404, as one that doesn't exist. Loads again each minute
   with a meta refresh, no script. For a visitor without cookies it's rendered signed out and kept a minute in the
   data centre's cache (`publicStatusPage` in `src/server.ts`), so visitors and open tabs don't each read 30 days of
-  results. Made and filled under Monitors, Status pages. On a page's own domain
+  results. Made and filled under Status pages, its own sidebar section. On a page's own domain
   (`src/server.ts`) it's the same page, `/` redirecting to it.
 - `index.tsx`: the overview: projects with their unresolved count, events in a
   day, a 14-day sparkline and their newest release's share of the last 24 hours' sessions; then events yesterday (a whole UTC day, against the day before), unresolved, new issues in
@@ -196,17 +196,18 @@ server, the build, or `tsr generate`): never edit it.
   monitor, and one monitor: muted since when, if it is; up, or runs ok, over 24 hours, 7 and 30 days; a p95 line of
   response times or run times; its environments with their status; its results or check-ins, how to check in;
   Errors during this job, each opening its event; incidents; pause, edit, delete; an uptime check says which status
-  pages show it, each a link, or Not on any status page (`pagesShowing`). Status pages, from the list's header:
-  `status-pages.index.tsx` (`getStatusPages`: Create status page, a name, `createStatusPage`, admin, opening the new
+  pages show it, each a link, or Not on any status page (`pagesShowing`). `status-pages.$.tsx` sends the old
+  `/monitors/status-pages` addresses to `/status-pages`.
+- `status-pages/`, its own sidebar section, under Monitors: `index.tsx` (`getStatusPages`: Create status page, a name, `createStatusPage`, admin, opening the new
   page; each page, its domain or `/status/<slug>`, the checks shown and posts not ended, or Not public yet; No status
-  pages yet) and `status-pages.$slug.tsx` (`getStatusPosts`, null as a 404: Open status page; every project's uptime
+  pages yet) and `$slug.tsx` (`getStatusPosts`, null as a 404: Open status page; every project's uptime
   checks under its name, two columns with room, each a switch for the page, `setStatusPageCheck`, admin; Post to the status page, a kind, its
   state, a title, for maintenance its start and end as `datetime-local` in the viewer's zone, Affects (a checkbox
   per check on the page, not for a notice; 40 px on a phone), and a message, `createStatusPost`, member; then Now on
   the page and Ended in the last 30 days, each post with its updates and who posted them, what it affects, Add
   update, `addStatusUpdate`, its Affects filled in, and Delete after a confirmation, `deleteStatusPost`, admin; Look
   and address, `updateStatusPage`, admin: name, address (the slug, opening the page at the new one), page title, brand
-  colour, a picker and its hex, description, logo and website, https only, and the custom domain with how to add it to
+  color, a picker and its hex, description, logo and website, https only, and the custom domain with how to add it to
   the Worker in Cloudflare; Delete status page after a confirmation, `deleteStatusPage`, admin).
 - `notifications.tsx`: what crashyard sent in the last 30 days, newest first (`getSentNotifications`, the newest 100):
   each notice's icon by kind, title linking to its page, `noticeLine`, when, and a badge a channel (held for quiet

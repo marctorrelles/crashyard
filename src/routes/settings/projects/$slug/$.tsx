@@ -15,7 +15,7 @@ const MOVED: Record<string, [tab: string, hash?: string]> = {
 export const Route = createFileRoute('/settings/projects/$slug/$')({
   beforeLoad: ({ params }) => {
     const page = params._splat ?? ''
-    if (page === 'status-page') throw redirect({ to: '/monitors/status-pages/$slug', params: { slug: params.slug } })
+    if (page === 'status-page') throw redirect({ to: '/status-pages/$slug', params: { slug: params.slug } })
     const moved = MOVED[page]
     if (!moved) throw notFound()
     throw redirect({

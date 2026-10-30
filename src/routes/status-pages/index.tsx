@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createStatusPage, getStatusPages } from '@/fns'
 
-export const Route = createFileRoute('/monitors/status-pages/')({
+export const Route = createFileRoute('/status-pages/')({
   loader: () => getStatusPages(),
   head: () => ({ meta: [{ title: 'Status pages · crashyard' }] }),
   component: StatusPages,
@@ -17,7 +17,7 @@ export const Route = createFileRoute('/monitors/status-pages/')({
 function StatusPages() {
   const pages = Route.useLoaderData()
   return (
-    <Shell crumbs={[<Link to="/monitors">Monitors</Link>, 'Status pages']}>
+    <Shell crumbs={['Status pages']}>
       <PageHeader title="Status pages">
         Public pages with the uptime checks you choose, from any of your projects, and the incidents and maintenance you
         post.
@@ -29,7 +29,7 @@ function StatusPages() {
             {pages.map((p) => (
               <li key={p.id}>
                 <Link
-                  to="/monitors/status-pages/$slug"
+                  to="/status-pages/$slug"
                   params={{ slug: p.slug }}
                   className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-muted/40"
                 >
@@ -78,7 +78,7 @@ function NewPage() {
         try {
           const slug = await createStatusPage({ data: { name } })
           toast.success('Status page created')
-          await navigate({ to: '/monitors/status-pages/$slug', params: { slug } })
+          await navigate({ to: '/status-pages/$slug', params: { slug } })
         } catch (error) {
           toast.error(error instanceof Error ? error.message : 'The page couldn’t be created. Try again.')
         } finally {

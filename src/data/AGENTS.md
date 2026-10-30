@@ -118,7 +118,7 @@ helpers (`change`).
   closes it, any other state opens it again), `deletePost`, `postsOf` (open, or ended in 30 days, newest first, each
   with `phase`: open, upcoming, ongoing, past; maintenance ends at `ends_at` unless resolved first, and `affects`, the
   checks it names, 0028), `checksOf` (every project's uptime checks, by project, `shown` on this page), `pagesOf`
-  (every page for Monitors, Status pages: its domain, the checks shown, the posts not ended), `pageOf`,
+  (every page for Status pages: its domain, the checks shown, the posts not ended), `pageOf`,
   `pagesShowing` (the pages a check is on, for its monitor page), `createPage` (its slug `slugify` of the name, `-2`,
   `-3`… while taken), `updatePage` (name, slug, branding, domain; a slug or domain another page has refused),
   `setCheck` (uptime checks only), `deletePage` (its posts with it). A post's checks are only checks on its page (an

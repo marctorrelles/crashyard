@@ -24,7 +24,7 @@ import {
   updateStatusPage,
 } from '@/fns'
 
-export const Route = createFileRoute('/monitors/status-pages/$slug')({
+export const Route = createFileRoute('/status-pages/$slug')({
   loader: async ({ params }) => {
     const data = await getStatusPosts({ data: { slug: params.slug } })
     if (!data) throw notFound()
@@ -45,9 +45,7 @@ const PHASES = { open: 'Open', upcoming: 'Scheduled', ongoing: 'In progress', pa
 function StatusPage() {
   const { page } = Route.useLoaderData()
   return (
-    <Shell
-      crumbs={[<Link to="/monitors">Monitors</Link>, <Link to="/monitors/status-pages">Status pages</Link>, page.name]}
-    >
+    <Shell crumbs={[<Link to="/status-pages">Status pages</Link>, page.name]}>
       <PageHeader
         title={page.name}
         actions={
@@ -425,7 +423,7 @@ function Branding() {
             }),
           )
           if (saved && slug !== page.slug)
-            await navigate({ to: '/monitors/status-pages/$slug', params: { slug }, replace: true })
+            await navigate({ to: '/status-pages/$slug', params: { slug }, replace: true })
         }}
       >
         <div className="grid content-start gap-2">
@@ -569,7 +567,7 @@ function Delete() {
             if (!confirm(`Delete ${page.name} and all its posts? Its address stops working, and this can’t be undone.`))
               return
             if (await save(() => deleteStatusPage({ data: { id: page.id } }), 'Status page deleted'))
-              await navigate({ to: '/monitors/status-pages' })
+              await navigate({ to: '/status-pages' })
           }}
         >
           Delete status page

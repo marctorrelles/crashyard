@@ -236,7 +236,7 @@ check-in as JSON with its `monitor_config`, for example
 To watch a URL, add an uptime check under Monitors. It can send headers and a body, and check the status, a header or a
 value in the JSON it answers. Each request carries a `sentry-trace` header, as Sentry's uptime checks do.
 
-To share how your services are doing, open Monitors, then Status pages, and choose **Create status page**. Then pick
+To share how your services are doing, open Status pages in the sidebar and choose **Create status page**. Then pick
 the uptime checks it shows. They can come from any of your projects, and a check can be on more than one page. The page
 is at `/status/<address>`, open to anyone with the link. It shows each check you chose by name, whether it's up, its
 last 30 days and its incidents. With checks from more than one project, each project's name heads its checks. It never
