@@ -4,6 +4,9 @@
 
 Crash reporting, error tracking and logs that run on your own Cloudflare account.
 
+**[Try the live demo](https://demo.crashyard.dev)** with six made-up apps sending real crashes, or read more on
+[crashyard.dev](https://crashyard.dev).
+
 Your apps keep the official Sentry SDKs they already use. crashyard groups their crashes into issues, turns stack
 traces back into readable code, and tells you when something new breaks. It is a single Cloudflare Worker with D1 and
 R2. Cloudflare's free plan handles a few thousand events a day, and
