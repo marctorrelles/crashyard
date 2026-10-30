@@ -6,11 +6,13 @@ larger, open an issue or a discussion first, so we can agree on the approach bef
 ## Set up
 
 You need Node.js at the version in `.nvmrc`, and pnpm. Running `corepack enable` installs the version in
-`package.json`.
+`package.json`. Node.js 25 and later no longer include corepack, so run `npm install -g corepack` first.
 
 ```sh
-pnpm install   # also installs the git hooks, which lint and format what you stage
-pnpm dev       # http://localhost:3000, with local D1 and R2, signed in as dev@localhost
+pnpm install                                  # also installs the git hooks, which lint and format what you stage
+pnpm wrangler d1 migrations apply DB --local  # creates the local database's tables
+pnpm dev                                      # http://localhost:3000, with local D1 and R2, signed in as dev@localhost
+pnpm seed                                     # optional: a month of sample crashes, logs and transactions
 ```
 
 ## Before you open a pull request

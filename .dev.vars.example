@@ -1,0 +1,2 @@
+# The setup code that creates the first owner (docs/deploying.md, step 3). The Deploy to Cloudflare button asks for it.
+SETUP_CODE=

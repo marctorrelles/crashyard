@@ -42,9 +42,12 @@ An agent can't sign in through a browser, so it uses an agent token.
      --header "Authorization: Bearer cyp_…"
    ```
 
+   Other MCP clients take the same three things: the address `https://crashyard.example.com/mcp`, the Streamable HTTP
+   transport, and the header `Authorization: Bearer cyp_…`.
+
 The token acts as you. Every change it makes appears in the issue's activity under your email, and it can never do
-more than your role allows. A token that can only read can't use any tool that changes things. Delete it on the same page
-to lock it out. Removing someone deletes their tokens too.
+more than your role allows. A token that can only read can't use any tool that changes things. Delete it on the same
+page to lock it out. Removing someone deletes their tokens too.
 
 ## Run it locally
 

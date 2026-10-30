@@ -38,7 +38,8 @@ pnpm check               # optional, runs the tests and the build
 pnpm run deploy          # builds, applies new migrations to your D1 database and deploys
 ```
 
-Git ignores `wrangler.local.json`, which holds your domain and sign-in values, so pulling never changes it.
+Git ignores `wrangler.local.json`, which holds your domain, `PUBLIC_URL`, `EMAIL_FROM` and the SymCache builder if you
+run it, so pulling never changes it.
 
 If crashyard installed a newer release from the dashboard, `pnpm run deploy` from an older checkout stops instead of
 going back to the older version. Pull first, then deploy.
@@ -56,6 +57,6 @@ afterwards too, so the next build doesn't go back to the older version.
 
 ## If a deploy goes wrong
 
-Migrations only add tables and columns, so the previous version still runs on an upgraded database. Roll the worker
-back from the Cloudflare dashboard, under Workers, crashyard, Deployments, while you investigate. If a migration
-can't be written that way, the changelog calls it out and explains what to do.
+From the first release on, migrations only add tables and columns, so the previous version still runs on an upgraded
+database. Roll the worker back from the Cloudflare dashboard, under Workers, crashyard, Deployments, while you
+investigate. If a migration can't be written that way, the changelog calls it out and explains what to do.

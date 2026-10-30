@@ -2,7 +2,8 @@
 
 crashyard speaks Sentry's protocol, so an app connects with the official Sentry SDK pointed at a crashyard DSN. Create a
 project for each app with **New project** on the overview. An app on several platforms can share one project. Its
-settings, under Connect, show the DSN and the steps below for each SDK, with the DSN already filled in. A project can have several keys, one per app or build, under Client keys on the same page.
+settings, under Connect, show the DSN and the steps below for each SDK, with the DSN already filled in. A project can
+have several keys, one per app or build, under Client keys on the same page.
 
 A DSN looks like `https://<public key>@crashyard.example.com/<project id>`. The key is public by design. It ships inside
 your apps and only allows sending events.
@@ -172,8 +173,8 @@ Uploads need the Workers Paid plan. Turning a debug file into a lookup table tak
 
 ### Links to your code
 
-Add the project's repository in its settings, under Source code, for example `https://github.com/owner/repo`. GitHub and GitLab are
-supported. Then send each release's commits from its checkout, using the release name the SDK reports:
+Add the project's repository in its settings, under Stack traces, then Repository, for example
+`https://github.com/owner/repo`. GitHub and GitLab are supported. Then send each release's commits from its checkout, using the release name the SDK reports:
 
 ```sh
 sentry-cli releases new -p <project slug> "$RELEASE"
@@ -242,17 +243,24 @@ last 30 days and its incidents. With checks from more than one project, each pro
 shows the address being checked or why a check failed.
 
 On the same screen you can post to the page: an incident, which some or all services feel, a notice, or planned
-maintenance with its start and end. Add
-updates as things change, such as Identified, Monitoring and Resolved. Messages can have bold text, links and lists.
-The page names no one who posted. Resolved posts and ended maintenance stay on the page for 30 days.
+maintenance with its start and end. Add updates as things change, such as Identified, Monitoring and Resolved. Messages
+can have bold text, links and lists. The page names no one who posted. Resolved posts and ended maintenance stay on the
+page for 30 days.
 
 A post can name the checks it affects. While it's open, they show as Degraded, Major outage or Under maintenance.
 
-Under Look and address you can give the page its own title, description, logo, brand colour and a link to your
-website. It can also have its own domain, such as `status.example.com`. Add that hostname to crashyard's Worker in
-Cloudflare first, under Workers and Pages, crashyard, Settings, Domains and Routes, Add, Custom domain. Its domain must
-be on the same Cloudflare account. Then type it in crashyard. That address opens only the status page, never the
-rest of crashyard.
+Under Look and address you can give the page its own title, description, logo, brand color and a link to your
+website. It can also have its own domain, such as `status.example.com`, on the same Cloudflare account. Add it to
+crashyard's routes first:
+
+- **Deployed with the button:** add `{ "pattern": "status.example.com", "custom_domain": true }` under `routes` in
+  your copy's `wrangler.jsonc`, and commit.
+- **Deployed from a clone:** add the same entry under `routes` in `wrangler.local.json`, after the dashboard's, and
+  deploy. `pnpm run setup` keeps it.
+
+A domain added only in the Cloudflare dashboard can be removed by the next deploy, which sets the routes from the
+configuration. Then type the domain in crashyard. That address opens only the status page, never the rest of
+crashyard.
 
 Errors the job raises inside `Sentry.withMonitor` share its check-ins' trace, and are listed on the monitor under
 "Errors during this job". A monitor that keeps failing for 14 days is muted until it recovers.
@@ -262,7 +270,7 @@ Errors the job raises inside `Sentry.withMonitor` share its check-ins' trace, an
 Browsers can report what a page's Content Security Policy blocked. Point the policy's `report-uri` or `report-to` at
 the project's security endpoint, with the DSN's public key:
 
-```
+```http
 Content-Security-Policy: default-src 'self'; report-uri https://crashyard.example.com/api/<project>/security/?sentry_key=<public key>
 ```
 
@@ -279,8 +287,8 @@ JavaScript. Screen loads, requests and jobs then appear under Performance, with:
 - the ten slowest each day, with their spans,
 - web vitals from the browser and mobile vitals from the Apple and Android SDKs, as their 75th percentile.
 
-Crash-free sessions, adoption and crash-free users appear under Releases once the SDK sends sessions. The Apple and Android SDKs send them by default.
-In the browser and in Node.js, add their session integrations.
+Crash-free sessions, adoption and crash-free users appear under Releases once the SDK sends sessions. The Apple and
+Android SDKs send them by default. In the browser and in Node.js, add their session integrations.
 
 crashyard keeps summaries rather than every span. Hourly figures and percentiles are kept for 90 days, and examples for 30.
 

@@ -13,6 +13,7 @@ __unconfig*
 todos.json
 
 .dev.vars*
+!.dev.vars.example
 !.env.example
 
 # Plans and scratch notes: kept beside the code, never committed

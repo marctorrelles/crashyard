@@ -14,7 +14,7 @@
   // On <name>.<account>.workers.dev until wrangler.local.json gives it a domain of your own
   "workers_dev": true,
   "preview_urls": false,
-  // Every minute: uptime checks and missed check-ins; the daily jobs run in the 03:00 UTC minute
+  // Every minute: uptime checks and missed check-ins; the hourly, weekly and daily jobs run from it at their times
   "triggers": { "crons": ["* * * * *"] },
   // No ids: `wrangler deploy` makes the database and the bucket in your account the first time
   "d1_databases": [{ "binding": "DB", "database_name": "crashyard", "migrations_dir": "migrations" }],

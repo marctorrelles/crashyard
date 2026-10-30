@@ -6,7 +6,8 @@ Crash reporting, error tracking and logs that run on your own Cloudflare account
 
 Your apps keep the official Sentry SDKs they already use. crashyard groups their crashes into issues, turns stack
 traces back into readable code, and tells you when something new breaks. It is a single Cloudflare Worker with D1 and
-R2, so most apps stay within Cloudflare's free plan.
+R2. Cloudflare's free plan handles a few thousand events a day, and
+[docs/deploying.md](docs/deploying.md#limits-and-costs) says what fills up first.
 
 Apps with native crashes or source maps need the Workers Paid plan. Turning their stack traces back into code takes
 more processing time than the free plan's 10 ms a request. crashyard finds which plan your account is on by itself, and
@@ -44,10 +45,11 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
   App Review and TestFlight are called out.
 - **Logs.** Search Sentry logs, follow them live, group them and jump to the issues in the same trace.
 - **Dashboards.** Build charts, numbers and tables from issues, events and logs, or start from the Crashes template.
-- **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs, with public status pages
-  showing the checks you choose from any of your projects, and incidents, notices and planned maintenance you post with their updates, the services they affect, your
-  own look and your own domain.
+- **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs, with public status pages showing the
+  checks you choose from any of your projects. Post incidents, notices and planned maintenance with their updates and
+  the services they affect, with your own look and your own domain.
 - **Cloudflare Workers.** Catch the runs that run out of CPU time or memory, which a Worker's SDK never gets to send.
+  On Workers Paid, for Workers on the same account.
 - **Performance.** Transactions by p95, how each release changed them, and the slowest ones with their spans.
 - **Notifications.** Alerts through Telegram, Slack, Discord, email or a JSON webhook, routed by alert type, project,
   level and environment, with quiet hours and a weekly summary. Resolve, ignore or assign an issue right from its
@@ -56,8 +58,7 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 - **Moving from Sentry.** Bring a project's issues over with their latest event, counts, status and comments. Events
   from the SDK keep coming to the same issues. Until you switch, every event can go on to Sentry too.
 - **MCP server.** Lets an AI agent read issues, events, logs, traces, releases, performance and monitors, triage issues
-  and post to status pages. See
-  [docs/mcp.md](docs/mcp.md).
+  and post to status pages. See [docs/mcp.md](docs/mcp.md).
 - **People and sign-in.** Passkeys, invites and four roles, from owner to viewer, with recovery codes and an optional
   Sign in with GitHub.
 
@@ -70,7 +71,9 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 | JavaScript in the browser         | Works            | From source maps                         |
 | Node.js                           | Works            | As sent                                  |
 | Python, Ruby, PHP, Go, Java, .NET | Works            | As sent                                  |
-| Elixir, Rust, Dart                | Works            | As sent, or from debug files             |
+| Elixir, Dart                      | Works            | As sent                                  |
+| Rust                              | Works            | As sent, or from debug files             |
+| React Native, Flutter, Unity      | Events arrive    | Raw frames, mappings not read yet        |
 
 To connect an app, see [docs/linking.md](docs/linking.md). For exactly which parts of Sentry's protocol and API work,
 see [docs/sentry-compatibility.md](docs/sentry-compatibility.md).
@@ -85,9 +88,10 @@ removes anything that looks like a password, token or email address from events 
 
 ```sh
 pnpm install
-pnpm dev      # the dashboard at http://localhost:3000, with local D1 and R2
-pnpm seed     # fills it with a month of sample crashes, logs and transactions
-pnpm check    # lint, formatting, types, unused code, tests and the build, as CI runs them
+pnpm wrangler d1 migrations apply DB --local  # creates the local database's tables
+pnpm dev                                      # the dashboard at http://localhost:3000, with local D1 and R2
+pnpm seed                                     # fills it with a month of sample crashes, logs and transactions
+pnpm check                                    # lint, formatting, types, unused code, tests and the build, as CI does
 ```
 
 - [How it fits together](docs/architecture.md)

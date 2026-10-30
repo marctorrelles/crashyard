@@ -1,7 +1,7 @@
 # Deploying crashyard
 
-This guide takes a Cloudflare account to a running crashyard in about fifteen minutes. Everything in it works on
-Cloudflare's free plans.
+This guide takes a Cloudflare account to a running crashyard in about fifteen minutes. Everything in it but the
+SymCache builder works on Cloudflare's free plans.
 
 Apps with native crashes, such as iOS and Android apps, or with source maps, need the Workers Paid plan. Turning their
 stack traces back into code, and processing the files you upload for it, takes more processing time than the free
@@ -13,20 +13,31 @@ plan. Settings, Usage shows which plan crashyard found, and the pages that need 
 The README's **Deploy to Cloudflare** button copies this repository to your GitHub account, creates the D1 database and
 the R2 bucket, and deploys to `crashyard.<your account>.workers.dev`. It redeploys whenever your copy changes.
 
-After that, follow steps 3 to 5 below. For step 3, add the setup code as a secret in the Cloudflare dashboard: open
-Workers & Pages, then `crashyard`, then Settings, then Variables and Secrets, and add a **Secret** named `SETUP_CODE`
-with a code of your own, such as three groups of five letters. Put any other values in your copy's `wrangler.jsonc`,
-under `routes` and `vars`, instead of in `wrangler.local.json`. Commit them and it deploys again.
+The deploy page asks for `SETUP_CODE`, the setup code of step 3. Choose a code of your own, such as three groups of
+five letters. To change it later, open Workers & Pages in the Cloudflare dashboard, then `crashyard`, then Settings,
+then Variables and Secrets.
+
+After that, follow steps 3 to 5 below. Put any other values in your copy's `wrangler.jsonc`, under `routes` and `vars`,
+instead of in `wrangler.local.json`. Commit them and it deploys again. Step 4's rules can be added in the dashboard
+instead of with Wrangler: open R2, then `crashyard-files`, then Settings, then Object lifecycle rules.
 
 ## What you need
 
-- A Cloudflare account with a domain on it. crashyard runs on a subdomain such as `crashyard.example.com`.
-- Node.js at the version in `.nvmrc`, and pnpm. Running `corepack enable` installs the right pnpm.
-- A clone of this repository.
+- A Cloudflare account. A domain on it is optional: it gives crashyard its own address, such as
+  `crashyard.example.com`, and email alerts need one.
+- Node.js at the version in `.nvmrc`, and pnpm. Running `corepack enable` installs the right pnpm. Node.js 25 and later
+  no longer include corepack, so run `npm install -g corepack` first.
+- A clone of this repository, with its dependencies installed and Wrangler signed in to your account:
+
+  ```sh
+  pnpm install
+  pnpm wrangler login
+  ```
 
 ## 1. Point it at your domain
 
-`pnpm run setup` asks for the values in this step, writes the file for you and offers to run steps 2, 3 and 4. Run it again whenever you want to change a value. To do it by hand instead, read on.
+`pnpm run setup` asks for the values in this step, writes the file for you and offers to run steps 2, 3 and 4. Run it
+again whenever you want to change a value. To do it by hand instead, read on.
 
 Your deployment's own values live in `wrangler.local.json` at the root of the repository. Git ignores it, and the build
 lays it over `wrangler.jsonc`: its `vars` are merged in, and any other key replaces the one in `wrangler.jsonc`. Create
@@ -47,8 +58,6 @@ the links of alerts sent by scheduled checks such as monitors. Without this file
 ## 2. Deploy
 
 ```sh
-pnpm install
-pnpm wrangler login
 pnpm run deploy
 ```
 
@@ -130,21 +139,23 @@ first.
 This step is optional. crashyard sends email through Cloudflare Email Routing, and only to addresses you have verified
 there.
 
-1. In the Cloudflare dashboard, open your domain, then Email, then Email Routing, and turn it on. Cloudflare adds the DNS
-   records it needs.
+1. In the Cloudflare dashboard, open your domain, then Email, then Email Routing, and turn it on. Cloudflare adds the
+   DNS records it needs.
 2. Under Destination addresses, add the address that should get alerts, and open the confirmation link Cloudflare sends
    to it.
 3. In the `vars` of `wrangler.local.json`, set `EMAIL_FROM` to an address on your domain, such as
    `crashyard@example.com`. The address doesn't need to exist. Then deploy again.
 
-To check it, add an email channel in Settings, Notifications, with the address you verified, then choose its test button.
-Telegram, Slack, Discord and webhook channels need no setup here.
-A Telegram channel's Resolve, Ignore and Assign to me buttons work once `PUBLIC_URL` is set: saving the channel tells
-Telegram to send their taps to `<PUBLIC_URL>/api/telegram/<bot id>`, which needs no sign-in, with a secret only crashyard and
-Telegram know.
+To check it, add an email channel in Settings, Notifications, with the address you verified, then choose its test
+button.
 
-Push notifications need no setup either. Each person turns them on in Settings, Notifications or Preferences, on each device they want
-them on. That gives them a channel of their own, which an admin adds to routes like any other. On an iPhone or iPad
+Telegram, Slack, Discord and webhook channels need no setup here. A Telegram channel's Resolve, Ignore and Assign to me
+buttons work once `PUBLIC_URL` is set: saving the channel tells Telegram to send their taps to
+`<PUBLIC_URL>/api/telegram/<bot id>`, which needs no sign-in, with a secret only crashyard and Telegram know.
+
+Push notifications need no setup either. Each person turns them on in Settings, Notifications or Preferences, on each
+device they want them on. That gives them a channel of their own, which an admin adds to routes like any other. On an
+iPhone or iPad
 they work in the app added to the Home Screen, on iOS 16.4 or later: open crashyard in Safari, choose Share, then Add
 to Home Screen, and turn them on from there.
 
@@ -153,8 +164,8 @@ to Home Screen, and turn them on from there.
 This step is optional. crashyard turns debug files into lookup tables itself, up to 48 MB a file, and ProGuard
 mappings up to 8 MB. A big app's dSYM or R8 mapping can be larger, and sentry-cli or crashyard then refuses to upload
 it. To take files up to 512 MB, add the SymCache builder, a small Cloudflare Container that does this work for the
-bigger files. A mapping's lookup table has to fit in 64 MB, which is a mapping of about 140 MB. It needs the Workers Paid plan and Docker on the
-machine you deploy from.
+bigger files. A mapping's lookup table has to fit in 64 MB, which is a mapping of about 140 MB. It needs the Workers
+Paid plan and Docker on the machine you deploy from.
 
 1. Add this to `wrangler.local.json`:
 
@@ -194,7 +205,46 @@ each app its own.
 - **The browser says the passkey can't be used here.** Open crashyard at the address in `PUBLIC_URL`. Passkeys only
   work on the domain they were created for.
 - **Crashes from apps don't arrive, and `curl` to `/api/` returns Cloudflare's sign-in page.** A Cloudflare Access
-  application covers the subdomain. crashyard signs people in itself, so delete it in Cloudflare One.
+  application on your domain also covers crashyard's subdomain. crashyard signs people in itself, so leave its
+  subdomain out of that application in Cloudflare One.
 - **Emails don't arrive.** The destination address isn't verified in Email Routing, or `EMAIL_FROM` isn't on your
   domain.
 - **The deploy can't create the custom domain.** The domain has to be on the same Cloudflare account.
+
+## Limits and costs
+
+Workers Free is enough for apps whose stack traces are readable as sent. Workers Paid costs $5 a month and adds:
+
+- Turning native stack traces and minified JavaScript back into code, and the debug file and source map uploads it
+  needs.
+- Cloudflare Workers runs through a Tail Worker, and installing updates from the dashboard.
+- The SymCache builder, billed for its container time.
+- Importing from Sentry 10 issues at a time instead of 2.
+
+What fills up first on Free:
+
+- **D1 writes.** Free allows 100,000 rows written a day, and an event writes about 30, so a few thousand events a day.
+- **D1 storage.** A database holds 500 MB on Free and 10 GB on Paid. Settings, Health shows how much is used. Each
+  project's retention decides how long events and logs stay.
+- **R2 writes.** Free includes a million class A operations a month, which hold about 16,000 events a day.
+
+## Backups
+
+D1 keeps its own history: Time Travel restores the database to any minute of the last 30 days on Paid, or 7 on Free,
+with `pnpm wrangler d1 time-travel restore crashyard --timestamp <time>`. To keep a copy of your own:
+
+```sh
+pnpm wrangler d1 export crashyard --remote --output crashyard.sql
+```
+
+R2 holds the raw envelopes, attachments and uploaded debug files, which the database points to. Copy the
+`crashyard-files` bucket with any S3 tool if you want those too.
+
+## Removing crashyard
+
+Delete these in the Cloudflare dashboard, or with Wrangler:
+
+- The `crashyard` Worker, which also removes its custom domains.
+- The `crashyard` D1 database and the `crashyard-files` R2 bucket, after emptying it.
+- The Email Routing destination addresses you added for it, and the API token made for dashboard updates, if any.
+- On GitHub, the app made for Sign in with GitHub, if you added one.
