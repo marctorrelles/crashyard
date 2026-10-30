@@ -8,6 +8,12 @@
 <meta property="og:title" content="crashyard">
 <meta property="og:description" content="Crash reporting on your own Cloudflare account. Keep the official Sentry SDKs and change one line.">
 <meta property="og:url" content="https://crashyard.dev">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://crashyard.dev/images/og.png">
+<meta property="og:image:width" content="2560">
+<meta property="og:image:height" content="1280">
+<meta property="og:image:alt" content="crashyard: crash reporting on your own Cloudflare account, beside its issues list">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#F86111">
 <link rel="icon" href="/images/logo.svg" type="image/svg+xml">
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
@@ -164,6 +170,18 @@ code, pre, kbd { font-family: var(--mono); }
 }
 .code-bar { display: flex; align-items: center; gap: 2px; padding: 6px 6px 6px 8px; background: var(--code-bar); border-bottom: 1px solid var(--code-line); overflow-x: auto; scrollbar-width: none; }
 .code-bar .file { font: 13px/1 var(--mono); color: var(--code-dim); padding: 0 8px; white-space: nowrap; }
+/* The SDK tabs scroll across the whole bar, under Copy, which stays pinned at its right on the bar's background (the
+   tabs' right padding is Copy's width, so the last one scrolls clear of it). Its border shows while a tab is under it.
+   The bar's left padding is the row's, so tabs scroll to the card's edge */
+.code-bar.has-tabs { position: relative; overflow: visible; padding-left: 0; }
+.tabs { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 0 84px 0 8px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs + .copy {
+  position: absolute; top: 6px; right: 0; bottom: 6px; height: auto; margin: 0; padding: 0 14px;
+  border-radius: 0; background: var(--code-bar); border-left: 1px solid transparent;
+}
+.tabs + .copy:hover { background: var(--code-bar); }
+.overflowing .tabs + .copy { border-left-color: var(--code-line); }
 .tab {
   font: 500 13px/1 var(--sans); color: var(--code-dim); background: none; border: 0; cursor: pointer;
   height: 30px; padding: 0 11px; border-radius: 6px; white-space: nowrap;
@@ -396,20 +414,22 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
         </div>
 
         <div class="code" data-tabs>
-          <div class="code-bar" role="tablist" aria-label="SDK">
-            <button class="tab" role="tab" aria-selected="true" data-tab="js">JavaScript</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="swift">Swift</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="android">Android</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="python">Python</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="node">Node.js</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="react">React</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="go">Go</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="ruby">Ruby</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="php">PHP</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="java">Java</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="dotnet">.NET</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="rust">Rust</button>
-            <button class="tab" role="tab" aria-selected="false" data-tab="flutter">Flutter</button>
+          <div class="code-bar has-tabs">
+            <div class="tabs" role="tablist" aria-label="SDK">
+              <button class="tab" role="tab" aria-selected="true" data-tab="js">JavaScript</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="swift">Swift</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="android">Android</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="python">Python</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="node">Node.js</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="react">React</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="go">Go</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="ruby">Ruby</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="php">PHP</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="java">Java</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="dotnet">.NET</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="rust">Rust</button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="flutter">Flutter</button>
+            </div>
             <button class="copy" type="button" data-copy><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button>
           </div>
 <pre data-panel="js"><span class="c">// app.ts</span><span><span class="k">import</span> * <span class="k">as</span> Sentry <span class="k">from</span> <span class="s">'@sentry/browser'</span></span><span> </span><span>Sentry.init({</span><span class="rm">-  dsn: <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/451'</span>,</span><span class="add" data-keep>+  dsn: <span class="s">'https://8b41d2f09c@crashyard.example.com/3'</span>,</span><span>   release: import.meta.env.VITE_RELEASE,</span><span>})</span></pre>
@@ -702,6 +722,11 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
       tabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)))
       box.querySelectorAll('pre[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab })
     }))
+    // Copy's border, only while a tab is under it: until the row is scrolled to its end
+    const row = box.querySelector('.tabs')
+    const fit = () => row.parentElement.classList.toggle('overflowing', row.scrollLeft + row.clientWidth < row.scrollWidth - 1)
+    row.addEventListener('scroll', fit, { passive: true })
+    new ResizeObserver(fit).observe(row)
   })
 
   // Copy: the lines marked data-keep of the visible panel, without prompts or output
