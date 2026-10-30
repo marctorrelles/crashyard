@@ -15,13 +15,16 @@ export class SymcacheBuilder extends DurableObject {
         { error: 'The SymCache builder’s container isn’t running here. A dev server runs it with CONTAINERS=1.' },
         { status: 503 },
       )
-    if (!container.running) {
-      container.start()
-      // Stopped a minute after its last request: an upload is a few requests in a row, then nothing for days
-      await container.setInactivityTimeout(60_000)
-    }
     const port = container.getTcpPort(PORT)
     for (let i = 0; ; i++) {
+      // Started again on each try while it isn't running: when Cloudflare has no instance to give it right then
+      // ("there is no container instance that can be provided to this Durable Object, try again later") the start
+      // simply doesn't happen, and only a later one does, as `@cloudflare/containers` does it
+      if (!container.running) {
+        container.start()
+        // Stopped a minute after its last request: an upload is a few requests in a row, then nothing for days
+        await container.setInactivityTimeout(60_000)
+      }
       try {
         if ((await port.fetch('http://builder/health')).ok) break
       } catch (error) {

@@ -11,7 +11,10 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
 - `builder.ts`: `SymcacheBuilder`, the Durable Object in front of the SymCache builder's container
   (`symcache/Dockerfile`), exported by `src/server.ts` and bound as `SYMCACHE_BUILDER` only where
   `wrangler.local.json` adds the container: it starts it (stopped a minute after its last request), waits for
-  `/health`, and passes the request on. One for the deployment (`idFromName('builder')`), so uploads take turns; 503
+  `/health`, and passes the request on. Started again on every try while not running: when Cloudflare has no instance
+  to place it on ("there is no container instance that can be provided to this Durable Object, try again later") a
+  start just doesn't happen, so one start then polling `/health` for 30 s failed whole iOS archives (Caliu builds 196
+  and 198); `@cloudflare/containers` retries the same way. One for the deployment (`idFromName('builder')`), so uploads take turns; 503
   when there's no container, as on a dev server without `CONTAINERS=1`.
 - `uploads.ts`: chunks (R2 `chunks/<sha1>`, deleted once assembled; an R2 rule drops strays after a day) joined
   into one buffer sized from their heads (the file held once) and checked; files up to 48 MB (`MAX_FILE`, what sentry-cli
