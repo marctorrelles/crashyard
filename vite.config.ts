@@ -32,6 +32,7 @@ export default defineConfig({
       persistState: process.env.CRASHYARD_STATE ? { path: process.env.CRASHYARD_STATE } : true,
       // AUTH=crashyard SETUP_CODE=… pnpm dev: the dev server signs in with passkeys too, to work on sign-in
       // CONTAINERS=1 pnpm dev: the SymCache builder's container too, where wrangler.local.json has it (needs Docker)
+      // DEMO=1 pnpm dev: the public demo's read-only mode (src/demo.ts)
       config: (config) => {
         // The plugin merges what this returns with defu, which adds lists together: a list the overlay sets (its D1
         // database, its R2 bucket) would come after wrangler.jsonc's, two bindings of one name. Out of the config it
@@ -51,7 +52,9 @@ export default defineConfig({
           vars: {
             ...config.vars,
             ...local?.vars,
-            ...Object.fromEntries(['AUTH', 'SETUP_CODE'].flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : []))),
+            ...Object.fromEntries(
+              ['AUTH', 'SETUP_CODE', 'DEMO'].flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])),
+            ),
           },
         }
       },

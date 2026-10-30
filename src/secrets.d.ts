@@ -6,9 +6,12 @@ declare namespace Cloudflare {
     SETUP_CODE?: string
     /** The SymCache builder's container (src/symbols/builder.ts), where wrangler.local.json adds it */
     SYMCACHE_BUILDER?: DurableObjectNamespace
+    /** "1" on the public demo only, from its deployment's overlay: read-only, no accounts (src/demo.ts) */
+    DEMO?: string
   }
 }
 interface Env {
   SETUP_CODE?: string
   SYMCACHE_BUILDER?: DurableObjectNamespace
+  DEMO?: string
 }

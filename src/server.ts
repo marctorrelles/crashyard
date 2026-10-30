@@ -1,12 +1,13 @@
 import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/server'
-import { handleIngest } from './api/ingest'
+import { handleIngest, INGEST } from './api/ingest'
 import { whoIs } from './auth/session'
+import { demoGate, isDemo } from './demo'
 import type { Notice } from './notify/notice'
 
 const start = createStartHandler(defaultStreamHandler)
 
-// What apps and build tools call: plain handlers, each checking its own key or token, ahead of Start. Ingest: an
-// envelope, an event, a security report, or a check-in over HTTP (`cron/<slug>/<key>`, the key optional)
+// What apps and build tools call: plain handlers, each checking its own key or token, ahead of Start (ingest's doors:
+// `INGEST`, src/api/ingest.ts)
 // crashyard's own sign-in pages, open while signed out (src/auth/AGENTS.md)
 const SIGN_IN_PAGES = /^\/(signin|setup|invite\/[^/]+)\/?$/
 // A status page, open to anyone (src/routes/status.$slug.tsx): a GET only, its data read in the render
@@ -41,13 +42,16 @@ async function publicStatusPage(request: Request, ctx: ExecutionContext) {
   return kept
 }
 
-const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
-
 // The SymCache builder's Durable Object, bound only where wrangler.local.json adds its container
 export { SymcacheBuilder } from './symbols/builder'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // The public demo only (DEMO=1): ingest and sign-in closed, before anything else (src/demo.ts)
+    if (isDemo(env)) {
+      const answer = await demoGate(request, env)
+      if (answer) return answer
+    }
     const url = new URL(request.url)
     const ingest = url.pathname.match(INGEST)
     if (ingest)
@@ -167,9 +171,11 @@ export default {
       if (url.pathname === '/mcp' || url.pathname.startsWith('/_serverFn') || request.method !== 'GET')
         return new Response('Sign in to crashyard first.', { status: 401 })
       const { userCount } = await import('./data/people')
-      const to = (await userCount(env.DB))
-        ? `/signin${url.pathname === '/' ? '' : `?next=${encodeURIComponent(url.pathname + url.search)}`}`
-        : '/setup'
+      // The demo has no one to set up: its front door is /signin
+      const to =
+        isDemo(env) || (await userCount(env.DB))
+          ? `/signin${url.pathname === '/' ? '' : `?next=${encodeURIComponent(url.pathname + url.search)}`}`
+          : '/setup'
       return Response.redirect(new URL(to, url), 303)
     }
     if (url.pathname === '/mcp' && who) {
@@ -296,9 +302,10 @@ async function everyMinute(env: Env, now: number) {
     await job('auto-resolve', async () => (await import('./data/issues')).autoResolve(env.DB, now, deadline))
     await job('notification failures', () => pruneFailures(env.DB, now))
   }
-  // Daily from 03:40 UTC, where an owner turned it on: the newest release installed (src/update/install.ts)
+  // Daily from 03:40 UTC, where an owner turned it on: the newest release installed (src/update/install.ts). Never in
+  // the demo, which its own workflow deploys
   const day = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate(), 3, 40)
-  if (await due('update', day, 20 * HOUR))
+  if (!isDemo(env) && (await due('update', day, 20 * HOUR)))
     await job('update', async () => (await import('./update/install')).autoUpdate(env, now))
   // Last, with what time is left: envelopes that failed in their request, tried again
   await job('retries', async () => (await import('./ingest/retry')).retryPending(env, now, deadline))

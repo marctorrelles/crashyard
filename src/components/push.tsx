@@ -69,6 +69,8 @@ export function usePushDevice(push: Data) {
 
   const turnOn = () =>
     save(async () => {
+      // The demo has no key: it sends no push
+      if (!push.key) throw new Error('This crashyard sends no push notifications.')
       try {
         setEndpoint(await subscribe(push.key))
         setState('on')
@@ -174,8 +176,9 @@ export function PushControls({ push }: { push: Data }) {
 
 export const deviceName = (d: { name: string }) => (d.name === 'Passkey' ? 'Unknown browser' : d.name)
 
-// Preferences' card: the controls, and whether a route sends to the viewer's channel
+// Preferences' card: the controls, and whether a route sends to the viewer's channel. None without a key, in the demo
 export function Push({ push }: { push: Data }) {
+  if (!push.key) return null
   return (
     <SettingsCard
       title="Push notifications"

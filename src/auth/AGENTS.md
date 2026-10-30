@@ -30,8 +30,21 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
 - Roles (`src/data/people.ts`, `ROLES`, `reaches`): owner (everything, People; at least one always), admin (projects,
   keys, channels, routes, alerts, monitors, upload tokens, debug files, defaults, privacy, test sends), member (resolve, ignore, assign, merge, link, notes, dashboards), viewer (reads, their own preferences,
   bookmarks, saved searches and sign-in). Every POST server function in `src/fns.ts` names its least role,
-  `.middleware([signedIn | member | admin | owner])`; `sign-in.test.ts` fails on one that doesn't, on one declared
+  `.middleware([signedIn | member | admin | owner])` (or `reads`, below, Demo); `sign-in.test.ts` fails on one that doesn't, on one declared
   any other way than a POST with a role or a GET named `get…`, and on a server function outside `src/fns.ts`.
+- **Demo** (`src/demo.ts`, on where the deployment's `vars` set `DEMO=1`: demo.crashyard.dev; `DEMO=1 pnpm dev`
+  locally): read-only, no accounts. `whoIs` reads only the `crashyard_demo` cookie (HttpOnly, Lax, a day), which makes
+  everyone one viewer, `visitor@demo.crashyard.dev`, with no user or session; a session cookie is never read. `demoGate`,
+  first in `fetch`: ingest's four doors 403 before the body (CORS on); `POST /auth/demo` (Origin checked, the cookie,
+  303 to `nextPath(next)`, the Enter demo form on `/signin`) and `POST /auth/signout` (cleared, 303 `/signin`); any
+  other `/auth/*`, GitHub's too, 404; `/setup` and `/invite/*` 303 to `/signin`; `/mcp` without a `cyp_` token as the
+  viewer, change tools refused with the demo's sentence. The signed-out redirect never picks `/setup` there. In
+  `src/fns.ts`, `as()` refuses every server function in the demo (`DEMO_REFUSAL`, whatever the role) but `reads`, for
+  GETs that need someone signed in and the three POSTs that only read or set the viewer's cookies: `previewWidget`,
+  `getPlan`, `savePreference` (theme and style, in cookies only; `getSidebar` reads them back from there and writes
+  none). `getIssue` marks nothing viewed, `getPush` makes no keys. `demo.test.ts`: the gate's answers, that it's
+  asked only in the demo, and the refusal for every role; `sign-in.test.ts`: `whoIs` in and out of it, and the exact
+  `reads` list.
 - `github.ts`: Sign in with GitHub, optional, GETs under `/auth/github/` routed by `src/server.ts`.
   The owner creates a private GitHub App from `manifest(base)` (name `crashyard <host>`, at most 34 characters;
   `redirect_url` `/auth/github/created`, `callback_urls` `/auth/github/callback`, permission `emails: read` only, no

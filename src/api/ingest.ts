@@ -37,7 +37,11 @@ export type IngestEnv = {
   PUBLIC_URL?: string
 }
 
-const CORS = {
+// The four doors apps send to, as src/server.ts routes them: an envelope, an event, a security report, or a check-in
+// over HTTP (`cron/<slug>/<key>`, the key optional)
+export const INGEST = /^\/api\/(\d+)\/(envelope|store|security|cron)((?:\/[^/]+){0,2})\/?$/
+
+export const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'content-type, content-encoding, x-sentry-auth, sentry-trace, baggage, authorization',

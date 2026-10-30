@@ -1,5 +1,6 @@
 // Who a dashboard request is, and the session cookie. src/server.ts passes the answer on as headers.
 import { type Role, sessionUser } from '../data/people'
+import { DEMO_COOKIE, DEMO_VIEWER, isDemo } from '../demo'
 
 export const COOKIE = 'crashyard_session'
 
@@ -23,9 +24,11 @@ export const clearedCookie = (secure: boolean) =>
 
 /**
  * Who a request is: the session cookie's person. A local dev server is dev@localhost, an owner, unless `AUTH` is
- * `crashyard` (`AUTH=crashyard pnpm dev`, to work on sign-in itself).
+ * `crashyard` (`AUTH=crashyard pnpm dev`, to work on sign-in itself). In the demo (`DEMO=1`, dev servers too), the
+ * Enter demo cookie's viewer, else no one: a session cookie isn't read there.
  */
 export async function whoIs(request: Request, env: Env, dev: boolean, now: number): Promise<Who | null> {
+  if (isDemo(env)) return cookieValue(request, DEMO_COOKIE) === '1' ? { ...DEMO_VIEWER } : null
   if (dev && (env as { AUTH?: string }).AUTH !== 'crashyard') return { email: 'dev@localhost', role: 'owner' }
   const token = cookieValue(request, COOKIE)
   if (!token) return null

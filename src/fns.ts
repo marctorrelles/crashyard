@@ -39,6 +39,7 @@ import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { version } from '../package.json'
 import { EVENT_KEYS, ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
+import { DEMO_REFUSAL, demoRefuses, isDemo } from './demo'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
 
@@ -54,13 +55,17 @@ const role = () => {
   const r = getRequestHeader('x-crashyard-role')
   return people.isRole(r) ? r : null
 }
-const as = (needed: people.Role) =>
+// In the demo (src/demo.ts) every one is refused, whatever the role, but those marked `readOnly`: `reads`, for GETs that
+// need someone signed in and the few POSTs that only read or touch the viewer's own cookies (`sign-in.test.ts` lists them)
+const as = (needed: people.Role, { readOnly = false } = {}) =>
   createMiddleware({ type: 'function' }).server(({ next }) => {
+    if (demoRefuses(env, readOnly)) throw new Error(DEMO_REFUSAL)
     const r = role()
     if (!r || !people.reaches(r, needed)) throw new Error(REFUSALS[needed])
     return next()
   })
 const signedIn = as('viewer')
+const reads = as('viewer', { readOnly: true })
 const member = as('member')
 const admin = as('admin')
 const owner = as('owner')
@@ -145,9 +150,11 @@ export const getHome = createServerFn().handler(async () => {
 // the browser's (a cookie the root's script keeps, `tz`), else UTC on a first visit; server and browser render the same.
 export const getSidebar = createServerFn().handler(async () => {
   const browserZone = getCookie('tz')
+  const demo = isDemo(env)
   // Signed out, on a sign-in page: nothing of the deployment's, the browser's own theme
   if (!role())
     return {
+      demo,
       projects: [],
       lastProject: null,
       viewer: null,
@@ -166,14 +173,24 @@ export const getSidebar = createServerFn().handler(async () => {
     // Owners deploy it, so only they see a newer crashyard
     people.reaches(role()!, 'owner') ? updates.update() : null,
   ])
-  // The theme is the viewer's, the cookies the browser's: a browser that hasn't seen it yet gets it, from its next page
-  if ((getCookie('theme') ?? 'system') !== preferences.theme) setThemeCookie('theme', preferences.theme)
-  if ((getCookie('style') ?? 'hazard') !== preferences.style) setThemeCookie('style', preferences.style)
+  // The theme is the viewer's, the cookies the browser's: a browser that hasn't seen it yet gets it, from its next page.
+  // In the demo, where everyone is one viewer, the cookies are the preference (savePreference)
+  if (demo) {
+    preferences.theme = PREFERENCE_CHECKS.theme(getCookie('theme') ?? 'system') ?? 'system'
+    const style = getCookie('style')
+    preferences.style = settings.STYLES.includes(style as settings.Preferences['style'])
+      ? (style as settings.Preferences['style'])
+      : settings.PREFERENCES.style
+  } else {
+    if ((getCookie('theme') ?? 'system') !== preferences.theme) setThemeCookie('theme', preferences.theme)
+    if ((getCookie('style') ?? 'hazard') !== preferences.style) setThemeCookie('style', preferences.style)
+  }
   return {
+    demo,
     projects: list,
     lastProject: getCookie('crashyard_project') ?? null,
     viewer: viewer(),
-    name: user?.name ?? null,
+    name: demo ? 'Demo visitor' : (user?.name ?? null),
     role: role(),
     sidebarOpen: getCookie('sidebar_state') !== 'false',
     update,
@@ -423,8 +440,8 @@ export const getIssue = createServerFn()
       suspectsData.similarIssues(env.DB, issue.issue, event),
       issues.isBookmarked(env.DB, who, data.id),
       issues.assignees(env.DB, who),
-      // Opened by a person: read until its next event
-      who === 'unknown' ? undefined : issues.markViewed(env.DB, who, data.id, now),
+      // Opened by a person: read until its next event. Not in the demo, where everyone is one viewer
+      who === 'unknown' || isDemo(env) ? undefined : issues.markViewed(env.DB, who, data.id, now),
     ])
     return {
       ...issue,
@@ -1139,7 +1156,7 @@ export const getDashboard = createServerFn()
 
 // One widget's data before it's saved: the widget builder's preview, and the viewer's other displays
 export const previewWidget = createServerFn({ method: 'POST' })
-  .middleware([signedIn])
+  .middleware([reads])
   .validator((d: unknown) => {
     const o = object(d)
     return {
@@ -1530,7 +1547,7 @@ export const getUsage = createServerFn()
 // The Cloudflare plan, for the pages whose features need Workers Paid: probed in this request, its own invocation, at
 // most once a day unless asked again (src/data/plan.ts)
 export const getPlan = createServerFn({ method: 'POST' })
-  .middleware([signedIn])
+  .middleware([reads])
   .validator((d: unknown) => ({ fresh: object(d ?? {}).fresh === true }))
   .handler(async ({ data }) => (await import('./data/plan')).planOf(env.DB, Date.now(), data.fresh))
 
@@ -1555,16 +1572,18 @@ const PREFERENCE_CHECKS: { [K in keyof settings.Preferences]-?: (v: unknown) => 
     homeRange: optional(oneOf(['14', '30', '90'] as const)),
   }
 
-/** One preference of the viewer's; the theme and style go in cookies too, for the script that sets them before paint */
+/** One preference of the viewer's; the theme and style go in cookies too, for the script that sets them before paint. In
+ * the demo, only those two, and only in the cookies */
 export const savePreference = createServerFn({ method: 'POST' })
-  .middleware([signedIn])
+  .middleware([reads])
   .validator((d: unknown) => {
     const o = object(d)
     const key = oneOf(Object.keys(PREFERENCE_CHECKS) as (keyof settings.Preferences)[])(o.key)
     return { key, value: PREFERENCE_CHECKS[key](o.value) }
   })
   .handler(async ({ data }) => {
-    await settings.setPreference(env.DB, viewer(), data.key, data.value)
+    if (isDemo(env) && data.key !== 'theme' && data.key !== 'style') throw new Error(DEMO_REFUSAL)
+    if (!isDemo(env)) await settings.setPreference(env.DB, viewer(), data.key, data.value)
     if (data.key === 'theme' || data.key === 'style') setThemeCookie(data.key, String(data.value))
   })
 
@@ -1581,21 +1600,27 @@ const subscription = (o: Input) => {
   return { endpoint, p256dh: base64url(o.p256dh, 65, 'a P-256 key'), auth: base64url(o.auth, 16, 'an auth secret') }
 }
 
-/** The deployment's public VAPID key, for subscribing, and the viewer's devices */
+/** The deployment's public VAPID key, for subscribing, and the viewer's devices. None in the demo, which makes no keys */
 export const getPush = createServerFn()
-  .middleware([signedIn])
-  .handler(async () => ({
-    key: (await push.vapidKeys(env.DB)).publicKey,
-    channel: await push.pushChannel(env.DB, viewer()),
-    devices: (await push.pushDevices(env.DB, viewer())).map(({ id, endpoint, name, created_at, last_sent_at }) => ({
-      id,
-      endpoint,
-      name,
-      created_at,
-      last_sent_at,
-    })),
-    now: Date.now(),
-  }))
+  .middleware([reads])
+  .handler(async () =>
+    isDemo(env)
+      ? { key: null, channel: null, devices: [], now: Date.now() }
+      : {
+          key: (await push.vapidKeys(env.DB)).publicKey,
+          channel: await push.pushChannel(env.DB, viewer()),
+          devices: (await push.pushDevices(env.DB, viewer())).map(
+            ({ id, endpoint, name, created_at, last_sent_at }) => ({
+              id,
+              endpoint,
+              name,
+              created_at,
+              last_sent_at,
+            }),
+          ),
+          now: Date.now(),
+        },
+  )
 
 export const savePushDevice = createServerFn({ method: 'POST' })
   .middleware([signedIn])
@@ -1682,7 +1707,7 @@ const me = () => {
 }
 
 export const getSignIn = createServerFn()
-  .middleware([signedIn])
+  .middleware([reads])
   .handler(async () => {
     const id = Number(getRequestHeader('x-crashyard-user'))
     const now = Date.now()
@@ -1798,7 +1823,10 @@ export const removePerson = createServerFn({ method: 'POST' })
 // The sign-in pages' own data, read while signed out (only during their server render: src/server.ts answers 401 to a
 // server function call from a signed-out browser), so they say nothing about the deployment beyond what the page needs
 
-export const getSignInPage = createServerFn().handler(async () => ({ github: !!(await gitHubApp(env.DB)) }))
+export const getSignInPage = createServerFn().handler(async () => ({
+  github: !!(await gitHubApp(env.DB)),
+  demo: isDemo(env),
+}))
 
 // A status page, read while signed out as the sign-in pages are: only the uptime checks on it, by name, never their
 // addresses (src/data/status.ts statusPage)
@@ -1808,7 +1836,7 @@ export const getStatusPage = createServerFn()
 
 // What a status page shows and says, for the team
 export const getStatusPosts = createServerFn()
-  .middleware([signedIn])
+  .middleware([reads])
   .validator((d: unknown) => ({ slug: text(object(d).slug, 60) }))
   .handler(async ({ data }) => {
     const page = await status.pageOf(env.DB, data.slug)
@@ -1823,7 +1851,7 @@ export const getStatusPosts = createServerFn()
   })
 
 export const getStatusPages = createServerFn()
-  .middleware([signedIn])
+  .middleware([reads])
   .handler(() => status.pagesOf(env.DB, Date.now()))
 
 const pageName = (v: unknown) => {
@@ -1989,10 +2017,12 @@ export const getInvitePage = createServerFn()
 // Agent tokens: a person's `cyp_` tokens for MCP, acting as them as far as the token's scope goes
 
 export const getAgentTokens = createServerFn()
-  .middleware([signedIn])
+  .middleware([reads])
   .handler(async () => ({
-    tokens: await people.userTokensOf(env.DB, me()),
+    // The demo's viewer has no user and so no tokens: its /mcp takes no token at all (src/demo.ts)
+    tokens: isDemo(env) ? [] : await people.userTokensOf(env.DB, me()),
     mcp: `${env.PUBLIC_URL?.replace(/\/$/, '') || origin()}/mcp`,
+    demo: isDemo(env),
     now: Date.now(),
   }))
 

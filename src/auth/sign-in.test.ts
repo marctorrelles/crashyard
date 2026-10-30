@@ -41,6 +41,23 @@ describe('whoIs', () => {
     expect(await whoIs(request(`crashyard_session=${token}`), env(db), false, NOW + 1000)).toBeNull()
   })
 
+  it('in the demo, knows only the demo’s viewer, from its cookie, and never a session', async () => {
+    const db = sqliteD1()
+    const user = await owner(db)
+    const { token } = await people.startSession(db, user.id, null, NOW)
+    const demo = env(db, { DEMO: '1' })
+    expect(await whoIs(request('crashyard_demo=1'), demo, false, NOW)).toEqual({
+      email: 'visitor@demo.crashyard.dev',
+      role: 'viewer',
+    })
+    expect(await whoIs(request(), demo, false, NOW)).toBeNull()
+    expect(await whoIs(request(`crashyard_session=${token}`), demo, false, NOW)).toBeNull()
+    // A demo dev server too, as in production
+    expect(await whoIs(request(), env(db, { DEMO: '1', AUTH: '' }), true, NOW)).toBeNull()
+    // Out of the demo, its cookie is nothing
+    expect(await whoIs(request('crashyard_demo=1'), env(db), false, NOW)).toBeNull()
+  })
+
   it('renews a session under 60 days left, at most once a day, as an HttpOnly, Secure, Lax cookie', async () => {
     const db = sqliteD1()
     const user = await owner(db)
@@ -206,7 +223,9 @@ describe('people', () => {
 it('gives every changing server function a role', () => {
   const source = readFileSync('src/fns.ts', 'utf8')
   const posts = [
-    ...source.matchAll(/export const (\w+) = createServerFn\(\{ method: 'POST' \}\)\n\s*\.middleware\(\[(\w+)\]\)/g),
+    ...source.matchAll(
+      /export const (\w+) = createServerFn\(\{ method: 'POST' \}\)\n\s*\.middleware\(\[(signedIn|member|admin|owner|reads)\]\)/g,
+    ),
   ]
   const gets = [...source.matchAll(/export const (\w+) = createServerFn\(\)/g)].map((m) => m[1])
   // Each one is a POST with a role, or a GET that reads (named get…): none declared any other way, which this would miss
@@ -222,6 +241,8 @@ it('gives every changing server function a role', () => {
     changeIssues: 'member',
     saveChannel: 'admin',
     createInvite: 'owner',
-    savePreference: 'signedIn',
+    savePreference: 'reads',
   })
+  // The POSTs the demo lets through (src/demo.ts): a new one fails here until someone decides it changes nothing there
+  expect(posts.filter((m) => m[2] === 'reads').map((m) => m[1])).toEqual(['previewWidget', 'getPlan', 'savePreference'])
 })

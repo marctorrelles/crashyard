@@ -19,7 +19,7 @@ Whether a newer crashyard is out, and installing it from the dashboard. The owne
   `keep_bindings` of every type it has, so bindings, vars and secrets stay, its logpush, observability, placement and
   tail consumers copied, `containers` for `SymcacheBuilder` where it runs, as wrangler sends it, or the Durable
   Object would lose its container; then the crons if they differ; `update.installed` for `scripts/deploy-guard.mjs`)
-  and `autoUpdate` (the cron's, daily from 03:40 UTC, where `update.auto`: never a major version; a failure kept as
+  and `autoUpdate` (the cron's, daily from 03:40 UTC, never in the demo (`DEMO=1`, `src/demo.ts`), where `update.auto`: never a major version; a failure kept as
   `update.failed` for the dialog). A failure before the `PUT` leaves the worker as it was; the migrations only add, so
   the running version takes them.
 - `check.test.ts`, `install.test.ts`: picking, refusals, the digest. Checked live on 2026-10-28 against a throwaway

@@ -797,7 +797,7 @@ const failure = (id: Rpc['id'], code: number, message: string) => ({
   error: { code, message },
 })
 
-async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
+async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1] & { readOnly: string }) {
   switch (rpc.method) {
     case 'initialize':
       return reply(rpc.id, {
@@ -824,10 +824,7 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
       const tool = TOOLS.find((t) => t.name === rpc.params?.name)
       if (!tool) return failure(rpc.id, -32602, `No tool ${String(rpc.params?.name)}`)
       // An agent changes issues as far as its token's scope and its person's role go
-      const refusal =
-        tool.changes &&
-        !reaches(ctx.role, 'member') &&
-        'This token can only read. Create one that can change things in Settings, Agent tokens.'
+      const refusal = tool.changes && !reaches(ctx.role, 'member') && ctx.readOnly
       if (refusal) return reply(rpc.id, { content: [{ type: 'text', text: refusal }], isError: true })
       try {
         const text = await tool.run((rpc.params?.arguments ?? {}) as Record<string, unknown>, ctx)
@@ -845,7 +842,13 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
 }
 
 /** `who`: the email it acts as and the role it has (src/auth/AGENTS.md) */
-export async function handleMcp(request: Request, db: D1Database, who: { email: string; role: Role }) {
+export async function handleMcp(
+  request: Request,
+  db: D1Database,
+  who: { email: string; role: Role },
+  // What a change tool answers to someone below member: the demo says why it changes nothing
+  readOnly = 'This token can only read. Create one that can change things in Settings, Agent tokens.',
+) {
   if (request.method !== 'POST')
     return new Response('crashyard’s MCP server takes JSON-RPC over POST', { status: 405, headers: { Allow: 'POST' } })
   // Not from a web page: exactly JSON (a page can't send that without a preflight we don't answer; `text/plain;
@@ -861,7 +864,7 @@ export async function handleMcp(request: Request, db: D1Database, who: { email: 
   } catch {
     return Response.json(failure(null, -32700, 'Parse error'), { status: 400 })
   }
-  const ctx = { db, viewer: who.email, role: who.role, origin: new URL(request.url).origin }
+  const ctx = { db, viewer: who.email, role: who.role, origin: new URL(request.url).origin, readOnly }
   const calls = (Array.isArray(body) ? body : [body]) as Rpc[]
   const answers = []
   for (const rpc of calls) {

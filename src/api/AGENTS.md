@@ -3,7 +3,8 @@
 What the worker answers itself, ahead of Start. Under `/api/`, outside sign-in, each checks its own key or
 signature; `/mcp` comes after sign-in.
 
-- `ingest.ts`: `/api/<project>/envelope/` and `/api/<project>/store/`, what the Sentry SDKs send to, and the two that
+- `ingest.ts`: its four doors as `INGEST` (`src/server.ts` routes by it, the demo's gate closes them) and their `CORS`.
+  `/api/<project>/envelope/` and `/api/<project>/store/`, what the Sentry SDKs send to, and the two that
   come without an SDK, checked against Relay's `endpoints/monitor.rs` and `endpoints/security_report.rs` (master,
   2026-10-27): `/api/<project>/security/` (POST only; `application/json`, `application/csp-report` or
   `application/reports+json`, else 415; empty is 400; the key from `?sentry_key=`; `sentry_release` and
@@ -118,6 +119,7 @@ signature; `/mcp` comes after sign-in.
   web page, a sibling subdomain's included, can call it with someone's cookie. An agent sends
   `Authorization: Bearer cyp_…` (Settings, Agent tokens; `userTokenOf`), acting as its person with
   `tokenRole`: a read token is a viewer, a change token at most a member. The tools marked `changes` answer an
-  `isError` result for a role below member, saying so. `mcp.test.ts`: every read tool on a small database and on an
+  `isError` result for a role below member, saying so (`handleMcp`'s fourth argument, the token's sentence by default; the
+  demo's, `src/demo.ts`, which answers `/mcp` without a token as its viewer). `mcp.test.ts`: every read tool on a small database and on an
   empty one, every change tool refused to a read token and applied for a member. See docs/mcp.md. `get_issue` ends
   with the issue's suspect commits (`suspectCommits`), when there are any.
