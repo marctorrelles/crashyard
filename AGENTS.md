@@ -106,7 +106,7 @@ files and code comments are for contributors and keep their own terse style.
 - **Empty states invite the next step.** A title naming what's missing, one line saying how it fills, and the action
   when there is one. One touch of light humour or reassurance at most, and only where nothing is wrong: "Not a single
   open issue. Enjoy it while it lasts." Never joke about a failure.
-- **Alerts read at a glance.** The issue or monitor as the title, then a line of facts joined by " · ": "pocketband ·
+- **Alerts read at a glance.** The issue or monitor as the title, then a line of facts joined by " · ": "myapp ·
   1.0 (10) · Reached 100 events".
 - **Numbers carry their unit in words.** "Event retention in days", "Timeout in seconds", "up 50% on the week before".
 - **Product words stay the same everywhere.** Issue, event, release, project, monitor, channel, route, alert,

@@ -23,7 +23,7 @@ Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
 - `big-dsym.e2e.test.ts`: opt-in (`BIG_DSYM=<a dSYM over 48 MB> CONTAINERS=1`, Docker running; skipped otherwise):
   sentry-cli uploads it through the SymCache builder's container, and a crash at an address reads as the SymCache
   the Wasm module makes in Node says; port 3996. With `CONTAINERS=1`, `startDev` waits up to 10 minutes, the
-  image's build. Checked with Caliu's 107 MB macOS dSYM.
+  image's build. Checked with a 107 MB macOS dSYM.
 - `fixtures/native`: `crash.c` and its dSYM (`clang -g -O0 -arch arm64 -c`, link, `dsymutil`): `render_voice` at
   0x460 (crash.c:5), `main` at 0x47c. `fixtures/web`: `app.ts` and its esbuild bundle and map.
   `fixtures/proguard`: a mapping with an inlined call (the test retraces a thread and an exception class too).

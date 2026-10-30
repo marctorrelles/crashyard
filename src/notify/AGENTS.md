@@ -41,7 +41,7 @@ environment, each with its own thresholds, and send them to channels.
   sessions; release and `transaction` for transactions; the logs search for logs; never `project:`. `stateFor` compares
   strictly, critical before warning. `evaluateMetricAlerts` (the cron, every 5 minutes at :02, :07…, off the hourly jobs' minutes, within its deadline): a notice
   only on a change of state, written with `WHERE state = <the one read>` so it's sent once; nothing to read (no
-  sessions, no transactions) keeps the state; the title is the alert's name, the line `metricLine`: "pocketband ·
+  sessions, no transactions) keeps the state; the title is the alert's name, the line `metricLine`: "myapp ·
   Crash-free sessions 97.1%, below 98% · Critical", "… 99.2% · Resolved"; crash-free is floored to a tenth.
 - `channels.ts`: Telegram (`telegramRequest`: the bot's `sendMessage` to its chat, as HTML, the title in bold and
   escaped, a button opening the notice's page, the week's summary without a sound; for `ISSUE_KINDS`,

@@ -803,7 +803,7 @@ async function handle(rpc: Rpc, ctx: Parameters<Tool['run']>[1]) {
       return reply(rpc.id, {
         protocolVersion: typeof rpc.params?.protocolVersion === 'string' ? rpc.params.protocolVersion : VERSION,
         capabilities: { tools: {} },
-        // What clients show for the server (title, icon), as Caliu's does; icons came in MCP 2025-11-25
+        // What clients show for the server (title, icon); icons came in MCP 2025-11-25
         serverInfo: {
           name: 'crashyard',
           title: 'crashyard',

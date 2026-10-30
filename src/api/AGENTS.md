@@ -98,8 +98,8 @@ signature; `/mcp` comes after sign-in.
   shows their wrangler line works. Each event goes through `handleIngest` as an envelope with the project's first key
   that's on, so quotas, filters, grouping, notices and retries are ingest's. `/__dev/tail` (dev only) takes runs as
   JSON for the end-to-end test. `tail.test.ts` and `test/ingest.e2e.test.ts`.
-- `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON). `initialize` names it as clients show it,
-  as Caliu's does: `title`, the version of `package.json`, a `description`, `websiteUrl` (this crashyard) and `icons`
+- `mcp.ts`: `/mcp`, the MCP server (JSON-RPC over POST, answered as JSON). `initialize` names it as clients show it:
+  `title`, the version of `package.json`, a `description`, `websiteUrl` (this crashyard) and `icons`
   (the favicon, a data URI as Vite inlines it; MCP 2025-11-25's fields, which older clients ignore). Tools over
   `src/data/`, each answering text an agent reads well (times in ISO 8601 UTC, ids to pass to the next tool). Reading: `list_projects`
   (`overview`), `search_issues` (as the token's person: `assigned:me`, `is:bookmarked` and `is:unread` are theirs), `get_issue` (with events per day over 14 UTC days from its `series`),

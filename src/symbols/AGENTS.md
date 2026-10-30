@@ -13,8 +13,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   `wrangler.local.json` adds the container: it starts it (stopped a minute after its last request), waits for
   `/health`, and passes the request on. Started again on every try while not running: when Cloudflare has no instance
   to place it on ("there is no container instance that can be provided to this Durable Object, try again later") a
-  start just doesn't happen, so one start then polling `/health` for 30 s failed whole iOS archives (Caliu builds 196
-  and 198); `@cloudflare/containers` retries the same way. One for the deployment (`idFromName('builder')`), so uploads take turns; 503
+  start just doesn't happen, so one start then polling `/health` for 30 s failed whole iOS archives (two real
+  app builds); `@cloudflare/containers` retries the same way. One for the deployment (`idFromName('builder')`), so uploads take turns; 503
   when there's no container, as on a dev server without `CONTAINERS=1`.
 - `uploads.ts`: chunks (R2 `chunks/<sha1>`, deleted once assembled; an R2 rule drops strays after a day) joined
   into one buffer sized from their heads (the file held once) and checked; files up to 48 MB (`MAX_FILE`, what sentry-cli
@@ -29,8 +29,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   SymCache goes: made in the worker up to `PROGUARD_WORKER`, 8 MB (making one takes about 4.4 times the mapping in
   Wasm), past it by the builder's `/proguardcache` (from memory in `storeDebugFile`, from R2 in `storeBigDebugFile`),
   and refused without a builder; a cache over `MAX_PROGUARD_CACHE`, 64 MB, is refused, as a lookup holds it. Measured
-  2026-10-29 on Caliu's 112 MB R8 mapping: a 48 MB cache in 0.85 s natively, read in 50 MB of Wasm, a lookup in 3 ms
-  (building the old `ProguardMapper` took 561 MB and 0.5 s). Measured on Caliu's 107 MB arm64 dSYM: the Wasm module grew to 328 MB in Node, the
+  2026-10-29 on a 112 MB R8 mapping: a 48 MB cache in 0.85 s natively, read in 50 MB of Wasm, a lookup in 3 ms
+  (building the old `ProguardMapper` took 561 MB and 0.5 s). Measured on a 107 MB arm64 dSYM: the Wasm module grew to 328 MB in Node, the
   native builder made the same 40 MB SymCache in 1.5 s. `uploads.test.ts` (a fake builder: assembled, stored,
   checksum refused, a big mapping's cache stored, one too big to read refused, the builder's error said) and `test/big-dsym.e2e.test.ts` (opt-in). A
   debug file becomes a row per object with its
@@ -49,7 +49,7 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   `missingDebugFiles`, shown on the event; the OS's own libraries (`/usr/lib/`, `/System/`, Android's `/system/`,
   `/apex/`…) never do, as no one can upload theirs. Checked against a real sentry-cocoa 9.31 crash on macOS. What it reads is cached in the isolate for ten minutes (48 MB budget);
   an upload forgets the negative lookups of its project. SymCaches are kept in the shared module's memory instead
-  (`pinSymcache`, 64 MB, first in first out, one alone may be bigger: Caliu's is 40 MB), and ProguardCaches with them, read there straight from R2,
+  (`pinSymcache`, 64 MB, first in first out, one alone may be bigger: a 107 MB dSYM's is 40 MB), and ProguardCaches with them, read there straight from R2,
   never stale as their key names the file's checksum; a lookup pins those it uses until it's done, so a load for
   another event between its awaits can't free them.
 - `reprocess.ts`: after an upload, the project's events of the last 30 days that named its debug ids (one JSON value,

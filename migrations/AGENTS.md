@@ -18,7 +18,7 @@ in `pnpm run deploy`).
   level in it and one `project_days` row.
 - `log_hours` is logs per project, hour and level, written at ingest (`storeLogs`) and pruned with the logs; 0009
   filled it from the logs there were. The logs chart reads it rather than every log (`src/data/AGENTS.md`).
-- 0012: `project_days.failed` (envelopes that failed every retry) and `filtered` (inbound filters, phase 5);
+- 0012: `project_days.failed` (envelopes that failed every retry) and `filtered` (inbound filters);
   `attachments.received`, from its event's time for the rows there were (0 when the event is gone, so they're pruned),
   indexed for pruning. A worker from before 0012 writes attachments with `received` 0: pruned at the next hour.
 - 0013: `settings` and `preferences` (JSON values, `src/data/settings.ts`); `project_keys`, a project's client keys,
@@ -44,7 +44,7 @@ in `pnpm run deploy`).
   `resolved_in_commit` and `fixed_in_release` (resolved in that release: it and newer releases reopen it),
   `issues_assignee` (partial), `bookmarks` and `issue_views` (by email). Every column is nullable or has a default, so
   a worker from before 0016 runs as it did: it writes events without a fingerprint and ignores the rest.
-- 0017: all of phase 6 in one file. `session_users_daily` (a session's `did` per release, environment and UTC day, as
+- 0017: sessions and release health in one file. `session_users_daily` (a session's `did` per release, environment and UTC day, as
   `didHash`, salted with the project; `crashed` is the max of the day's sessions; one upsert per session update with a
   `did`, so retries count no one twice), `deploys`, `vital_buckets` (as `transaction_buckets`, by vital too: ms, CLS
   times 1000, frame rates in hundredths of a percent), `monitor_environments`, `check_ins.trace_id`

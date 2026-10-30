@@ -14,7 +14,7 @@ export const WORKER_FILE = 16 * 1024 * 1024
 export const BIG_FILE = 512 * 1024 * 1024
 // A ProGuard mapping's ProguardCache, read in place at lookup, is about 45% of the mapping; making one takes about
 // 4.4 times the mapping in Wasm (8 MB took 36 MB), so past PROGUARD_WORKER it's the builder's. A lookup holds the
-// cache in the isolate, so it stops at MAX_PROGUARD_CACHE: Caliu's 112 MB mapping makes 48 MB, read in 50 MB of Wasm
+// cache in the isolate, so it stops at MAX_PROGUARD_CACHE: a 112 MB mapping makes 48 MB, read in 50 MB of Wasm
 export const PROGUARD_WORKER = 8 * 1024 * 1024
 export const MAX_PROGUARD_CACHE = 64 * 1024 * 1024
 /** Asks the builder's container: a path and the file as the body */
