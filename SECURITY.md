@@ -4,9 +4,14 @@ crashyard receives crash reports from the internet and stores what apps send it,
 
 ## Report a vulnerability
 
-Report it privately through GitHub. Open the repository's **Security** tab and choose **Report a vulnerability**.
-Please don't open a public issue. You'll get an answer within a few days, and credit in the release notes if you'd
-like it.
+Report it privately through GitHub. Open the repository's **Security** tab and choose **Report a vulnerability**, or
+email marctorrelles@gmail.com. Please don't open a public issue. You'll get an answer within a few days, and credit in
+the release notes if you'd like it.
+
+## Supported versions
+
+Fixes go into the newest release. Update to it from Settings, General, or as [docs/upgrading.md](docs/upgrading.md)
+describes.
 
 ## Scope
 

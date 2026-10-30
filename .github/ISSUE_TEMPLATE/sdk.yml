@@ -5,7 +5,7 @@ body:
   - type: input
     attributes:
       label: SDK or tool, and its version
-      placeholder: '@sentry/browser 10.2.0, sentry-cli 2.50.0, …'
+      placeholder: '@sentry/browser 11.9.0, sentry-cli 3.8.2, …'
     validations:
       required: true
   - type: textarea

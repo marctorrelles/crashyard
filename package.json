@@ -4,6 +4,21 @@
   "private": true,
   "description": "A Sentry-compatible crash, error and log reporter you run on your own Cloudflare account",
   "license": "MIT",
+  "author": "Marc Torrelles",
+  "homepage": "https://github.com/marctorrelles/crashyard#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marctorrelles/crashyard.git"
+  },
+  "bugs": "https://github.com/marctorrelles/crashyard/issues",
+  "keywords": [
+    "sentry",
+    "crash-reporting",
+    "error-tracking",
+    "self-hosted",
+    "cloudflare-workers",
+    "observability"
+  ],
   "type": "module",
   "packageManager": "pnpm@10.32.1",
   "engines": {
