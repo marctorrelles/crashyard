@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>crashyard: crash reporting on your own Cloudflare account</title>
+<meta name="description" content="crashyard is an open-source, Sentry-compatible crash, error and log reporter you deploy to your own Cloudflare account.">
+<meta property="og:title" content="crashyard">
+<meta property="og:description" content="Crash reporting on your own Cloudflare account. Keep the official Sentry SDKs and change one line.">
+<meta property="og:url" content="https://crashyard.dev">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://crashyard.dev/images/og.png">
+<meta property="og:image:width" content="2560">
+<meta property="og:image:height" content="1280">
+<meta property="og:image:alt" content="crashyard: crash reporting on your own Cloudflare account, beside its issues list">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F86111">
+<link rel="icon" href="/images/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<svg width="0" height="0" class="absolute" aria-hidden="true">
+  <symbol id="i-logo" viewBox="1.5 1.5 21 21" fill="currentColor"><path d="M19.73 5.04A10.4 10.4 0 1 0 19.73 18.96L15.94 15.55A5.3 5.3 0 1 1 14.31 7.23L13.41 8.04A4.2 4.2 0 1 0 15.12 14.81L13.63 13.47A2.2 2.2 0 1 1 13.63 10.53L17.42 7.12A7.3 7.3 0 1 0 15.88 18.18L16.72 18.95A8.4 8.4 0 1 1 18.24 6.38Z"/></symbol>
+  <symbol id="i-cloudflare" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.031 7.007c2.469 -.007 3.295 1.293 3.969 2.993c4 0 4.994 3.825 5 6h-20c-.001 -1.64 1.36 -2.954 3 -3c0 -1.5 1 -3 3 -3c.66 -1.942 2.562 -2.986 5.031 -2.993"/><path d="M12 13h6"/><path d="M17 10l-2.5 6"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13 -8l-13 -8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6l0 13"/><path d="M12 6l0 13"/><path d="M21 6l0 13"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l14 0"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></symbol>
+  <symbol id="i-file-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/><path d="M10 13l-1 2l1 2"/><path d="M14 13l1 2l-1 2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></symbol>
+  <symbol id="i-commit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M12 3l0 6"/><path d="M12 15l0 6"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v-1a3 3 0 0 1 6 0v1"/><path d="M8 9h8a6 6 0 0 1 1 3v3a5 5 0 0 1 -10 0v-3a6 6 0 0 1 1 -3"/><path d="M3 13l4 0"/><path d="M17 13l4 0"/><path d="M12 20l0 -6"/><path d="M4 19l3.35 -2"/><path d="M20 19l-3.35 -2"/><path d="M4 7l3.75 2.4"/><path d="M20 7l-3.75 2.4"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5h8"/><path d="M13 9h5"/><path d="M13 15h8"/><path d="M13 19h5"/><path d="M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/><path d="M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8l4 -16l3 8h4"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M13.41 10.59l2.59 -2.59"/><path d="M7 12a5 5 0 0 1 5 -5"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v8h-6z"/><path d="M4 16h6v4h-6z"/><path d="M14 12h6v8h-6z"/><path d="M14 4h6v4h-6z"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12"/><path d="M9 9h6v6h-6l0 -6"/><path d="M3 10h2"/><path d="M3 14h2"/><path d="M10 3v2"/><path d="M14 3v2"/><path d="M21 10h-2"/><path d="M21 14h-2"/><path d="M14 21v-2"/><path d="M10 21v-2"/></symbol>
+  <symbol id="i-fingerprint" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.9 7a8 8 0 0 1 1.1 5v1a6 6 0 0 0 .8 3"/><path d="M8 11a4 4 0 0 1 8 0v1a10 10 0 0 0 2 6"/><path d="M12 11v2a14 14 0 0 0 2.5 8"/><path d="M8 15a18 18 0 0 0 1.8 6"/><path d="M4.9 19a22 22 0 0 1 -.9 -7v-1a8 8 0 0 1 12 -6.95"/></symbol>
+  <symbol id="i-device" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"/><path d="M11 4h2"/><path d="M12 17v.01"/></symbol>
+  <symbol id="i-exchange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h14l-4 -4"/><path d="M17 14h-14l4 4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></symbol>
+  <symbol id="i-telegram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l-4 4l6 6l4 -16l-18 7l4 2l2 6l3 -4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z"/><path d="M3 7l9 6l9 -6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></symbol>
+  <symbol id="i-webhook" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.876 13.61a4 4 0 1 0 6.124 3.39h6"/><path d="M15.066 20.502a4 4 0 1 0 1.934 -7.502c-.706 0 -1.424 .179 -2 .5l-3 -5.5"/><path d="M16 8a4 4 0 1 0 -8 0c0 1.506 .77 2.818 2 3.5l-3 5.5"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l14 0"/><path d="M5 15l14 0"/><path d="M11 4l-4 16"/><path d="M17 4l-4 16"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></symbol>
+  <symbol id="i-broadcast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.364 19.364a9 9 0 1 0 -12.728 0"/><path d="M15.536 16.536a5 5 0 1 0 -7.072 0"/><path d="M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10"/><path d="M7 20h10"/><path d="M9 16v4"/><path d="M15 16v4"/></symbol>
+</svg>
+
+<a class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-4 focus:z-20 focus:inline-flex focus:h-[42px] focus:items-center focus:rounded-lg focus:border focus:border-border-2 focus:bg-card focus:px-4 focus:text-[15px] focus:font-[550]" href="#main">Skip to content</a>
+
+<header class="sticky top-[env(safe-area-inset-top,0px)] z-10 border-b border-border bg-[color-mix(in_oklch,var(--bg),transparent_8%)] backdrop-blur-[10px] backdrop-saturate-[1.4]">
+  <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) flex h-[60px] items-center gap-7">
+    <a class="flex items-center gap-2 text-[17px] font-[650] tracking-[-0.02em]" href="/" data-logo><svg class="size-[34px] flex-none text-accent" viewBox="1.5 1.5 21 21" aria-hidden="true"><path d="M18.99 5.71A9.4 9.4 0 1 0 18.28 19L15.95 16.91A6.3 6.3 0 1 1 15.95 7.09L13.59 9.22A3.2 3.2 0 1 0 14.38 14.14" pathLength="1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="butt" stroke-linejoin="miter" stroke-dasharray="1 1.05"/></svg>crashyard</a>
+    <nav class="flex gap-[22px] text-[14.5px] text-fg-2 max-md:hidden *:hover:text-fg" aria-label="Main">
+      <a href="#symbols">Stack traces</a>
+      <a href="#tour">Product</a>
+      <a href="#plans">Cloudflare plans</a>
+      <a href="https://github.com/marctorrelles/crashyard/tree/main/docs">Docs</a>
+      <a href="https://demo.crashyard.dev">Demo</a>
+    </nav>
+    <div class="ml-auto flex items-center gap-2">
+      <a class="inline-flex h-[34px] items-center gap-1.5 px-2.5 text-[14px] text-fg-2 hover:text-fg" href="https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-github"/></svg><span class="max-xs:sr-only">GitHub</span></a>
+      <a class="inline-flex h-[34px] cursor-pointer items-center justify-center rounded-[7px] border border-transparent bg-accent px-3 text-[14px] leading-none font-[550] whitespace-nowrap text-accent-fg hover:bg-accent-hover motion-safe:transition-colors motion-safe:duration-[120ms]" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard">Deploy</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="pt-[72px] max-sm:pt-11">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
+      <div class="grid items-start gap-10 xl:grid-cols-[1.05fr_1fr] xl:gap-14">
+        <div class="grid gap-[22px]">
+          <h1 class="text-[length:clamp(38px,5.4vw,60px)] leading-[1.04] tracking-[-0.035em]">Crash reporting on your own Cloudflare account</h1>
+          <p class="max-w-[56ch] text-[length:clamp(17px,1.5vw,19px)] leading-[1.55] text-fg-2">crashyard is an open-source, Sentry-compatible crash, error and log reporter. It runs as one Worker with D1 and R2 that you deploy in a click. <strong class="font-[550] text-fg">Your apps keep the official Sentry SDKs and only change their DSN.</strong></p>
+          <div class="flex flex-wrap gap-2.5">
+            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-transparent bg-accent text-accent-fg hover:bg-accent-hover" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
+            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-border-2 bg-card text-fg hover:border-fg-3" href="https://demo.crashyard.dev"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-play"/></svg>Try the demo</a>
+            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-transparent text-fg-2 hover:text-fg" href="https://github.com/marctorrelles/crashyard/tree/main/docs"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-book"/></svg>Read the docs</a>
+          </div>
+          <p class="flex max-w-[54ch] items-start gap-2.5 text-[14px] text-fg-2"><svg class="mt-0.5 size-4 flex-none text-accent-text" aria-hidden="true"><use href="#i-info"/></svg><span>Cloudflare's free plan handles a few thousand events a day. Native crashes and source maps need Workers Paid. <a class="text-fg underline underline-offset-3" href="#plans">See why</a>.</span></p>
+        </div>
+
+        <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code data-sdk>
+          <div class="group relative flex items-center border-b border-code-line bg-code-bar py-1.5">
+            <div class="flex min-w-0 flex-1 gap-0.5 overflow-x-auto scroll-pe-[84px] pr-[84px] pl-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="SDK">
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-js" aria-controls="sdk-js" aria-selected="true">JavaScript</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-swift" aria-controls="sdk-swift" aria-selected="false" tabindex="-1">Swift</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-android" aria-controls="sdk-android" aria-selected="false" tabindex="-1">Android</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-python" aria-controls="sdk-python" aria-selected="false" tabindex="-1">Python</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-node" aria-controls="sdk-node" aria-selected="false" tabindex="-1">Node.js</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-react" aria-controls="sdk-react" aria-selected="false" tabindex="-1">React</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-go" aria-controls="sdk-go" aria-selected="false" tabindex="-1">Go</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-ruby" aria-controls="sdk-ruby" aria-selected="false" tabindex="-1">Ruby</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-php" aria-controls="sdk-php" aria-selected="false" tabindex="-1">PHP</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-java" aria-controls="sdk-java" aria-selected="false" tabindex="-1">Java</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-dotnet" aria-controls="sdk-dotnet" aria-selected="false" tabindex="-1">.NET</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-rust" aria-controls="sdk-rust" aria-selected="false" tabindex="-1">Rust</button>
+              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-flutter" aria-controls="sdk-flutter" aria-selected="false" tabindex="-1">Flutter</button>
+            </div>
+            <button class="absolute inset-y-1.5 right-0 inline-flex cursor-pointer items-center gap-1.5 border-l border-transparent bg-code-bar px-3.5 text-[12.5px] leading-none font-medium text-code-dim group-data-overflowing:border-code-line hover:text-code-fg focus-visible:-outline-offset-2" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button>
+          </div>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-js" role="tabpanel" aria-labelledby="tab-js" tabindex="0"><span class="text-code-dim">// app.ts</span><span><span class="text-code-key">import</span> * <span class="text-code-key">as</span> Sentry <span class="text-code-key">from</span> <span class="text-code-str">'@sentry/browser'</span></span><span> </span><span>Sentry.init({</span><span class="bg-code-rm-bg text-code-rm">-  dsn: <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/451'</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  dsn: <span>'https://8b41d2f09c@crashyard.example.com/3'</span>,</span><span>   release: import.meta.env.VITE_RELEASE,</span><span>})</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-swift" role="tabpanel" aria-labelledby="tab-swift" tabindex="0" hidden><span class="text-code-dim">// AppDelegate.swift</span><span><span class="text-code-key">import</span> Sentry</span><span> </span><span>SentrySDK.start { options <span class="text-code-key">in</span></span><span class="bg-code-rm-bg text-code-rm">-   options.dsn = <span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/452"</span></span><span class="bg-code-add-bg text-code-add" data-keep>+   options.dsn = <span>"https://2c7f90e1a4@crashyard.example.com/1"</span></span><span>    options.sendDefaultPii = <span class="text-code-key">false</span></span><span>}</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-android" role="tabpanel" aria-labelledby="tab-android" tabindex="0" hidden><span class="text-code-dim">&lt;!-- AndroidManifest.xml, inside &lt;application&gt; --&gt;</span><span>&lt;meta-data android:name=<span class="text-code-str">"io.sentry.dsn"</span></span><span class="bg-code-rm-bg text-code-rm">-  android:value=<span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/453"</span> /&gt;</span><span class="bg-code-add-bg text-code-add" data-keep>+  android:value=<span>"https://71d3c4b8e2@crashyard.example.com/4"</span> /&gt;</span><span>&lt;meta-data android:name=<span class="text-code-str">"io.sentry.send-default-pii"</span></span><span>  android:value=<span class="text-code-str">"false"</span> /&gt;</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-python" role="tabpanel" aria-labelledby="tab-python" tabindex="0" hidden><span class="text-code-dim"># app.py</span><span><span class="text-code-key">import</span> sentry_sdk</span><span> </span><span>sentry_sdk.init(</span><span class="bg-code-rm-bg text-code-rm">-   dsn=<span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/454"</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+   dsn=<span>"https://4f02a9d6c1@crashyard.example.com/2"</span>,</span><span>    traces_sample_rate=1.0,</span><span>)</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-node" role="tabpanel" aria-labelledby="tab-node" tabindex="0" hidden><span class="text-code-dim">// instrument.mjs</span><span><span class="text-code-key">import</span> * <span class="text-code-key">as</span> Sentry <span class="text-code-key">from</span> <span class="text-code-str">'@sentry/node'</span></span><span> </span><span>Sentry.init({</span><span class="bg-code-rm-bg text-code-rm">-  dsn: <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/455'</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  dsn: <span>'https://9a1e6c3f50@crashyard.example.com/5'</span>,</span><span>   tracesSampleRate: 0.1,</span><span>})</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-react" role="tabpanel" aria-labelledby="tab-react" tabindex="0" hidden><span class="text-code-dim">// main.tsx</span><span><span class="text-code-key">import</span> * <span class="text-code-key">as</span> Sentry <span class="text-code-key">from</span> <span class="text-code-str">'@sentry/react'</span></span><span> </span><span>Sentry.init({</span><span class="bg-code-rm-bg text-code-rm">-  dsn: <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/456'</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  dsn: <span>'https://9a1e6c3f50@crashyard.example.com/6'</span>,</span><span>   integrations: [Sentry.browserTracingIntegration()],</span><span>})</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-go" role="tabpanel" aria-labelledby="tab-go" tabindex="0" hidden><span class="text-code-dim">// main.go</span><span>err := sentry.Init(sentry.ClientOptions{</span><span class="bg-code-rm-bg text-code-rm">-  Dsn: <span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/457"</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  Dsn: <span>"https://9a1e6c3f50@crashyard.example.com/7"</span>,</span><span>   TracesSampleRate: 0.1,</span><span>})</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-ruby" role="tabpanel" aria-labelledby="tab-ruby" tabindex="0" hidden><span class="text-code-dim"># config/initializers/sentry.rb</span><span>Sentry.init <span class="text-code-key">do</span> |config|</span><span class="bg-code-rm-bg text-code-rm">-  config.dsn = <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/458'</span></span><span class="bg-code-add-bg text-code-add" data-keep>+  config.dsn = <span>'https://9a1e6c3f50@crashyard.example.com/8'</span></span><span>   config.traces_sample_rate = 0.1</span><span class="text-code-key">end</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-php" role="tabpanel" aria-labelledby="tab-php" tabindex="0" hidden><span class="text-code-dim">// bootstrap.php</span><span>\Sentry\init([</span><span class="bg-code-rm-bg text-code-rm">-  'dsn' => <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/459'</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  'dsn' => <span>'https://9a1e6c3f50@crashyard.example.com/9'</span>,</span><span>   'traces_sample_rate' => 0.1,</span><span>]);</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-java" role="tabpanel" aria-labelledby="tab-java" tabindex="0" hidden><span class="text-code-dim">// Application.java</span><span>Sentry.init(options -&gt; {</span><span class="bg-code-rm-bg text-code-rm">-  options.setDsn(<span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/460"</span>);</span><span class="bg-code-add-bg text-code-add" data-keep>+  options.setDsn(<span>"https://9a1e6c3f50@crashyard.example.com/10"</span>);</span><span>   options.setTracesSampleRate(0.1);</span><span>});</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-dotnet" role="tabpanel" aria-labelledby="tab-dotnet" tabindex="0" hidden><span class="text-code-dim">// Program.cs</span><span>SentrySdk.Init(options =&gt;</span><span>{</span><span class="bg-code-rm-bg text-code-rm">-  options.Dsn = <span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/461"</span>;</span><span class="bg-code-add-bg text-code-add" data-keep>+  options.Dsn = <span>"https://9a1e6c3f50@crashyard.example.com/11"</span>;</span><span>   options.TracesSampleRate = 0.1;</span><span>});</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-rust" role="tabpanel" aria-labelledby="tab-rust" tabindex="0" hidden><span class="text-code-dim">// main.rs</span><span><span class="text-code-key">let</span> _guard = sentry::init((</span><span class="bg-code-rm-bg text-code-rm">-  <span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/462"</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  <span>"https://9a1e6c3f50@crashyard.example.com/12"</span>,</span><span>   sentry::ClientOptions { release: sentry::release_name!(), ..Default::default() },</span><span>));</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-flutter" role="tabpanel" aria-labelledby="tab-flutter" tabindex="0" hidden><span class="text-code-dim">// main.dart</span><span><span class="text-code-key">await</span> SentryFlutter.init(</span><span class="bg-code-rm-bg text-code-rm">-  (options) =&gt; options.dsn = <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/463'</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  (options) =&gt; options.dsn = <span>'https://9a1e6c3f50@crashyard.example.com/13'</span>,</span><span>   appRunner: () =&gt; runApp(App()),</span><span>);</span></pre>
+          <p class="border-t border-code-line px-5 py-[11px] text-[13px] text-code-dim">The same one-line change for every official Sentry SDK.</p>
+        </div>
+      </div>
+
+      <figure class="overflow-hidden rounded-[14px] border border-border bg-card shadow-card mt-16">
+        <div class="flex h-[38px] items-center gap-2.5 border-b border-border bg-bg-2 px-3.5"><span class="flex gap-1.5 max-sm:hidden *:size-2.5 *:rounded-full *:bg-border-2" aria-hidden="true"><i></i><i></i><i></i></span><span class="mx-auto max-w-[60%] truncate rounded-md border border-border bg-card px-3 py-1.5 font-mono text-[12.5px] leading-none text-fg-3 max-sm:max-w-full">crashyard.example.com/issues/3</span></div>
+        <div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/issue-light.jpg" width="2560" height="1600" alt="An iOS crash in crashyard: EXC_BAD_ACCESS in acme-ios 1.0 (10), with its stack trace read back to Voice.swift line 41, its events over time and its tags">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/issue-dark.jpg" width="2560" height="1600" alt="An iOS crash in crashyard: EXC_BAD_ACCESS in acme-ios 1.0 (10), with its stack trace read back to Voice.swift line 41, its events over time and its tags">
+        </div>
+      </figure>
+
+      <div class="mt-14 flex flex-wrap items-center gap-x-7 gap-y-2.5 text-[14px] text-fg-3"><b class="mr-1 font-medium text-fg-2">Works with the official Sentry SDKs for</b>
+        <ul class="flex flex-wrap gap-x-[22px] gap-y-2 font-mono text-[14px] leading-none font-medium text-fg-2"><li>Apple</li><li>Android</li><li>JavaScript</li><li>Node.js</li><li>Python</li><li>Ruby</li><li>PHP</li><li>Go</li><li>Java</li><li>.NET</li><li>Elixir</li><li>Rust</li><li>Dart</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <section class="pt-[120px] max-sm:pt-[88px]" id="symbols">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid items-start gap-10 xl:grid-cols-[1fr_1.1fr] xl:gap-16 *:min-w-0">
+      <div>
+        <div class="grid max-w-[680px] gap-3.5">
+          <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Readable stack traces from the files you already upload</h2>
+          <p class="text-[17px] text-fg-2">Point sentry-cli, the Xcode build phase, the Gradle plugin or <code>@sentry/vite-plugin</code> at crashyard. It reads dSYMs, R8 mappings, native libraries and source maps with Sentry's own symbolic library, built to WebAssembly.</p>
+        </div>
+        <ul class="mt-7 grid gap-[18px] *:grid *:grid-cols-[22px_1fr] *:gap-3">
+          <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-refresh"/></svg><div><b class="block font-semibold">Crashes that came first are read again</b><span class="text-fg-2">Anything from the last 30 days that arrived before its files is processed once they're uploaded.</span></div></li>
+          <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-file-code"/></svg><div><b class="block font-semibold">Each frame opens its line</b><span class="text-fg-2">On GitHub or GitLab, at the release's commit. Private repositories need no token.</span></div></li>
+          <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-commit"/></svg><div><b class="block font-semibold">Suspect commits</b><span class="text-fg-2">An issue lists the commits in its first release that changed a file in its stack. <code>Fixes CRASHYARD-42</code> in a message resolves it.</span></div></li>
+        </ul>
+        <p class="mt-6 inline-flex items-center gap-1.5 rounded-md bg-accent-soft px-2.5 py-1.5 text-[13.5px] text-fg-2"><svg class="size-[15px] flex-none text-accent-text" aria-hidden="true"><use href="#i-info"/></svg>Uploads need Workers Paid.</p>
+      </div>
+      <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code>
+          <div class="flex items-center gap-0.5 overflow-x-auto border-b border-code-line bg-code-bar py-1.5 pr-1.5 pl-2 [scrollbar-width:none]"><span class="px-2 font-mono text-[13px] leading-none whitespace-nowrap text-code-dim">Terminal</span><button class="ml-auto inline-flex h-[30px] flex-none cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[12.5px] leading-none font-medium text-code-dim hover:bg-white/7 hover:text-code-fg" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" tabindex="0"><span class="text-code-dim"># Point Sentry's own tools at crashyard</span><span data-keep>export SENTRY_URL=https://crashyard.example.com/</span><span data-keep>export SENTRY_ORG=crashyard</span><span data-keep>export SENTRY_PROJECT=acme-ios</span><span data-keep>export SENTRY_AUTH_TOKEN=cy_…</span><span> </span><span class="text-code-dim"># After archiving the iOS app</span><span><span class="text-code-dim select-none">$ </span><span data-keep>sentry-cli debug-files upload --include-sources ./dSYMs</span></span><span> </span><span class="text-code-dim"># Send the release's commits for suspect commits and links</span><span><span class="text-code-dim select-none">$ </span><span data-keep>sentry-cli releases set-commits "1.0 (10)" --local</span></span></pre>
+        </div>
+    </div>
+  </section>
+
+  <section class="pt-[120px] max-sm:pt-[88px]" id="tour">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
+      <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Everything a small team uses Sentry for</h2>
+        <p class="text-[17px] text-fg-2">Issues, releases, logs, traces and monitors in one dashboard, light or dark, on a desktop or a phone.</p>
+      </div>
+      <div class="flex w-max max-w-full gap-1 overflow-x-auto rounded-[10px] border border-border bg-bg-2 p-1 [scrollbar-width:none]" role="tablist" aria-label="Product">
+        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-issues" aria-controls="t-issues" aria-selected="true"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-bug"/></svg>Issues</button>
+        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-releases" aria-controls="t-releases" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-tag"/></svg>Releases</button>
+        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-logs" aria-controls="t-logs" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-list"/></svg>Logs</button>
+        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-monitors" aria-controls="t-monitors" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-activity"/></svg>Monitors</button>
+        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-status" aria-controls="t-status" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-broadcast"/></svg>Status pages</button>
+      </div>
+
+      <div class="mt-6 grid gap-6 xl:grid-cols-[300px_1fr] xl:items-start xl:gap-10" role="tabpanel" id="t-issues" aria-labelledby="tb-issues" tabindex="0">
+        <div class="grid gap-3 pt-2">
+          <h3 class="text-[21px] tracking-[-0.02em]">Issues</h3>
+          <p class="text-fg-2">Crashes and errors grouped the way Sentry groups them, searchable with Sentry's query syntax.</p>
+          <ul class="mt-1 grid list-disc gap-1.5 pl-[18px] text-[15px] text-fg-2 marker:text-accent"><li>Resolve now or in the next release</li><li>Regressions flagged when an issue comes back</li><li>Merge, ignore, assign and add notes</li><li>Crashes from App Review and TestFlight called out</li></ul>
+        </div>
+        <div class="overflow-hidden rounded-[14px] border border-border bg-card shadow-card"><div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/issues-light.jpg" width="2560" height="1600" loading="lazy" alt="The issues list: events per day for 14 days, then issues from acme-ios, acme-web and sync with their counts">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/issues-dark.jpg" width="2560" height="1600" loading="lazy" alt="The issues list: events per day for 14 days, then issues from acme-ios, acme-web and sync with their counts">
+        </div></div>
+      </div>
+      <div class="mt-6 grid gap-6 xl:grid-cols-[300px_1fr] xl:items-start xl:gap-10" role="tabpanel" id="t-releases" aria-labelledby="tb-releases" tabindex="0" hidden>
+        <div class="grid gap-3 pt-2">
+          <h3 class="text-[21px] tracking-[-0.02em]">Releases</h3>
+          <p class="text-fg-2">What is new, what regressed and what is gone in each release, against the one before.</p>
+          <ul class="mt-1 grid list-disc gap-1.5 pl-[18px] text-[15px] text-fg-2 marker:text-accent"><li>Crash-free sessions and users</li><li>Adoption over the last 30 days</li><li>The commits each release shipped</li></ul>
+        </div>
+        <div class="overflow-hidden rounded-[14px] border border-border bg-card shadow-card"><div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/release-light.jpg" width="2560" height="1600" loading="lazy" alt="Release 1.0 (10) of acme-ios: crash-free sessions, adoption, and its new and regressed issues">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/release-dark.jpg" width="2560" height="1600" loading="lazy" alt="Release 1.0 (10) of acme-ios: crash-free sessions, adoption, and its new and regressed issues">
+        </div></div>
+      </div>
+      <div class="mt-6 grid gap-6 xl:grid-cols-[300px_1fr] xl:items-start xl:gap-10" role="tabpanel" id="t-logs" aria-labelledby="tb-logs" tabindex="0" hidden>
+        <div class="grid gap-3 pt-2">
+          <h3 class="text-[21px] tracking-[-0.02em]">Logs and traces</h3>
+          <p class="text-fg-2">Sentry logs, searchable by any attribute, grouped, charted and followed live.</p>
+          <ul class="mt-1 grid list-disc gap-1.5 pl-[18px] text-[15px] text-fg-2 marker:text-accent"><li>Jump from a log to the issue in the same trace</li><li>Transactions by p95, per release</li><li>The slowest runs with their spans</li></ul>
+        </div>
+        <div class="overflow-hidden rounded-[14px] border border-border bg-card shadow-card"><div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/logs-light.jpg" width="2560" height="1600" loading="lazy" alt="Logs from three apps over 24 hours, with counts by level and attribute">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/logs-dark.jpg" width="2560" height="1600" loading="lazy" alt="Logs from three apps over 24 hours, with counts by level and attribute">
+        </div></div>
+      </div>
+      <div class="mt-6 grid gap-6 xl:grid-cols-[300px_1fr] xl:items-start xl:gap-10" role="tabpanel" id="t-monitors" aria-labelledby="tb-monitors" tabindex="0" hidden>
+        <div class="grid gap-3 pt-2">
+          <h3 class="text-[21px] tracking-[-0.02em]">Monitors</h3>
+          <p class="text-fg-2">Cron monitors for scheduled jobs and uptime checks for URLs. Each failure opens an incident.</p>
+          <ul class="mt-1 grid list-disc gap-1.5 pl-[18px] text-[15px] text-fg-2 marker:text-accent"><li>Check in from the SDK, sentry-cli or curl</li><li>Missed and late check-ins caught</li><li>Response times and 30 days of results</li></ul>
+        </div>
+        <div class="overflow-hidden rounded-[14px] border border-border bg-card shadow-card"><div class="aspect-[2560/820] overflow-hidden">
+          <img class="h-full w-full object-cover object-[0_0] dark:hidden" src="/images/monitors-light.jpg" width="2560" height="1600" loading="lazy" alt="Monitors: a failing nightly export and two uptime checks that are up">
+          <img class="h-full w-full object-cover object-[0_0] hidden dark:block" src="/images/monitors-dark.jpg" width="2560" height="1600" loading="lazy" alt="Monitors: a failing nightly export and two uptime checks that are up">
+        </div></div>
+      </div>
+      <div class="mt-6 grid gap-6 xl:grid-cols-[300px_1fr] xl:items-start xl:gap-10" role="tabpanel" id="t-status" aria-labelledby="tb-status" tabindex="0" hidden>
+        <div class="grid gap-3 pt-2">
+          <h3 class="text-[21px] tracking-[-0.02em]">Status pages</h3>
+          <p class="text-fg-2">Public pages with the uptime checks you choose, from any of your projects, on your own domain.</p>
+          <ul class="mt-1 grid list-disc gap-1.5 pl-[18px] text-[15px] text-fg-2 marker:text-accent"><li>Post incidents, notices and planned maintenance</li><li>Updates as things change, with the services affected</li><li>Your own title, logo and brand color</li></ul>
+          <p class="text-fg-2"><a class="text-fg underline underline-offset-3" href="https://demo-status.crashyard.dev">See the demo's status page</a></p>
+        </div>
+        <div class="overflow-hidden rounded-[14px] border border-border bg-card shadow-card"><div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/status-light.jpg" width="2560" height="1600" loading="lazy" alt="Brightpan's public status page: an incident on its image CDN, a scheduled maintenance and each service's last 30 days">
+          <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/status-dark.jpg" width="2560" height="1600" loading="lazy" alt="Brightpan's public status page: an incident on its image CDN, a scheduled maintenance and each service's last 30 days">
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pt-[120px] max-sm:pt-[88px]" id="alerts">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid items-start gap-10 xl:grid-cols-[1.1fr_1fr] xl:gap-16 *:min-w-0">
+      <div>
+        <div class="grid max-w-[680px] gap-3.5">
+          <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Alerts where you already are</h2>
+          <p class="text-[17px] text-fg-2">Route each alert by type, project, level and environment. Quiet hours hold the ones that can wait until morning, and a weekly summary lands on Monday.</p>
+        </div>
+        <ul class="mt-6 flex flex-wrap gap-2 *:inline-flex *:h-8 *:items-center *:gap-[7px] *:rounded-full *:border *:border-border-2 *:bg-card *:px-3 *:text-[14px]" aria-label="Channels">
+          <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-telegram"/></svg>Telegram</li>
+          <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-hash"/></svg>Slack</li>
+          <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-hash"/></svg>Discord</li>
+          <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-mail"/></svg>Email</li>
+          <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-bell"/></svg>Web push</li>
+          <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-webhook"/></svg>Webhook</li>
+        </ul>
+        <figure class="mt-7 grid max-w-[520px] gap-2.5 rounded-xl border border-border bg-card p-4 shadow-card">
+          <figcaption class="sr-only">A crashyard alert in Telegram</figcaption>
+          <div class="flex items-center gap-2.5 text-[14px] font-semibold"><img class="size-7 rounded-full" src="/images/logo.svg" alt=""><div>crashyard <span class="font-normal text-fg-3">bot</span></div></div>
+          <div class="grid gap-[3px] text-[14.5px]">
+            <b class="font-semibold [overflow-wrap:anywhere]">EXC_BAD_ACCESS: KERN_INVALID_ADDRESS at 0x10</b>
+            <span class="text-fg-2">acme-ios · 1.0 (10) · Reached 100 events</span>
+            <span class="flex items-center gap-1.5 text-[13.5px] text-fg-3"><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-moon"/></svg>Held for quiet hours, sent at 08:00</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 *:rounded-[7px] *:border *:border-border *:bg-bg-2 *:px-1 *:py-2 *:text-center *:text-[13.5px] *:font-[550]"><span>Resolve</span><span>Ignore</span><span>Assign to me</span></div>
+        </figure>
+      </div>
+      <div>
+        <div class="grid max-w-[680px] gap-3.5 mb-6">
+          <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Triage from your agent</h2>
+          <p class="text-[17px] text-fg-2">An MCP server at <code>/mcp</code> lets an agent such as Claude Code read issues, events, logs, traces and releases, and resolve, assign or merge what it finds. A token acts as you and never does more than your role allows.</p>
+        </div>
+        <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code>
+          <div class="flex items-center gap-0.5 overflow-x-auto border-b border-code-line bg-code-bar py-1.5 pr-1.5 pl-2 [scrollbar-width:none]"><span class="px-2 font-mono text-[13px] leading-none whitespace-nowrap text-code-dim">Terminal</span><button class="ml-auto inline-flex h-[30px] flex-none cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[12.5px] leading-none font-medium text-code-dim hover:bg-white/7 hover:text-code-fg" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" tabindex="0"><span class="text-code-dim"># The token comes from Settings, then Agent tokens</span><span><span class="text-code-dim select-none">$ </span><span data-keep>claude mcp add --transport http crashyard \</span></span><span data-keep>    https://crashyard.example.com/mcp \</span><span data-keep>    --header "Authorization: Bearer cyp_…"</span><span> </span><span class="text-code-dim"># Then ask: why did acme-ios 1.0 (10) start</span><span class="text-code-dim"># crashing in Voice.next()?</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pt-[120px] max-sm:pt-[88px]" id="more">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
+      <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">The rest of the job, in the same Worker</h2>
+      </div>
+      <div class="grid gap-px overflow-hidden rounded-[14px] border border-border bg-border sm:grid-cols-2 xl:grid-cols-3">
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-gauge"/></svg>Performance</h3><p class="text-[15px] text-fg-2">Transactions by p95, how each release changed them, and web and mobile vitals.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-layout"/></svg>Dashboards</h3><p class="text-[15px] text-fg-2">Charts, numbers and tables from issues, events and logs, or the Crashes template.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-cpu"/></svg>Worker runs</h3><p class="text-[15px] text-fg-2">Catches Workers that run out of CPU time or memory, which their own SDK never gets to send.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-fingerprint"/></svg>Passkeys</h3><p class="text-[15px] text-fg-2">No passwords. Four roles from owner to viewer, invites, recovery codes, and Sign in with GitHub if you want it.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-refresh"/></svg>Updates from GitHub releases</h3><p class="text-[15px] text-fg-2">crashyard checks for new releases daily and installs one from the dashboard, or every night.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-device"/></svg>Installable app</h3><p class="text-[15px] text-fg-2">Add it to your phone's home screen, with push notifications on iOS 16.4 and later.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-exchange"/></svg>Next to Sentry</h3><p class="text-[15px] text-fg-2">Forward every event on to Sentry too, so you can compare the two until you switch.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-shield"/></svg>Private by default</h3><p class="text-[15px] text-fg-2">No telemetry, no IP addresses. Passwords, tokens and emails are scrubbed before storing.</p></div>
+        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-monitor"/></svg>Moving from Sentry</h3><p class="text-[15px] text-fg-2">Import a project's issues with their latest event, counts, status and comments. New events land on the same issues.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pt-[120px] max-sm:pt-[88px]" id="plans">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
+      <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">What runs on which Cloudflare plan</h2>
+        <p class="text-[17px] text-fg-2">crashyard runs in your account, so Cloudflare's plan is the only bill. Cloudflare's free plan handles a few thousand events a day.</p>
+      </div>
+      <div class="overflow-x-auto rounded-[14px] border border-border bg-card">
+        <table class="w-full border-collapse text-[15px]">
+          <thead><tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 bg-bg-2 text-[14px] font-semibold text-fg-2" scope="col">Feature</th><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16 bg-bg-2 text-[14px] font-semibold text-fg-2" scope="col">Free</th><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16 bg-bg-2 text-[14px] font-semibold text-fg-2" scope="col">Paid</th></tr></thead>
+          <tbody class="[&>tr:last-child>*]:border-b-0">
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Issues, alerts, logs, traces and performance</th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Releases, sessions and crash-free rates</th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Monitors, uptime checks and status pages</th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Stack traces readable as sent<small class="mt-0.5 block text-[13.5px] font-normal text-fg-3">Node.js, Python, Ruby, PHP, Go, Java, .NET</small></th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Native crashes from iOS and Android<small class="mt-0.5 block text-[13.5px] font-normal text-fg-3">dSYMs, R8 mappings and native libraries</small></th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-no"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-minus"/></svg><span class="max-sm:sr-only">No</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Source maps for browser JavaScript</th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-no"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-minus"/></svg><span class="max-sm:sr-only">No</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Installing updates from the dashboard</th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-no"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-minus"/></svg><span class="max-sm:sr-only">No</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+            <tr><th class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 font-medium" scope="row">Debug files up to 512 MB<small class="mt-0.5 block text-[13.5px] font-normal text-fg-3">With the optional SymCache builder container</small></th><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-no"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-minus"/></svg><span class="max-sm:sr-only">No</span></span></td><td class="border-b border-border px-5 py-3.5 text-left align-top max-sm:p-3 w-[22%] max-sm:w-16"><span class="inline-flex items-center gap-1.5 text-[14px] text-ok"><svg class="size-4 flex-none" aria-hidden="true"><use href="#i-check"/></svg><span class="max-sm:sr-only">Yes</span></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-12">
+        <div>
+          <h3 class="mb-1.5 text-[16px] tracking-[-0.01em]">Why native crashes need Paid</h3>
+          <p class="text-[15px] text-fg-2">Turning a stack trace back into code takes more processing time than the free plan's 10 ms a request. crashyard finds which plan your account is on by itself, and the pages that need Paid say so.</p>
+        </div>
+        <div>
+          <h3 class="mb-1.5 text-[16px] tracking-[-0.01em]">Not there yet</h3>
+          <ul class="grid list-disc gap-1 pl-[18px] text-[15px] text-fg-2">
+            <li>React Native with Hermes, obfuscated Flutter and Unity with IL2CPP arrive grouped, with raw frames.</li>
+            <li>Profiles and session replays are accepted and dropped.</li>
+          </ul>
+          <p class="mt-2 text-[15px] text-fg-2"><a class="text-fg underline underline-offset-3" href="https://github.com/marctorrelles/crashyard/blob/main/docs/sentry-compatibility.md">Everything that works, checked against each SDK</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pt-[120px] max-sm:pt-[88px]" id="compare">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
+      <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">How it compares</h2>
+        <p class="text-[17px] text-fg-2">Other projects keep crash reports yourself too. Here's where crashyard differs.</p>
+      </div>
+      <div class="grid gap-px overflow-hidden rounded-[14px] border border-border bg-border lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
+        <div class="grid content-start gap-2.5 bg-card p-6 bg-accent-soft">
+          <h3 class="text-[16px] tracking-[-0.01em]">crashyard</h3>
+          <p class="text-[15px] text-fg">One Worker in your Cloudflare account, with no server to run.</p>
+          <ul class="grid gap-1.5 text-[14.5px] *:grid *:grid-cols-[18px_1fr] *:gap-2">
+            <li><svg class="mt-[3px] size-4 flex-none text-accent-text" aria-hidden="true"><use href="#i-check"/></svg>Everything the Sentry SDK sends</li>
+            <li><svg class="mt-[3px] size-4 flex-none text-accent-text" aria-hidden="true"><use href="#i-check"/></svg>Native symbols through sentry-cli</li>
+            <li><svg class="mt-[3px] size-4 flex-none text-accent-text" aria-hidden="true"><use href="#i-check"/></svg>Alert routes with quiet hours</li>
+            <li><svg class="mt-[3px] size-4 flex-none text-accent-text" aria-hidden="true"><use href="#i-check"/></svg>Uptime checks and incidents</li>
+            <li><svg class="mt-[3px] size-4 flex-none text-accent-text" aria-hidden="true"><use href="#i-check"/></svg>Passkeys and an MCP server</li>
+          </ul>
+        </div>
+        <div class="grid content-start gap-2.5 bg-card p-6"><span class="text-[13.5px] text-fg-3">Also on Workers</span><h3 class="text-[16px] tracking-[-0.01em]">Bicho, Workers Sentinel</h3><p class="text-[15px] text-fg-2">Take errors through an API, without performance data, sessions, logs, monitors or alerts.</p></div>
+        <div class="grid content-start gap-2.5 bg-card p-6"><span class="text-[13.5px] text-fg-3">In containers</span><h3 class="text-[16px] tracking-[-0.01em]">GlitchTip, Bugsink, OpenFault</h3><p class="text-[15px] text-fg-2">Speak Sentry's protocol too, and need a server and a database that you keep running.</p></div>
+        <div class="grid content-start gap-2.5 bg-card p-6"><span class="text-[13.5px] text-fg-3">Hosted</span><h3 class="text-[16px] tracking-[-0.01em]">FlareLog</h3><p class="text-[15px] text-fg-2">Runs on its own servers, and your apps send with its own SDK instead of Sentry's.</p></div>
+      </div>
+      <p class="mt-[18px] text-[15px] text-fg-2">Need session replays or profiling? Use Sentry. crashyard can forward every event there while you compare.</p>
+    </div>
+  </section>
+
+  <div class="mt-[120px] border-t border-border bg-bg-2 py-24">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid items-center gap-10 xl:grid-cols-[1fr_1.1fr] xl:gap-16">
+      <div>
+        <h2 class="text-[length:clamp(30px,3.8vw,44px)] leading-[1.08]">Running in about fifteen minutes</h2>
+        <p class="max-w-[56ch] text-[length:clamp(17px,1.5vw,19px)] leading-[1.55] text-fg-2 mt-4">The button copies crashyard to your GitHub account, creates the D1 database and the R2 bucket, and deploys. Add a setup code, create your owner passkey, and give each app's SDK its project's DSN.</p>
+        <div class="mt-7 flex flex-wrap gap-2.5">
+          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-transparent bg-accent text-accent-fg hover:bg-accent-hover" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
+          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-border-2 bg-card text-fg hover:border-fg-3" href="https://github.com/marctorrelles/crashyard/blob/main/docs/deploying.md"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-book"/></svg>Read the deploy guide</a>
+          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-border-2 bg-card text-fg hover:border-fg-3" href="https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
+        </div>
+      </div>
+      <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code>
+          <div class="flex items-center gap-0.5 overflow-x-auto border-b border-code-line bg-code-bar py-1.5 pr-1.5 pl-2 [scrollbar-width:none]"><span class="px-2 font-mono text-[13px] leading-none whitespace-nowrap text-code-dim">Or deploy from a clone</span><button class="ml-auto inline-flex h-[30px] flex-none cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[12.5px] leading-none font-medium text-code-dim hover:bg-white/7 hover:text-code-fg" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" tabindex="0"><span><span class="text-code-dim select-none">$ </span><span data-keep>git clone https://github.com/marctorrelles/crashyard</span></span><span><span class="text-code-dim select-none">$ </span><span data-keep>cd crashyard &amp;&amp; pnpm install</span></span><span><span class="text-code-dim select-none">$ </span><span data-keep>pnpm run setup</span></span><span class="text-code-dim"># Asks for your domain and email, deploys,</span><span class="text-code-dim"># and prints the setup code for your owner passkey</span></pre>
+        </div>
+    </div>
+  </div>
+</main>
+
+<footer class="border-t border-border pt-8 pb-10 text-[14px] text-fg-2">
+  <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+    <div class="grid gap-1.5">
+      <a class="flex w-max items-center gap-2 text-[17px] font-[650] tracking-[-0.02em] text-fg" href="/"><svg class="size-6 flex-none text-accent" aria-hidden="true"><use href="#i-logo"/></svg>crashyard</a>
+      <p>Open source under the MIT license. crashyard speaks Sentry's protocol and isn't affiliated with Sentry. Made by <a class="underline" href="https://marctorrelles.com">Marc Torrelles</a>.</p>
+    </div>
+    <nav class="flex flex-wrap items-center gap-x-5 gap-y-1.5 *:hover:text-fg" aria-label="Footer">
+      <a href="https://github.com/marctorrelles/crashyard/tree/main/docs">Docs</a>
+      <a href="https://demo.crashyard.dev">Demo</a>
+      <a href="https://github.com/marctorrelles/crashyard">GitHub</a>
+      <a href="https://github.com/marctorrelles/crashyard/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/marctorrelles/crashyard/blob/main/SECURITY.md">Security</a>
+    </nav>
+  </div>
+</footer>
+
+<p class="sr-only" aria-live="polite" data-announce></p>
+
+<script>
+(() => {
+  const announce = document.querySelector('[data-announce]')
+
+  // Tab lists, as WAI-ARIA's tabs pattern: one Tab stop, the selected tab; the arrow keys, Home and End move and select
+  document.querySelectorAll('[role="tablist"]').forEach((list) => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')]
+    const select = (tab, focus) => {
+      tabs.forEach((t) => {
+        const on = t === tab
+        t.setAttribute('aria-selected', String(on))
+        t.tabIndex = on ? 0 : -1
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on
+      })
+      if (focus) {
+        tab.focus()
+        tab.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      }
+    }
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab))
+      tab.addEventListener('keydown', (e) => {
+        const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key]
+        if (to === undefined) return
+        e.preventDefault()
+        select(tabs[(to + tabs.length) % tabs.length], true)
+      })
+    })
+  })
+
+  // The SDK tabs scroll under Copy, pinned at the bar's right; its border shows while a tab is under it, until the
+  // row is scrolled to its end
+  const row = document.querySelector('[data-sdk] [role="tablist"]')
+  const fit = () => row.parentElement.toggleAttribute('data-overflowing', row.scrollLeft + row.clientWidth < row.scrollWidth - 1)
+  row.addEventListener('scroll', fit, { passive: true })
+  new ResizeObserver(fit).observe(row)
+
+  // Copy: the lines marked data-keep of the snippet shown, without prompts or output
+  document.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
+    const pre = btn.closest('[data-code]').querySelector('pre:not([hidden])')
+    const text = [...pre.querySelectorAll('[data-keep]')].map((l) => l.textContent.replace(/^\+\s{0,2}/, '  ')).join('\n')
+    const label = btn.querySelector('span')
+    try {
+      await navigator.clipboard.writeText(text)
+      label.textContent = announce.textContent = 'Copied'
+    } catch {
+      label.textContent = announce.textContent = 'Select to copy'
+    }
+    setTimeout(() => { label.textContent = 'Copy'; announce.textContent = '' }, 1600)
+  }))
+
+  // The nav's logo plays the app's loading animation (src/styles.css, .cy-draw) once as the page opens, and again on
+  // a pointer over it: its centreline, from whole, taken away from its start, a moment empty, then drawn back. Its
+  // pathLength is 1, so the offsets are fractions of it. Never with reduced motion
+  const logo = document.querySelector('[data-logo] path')
+  const ease = 'cubic-bezier(0.65, 0, 0.35, 1)'
+  const draw = () => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || logo.getAnimations().length) return
+    logo.animate(
+      [
+        { strokeDashoffset: '0', easing: ease },
+        { strokeDashoffset: '-1.02', offset: 0.45, easing: 'step-end' },
+        { strokeDashoffset: '1.02', offset: 0.55, easing: ease },
+        { strokeDashoffset: '0' },
+      ],
+      { duration: 3600 },
+    )
+  }
+  draw()
+  logo.closest('a').addEventListener('mouseenter', draw)
+})()
+</script>
+</body>
+</html>

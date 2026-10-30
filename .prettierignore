@@ -7,3 +7,4 @@ dist/
 .tanstack/
 test/fixtures/
 site/public/
+site/index.html

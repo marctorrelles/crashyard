@@ -1,0 +1,139 @@
+/* crashyard.dev's styles: the tokens, fonts and base. Everything else is Tailwind utilities in index.html */
+@import 'tailwindcss' source('.');
+
+/* Geist and Geist Mono, served from this site (SIL Open Font License, public/fonts/LICENSE-geist.txt) */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Hazard, crashyard's default theme (src/styles.css): steel neutrals, safety orange as the one accent. Code panels
+   stay dark in both modes, as the app's sidebar does. Light or dark as the system is */
+:root {
+  --bg: oklch(0.985 0.002 260);
+  --bg-2: oklch(0.965 0.004 260);
+  --card: oklch(1 0 0);
+  --fg: oklch(0.2 0.01 260);
+  --fg-2: oklch(0.45 0.015 260);
+  /* 4.5:1 on the cards and the second background */
+  --fg-3: oklch(0.5 0.012 260);
+  --border: oklch(0.9 0.006 260);
+  --border-2: oklch(0.84 0.008 260);
+  --accent: oklch(0.68 0.2 42);
+  --accent-hover: oklch(0.63 0.2 40);
+  --accent-fg: oklch(0.16 0.01 260);
+  --accent-text: oklch(0.55 0.19 40);
+  --accent-soft: oklch(0.95 0.04 60);
+  /* Yes and No in the plans table, 4.5:1 on the card */
+  --ok: oklch(0.52 0.14 155);
+  --no: oklch(0.5 0.015 260);
+  --code-bg: oklch(0.2 0.01 260);
+  --code-bar: oklch(0.24 0.012 260);
+  --code-fg: oklch(0.93 0.004 260);
+  --code-dim: oklch(0.66 0.012 260);
+  --code-line: oklch(1 0 0 / 8%);
+  --code-key: oklch(0.8 0.1 250);
+  --code-str: oklch(0.83 0.12 60);
+  --code-rm-bg: oklch(0.6 0.2 25 / 17%);
+  --code-rm: oklch(0.75 0.14 25);
+  --code-add-bg: oklch(0.65 0.15 155 / 17%);
+  --code-add: oklch(0.82 0.13 155);
+  --shadow: 0 1px 2px oklch(0.2 0.01 260 / 6%), 0 12px 32px -12px oklch(0.2 0.01 260 / 18%);
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(0.155 0.007 260);
+    --bg-2: oklch(0.18 0.008 260);
+    --card: oklch(0.2 0.009 260);
+    --fg: oklch(0.96 0.003 260);
+    --fg-2: oklch(0.74 0.01 260);
+    --fg-3: oklch(0.6 0.01 260);
+    --border: oklch(1 0 0 / 9%);
+    --border-2: oklch(1 0 0 / 15%);
+    --accent: oklch(0.73 0.19 46);
+    --accent-hover: oklch(0.78 0.17 48);
+    --accent-text: oklch(0.78 0.16 50);
+    --accent-soft: oklch(0.27 0.04 50);
+    --ok: oklch(0.72 0.15 155);
+    --no: oklch(0.64 0.015 260);
+    --code-bg: oklch(0.12 0.006 260);
+    --code-bar: oklch(0.15 0.007 260);
+    --shadow: 0 0 0 1px oklch(1 0 0 / 4%), 0 16px 40px -16px oklch(0 0 0 / 60%);
+    color-scheme: dark;
+  }
+}
+
+/* The tokens as Tailwind colors (bg-card, text-fg-2…), and the page's breakpoints: xs 420, sm 640, md 820, lg 900,
+   xl 1000 px */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-card: var(--card);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-border: var(--border);
+  --color-border-2: var(--border-2);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-no: var(--no);
+  --color-code-bg: var(--code-bg);
+  --color-code-bar: var(--code-bar);
+  --color-code-fg: var(--code-fg);
+  --color-code-dim: var(--code-dim);
+  --color-code-line: var(--code-line);
+  --color-code-key: var(--code-key);
+  --color-code-str: var(--code-str);
+  --color-code-rm: var(--code-rm);
+  --color-code-rm-bg: var(--code-rm-bg);
+  --color-code-add: var(--code-add);
+  --color-code-add-bg: var(--code-add-bg);
+  --shadow-card: var(--shadow);
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --breakpoint-xs: 26.25rem;
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 51.25rem;
+  --breakpoint-lg: 56.25rem;
+  --breakpoint-xl: 62.5rem;
+}
+
+@layer base {
+  html {
+    scroll-padding-top: 72px;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-bg font-sans text-fg antialiased;
+    font-size: 16px;
+    line-height: 1.6;
+    font-feature-settings: 'ss01';
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
