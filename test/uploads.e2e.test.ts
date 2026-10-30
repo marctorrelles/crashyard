@@ -109,45 +109,54 @@ describe('readable stacks, uploaded with sentry-cli', () => {
     expect((await waitFor(() => issueOf(after.event_id))).id).toBe(unreadable.id)
   })
 
-  it('maps a minified frame through its source map, found by debug id', async () => {
+  it('maps a minified frame through its source map, found by debug id, each file of a bundle', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'crashyard-web-'))
     cpSync('test/fixtures/web', dir, { recursive: true })
+    // A second file, so the bundle packs two caches and one is read from past the start of the object
+    mkdirSync(join(dir, 'legacy'))
+    writeFileSync(join(dir, 'legacy/app.min.js'), `${readFileSync(join(dir, 'app.min.js'), 'utf8')}\n// legacy\n`)
+    cpSync(join(dir, 'app.min.js.map'), join(dir, 'legacy/app.min.js.map'))
     cli('sourcemaps', 'inject', dir)
     cli('sourcemaps', 'upload', dir, '--url-prefix', '~/assets')
-    const map = JSON.parse(readFileSync(join(dir, 'app.min.js.map'), 'utf8'))
-    const minified = readFileSync(join(dir, 'app.min.js'), 'utf8').split('\n')
-    const line = minified.findIndex((l) => l.includes('t.content.blocks'))
-    const url = 'https://notes.example.com/assets/app.min.js'
-    const event = {
-      event_id: id(),
-      platform: 'javascript',
-      exception: {
-        values: [
-          {
-            type: 'TypeError',
-            value: "Cannot read properties of undefined (reading 'blocks')",
-            stacktrace: {
-              frames: [
-                {
-                  filename: url,
-                  abs_path: url,
-                  lineno: line + 1,
-                  colno: minified[line].indexOf('t.content.blocks') + 1,
-                  function: 'o',
-                  in_app: true,
-                },
-              ],
+    for (const file of ['app.min.js', 'legacy/app.min.js']) {
+      const map = JSON.parse(readFileSync(join(dir, `${file}.map`), 'utf8'))
+      const minified = readFileSync(join(dir, file), 'utf8').split('\n')
+      const line = minified.findIndex((l) => l.includes('t.content.blocks'))
+      const url = `https://notes.example.com/assets/${file}`
+      const event = {
+        event_id: id(),
+        platform: 'javascript',
+        exception: {
+          values: [
+            {
+              type: 'TypeError',
+              value: "Cannot read properties of undefined (reading 'blocks')",
+              stacktrace: {
+                frames: [
+                  {
+                    filename: url,
+                    abs_path: url,
+                    lineno: line + 1,
+                    colno: minified[line].indexOf('t.content.blocks') + 1,
+                    function: 'o',
+                    in_app: true,
+                  },
+                ],
+              },
             },
-          },
-        ],
-      },
-      debug_meta: { images: [{ type: 'sourcemap', code_file: url, debug_id: map.debug_id ?? map.debugId }] },
+          ],
+        },
+        debug_meta: { images: [{ type: 'sourcemap', code_file: url, debug_id: map.debug_id ?? map.debugId }] },
+      }
+      await send(event)
+      await waitFor(() => issueOf(event.event_id))
+      const [frame] = await framesOf(event.event_id)
+      expect(frame).toMatchObject({ filename: 'app.ts', lineno: 4, function: 'firstBlock' })
+      expect((frame.context as { line: string }).line).toContain('note.content!.blocks[0]')
     }
-    await send(event)
-    await waitFor(() => issueOf(event.event_id))
-    const [frame] = await framesOf(event.event_id)
-    expect(frame).toMatchObject({ filename: 'app.ts', lineno: 4, function: 'firstBlock' })
-    expect((frame.context as { line: string }).line).toContain('note.content!.blocks[0]')
+    const offsets = await dev.db.prepare('SELECT cache_offset FROM artifact_files ORDER BY cache_offset').all()
+    expect(offsets.results).toEqual([{ cache_offset: 0 }, { cache_offset: expect.any(Number) }])
+    expect(offsets.results[1].cache_offset).toBeGreaterThan(0)
   })
 
   it('retraces an Android stack through its ProGuard mapping, inlined calls, threads and classes too', async () => {

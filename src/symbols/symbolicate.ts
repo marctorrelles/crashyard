@@ -77,8 +77,8 @@ async function pinSymcache(s: Symbolic, files: R2Bucket, key: string): Promise<K
   return entry
 }
 
-const r2Bytes = async (files: R2Bucket, key: string) => {
-  const object = await files.get(key)
+const r2Bytes = async (files: R2Bucket, key: string, range?: R2Range) => {
+  const object = await files.get(key, range ? { range } : undefined)
   return object ? new Uint8Array(await object.arrayBuffer()) : null
 }
 
@@ -330,22 +330,25 @@ async function sourceMapCacheFor(env: SymbolEnv, projectId: number, debugId: str
   } catch {
     tilde = url.startsWith('~') ? url : `~/${url.replace(/^\/+/, '')}`
   }
-  const row = await remember<{ cache_key: string } | false>(
+  type Row = { cache_key: string; cache_offset: number | null; cache_length: number | null }
+  const row = await remember<Row | false>(
     `smrow:${projectId}:${debugId ?? tilde}`,
     () => 64,
     async () =>
       (await env.DB.prepare(
-        `SELECT f.cache_key FROM artifact_files f JOIN artifact_bundles b ON b.id = f.bundle_id
+        `SELECT f.cache_key, f.cache_offset, f.cache_length FROM artifact_files f JOIN artifact_bundles b ON b.id = f.bundle_id
          WHERE f.project_id = ? AND f.type = 'minified_source' AND f.cache_key IS NOT NULL AND (f.debug_id = ? OR f.url = ?)
          ORDER BY f.debug_id = ? DESC, b.created_at DESC LIMIT 1`,
       )
         .bind(projectId, debugId ?? '', tilde, debugId ?? '')
-        .first<{ cache_key: string }>()) ?? false,
+        .first<Row>()) ?? false,
   )
   if (!row) return null
+  // A bundle packs its files' caches into one object (cache_offset set); older uploads hold one object a file
+  const range = row.cache_offset === null ? undefined : { offset: row.cache_offset, length: row.cache_length! }
   return remember<Uint8Array>(
-    `smc:${row.cache_key}`,
+    `smc:${row.cache_key}:${row.cache_offset ?? ''}`,
     (b) => b.length,
-    () => r2Bytes(env.FILES, row.cache_key),
+    () => r2Bytes(env.FILES, row.cache_key, range),
   )
 }

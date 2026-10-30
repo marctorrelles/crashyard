@@ -32,7 +32,10 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   checksum refused, a big mapping's cache stored, one too big to read refused, the builder's error said) and `test/big-dsym.e2e.test.ts` (opt-in). A
   debug file becomes a row per object with its
   SymCache (`symcaches/…`); a ProGuard mapping one row (its UUID from sentry-cli) with its ProguardCache; an artifact bundle (zip
-  with `manifest.json`) becomes a SourceMapCache per minified file and its map, found by debug id or URL (`~/path`).
+  with `manifest.json`) becomes a SourceMapCache per minified file and its map, found by debug id or URL (`~/path`),
+  all packed into one object (`smcaches/<checksum>`, each file's `cache_offset`/`cache_length` read back as a range):
+  a put each queued behind the Worker's six connections and held a 226-file server bundle's assemble ~34 s. Rows
+  from before 0035 have no offset and read their whole `smcaches/<checksum>/<file>`.
 - `symbolicate.ts`: on each event, before grouping, every stack: the exceptions', then each thread's, with the same
   caches. Native frames by address within their image (the crashing
   frame as is, the others one byte back: return addresses), inlined calls as frames of their own; Android frames and

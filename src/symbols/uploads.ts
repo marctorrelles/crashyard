@@ -366,13 +366,19 @@ export async function storeBundle(
         !!p.map && !!entries[p.min.path] && !!entries[p.map.path],
     )
   const s = pairs.length ? await symbolic() : undefined
-  const caches = pairs.map((p) => ({
-    ...p,
-    key: `smcaches/${checksum}/${p.min.path.replace(/[^\w.-]+/g, '_')}`,
-    bytes: s!.sourcemapcache(entries[p.min.path], entries[p.map.path]),
-  }))
+  // Every file's SourceMapCache packed into one object, each read back by its range: one put a cache would queue
+  // behind the Worker's six connections, and a server build's two hundred of them held an upload half a minute
+  const built = pairs.map((p) => s!.sourcemapcache(entries[p.min.path], entries[p.map.path]))
+  const cacheKey = `smcaches/${checksum}`
+  const packed = new Uint8Array(built.reduce((n, b) => n + b.length, 0))
+  let offset = 0
+  const caches = pairs.map((p, i) => {
+    packed.set(built[i], offset)
+    offset += built[i].length
+    return { ...p, offset: offset - built[i].length, length: built[i].length }
+  })
   const fileKey = `bundles/${checksum}`
-  await Promise.all([env.FILES.put(fileKey, file), ...caches.map((c) => env.FILES.put(c.key, c.bytes))])
+  await Promise.all([env.FILES.put(fileKey, file), caches.length && env.FILES.put(cacheKey, packed)])
   for (const projectId of projectIds) {
     const bundle = await env.DB.prepare(
       `INSERT INTO artifact_bundles (project_id, checksum, release, dist, file_key, size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -390,8 +396,19 @@ export async function storeBundle(
       .first<{ id: number }>()
     const statements = caches.map((c) =>
       env.DB.prepare(
-        'INSERT OR REPLACE INTO artifact_files (bundle_id, project_id, debug_id, type, path, url, cache_key) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      ).bind(bundle!.id, projectId, c.min.debugId ?? '', 'minified_source', c.min.path, c.min.url, c.key),
+        `INSERT OR REPLACE INTO artifact_files (bundle_id, project_id, debug_id, type, path, url, cache_key, cache_offset, cache_length)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        bundle!.id,
+        projectId,
+        c.min.debugId ?? '',
+        'minified_source',
+        c.min.path,
+        c.min.url,
+        cacheKey,
+        c.offset,
+        c.length,
+      ),
     )
     if (statements.length) await env.DB.batch(statements)
   }

@@ -100,3 +100,6 @@ in `pnpm run deploy`).
   each channel did with it by channel id: sent, held or failed with the error), by `at`, pruned after 30 days; and
   `held_notifications.sent_id`, the row a held send settles once quiet hours end. A worker from before writes neither,
   so Notifications lists nothing it sent.
+- `0035_artifact_cache_ranges.sql`: `artifact_files.cache_offset` and `cache_length`, a file's SourceMapCache as a range
+  of its bundle's one packed object; null on older rows, whose `cache_key` is the whole object. A worker from before
+  reads a new row's whole packed object as one cache, so its JavaScript frames stay unmapped until the deploy finishes.
