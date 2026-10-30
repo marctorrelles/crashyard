@@ -32,6 +32,8 @@
     "build": "vite build",
     "preview": "vite build && vite preview",
     "deploy": "vite build && node scripts/deploy-guard.mjs && wrangler d1 migrations apply DB --remote -c dist/server/wrangler.json && wrangler deploy",
+    "site:dev": "vite -c site/vite.config.ts",
+    "site:deploy": "vite build -c site/vite.config.ts && wrangler deploy -c site/wrangler.jsonc",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm knip && pnpm test && pnpm build",
     "lint": "eslint .",
     "format": "prettier --write .",

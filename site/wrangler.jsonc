@@ -1,10 +1,10 @@
-// crashyard.dev: the project's landing page, static files only (public/), no Worker code.
-// Deployed by hand: `pnpm wrangler deploy -c site/wrangler.jsonc`. Not part of a crashyard deployment.
+// crashyard.dev: the project's landing page, static files only (dist/, built by Vite), no Worker code.
+// Deployed by hand: `pnpm site:deploy`. Not part of a crashyard deployment.
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "crashyard-site",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./public", "not_found_handling": "404-page" },
+  "assets": { "directory": "./dist", "not_found_handling": "404-page" },
   "routes": [
     { "pattern": "crashyard.dev", "custom_domain": true },
     { "pattern": "www.crashyard.dev", "custom_domain": true },
