@@ -32,22 +32,29 @@ export default defineConfig({
       persistState: process.env.CRASHYARD_STATE ? { path: process.env.CRASHYARD_STATE } : true,
       // AUTH=crashyard SETUP_CODE=… pnpm dev: the dev server signs in with passkeys too, to work on sign-in
       // CONTAINERS=1 pnpm dev: the SymCache builder's container too, where wrangler.local.json has it (needs Docker)
-      config: (config) => ({
-        ...local,
-        // A container's Dockerfile from the root, as the build's own wrangler.json (dist/server) reads it from there too
-        ...(local?.containers && {
-          containers: local.containers.map((c: { image: string }) => ({
-            ...c,
-            image: c.image.startsWith('.') ? resolve(c.image) : c.image,
-          })),
-        }),
-        dev: { ...config.dev, enable_containers: process.env.CONTAINERS === '1' },
-        vars: {
-          ...config.vars,
-          ...local?.vars,
-          ...Object.fromEntries(['AUTH', 'SETUP_CODE'].flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : []))),
-        },
-      }),
+      config: (config) => {
+        // The plugin merges what this returns with defu, which adds lists together: a list the overlay sets (its D1
+        // database, its R2 bucket) would come after wrangler.jsonc's, two bindings of one name. Out of the config it
+        // passes, so the overlay's replaces it
+        for (const [key, value] of Object.entries(local ?? {}))
+          if (Array.isArray(value)) delete (config as Record<string, unknown>)[key]
+        return {
+          ...local,
+          // A container's Dockerfile from the root, as the build's own wrangler.json (dist/server) reads it from there too
+          ...(local?.containers && {
+            containers: local.containers.map((c: { image: string }) => ({
+              ...c,
+              image: c.image.startsWith('.') ? resolve(c.image) : c.image,
+            })),
+          }),
+          dev: { ...config.dev, enable_containers: process.env.CONTAINERS === '1' },
+          vars: {
+            ...config.vars,
+            ...local?.vars,
+            ...Object.fromEntries(['AUTH', 'SETUP_CODE'].flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : []))),
+          },
+        }
+      },
     }),
     tailwindcss(),
     tanstackStart(),
