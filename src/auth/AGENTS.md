@@ -34,15 +34,15 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
   any other way than a POST with a role or a GET named `get…`, and on a server function outside `src/fns.ts`.
 - **Demo** (`src/demo.ts`, on where the deployment's `vars` set `DEMO=1`: demo.crashyard.dev; `DEMO=1 pnpm dev`
   locally): read-only, no accounts. `whoIs` reads only the `crashyard_demo` cookie (HttpOnly, Lax, a day), which makes
-  everyone one viewer, `visitor@demo.crashyard.dev`, with no user or session; a session cookie is never read. `demoGate`,
+  everyone one viewer, `visitor@demo.crashyard.dev`, an owner so every page shows (its changes refused all the same), with no user or session; a session cookie is never read. `demoGate`,
   first in `fetch`: `/__feed` to the feeder's batch (`src/api/feed.ts`, behind `FEED_SECRET`); ingest's four doors 403 before the body (CORS on); `POST /auth/demo` (Origin checked, the cookie,
   303 to `nextPath(next)`, the Enter demo form on `/signin`) and `POST /auth/signout` (cleared, 303 `/signin`); any
-  other `/auth/*`, GitHub's too, 404; `/setup` and `/invite/*` 303 to `/signin`; `/mcp` without a `cyp_` token as the
+  other `/auth/*`, GitHub's too, 404; `/setup` and `/invite/*` 303 to `/signin`; `/mcp` without a `cyp_` token as a
   viewer, change tools refused with the demo's sentence. The signed-out redirect never picks `/setup` there. In
   `src/fns.ts`, `as()` refuses every server function in the demo (`DEMO_REFUSAL`, whatever the role) but `reads`, for
   GETs that need someone signed in and the three POSTs that only read or set the viewer's cookies: `previewWidget`,
   `getPlan`, `savePreference` (theme and style, in cookies only; `getSidebar` reads them back from there and writes
-  none). `getIssue` marks nothing viewed, `getPush` makes no keys. `demoCache`: a GET server function's answer, for
+  none). `ownerReads`, the GETs for owners alone (`getPeople`, `getUpdate`), as the demo's viewer is one. `getIssue` marks nothing viewed, `getPush` makes no keys. `demoCache`: a GET server function's answer, for
   the demo's viewer, kept a minute in the Cache API, keyed by its URL and the cookies server functions read (`theme`,
   `style`, `tz`, `crashyard_project`, `sidebar_state`), `no-store` to the browser, `x-crashyard-demo-cache` on a dev
   server; a first page's server render isn't. `demo.test.ts`: the gate's answers, that it's

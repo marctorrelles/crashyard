@@ -149,8 +149,8 @@ server, the build, or `tsr generate`): never edit it.
   (`getSignIn`: passkeys with Rename and Remove, Add passkey; recovery codes left and Make new
   codes, shown once; where they're signed in, This browser, Sign out each and Sign out everywhere else; in the demo,
   whose viewer has none, it isn't listed and redirects to Appearance),
-  `agent-tokens` (`getAgentTokens`; in the demo, which takes no token, the `claude mcp add` line for its open `/mcp`
-  instead: a person's `cyp_` tokens for MCP with a name, Read only or Read and change,
+  `agent-tokens` (`getAgentTokens`; in the demo, which takes no token, In the demo with the `claude mcp add` line for
+  its open `/mcp` over the list, empty there: a person's `cyp_` tokens for MCP with a name, Read only or Read and change,
   and an expiry, the token and the `claude mcp add` command shown once, Delete), `appearance` (the theme, `STYLES` in
   `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to preview
   it, and System, Light, Dark, both applied at once) and `preferences`; both save each change at once through

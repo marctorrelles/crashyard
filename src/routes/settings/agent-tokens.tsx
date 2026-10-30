@@ -20,22 +20,26 @@ export const Route = createFileRoute('/settings/agent-tokens')({
 const SCOPES = { read: 'Read only', change: 'Read and change' } as const
 const EXPIRY = { '30': '30 days', '90': '90 days', '365': 'A year', never: 'Never' } as const
 
-// The tokens your agents reach crashyard with over MCP, acting as you. The demo takes none: its MCP is open to read
+// The tokens your agents reach crashyard with over MCP, acting as you. The demo takes none: its MCP is open to read, so
+// it says so above the list, which is empty there
 function AgentTokens() {
   const { demo, mcp } = Route.useLoaderData()
-  if (demo)
-    return (
-      <SettingsCard
-        title="Agent tokens"
-        description="The demo needs no token. Agents such as Claude Code can read everything here over MCP, and change nothing."
-      >
-        <div className="grid min-w-0 gap-2">
-          <p className="text-sm">To connect Claude Code, run:</p>
-          <Code text={`claude mcp add --transport http crashyard-demo ${mcp}`} />
-        </div>
-      </SettingsCard>
-    )
-  return <TokenList />
+  return (
+    <>
+      {demo && (
+        <SettingsCard
+          title="In the demo"
+          description="The demo needs no token. Agents such as Claude Code can read everything here over MCP, and change nothing."
+        >
+          <div className="grid min-w-0 gap-2">
+            <p className="text-sm">To connect Claude Code, run:</p>
+            <Code text={`claude mcp add --transport http crashyard-demo ${mcp}`} />
+          </div>
+        </SettingsCard>
+      )}
+      <TokenList />
+    </>
+  )
 }
 
 function TokenList() {

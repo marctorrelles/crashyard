@@ -5,8 +5,9 @@ import type { Who } from './auth/session'
 
 export const isDemo = (env: { DEMO?: string }) => env.DEMO === '1'
 
-/** Everyone in the demo: one viewer, with no user row and no session */
-export const DEMO_VIEWER = { email: 'visitor@demo.crashyard.dev', role: 'viewer' } as const satisfies Who
+/** Everyone in the demo: one viewer, with no user row and no session. An owner, so every page shows: `as()` in
+ * src/fns.ts refuses its changes whatever the role */
+export const DEMO_VIEWER = { email: 'visitor@demo.crashyard.dev', role: 'owner' } as const satisfies Who
 export const DEMO_COOKIE = 'crashyard_demo'
 export const DEMO_REFUSAL = 'This is a demo, so nothing here changes. Deploy your own crashyard to try it.'
 export const DEMO_INGEST = 'This crashyard is a demo and doesn’t take events. Deploy your own to send yours.'
@@ -52,7 +53,8 @@ export async function demoGate(request: Request, env: Env, ctx: ExecutionContext
   if (/^\/(setup|invite\/[^/]+)\/?$/.test(path)) return Response.redirect(new URL('/signin', url), 303)
   if (path === '/mcp' && !/^Bearer cyp_\S+$/.test(request.headers.get('Authorization') ?? '')) {
     const { handleMcp } = await import('./api/mcp')
-    return handleMcp(request, env.DB, DEMO_VIEWER, DEMO_REFUSAL)
+    // As a viewer: MCP refuses changes by role, below member, with the demo's sentence
+    return handleMcp(request, env.DB, { ...DEMO_VIEWER, role: 'viewer' }, DEMO_REFUSAL)
   }
   return null
 }

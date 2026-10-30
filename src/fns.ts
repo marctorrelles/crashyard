@@ -69,6 +69,8 @@ const reads = as('viewer', { readOnly: true })
 const member = as('member')
 const admin = as('admin')
 const owner = as('owner')
+// GETs only owners need, which the demo's viewer, an owner, reads too
+const ownerReads = as('owner', { readOnly: true })
 const ZONES = new Set([...Intl.supportedValuesOf('timeZone'), 'UTC'])
 const origin = () => new URL(getRequest().url).origin
 
@@ -1455,7 +1457,7 @@ export const getInstanceSettings = createServerFn().handler(async () => {
 
 // Updates, for owners: the newest release, whether it installs from here, the Cloudflare connection and the daily check
 export const getUpdate = createServerFn()
-  .middleware([owner])
+  .middleware([ownerReads])
   .handler(async () => {
     const [update, connection, auto, failed, plan] = await Promise.all([
       updates.update(),
@@ -1763,7 +1765,7 @@ export const makeRecoveryCodes = createServerFn({ method: 'POST' })
   .handler(() => people.newRecoveryCodes(env.DB, me()))
 
 export const getPeople = createServerFn()
-  .middleware([owner])
+  .middleware([ownerReads])
   .handler(async () => {
     const now = Date.now()
     const [users, invites, app] = await Promise.all([

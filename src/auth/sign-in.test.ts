@@ -48,7 +48,7 @@ describe('whoIs', () => {
     const demo = env(db, { DEMO: '1' })
     expect(await whoIs(request('crashyard_demo=1'), demo, false, NOW)).toEqual({
       email: 'visitor@demo.crashyard.dev',
-      role: 'viewer',
+      role: 'owner',
     })
     expect(await whoIs(request(), demo, false, NOW)).toBeNull()
     expect(await whoIs(request(`crashyard_session=${token}`), demo, false, NOW)).toBeNull()
