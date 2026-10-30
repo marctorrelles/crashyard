@@ -1,7 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { IconArrowLeft, IconBrandGithub, IconFingerprint } from '@tabler/icons-react'
 import { useState } from 'react'
-import { auth, GITHUB_ERRORS, nextPath, Or, Problem, SignInFrame, signInWithPasskey } from '@/components/sign-in'
+import {
+  auth,
+  DemoCard,
+  GITHUB_ERRORS,
+  nextPath,
+  Or,
+  Problem,
+  SignInFrame,
+  signInWithPasskey,
+} from '@/components/sign-in'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,12 +22,20 @@ export const Route = createFileRoute('/signin')({
     error: typeof s.error === 'string' ? s.error : undefined,
   }),
   loader: () => getSignInPage(),
-  head: () => ({ meta: [{ title: 'Sign in · crashyard' }] }),
+  head: ({ loaderData }) => ({ meta: [{ title: loaderData?.demo ? 'crashyard demo' : 'Sign in · crashyard' }] }),
   component: SignIn,
 })
 
-// Signing in: a passkey the browser picks, so there's nothing to type; a recovery code for whoever lost theirs
+// Signing in: a passkey the browser picks, so there's nothing to type; a recovery code for whoever lost theirs. The demo's
+// is its front door instead
 function SignIn() {
+  const { demo } = Route.useLoaderData()
+  const { next } = Route.useSearch()
+  if (demo) return <DemoCard next={next} mcp={demo.mcp} />
+  return <PasskeySignIn />
+}
+
+function PasskeySignIn() {
   const { next, error: failed } = Route.useSearch()
   const { github } = Route.useLoaderData()
   const [busy, setBusy] = useState(false)

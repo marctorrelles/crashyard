@@ -20,8 +20,25 @@ export const Route = createFileRoute('/settings/agent-tokens')({
 const SCOPES = { read: 'Read only', change: 'Read and change' } as const
 const EXPIRY = { '30': '30 days', '90': '90 days', '365': 'A year', never: 'Never' } as const
 
-// The tokens your agents reach crashyard with over MCP, acting as you
+// The tokens your agents reach crashyard with over MCP, acting as you. The demo takes none: its MCP is open to read
 function AgentTokens() {
+  const { demo, mcp } = Route.useLoaderData()
+  if (demo)
+    return (
+      <SettingsCard
+        title="Agent tokens"
+        description="The demo needs no token. Agents such as Claude Code can read everything here over MCP, and change nothing."
+      >
+        <div className="grid min-w-0 gap-2">
+          <p className="text-sm">To connect Claude Code, run:</p>
+          <Code text={`claude mcp add --transport http crashyard-demo ${mcp}`} />
+        </div>
+      </SettingsCard>
+    )
+  return <TokenList />
+}
+
+function TokenList() {
   const { tokens, mcp, now } = Route.useLoaderData()
   const { save, saving } = useSave()
   const [made, setMade] = useState<string>()

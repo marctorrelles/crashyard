@@ -17,7 +17,9 @@
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
   pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications
   (what was sent; its settings are in Settings), and at
-  the foot, for owners while a newer crashyard is out, Update available (tinted, unlike the pages' grey hover; it opens `UpdateDialog`), Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`), `Shell` (a page: the top bar with the
+  the foot, for owners while a newer crashyard is out, Update available (tinted, unlike the pages' grey hover; it opens `UpdateDialog`), Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`; in the demo Leave demo,
+  Demo visitor, and `DemoBanner` over every page, a slim bar with Deploy your own (`DEPLOY_YOUR_OWN`, the README's Get
+  started) until closed for the browser's session, sessionStorage through `useSyncExternalStore`, open in the server render), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists, `full` for settings: from the sidebar's edge, not centred), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
   section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). `Logo`: the mark, one path (its tiled drawings are `docs/images/logo.svg`, the README's, and `src/favicon.svg`). `Loader`, the sidebar's logo once a page has been loading 300 ms: the mark's centreline, from whole, taken away from its start and drawn back, 3.6 s a round (`.cy-draw` in `src/styles.css`, still with reduced motion); a round always ends, whole again, before it turns back into the logo. The only loader of its kind: elsewhere a Loading… line has Tabler's `IconLoader2` spinning, and charts keep their skeletons. The lists (overview, dashboards, issues, Explore, releases, performance, logs)
@@ -127,7 +129,8 @@
   line, alone in the middle of a muted page, `max-w-sm`), `auth` (a POST to `/auth/<path>`, its `error` thrown as
   the sentence to show), `createPasskey` and `signInWithPasskey` (`@simplewebauthn/browser`; a cancelled prompt,
   an existing passkey or an unusable browser in words), `nextPath` (from `src/lib/next.ts`: only a path on this site, read as a browser reads it, so `/\\evil.com` goes home), `RecoveryCodes` (two
-  columns, Copy and Download as a text file), `Problem` (an error under a form), `GITHUB_ERRORS` (`?error=` from GitHub sign-in in words), `Or` and `NewPerson` (setup and invite:
+  columns, Copy and Download as a text file), `Problem` (an error under a form), `GITHUB_ERRORS` (`?error=` from GitHub sign-in in words), `DemoCard` (the demo's `/signin`: Take a look around, Enter demo, a form POST to `/auth/demo` with `next`, the
+  `claude mcp add` line for its `/mcp`, and Deploy your own crashyard), `Or` and `NewPerson` (setup and invite:
   the page's own fields, name, email or the invite's fixed one, Create passkey; then the recovery codes and
   Continue to crashyard, a whole page load; `alternative` under it, the invite's Join with GitHub).
 - `settings.tsx`: the settings area's pages (`INSTANCE`, Notifications among them, `PROJECTS`, the open project's `PROJECT`: General,
@@ -145,7 +148,7 @@
   their channel): this browser's state, read in the
   browser (no push API: on an iPhone or iPad outside the Home Screen app, how to add it, else that it can't; blocked;
   off; on), Turn on notifications (`subscribe`: permission asked first, straight from the tap, as Safari needs, then
-  `/sw.js` registered and subscribed, `savePushDevice`), Send test notification (`testPush`, this device only), Turn
+  `/sw.js` registered and subscribed, `savePushDevice`; `Push` is nothing without a key, as in the demo), Send test notification (`testPush`, this device only), Turn
   off on this device, the devices with Remove, and whether a route sends to their channel. A subscription the server
   doesn't know is saved again on opening it, as a push service may move a browser to a new address (Safari fires no
   `pushsubscriptionchange`). `PushPrompt`, in `Layout`: once per device, in the installed app (`display-mode:

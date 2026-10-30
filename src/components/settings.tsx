@@ -64,8 +64,10 @@ export function SettingsNav() {
   const navigate = useNavigate()
   const project = useSettingsProject()
   // People only for owners
-  const { role } = root.useLoaderData()
+  const { role, demo } = root.useLoaderData()
   const instance = INSTANCE.filter((p) => role === 'owner' || !p.owners)
+  // The demo's viewer has no account of its own
+  const personal = demo ? PERSONAL.filter((p) => p.path !== '/settings/account') : PERSONAL
   const projectPages = project
     ? PROJECT.map((p) => ({ ...p, path: `/settings/projects/${encodeURIComponent(project.slug)}/${p.path}` }))
     : []
@@ -115,7 +117,7 @@ export function SettingsNav() {
           <SelectSeparator />
           <SelectGroup>
             <SelectLabel>You</SelectLabel>
-            {PERSONAL.map((p) => (
+            {personal.map((p) => (
               <SelectItem key={p.path} value={p.path}>
                 {p.label}
               </SelectItem>
@@ -139,7 +141,7 @@ export function SettingsNav() {
         </div>
         <div className="grid gap-0.5">
           {heading('You')}
-          {PERSONAL.map((p) => link(p))}
+          {personal.map((p) => link(p))}
         </div>
       </nav>
     </>

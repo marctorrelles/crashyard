@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { IconDeviceDesktop, IconDeviceMobile, IconFingerprint, IconPencil, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago } from '@/components/bits'
@@ -11,7 +11,12 @@ import { deviceName } from '@/data/people'
 import { getSignIn, makeRecoveryCodes, removePasskey, renamePasskey, signOutSession } from '@/fns'
 
 export const Route = createFileRoute('/settings/account')({
-  loader: () => getSignIn(),
+  loader: async () => {
+    const data = await getSignIn()
+    // The demo's viewer has no passkeys or sessions: its Settings has no Account
+    if (data.demo) throw redirect({ to: '/settings/appearance' })
+    return data
+  },
   head: () => ({ meta: [{ title: 'Account · Settings · crashyard' }] }),
   component: Account,
 })

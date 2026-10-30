@@ -22,7 +22,8 @@ server, the build, or `tsr generate`): never edit it.
   and email, while there's no one (else Sign in; without `SETUP_CODE`, how to set it), with `PaidNote` on Workers Free
   (`getSetupPage` checks the plan only then). `/invite/<token>`: who invited
   them and as what, a name and email (the invite's, when it names one), Join with GitHub when it's set up, or that it
-  can't be used and who to ask. `?error=` on `/signin` and an invite says what went wrong with GitHub.
+  can't be used and who to ask. `?error=` on `/signin` and an invite says what went wrong with GitHub. In the demo
+  (`src/demo.ts`), `/signin` is `DemoCard` instead, from `getSignInPage`'s `demo` (its `/mcp` address).
 - `status.$slug.tsx`: a public status page, open signed out (`src/server.ts`'s `STATUS_PAGE`, GET only)
   and drawn without the sidebar for anyone (the root checks the path). `getStatusPage`, no role, read in the server
   render only (a signed-out server function call is still 401): the uptime checks on the page, under their project's
@@ -126,7 +127,7 @@ server, the build, or `tsr generate`): never edit it.
   `projects/$slug/route.tsx` loads its settings once (`getProjectSettings`: the project, its keys with their DSNs,
   the DSN of the first key that's on, uploads). `general` (name, slug, a changed slug warning that
   `SENTRY_PROJECT` must change and moving the page to the new slug; then `-delete`), `connect` (the
-  DSN and `Linking`; Cloudflare Workers: the `tail_consumers` line, the Workers sending runs, `workersSeen`,
+  DSN, under an amber line in the demo saying it takes no events, and `Linking`; Cloudflare Workers: the `tail_consumers` line, the Workers sending runs, `workersSeen`,
   `NeedsPaid`, each with Watch Worker, the list to watch and uncaught exceptions too; then under Client keys,
   `-keys`: per key its DSN, name, daily event limit, empty for none, events today, and an on switch that asks before
   turning a key off, then Create key), `stack-traces` (`-source` the repository and how to send commits; then
@@ -146,8 +147,10 @@ server, the build, or `tsr generate`): never edit it.
   page with a count, Continue import from the page it stopped at; then Forward to Sentry, the DSN saved as
   `forward_dsn` by `updateProject`, empty for none). The viewer's own, the group "You": `account`
   (`getSignIn`: passkeys with Rename and Remove, Add passkey; recovery codes left and Make new
-  codes, shown once; where they're signed in, This browser, Sign out each and Sign out everywhere else),
-  `agent-tokens` (`getAgentTokens`: a person's `cyp_` tokens for MCP with a name, Read only or Read and change,
+  codes, shown once; where they're signed in, This browser, Sign out each and Sign out everywhere else; in the demo,
+  whose viewer has none, it isn't listed and redirects to Appearance),
+  `agent-tokens` (`getAgentTokens`; in the demo, which takes no token, the `claude mcp add` line for its open `/mcp`
+  instead: a person's `cyp_` tokens for MCP with a name, Read only or Read and change,
   and an expiry, the token and the `claude mcp add` command shown once, Delete), `appearance` (the theme, `STYLES` in
   `src/data/settings.ts`, as tiles of crashyard in small, `MiniWindow`, each wearing its own `data-style` to preview
   it, and System, Light, Dark, both applied at once) and `preferences`; both save each change at once through

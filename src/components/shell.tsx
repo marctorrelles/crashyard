@@ -4,6 +4,7 @@
 import { getRouteApi, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   IconActivity,
+  IconArrowUpRight,
   IconCircleArrowUp,
   IconBell,
   IconBug,
@@ -18,8 +19,9 @@ import {
   IconSelector,
   IconSettings,
   IconTag,
+  IconX,
 } from '@tabler/icons-react'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, useSyncExternalStore } from 'react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -44,6 +46,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
+import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
@@ -77,14 +80,68 @@ export const usePreferences = () => root.useLoaderData().preferences
 const PROJECT_COOKIE = 'crashyard_project'
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { sidebarOpen } = root.useLoaderData()
+  const { sidebarOpen, demo } = root.useLoaderData()
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
       <AppSidebar />
       <PushPrompt />
       <NewVersion />
-      <SidebarInset className="min-w-0">{children}</SidebarInset>
+      <SidebarInset className="min-w-0">
+        {demo && <DemoBanner />}
+        {children}
+      </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+// Where "Deploy your own" goes, on the demo's pages (src/demo.ts): the README's Get started
+export const DEPLOY_YOUR_OWN = 'https://github.com/marctorrelles/crashyard#get-started'
+const DEMO_BANNER = 'crashyard.demo-banner-closed'
+
+/** The demo's slim bar over every page, until closed for this browser session (sessionStorage; the server renders it
+ *  open, as it can't know) */
+let bannerClosedHere = false
+const closedBanner = () => {
+  try {
+    return bannerClosedHere || !!sessionStorage.getItem(DEMO_BANNER)
+  } catch {
+    // ponytail: no storage (blocked) shows it again on each page load
+    return bannerClosedHere
+  }
+}
+const bannerListeners = new Set<() => void>()
+function DemoBanner() {
+  const closed = useSyncExternalStore(
+    (listener) => (bannerListeners.add(listener), () => bannerListeners.delete(listener)),
+    closedBanner,
+    () => false,
+  )
+  if (closed) return null
+  const close = () => {
+    bannerClosedHere = true
+    try {
+      sessionStorage.setItem(DEMO_BANNER, '1')
+    } catch {
+      // as above
+    }
+    bannerListeners.forEach((l) => l())
+  }
+  return (
+    <div className="flex items-center gap-2 border-b bg-primary/10 py-1 pr-[max(0.25rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] text-sm">
+      <p className="min-w-0 flex-1 py-1.5">
+        This is a demo with made-up apps. Deploy your own crashyard to send yours.{' '}
+        <a
+          href={DEPLOY_YOUR_OWN}
+          className="inline-flex items-center gap-0.5 font-medium whitespace-nowrap underline underline-offset-2"
+        >
+          Deploy your own
+          <IconArrowUpRight className="size-3.5" />
+        </a>
+      </p>
+      <Button variant="ghost" size="icon-sm" className="shrink-0 max-sm:size-10" aria-label="Close" onClick={close}>
+        <IconX />
+      </Button>
+    </div>
   )
 }
 
@@ -183,9 +240,9 @@ function useCurrentProject() {
   return { page, projects, project: projects.find((p) => p.slug === kept), keep: setKept }
 }
 
-const SignedIn = ({ name, email }: { name: string | null; email: string | null }) => (
+const SignedIn = ({ name, email, demo }: { name: string | null; email: string | null; demo: boolean }) => (
   <span className="grid min-w-0 leading-tight">
-    <span>Sign out</span>
+    <span>{demo ? 'Leave demo' : 'Sign out'}</span>
     <span className="truncate text-xs text-sidebar-foreground/70" title={email ?? undefined}>
       {name ?? email}
     </span>
@@ -193,7 +250,7 @@ const SignedIn = ({ name, email }: { name: string | null; email: string | null }
 )
 
 function AppSidebar() {
-  const { viewer, name, update } = root.useLoaderData()
+  const { viewer, name, update, demo } = root.useLoaderData()
   const { page, projects, project, keep } = useCurrentProject()
   const { setOpenMobile } = useSidebar()
   const close = () => setOpenMobile(false)
@@ -313,9 +370,9 @@ function AppSidebar() {
           <SidebarMenuItem>
             {/* Ends this session only: Settings, Account signs out other devices */}
             <form method="post" action="/auth/signout">
-              <SidebarMenuButton type="submit" tooltip="Sign out" className="h-auto">
+              <SidebarMenuButton type="submit" tooltip={demo ? 'Leave demo' : 'Sign out'} className="h-auto">
                 <IconLogout />
-                <SignedIn name={name} email={viewer} />
+                <SignedIn name={name} email={demo ? null : viewer} demo={demo} />
               </SidebarMenuButton>
             </form>
           </SidebarMenuItem>

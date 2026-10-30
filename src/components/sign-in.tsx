@@ -1,12 +1,21 @@
 // The sign-in pages' pieces (/signin, /setup, /invite): their frame, the passkey ceremonies against /auth/*
 // (src/auth/passkeys.ts) and the recovery codes shown once.
-import { IconCheck, IconCopy, IconDownload, IconFingerprint } from '@tabler/icons-react'
+import {
+  IconArrowUpRight,
+  IconCheck,
+  IconCopy,
+  IconDoorEnter,
+  IconDownload,
+  IconFingerprint,
+} from '@tabler/icons-react'
 import { startAuthentication, startRegistration, WebAuthnError } from '@simplewebauthn/browser'
 import { useState } from 'react'
-import { Logo } from '@/components/shell'
+import { Code } from '@/components/linking'
+import { DEPLOY_YOUR_OWN, Logo } from '@/components/shell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { nextPath } from '@/lib/next'
 
 /** A sign-in page: the mark, a title and a line under it, then the page's content, alone in the middle */
 export function SignInFrame({
@@ -254,3 +263,38 @@ export const Or = () => (
     <span className="h-px flex-1 bg-border" />
   </div>
 )
+
+/** The demo's front door, on /signin (src/demo.ts): Enter demo, a form POST that sets its cookie and goes on to
+ *  `next`; the one-line MCP command; and where to deploy your own */
+export function DemoCard({ next, mcp }: { next?: string; mcp: string }) {
+  return (
+    <SignInFrame
+      title="Take a look around"
+      description="Six made-up apps send real crashes, logs and traces here. Look at anything. Nothing you do changes it."
+      footer={
+        <a
+          href={DEPLOY_YOUR_OWN}
+          className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          Deploy your own crashyard
+          <IconArrowUpRight className="size-4" />
+        </a>
+      }
+    >
+      <div className="grid gap-4">
+        <form method="post" action="/auth/demo" className="grid">
+          <input type="hidden" name="next" value={nextPath(next)} />
+          <Button type="submit" className="h-11 text-base">
+            <IconDoorEnter className="size-5" />
+            Enter demo
+          </Button>
+        </form>
+        <Or />
+        <div className="grid min-w-0 gap-2">
+          <p className="text-sm text-muted-foreground">Ask your agent about it instead. In Claude Code, run:</p>
+          <Code text={`claude mcp add --transport http crashyard-demo ${mcp}`} />
+        </div>
+      </div>
+    </SignInFrame>
+  )
+}

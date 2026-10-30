@@ -14,6 +14,7 @@ import { Keys } from './-keys'
 export const Route = createFileRoute('/settings/projects/$slug/connect')({ component: Connect })
 
 const parent = getRouteApi('/settings/projects/$slug')
+const root = getRouteApi('__root__')
 
 // What an app needs to send here: the DSN and setup, Workers' runs, and its keys
 function Connect() {
@@ -31,6 +32,8 @@ function Connect() {
 type Loaded = ReturnType<typeof parent.useLoaderData>
 
 function App({ project, dsn, publicKey, origin }: Pick<Loaded, 'project' | 'dsn' | 'publicKey' | 'origin'>) {
+  // The demo closes ingest (src/demo.ts): its DSNs are there to show, not to send to
+  const { demo } = root.useLoaderData()
   return (
     <SettingsCard
       title="Connect an app"
@@ -45,6 +48,11 @@ function App({ project, dsn, publicKey, origin }: Pick<Loaded, 'project' | 'dsn'
       }
     >
       <div className="mb-5 grid min-w-0 gap-2">
+        {demo && (
+          <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            The demo doesn’t take events. Deploy your own crashyard to get a DSN that does.
+          </p>
+        )}
         <Label>DSN</Label>
         <Code text={dsn} />
       </div>

@@ -1711,8 +1711,8 @@ export const getSignIn = createServerFn()
   .handler(async () => {
     const id = Number(getRequestHeader('x-crashyard-user'))
     const now = Date.now()
-    // A dev server's dev@localhost has none of these
-    if (!id) return { viewer: viewer(), passkeys: [], sessions: [], codesLeft: 0, now }
+    // A dev server's dev@localhost has none of these, nor the demo's viewer, whose page sends it elsewhere
+    if (!id) return { viewer: viewer(), passkeys: [], sessions: [], codesLeft: 0, now, demo: isDemo(env) }
     const current = getRequestHeader('x-crashyard-session')
     const [passkeys, sessions, codesLeft] = await Promise.all([
       people.passkeysOf(env.DB, id),
@@ -1725,6 +1725,7 @@ export const getSignIn = createServerFn()
       sessions: sessions.map((s) => ({ ...s, current: s.hash === current })),
       codesLeft,
       now,
+      demo: false,
     }
   })
 
@@ -1825,7 +1826,8 @@ export const removePerson = createServerFn({ method: 'POST' })
 
 export const getSignInPage = createServerFn().handler(async () => ({
   github: !!(await gitHubApp(env.DB)),
-  demo: isDemo(env),
+  // The demo's front door shows its MCP command
+  demo: isDemo(env) ? { mcp: `${env.PUBLIC_URL?.replace(/\/$/, '') || origin()}/mcp` } : null,
 }))
 
 // A status page, read while signed out as the sign-in pages are: only the uptime checks on it, by name, never their
