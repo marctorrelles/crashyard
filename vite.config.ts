@@ -7,8 +7,12 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 
 // Your deployment's own values (domain, PUBLIC_URL), git-ignored, over wrangler.jsonc's: `vars` merged, the rest
-// replaced
-const local = existsSync('wrangler.local.json') ? JSON.parse(readFileSync('wrangler.local.json', 'utf8')) : null
+// replaced. CRASHYARD_OVERLAY names another file instead, which must then be there (the public demo's,
+// scripts/demo/wrangler.json): a mistyped one would otherwise build a deployment with none
+const overlay = process.env.CRASHYARD_OVERLAY
+if (overlay && !existsSync(overlay)) throw new Error(`CRASHYARD_OVERLAY names ${overlay}, which isn't there.`)
+const localFile = overlay ?? 'wrangler.local.json'
+const local = existsSync(localFile) ? JSON.parse(readFileSync(localFile, 'utf8')) : null
 
 // A new id each build: the page keeps its own, `__BUILD__`, and asks `/version.json` for the deployed one
 // (src/components/new-version.tsx). Kept in the environment, as the build reads this file more than once

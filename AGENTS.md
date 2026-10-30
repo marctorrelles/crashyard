@@ -62,11 +62,12 @@ Where things are:
 - `migrations/`: D1 migrations, numbered (see its AGENTS.md).
 - `test/`: tests that run the worker, with the real Sentry SDK (see its AGENTS.md).
 - `docs/`: decisions, deploying, linking an app (see its AGENTS.md).
-- `scripts/`: `pnpm seed` for a local database with data in it (see its AGENTS.md).
+- `scripts/`: `pnpm seed` for a local database with data in it, and the public demo's deploy (see its AGENTS.md).
 - `wrangler.jsonc`: the worker, D1 (`DB`), R2 (`FILES`), email (`EMAIL`), the cron and empty `vars`, generic so
   anyone can deploy it; a deployment's own domain and values are in the git-ignored `wrangler.local.json`,
-  which `vite.config.ts` lays over it, and so is the optional SymCache builder's container (Workers Paid, Docker to
-  deploy; `CONTAINERS=1 pnpm dev` runs it locally).
+  which `vite.config.ts` lays over it (`CRASHYARD_OVERLAY=<file>` lays another instead, as the demo's build does), and
+  so is the optional SymCache builder's container (Workers Paid, Docker to deploy; `CONTAINERS=1 pnpm dev` runs it
+  locally).
 - `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
   three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root; a
   release gets its build, `scripts/release-bundle.mjs`, and a line in its notes when it changes `symcache/`), issue

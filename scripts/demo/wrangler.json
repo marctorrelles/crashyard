@@ -1,0 +1,11 @@
+{
+  "name": "crashyard-demo",
+  "routes": [
+    { "pattern": "demo.crashyard.dev", "custom_domain": true },
+    { "pattern": "demo-status.crashyard.dev", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  "d1_databases": [{ "binding": "DB", "database_name": "crashyard-demo", "migrations_dir": "migrations" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "crashyard-demo-files" }],
+  "vars": { "PUBLIC_URL": "https://demo.crashyard.dev", "DEMO": "1" }
+}

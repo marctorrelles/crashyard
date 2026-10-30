@@ -24,3 +24,14 @@
   ingest's own code (normalise, fingerprint, store) and `src/data/`, with a regression, an ignored issue, a note, a
   week of transactions (one made slower by the newest release), two weeks of sessions, monitors, a channel and a route. Wipes local projects first; it only ever opens `.wrangler/state`. Use it to look at the
   dashboard, and for screenshots.
+- `demo/wrangler.json`: the public demo's overlay (`CRASHYARD_OVERLAY=scripts/demo/wrangler.json pnpm build`): Worker
+  `crashyard-demo` on demo.crashyard.dev and demo-status.crashyard.dev, D1 `crashyard-demo`, R2
+  `crashyard-demo-files`, `DEMO=1`. `demo/preflight.mjs` refuses a dist/server/wrangler.json naming anything else, or
+  with containers or Durable Objects, before any remote command.
+- `demo-deploy.sh`: the demo's deploy in the account `wrangler whoami` shows, in order: the demo build and preflight,
+  R2 and its lifecycle rules, D1 and migrations (deploy-guard), the Worker, then from the crashyard-demo checkout
+  (`DEMO_DIR`, `../crashyard-demo`) brightpan-edge and brightpan-shop on workers.dev, seed step 1 (its tokens kept in
+  that checkout's git-ignored `feeder/.secrets.json`), the recorded web builds' source maps, the corpus, and the
+  feeder with its tokens as secrets; `after-backfill` runs seed step 2 once the feeder has caught up. Every remote
+  command passes `-c`: the demo build for crashyard's, each sample Worker's own for the rest; the seed writes its own
+  config naming `crashyard-demo` alone.
