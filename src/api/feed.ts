@@ -1,4 +1,3 @@
-import { WorkerEntrypoint } from 'cloudflare:workers'
 import { FORWARDED } from '../ingest/forward'
 import { isDemo } from '../demo'
 import { type Door, handleIngest } from './ingest'
@@ -17,16 +16,37 @@ export type FeedInput = {
 
 const ALLOWED_HEADERS = new Set(['content-type', 'content-encoding', 'user-agent'])
 
-// What the demo's feeder (crashyard-demo/feeder) sends through a service binding only: a named entrypoint isn't
-// reachable from the internet, and ingest's own doors are closed in the demo (src/demo.ts). Each goes through ingest's
-// own path at the time it says it was received. Refuses unless DEMO is set, so a self-hoster's deployment, which never
-// binds it, can't use it either. Keep `send`'s input stable: add to it, never change it
-export class DemoFeed extends WorkerEntrypoint<Env> {
-  /** The status ingest answered: 403 outside the demo, 404 for a project or key that isn't there, 400 for a time
-   *  ahead of now */
-  async send(input: FeedInput): Promise<number> {
-    return (await feed(this.env, this.ctx, input)).status
+/** A FeedInput as JSON: its body in base64 */
+export type FeedWire = Omit<FeedInput, 'body'> & { body: string }
+const BATCH = 200
+
+// What the demo's feeder (crashyard-demo/feeder) sends, through its service binding: POST /__feed (src/demo.ts), a
+// JSON list of FeedWire, one scenario's envelopes in order, answered with each one's status (403 outside the demo, 404
+// for a project or key that isn't there, 400 for a time ahead of now). An HTTP request, not RPC, so Smart Placement
+// runs it beside D1: a store is several queries one after another. Behind FEED_SECRET, a secret both Workers have;
+// without it the path isn't there. Ingest's own doors stay closed in the demo. Keep FeedWire stable: add to it
+export async function handleFeed(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const notFound = new Response('Not found', { status: 404 })
+  if (!env.FEED_SECRET || request.method !== 'POST') return notFound
+  if (!(await same(request.headers.get('authorization') ?? '', `Bearer ${env.FEED_SECRET}`))) return notFound
+  const inputs = (await request.json().catch(() => null)) as FeedWire[] | null
+  if (!Array.isArray(inputs) || inputs.length > BATCH)
+    return new Response(`Expected a list of up to ${BATCH} inputs`, { status: 400 })
+  const statuses: number[] = []
+  for (const input of inputs) {
+    const body = Uint8Array.from(atob(String(input.body ?? '')), (c) => c.charCodeAt(0))
+    statuses.push((await feed(env, ctx, { ...input, body })).status)
   }
+  return Response.json(statuses)
+}
+
+// Compared as SHA-256 digests, every byte, so the time taken says nothing of the secret
+async function same(a: string, b: string) {
+  const digest = async (s: string) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))
+  const [x, y] = await Promise.all([digest(a), digest(b)])
+  let diff = 0
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i]
+  return diff === 0
 }
 
 export async function feed(env: Env, ctx: ExecutionContext, input: FeedInput): Promise<Response> {

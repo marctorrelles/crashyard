@@ -35,7 +35,7 @@ session?, cookie? }` or null. A dev server (`import.meta.env.DEV`, false in ever
 - **Demo** (`src/demo.ts`, on where the deployment's `vars` set `DEMO=1`: demo.crashyard.dev; `DEMO=1 pnpm dev`
   locally): read-only, no accounts. `whoIs` reads only the `crashyard_demo` cookie (HttpOnly, Lax, a day), which makes
   everyone one viewer, `visitor@demo.crashyard.dev`, with no user or session; a session cookie is never read. `demoGate`,
-  first in `fetch`: ingest's four doors 403 before the body (CORS on); `POST /auth/demo` (Origin checked, the cookie,
+  first in `fetch`: `/__feed` to the feeder's batch (`src/api/feed.ts`, behind `FEED_SECRET`); ingest's four doors 403 before the body (CORS on); `POST /auth/demo` (Origin checked, the cookie,
   303 to `nextPath(next)`, the Enter demo form on `/signin`) and `POST /auth/signout` (cleared, 303 `/signin`); any
   other `/auth/*`, GitHub's too, 404; `/setup` and `/invite/*` 303 to `/signin`; `/mcp` without a `cyp_` token as the
   viewer, change tools refused with the demo's sentence. The signed-out redirect never picks `/setup` there. In

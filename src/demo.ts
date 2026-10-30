@@ -18,14 +18,19 @@ const cookie = (value: string, maxAge: number, secure: boolean) =>
   `${DEMO_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`
 
 /**
- * What demo mode answers ahead of the rest of src/server.ts, or null to go on: ingest closed before the body is read,
+ * What demo mode answers ahead of the rest of src/server.ts, or null to go on: the feeder's `/__feed` (src/api/feed.ts),
+ * ingest closed before the body is read,
  * every sign-in way closed but Enter demo and Leave demo, `/setup` and invites sent to `/signin`, and `/mcp` without
  * an agent token as the demo's viewer
  */
-export async function demoGate(request: Request, env: Env): Promise<Response | null> {
+export async function demoGate(request: Request, env: Env, ctx: ExecutionContext): Promise<Response | null> {
   const url = new URL(request.url)
   const path = url.pathname
   const secure = url.protocol === 'https:'
+  if (path === '/__feed') {
+    const { handleFeed } = await import('./api/feed')
+    return handleFeed(request, env, ctx)
+  }
   const { CORS, INGEST } = await import('./api/ingest')
   if (INGEST.test(path))
     return request.method === 'OPTIONS'

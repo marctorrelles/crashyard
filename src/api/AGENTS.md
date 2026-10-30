@@ -3,15 +3,17 @@
 What the worker answers itself, ahead of Start. Under `/api/`, outside sign-in, each checks its own key or
 signature; `/mcp` comes after sign-in.
 
-- `feed.ts`: `DemoFeed`, a named entrypoint (`export`ed from `src/server.ts`), so only a Worker with a service
-  binding to it reaches it, never the internet: the demo's feeder (crashyard-demo) sends `send({ project, door,
-path?, query?, method?, headers?, body, received })`, an envelope, event, report or check-in as an SDK sent it. It
-  finds the project by slug and its first key that's on (as `tail.ts`), sets that key in `x-sentry-auth` (a check-in's
-  key in the path and a `sentry_key` in the query dropped), keeps only `content-type`, `content-encoding` and
-  `user-agent`, marks it `FORWARDED`, and calls `handleIngest` with `received`, the status as the answer. 403 unless
+- `feed.ts`: `handleFeed`, `POST /__feed` in the demo only (`demoGate`), with `Authorization: Bearer <FEED_SECRET>`,
+  a secret only the demo and its feeder (crashyard-demo) have; without it, or a wrong one, a 404. The body is a list of
+  up to 200 `{ project, door, path?, query?, method?, headers?, body (base64), received }`, an envelope, event, report or
+  check-in as an SDK sent it, stored in order, answered with each one's status. HTTP over the service binding, so the
+  placement the demo's overlay sets (`aws:eu-central-1`, beside its D1 in WEUR; Smart Placement never had the
+  traffic to act) runs it there, where a store's queries one after another are cheap. `feed` finds the project by slug and its first key that's on (as `tail.ts`), sets that key in `x-sentry-auth`
+  (a check-in's key in the path and a `sentry_key` in the query dropped), keeps only `content-type`,
+  `content-encoding` and `user-agent`, marks it `FORWARDED`, and calls `handleIngest` with `received`: 403 unless
   `DEMO` is set, 404 for an unknown project, 400 for a time ahead of now. Add to its input, never change it: the
   feeder lives in another repo. `feed.test.ts`: three days back lands on that day, sessions alone aren't held, the
-  refusals, a check-in by slug.
+  refusals, a check-in by slug, the secret and the batch.
 - `ingest.ts`: its four doors as `INGEST` (`src/server.ts` routes by it, the demo's gate closes them) and their `CORS`. `handleIngest`'s last argument,
   `received`, is now unless `feed.ts` replays at another time; every step after takes it as `now`.
   `/api/<project>/envelope/` and `/api/<project>/store/`, what the Sentry SDKs send to, and the two that

@@ -1,16 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
-import { DemoFeed, feed, type FeedInput } from './feed'
+import { feed, type FeedInput, handleFeed } from './feed'
 
-// The entrypoint's base class, as the runtime gives it its env and ctx; and ingest without the Wasm module or channels
-vi.mock('cloudflare:workers', () => ({
-  WorkerEntrypoint: class {
-    constructor(
-      public ctx: unknown,
-      public env: unknown,
-    ) {}
-  },
-}))
+// Ingest without the Wasm module or channels
 vi.mock('../symbols/module', () => ({ sharedSymbolic: () => Promise.reject(new Error('no symbols in tests')) }))
 vi.mock('../notify/dispatch', () => ({ dispatch: async () => {} }))
 
@@ -24,7 +16,7 @@ const envelope = (...items: [unknown, unknown][]) =>
     ].join('\n') + '\n',
   )
 
-function demo(vars: Record<string, string> = { DEMO: '1' }) {
+function demo(vars: Record<string, string> = { DEMO: '1', FEED_SECRET: 'feed-secret' }) {
   const db = sqliteD1()
   db.sqlite.exec(
     "INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'brightpan-web', 'Web', 'k1', 0)",
@@ -34,7 +26,7 @@ function demo(vars: Record<string, string> = { DEMO: '1' }) {
   const env = { DB: db, FILES: files, ...vars } as unknown as Env
   const ctx = { waitUntil: (p: Promise<unknown>) => void waits.push(p) } as unknown as ExecutionContext
   const send = async (input: Partial<FeedInput>) => {
-    const status = await new DemoFeed(ctx, env).send({
+    const response = await feed(env, ctx, {
       project: 'brightpan-web',
       door: 'envelope',
       body: bytes(''),
@@ -42,7 +34,7 @@ function demo(vars: Record<string, string> = { DEMO: '1' }) {
       ...input,
     } as FeedInput)
     await Promise.all(waits)
-    return status
+    return response.status
   }
   return { db, files, env, ctx, send }
 }
@@ -109,5 +101,30 @@ describe('the demo’s feed', () => {
     })
     expect(answer.status).toBe(202)
     expect(db.sqlite.prepare('SELECT slug FROM monitors').all()).toEqual([{ slug: 'nightly-price-import' }])
+  })
+
+  it('takes a batch at /__feed with the feeder’s secret, and is not there without it', async () => {
+    const { env, ctx } = demo()
+    const post = (auth: string | null, body: unknown) =>
+      handleFeed(
+        new Request('https://crashyard/__feed', {
+          method: 'POST',
+          headers: auth ? { authorization: auth } : {},
+          body: JSON.stringify(body),
+        }),
+        env,
+        ctx,
+      )
+    const wire = { project: 'nope', door: 'envelope', body: btoa('x'), received: Date.now() }
+    expect((await post(null, [wire])).status).toBe(404)
+    expect((await post('Bearer wrong', [wire])).status).toBe(404)
+    expect((await handleFeed(new Request('https://crashyard/__feed'), env, ctx)).status).toBe(404)
+    const answer = await post('Bearer feed-secret', [wire, { ...wire, received: Date.now() + DAY }])
+    expect(await answer.json()).toEqual([404, 400])
+    expect((await post('Bearer feed-secret', { not: 'a list' })).status).toBe(400)
+    const { env: noSecret } = demo({ DEMO: '1' })
+    expect((await handleFeed(new Request('https://crashyard/__feed', { method: 'POST' }), noSecret, ctx)).status).toBe(
+      404,
+    )
   })
 })

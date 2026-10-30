@@ -8,10 +8,13 @@ declare namespace Cloudflare {
     SYMCACHE_BUILDER?: DurableObjectNamespace
     /** "1" on the public demo only, from its deployment's overlay: read-only, no accounts (src/demo.ts) */
     DEMO?: string
+    /** The demo's only: what its feeder sends with each batch to /__feed (src/api/feed.ts) */
+    FEED_SECRET?: string
   }
 }
 interface Env {
   SETUP_CODE?: string
   SYMCACHE_BUILDER?: DurableObjectNamespace
   DEMO?: string
+  FEED_SECRET?: string
 }

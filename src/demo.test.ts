@@ -8,6 +8,7 @@ vi.mock('./symbols/module', () => ({ sharedSymbolic: () => Promise.reject(new Er
 
 const SITE = 'https://demo.crashyard.dev'
 const env = () => ({ DB: sqliteD1(), DEMO: '1' }) as unknown as Env
+const ctx = { waitUntil: () => {} } as unknown as ExecutionContext
 const request = (path: string, init: RequestInit = {}) => new Request(`${SITE}${path}`, init)
 
 describe('the demo’s gate', () => {
@@ -18,7 +19,7 @@ describe('the demo’s gate', () => {
       '/api/1/security/?sentry_key=k',
       '/api/1/cron/nightly/k/',
     ]) {
-      const answer = (await demoGate(request(path, { method: 'POST', body: 'x' }), env()))!
+      const answer = (await demoGate(request(path, { method: 'POST', body: 'x' }), env(), ctx))!
       expect(answer.status).toBe(403)
       expect(answer.headers.get('Access-Control-Allow-Origin')).toBe('*')
       expect(await answer.json()).toEqual({ detail: DEMO_INGEST })
@@ -27,9 +28,9 @@ describe('the demo’s gate', () => {
 
   it('closes every way to sign in, set up or join, but Enter demo and Leave demo', async () => {
     for (const path of ['/auth/github/start', '/auth/signin/options', '/auth/recover', '/auth/setup/verify'])
-      expect((await demoGate(request(path, { method: 'POST' }), env()))!.status).toBe(404)
+      expect((await demoGate(request(path, { method: 'POST' }), env(), ctx))!.status).toBe(404)
     for (const path of ['/setup', '/invite/abc']) {
-      const answer = (await demoGate(request(path), env()))!
+      const answer = (await demoGate(request(path), env(), ctx))!
       expect([answer.status, answer.headers.get('Location')]).toEqual([303, `${SITE}/signin`])
     }
   })
@@ -38,6 +39,7 @@ describe('the demo’s gate', () => {
     demoGate(
       request('/auth/demo', { method: 'POST', headers: { Origin: origin }, body: new URLSearchParams({ next }) }),
       env(),
+      ctx,
     )
 
   it('lets anyone in with a click, back to where they were going on this site only', async () => {
@@ -52,7 +54,11 @@ describe('the demo’s gate', () => {
   })
 
   it('lets them out again', async () => {
-    const answer = (await demoGate(request('/auth/signout', { method: 'POST', headers: { Origin: SITE } }), env()))!
+    const answer = (await demoGate(
+      request('/auth/signout', { method: 'POST', headers: { Origin: SITE } }),
+      env(),
+      ctx,
+    ))!
     expect(answer.headers.get('Location')).toBe('/signin')
     expect(answer.headers.get('Set-Cookie')).toMatch(/^crashyard_demo=; .*Max-Age=0/)
   })
@@ -65,6 +71,7 @@ describe('the demo’s gate', () => {
         body: JSON.stringify(body),
       }),
       env(),
+      ctx,
     )
 
   it('answers MCP without a token as the demo’s viewer: reads, and changes refused', async () => {
@@ -83,12 +90,12 @@ describe('the demo’s gate', () => {
 
   it('leaves the dashboard, status pages and the upload API to the rest', async () => {
     for (const path of ['/', '/issues', '/status/brightpan', '/api/0/projects/', '/_serverFn/x'])
-      expect(await demoGate(request(path), env())).toBeNull()
+      expect(await demoGate(request(path), env(), ctx)).toBeNull()
   })
 
   it('is asked only in the demo', () => {
     expect(readFileSync('src/server.ts', 'utf8')).toMatch(
-      /if \(isDemo\(env\)\) \{\n\s*const answer = await demoGate\(request, env\)/,
+      /if \(isDemo\(env\)\) \{\n\s*const answer = await demoGate\(request, env, ctx\)/,
     )
     expect(readFileSync('src/server.ts', 'utf8').match(/demoGate\(/g)).toHaveLength(1)
   })

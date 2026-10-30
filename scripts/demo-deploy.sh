@@ -108,8 +108,15 @@ pnpm exec wrangler r2 bucket info crashyard-demo-corpus -c feeder/wrangler.jsonc
   pnpm exec wrangler r2 bucket create crashyard-demo-corpus -c feeder/wrangler.jsonc
 node feeder/upload-corpus.mjs --remote
 
-step 'Feeder: crashyard-demo-feeder, with its tokens'
+step "Feed secret: what the feeder sends to crashyard-demo's /__feed, made once and kept in $SECRETS"
+node -e '
+  const fs = require("node:fs"), file = process.argv[1], s = JSON.parse(fs.readFileSync(file, "utf8"))
+  s.FEED_SECRET ||= require("node:crypto").randomBytes(32).toString("base64url")
+  fs.writeFileSync(file, JSON.stringify(s))' $SECRETS
+node -e 'console.log(require(process.argv[1]).FEED_SECRET)' $SECRETS | (cd $ROOT && pnpm exec wrangler secret put FEED_SECRET -c $CONFIG)
+
+step 'Feeder: crashyard-demo-feeder, with its tokens and the feed secret'
 pnpm exec wrangler deploy -c feeder/wrangler.jsonc --secrets-file $SECRETS
 
-print "\nDone. The feeder fills 30 days, an hour a minute, about 12 hours: $SINK_URL/status"
+print "\nDone. The feeder fills 30 days, a few hours: $SINK_URL/status"
 print 'Once it says caughtUp, run: scripts/demo-deploy.sh after-backfill'

@@ -31,7 +31,7 @@
 - `demo-deploy.sh`: the demo's deploy in the account `wrangler whoami` shows, in order: the demo build and preflight,
   R2 and its lifecycle rules, D1 and migrations (deploy-guard), the Worker, then from the crashyard-demo checkout
   (`DEMO_DIR`, `../crashyard-demo`) brightpan-edge and brightpan-shop on workers.dev, seed step 1 (its tokens kept in
-  that checkout's git-ignored `feeder/.secrets.json`), the recorded web builds' source maps, the corpus, and the
+  that checkout's git-ignored `feeder/.secrets.json`), the recorded web builds' source maps, the corpus, the feed secret (`FEED_SECRET` on both Workers, kept in `.secrets.json`), and the
   feeder with its tokens as secrets; `after-backfill` runs seed step 2 once the feeder has caught up. Every remote
   command passes `-c`: the demo build for crashyard's, each sample Worker's own for the rest; the seed writes its own
   config naming `crashyard-demo` alone.

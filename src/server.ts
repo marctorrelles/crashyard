@@ -44,14 +44,12 @@ async function publicStatusPage(request: Request, ctx: ExecutionContext) {
 
 // The SymCache builder's Durable Object, bound only where wrangler.local.json adds its container
 export { SymcacheBuilder } from './symbols/builder'
-// The demo's feeder's way in, through a service binding only (src/api/feed.ts)
-export { DemoFeed } from './api/feed'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // The public demo only (DEMO=1): ingest and sign-in closed, before anything else (src/demo.ts)
     if (isDemo(env)) {
-      const answer = await demoGate(request, env)
+      const answer = await demoGate(request, env, ctx)
       if (answer) return answer
     }
     const url = new URL(request.url)
