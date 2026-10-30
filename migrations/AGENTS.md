@@ -1,7 +1,8 @@
 # Migrations
 
 D1 (SQLite) migrations, applied in order by `wrangler d1 migrations apply DB` (`--local` for dev and CI, `--remote`
-in `pnpm run deploy`).
+in `pnpm run deploy`, on the built config `-c dist/server/wrangler.json`, so a database `wrangler.local.json` renames
+is the one migrated; its `migrations_dir` is rewritten to `../../migrations` there).
 
 - Never edit a migration that's been deployed: add the next number.
 - Only add (tables, columns with defaults, indexes): the worker before an upgrade must still run on the upgraded

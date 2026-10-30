@@ -4,6 +4,7 @@
 //   pnpm run recovery-code you@example.com            (--local for the dev database)
 import { execFileSync } from 'node:child_process'
 import { createHash, randomInt } from 'node:crypto'
+import { existsSync } from 'node:fs'
 
 const email = process.argv[2]?.trim().toLowerCase()
 const where = process.argv.includes('--local') ? '--local' : '--remote'
@@ -17,9 +18,14 @@ const group = () => Array.from({ length: 5 }, () => letters[randomInt(letters.le
 const code = `${group()}-${group()}`
 const hash = createHash('sha256').update(code.replace('-', '')).digest('hex')
 const sql = `INSERT INTO recovery_codes (user_id, hash) SELECT id, '${hash}' FROM users WHERE email = '${email}' RETURNING user_id`
+// The deployment's database is the one in the built config, with wrangler.local.json laid over it: d1 commands
+// otherwise read wrangler.jsonc alone, and a database renamed there would be missed. The dev database is wrangler.jsonc's
+const CONFIG = 'dist/server/wrangler.json'
+if (where === '--remote' && !existsSync(CONFIG)) execFileSync('pnpm', ['-s', 'build'], { stdio: 'inherit' })
+const config = where === '--remote' ? ['-c', CONFIG] : []
 let out
 try {
-  out = execFileSync('pnpm', ['-s', 'wrangler', 'd1', 'execute', 'DB', where, '--json', '--command', sql], {
+  out = execFileSync('pnpm', ['-s', 'wrangler', 'd1', 'execute', 'DB', where, ...config, '--json', '--command', sql], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   })
