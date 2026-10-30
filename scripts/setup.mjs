@@ -25,7 +25,8 @@ const host = await ask(
   local.routes?.[0]?.pattern,
 )
 if (host) {
-  local.routes = [{ pattern: host, custom_domain: true }]
+  // The dashboard's route comes first; the rest, such as status pages' own domains, stay
+  local.routes = [{ pattern: host, custom_domain: true }, ...(local.routes ?? []).slice(1)]
   local.workers_dev = false
   vars.PUBLIC_URL = `https://${host}`
 }
