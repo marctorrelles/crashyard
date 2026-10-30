@@ -56,7 +56,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     --bg: oklch(0.155 0.007 260);
     --bg-2: oklch(0.18 0.008 260);
     --card: oklch(0.2 0.009 260);
@@ -77,27 +77,6 @@
     --show-dark: block;
     color-scheme: dark;
   }
-}
-:root[data-theme="dark"] {
-  --bg: oklch(0.155 0.007 260);
-  --bg-2: oklch(0.18 0.008 260);
-  --card: oklch(0.2 0.009 260);
-  --fg: oklch(0.96 0.003 260);
-  --fg-2: oklch(0.74 0.01 260);
-  --fg-3: oklch(0.6 0.01 260);
-  --border: oklch(1 0 0 / 9%);
-  --border-2: oklch(1 0 0 / 15%);
-  --accent: oklch(0.73 0.19 46);
-  --accent-hover: oklch(0.78 0.17 48);
-  --accent-text: oklch(0.78 0.16 50);
-  --accent-soft: oklch(0.27 0.04 50);
-  --ok: oklch(0.72 0.15 155);
-  --code-bg: oklch(0.12 0.006 260);
-  --code-bar: oklch(0.15 0.007 260);
-  --shadow: 0 0 0 1px oklch(1 0 0 / 4%), 0 16px 40px -16px oklch(0 0 0 / 60%);
-  --show-light: none;
-  --show-dark: block;
-  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -265,6 +244,7 @@ section { padding: 120px 0 0; }
 .tour-text p { color: var(--fg-2); }
 .tour-text ul { margin: 4px 0 0; padding-left: 18px; color: var(--fg-2); display: grid; gap: 6px; font-size: 15px; }
 .tour-text li::marker { color: var(--accent); }
+.tour-text a { color: var(--fg); text-underline-offset: 3px; }
 .frame.short .crop { aspect-ratio: 2560 / 820; overflow: hidden; }
 .frame.short .crop img { height: 100%; object-fit: cover; object-position: 0 0; }
 
@@ -342,15 +322,9 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
 .foot-links { display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: center; }
 .foot-links a { text-decoration: none; }
 .foot-links a:hover { color: var(--fg); }
-.theme { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; }
-.theme button { display: grid; place-items: center; width: 30px; height: 26px; border: 0; border-radius: 5px; background: none; color: var(--fg-3); cursor: pointer; }
-.theme button:hover { color: var(--fg); }
-.theme button[aria-pressed="true"] { background: var(--bg-2); color: var(--fg); }
-.theme .icon { width: 15px; height: 15px; }
 
 @media (prefers-reduced-motion: reduce) { .btn, .tab, .copy { transition: none; } }
 </style>
-<script>try{var t=localStorage.getItem("crashyard-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 
@@ -384,6 +358,7 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
   <symbol id="i-hash" viewBox="0 0 24 24"><path d="M5 9l14 0"/><path d="M5 15l14 0"/><path d="M11 4l-4 16"/><path d="M17 4l-4 16"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></symbol>
+  <symbol id="i-broadcast" viewBox="0 0 24 24"><path d="M18.364 19.364a9 9 0 1 0 -12.728 0"/><path d="M15.536 16.536a5 5 0 1 0 -7.072 0"/><path d="M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol>
   <symbol id="i-monitor" viewBox="0 0 24 24"><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10"/><path d="M7 20h10"/><path d="M9 16v4"/><path d="M15 16v4"/></symbol>
 </svg>
 
@@ -425,12 +400,30 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
             <button class="tab" role="tab" aria-selected="false" data-tab="swift">Swift</button>
             <button class="tab" role="tab" aria-selected="false" data-tab="android">Android</button>
             <button class="tab" role="tab" aria-selected="false" data-tab="python">Python</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="node">Node.js</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="react">React</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="go">Go</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="ruby">Ruby</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="php">PHP</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="java">Java</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="dotnet">.NET</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="rust">Rust</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="flutter">Flutter</button>
             <button class="copy" type="button" data-copy><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button>
           </div>
 <pre data-panel="js"><span class="c">// app.ts</span><span><span class="k">import</span> * <span class="k">as</span> Sentry <span class="k">from</span> <span class="s">'@sentry/browser'</span></span><span> </span><span>Sentry.init({</span><span class="rm">-  dsn: <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/451'</span>,</span><span class="add" data-keep>+  dsn: <span class="s">'https://8b41d2f09c@crashyard.example.com/3'</span>,</span><span>   release: import.meta.env.VITE_RELEASE,</span><span>})</span></pre>
 <pre data-panel="swift" hidden><span class="c">// AppDelegate.swift</span><span><span class="k">import</span> Sentry</span><span> </span><span>SentrySDK.start { options <span class="k">in</span></span><span class="rm">-   options.dsn = <span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/452"</span></span><span class="add" data-keep>+   options.dsn = <span class="s">"https://2c7f90e1a4@crashyard.example.com/1"</span></span><span>    options.sendDefaultPii = <span class="k">false</span></span><span>}</span></pre>
 <pre data-panel="android" hidden><span class="c">&lt;!-- AndroidManifest.xml, inside &lt;application&gt; --&gt;</span><span>&lt;meta-data android:name=<span class="s">"io.sentry.dsn"</span></span><span class="rm">-  android:value=<span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/453"</span> /&gt;</span><span class="add" data-keep>+  android:value=<span class="s">"https://71d3c4b8e2@crashyard.example.com/4"</span> /&gt;</span><span>&lt;meta-data android:name=<span class="s">"io.sentry.send-default-pii"</span></span><span>  android:value=<span class="s">"false"</span> /&gt;</span></pre>
 <pre data-panel="python" hidden><span class="c"># app.py</span><span><span class="k">import</span> sentry_sdk</span><span> </span><span>sentry_sdk.init(</span><span class="rm">-   dsn=<span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/454"</span>,</span><span class="add" data-keep>+   dsn=<span class="s">"https://4f02a9d6c1@crashyard.example.com/2"</span>,</span><span>    traces_sample_rate=1.0,</span><span>)</span></pre>
+<pre data-panel="node" hidden><span class="c">// instrument.mjs</span><span class="k">import</span> * <span class="k">as</span> Sentry <span class="k">from</span> <span class="s">'@sentry/node'</span><span> </span><span>Sentry.init({</span><span class="rm">-  dsn: <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/455'</span>,</span><span class="add" data-keep>+  dsn: <span class="s">'https://9a1e6c3f50@crashyard.example.com/5'</span>,</span><span>   tracesSampleRate: 0.1,</span><span>})</span></pre>
+<pre data-panel="react" hidden><span class="c">// main.tsx</span><span class="k">import</span> * <span class="k">as</span> Sentry <span class="k">from</span> <span class="s">'@sentry/react'</span><span> </span><span>Sentry.init({</span><span class="rm">-  dsn: <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/456'</span>,</span><span class="add" data-keep>+  dsn: <span class="s">'https://9a1e6c3f50@crashyard.example.com/6'</span>,</span><span>   integrations: [Sentry.browserTracingIntegration()],</span><span>})</span></pre>
+<pre data-panel="go" hidden><span class="c">// main.go</span><span>err := sentry.Init(sentry.ClientOptions{</span><span class="rm">-  Dsn: <span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/457"</span>,</span><span class="add" data-keep>+  Dsn: <span class="s">"https://9a1e6c3f50@crashyard.example.com/7"</span>,</span><span>   TracesSampleRate: 0.1,</span><span>})</span></pre>
+<pre data-panel="ruby" hidden><span class="c"># config/initializers/sentry.rb</span><span>Sentry.init <span class="k">do</span> |config|</span><span class="rm">-  config.dsn = <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/458'</span></span><span class="add" data-keep>+  config.dsn = <span class="s">'https://9a1e6c3f50@crashyard.example.com/8'</span></span><span>   config.traces_sample_rate = 0.1</span><span class="k">end</span></pre>
+<pre data-panel="php" hidden><span class="c">// bootstrap.php</span><span>\Sentry\init([</span><span class="rm">-  'dsn' => <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/459'</span>,</span><span class="add" data-keep>+  'dsn' => <span class="s">'https://9a1e6c3f50@crashyard.example.com/9'</span>,</span><span>   'traces_sample_rate' => 0.1,</span><span>]);</span></pre>
+<pre data-panel="java" hidden><span class="c">// Application.java</span><span>Sentry.init(options -&gt; {</span><span class="rm">-  options.setDsn(<span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/460"</span>);</span><span class="add" data-keep>+  options.setDsn(<span class="s">"https://9a1e6c3f50@crashyard.example.com/10"</span>);</span><span>   options.setTracesSampleRate(0.1);</span><span>});</span></pre>
+<pre data-panel="dotnet" hidden><span class="c">// Program.cs</span><span>SentrySdk.Init(options =&gt;</span><span>{</span><span class="rm">-  options.Dsn = <span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/461"</span>;</span><span class="add" data-keep>+  options.Dsn = <span class="s">"https://9a1e6c3f50@crashyard.example.com/11"</span>;</span><span>   options.TracesSampleRate = 0.1;</span><span>});</span></pre>
+<pre data-panel="rust" hidden><span class="c">// main.rs</span><span class="k">let</span> _guard = sentry::init((<span class="rm">-  <span class="s">"https://5e1c0a7d3b@o4507.ingest.sentry.io/462"</span>,</span><span class="add" data-keep>+  <span class="s">"https://9a1e6c3f50@crashyard.example.com/12"</span>,</span><span>   sentry::ClientOptions { release: sentry::release_name!(), ..Default::default() },</span><span>));</span></pre>
+<pre data-panel="flutter" hidden><span class="c">// main.dart</span><span class="k">await</span> SentryFlutter.init(<span class="rm">-  (options) =&gt; options.dsn = <span class="s">'https://5e1c0a7d3b@o4507.ingest.sentry.io/463'</span>,</span><span class="add" data-keep>+  (options) =&gt; options.dsn = <span class="s">'https://9a1e6c3f50@crashyard.example.com/13'</span>,</span><span>   appRunner: () =&gt; runApp(App()),</span><span>);</span></pre>
           <p class="code-foot">The same one-line change for every official Sentry SDK.</p>
         </div>
       </div>
@@ -481,6 +474,7 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
         <button role="tab" aria-selected="false" aria-controls="t-releases" id="tb-releases" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-tag"/></svg>Releases</button>
         <button role="tab" aria-selected="false" aria-controls="t-logs" id="tb-logs" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg>Logs</button>
         <button role="tab" aria-selected="false" aria-controls="t-monitors" id="tb-monitors" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-activity"/></svg>Monitors</button>
+        <button role="tab" aria-selected="false" aria-controls="t-status" id="tb-status" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-broadcast"/></svg>Status pages</button>
       </div>
 
       <div class="tour-panel" role="tabpanel" id="t-issues" aria-labelledby="tb-issues">
@@ -518,13 +512,25 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
       </div>
       <div class="tour-panel" role="tabpanel" id="t-monitors" aria-labelledby="tb-monitors" hidden>
         <div class="tour-text">
-          <h3>Monitors and status pages</h3>
+          <h3>Monitors</h3>
           <p>Cron monitors for scheduled jobs and uptime checks for URLs. Each failure opens an incident.</p>
-          <ul><li>Check in from the SDK, sentry-cli or curl</li><li>Public status pages on your own domain</li><li>Post incidents, notices and maintenance</li></ul>
+          <ul><li>Check in from the SDK, sentry-cli or curl</li><li>Missed and late check-ins caught</li><li>Response times and 30 days of results</li></ul>
         </div>
         <div class="frame short"><div class="crop">
           <img class="only-light" src="/images/monitors-light.jpg" width="2560" height="1600" loading="lazy" alt="Monitors: a failing nightly export and two uptime checks that are up">
           <img class="only-dark" src="/images/monitors-dark.jpg" width="2560" height="1600" loading="lazy" alt="Monitors: a failing nightly export and two uptime checks that are up">
+        </div></div>
+      </div>
+      <div class="tour-panel" role="tabpanel" id="t-status" aria-labelledby="tb-status" hidden>
+        <div class="tour-text">
+          <h3>Status pages</h3>
+          <p>Public pages with the uptime checks you choose, from any of your projects, on your own domain.</p>
+          <ul><li>Post incidents, notices and planned maintenance</li><li>Updates as things change, with the services affected</li><li>Your own title, logo and brand color</li></ul>
+          <p><a href="https://demo-status.crashyard.dev">See the demo's status page</a></p>
+        </div>
+        <div class="frame"><div class="crop">
+          <img class="only-light" src="/images/status-light.jpg" width="2560" height="1600" loading="lazy" alt="Brightpan's public status page: an incident on its image CDN, a scheduled maintenance and each service's last 30 days">
+          <img class="only-dark" src="/images/status-dark.jpg" width="2560" height="1600" loading="lazy" alt="Brightpan's public status page: an incident on its image CDN, a scheduled maintenance and each service's last 30 days">
         </div></div>
       </div>
     </div>
@@ -674,7 +680,7 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
   <div class="wrap foot">
     <div style="display:grid;gap:6px">
       <a class="brand" href="/"><img src="/images/logo.svg" alt="" width="22" height="22">crashyard</a>
-      <p>Open source under the MIT license. crashyard speaks Sentry's protocol and isn't affiliated with Sentry. Made by Marc Torrelles.</p>
+      <p>Open source under the MIT license. crashyard speaks Sentry's protocol and isn't affiliated with Sentry. Made by <a href="https://marctorrelles.com">Marc Torrelles</a>.</p>
     </div>
     <div class="foot-links">
       <a href="https://github.com/marctorrelles/crashyard/tree/main/docs">Docs</a>
@@ -682,11 +688,6 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
       <a href="https://github.com/marctorrelles/crashyard">GitHub</a>
       <a href="https://github.com/marctorrelles/crashyard/blob/main/CHANGELOG.md">Changelog</a>
       <a href="https://github.com/marctorrelles/crashyard/blob/main/SECURITY.md">Security</a>
-      <div class="theme" role="group" aria-label="Theme">
-        <button type="button" data-theme-set="light" aria-label="Light" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg></button>
-        <button type="button" data-theme-set="system" aria-label="System" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-monitor"/></svg></button>
-        <button type="button" data-theme-set="dark" aria-label="Dark" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
-      </div>
     </div>
   </div>
 </footer>
@@ -730,22 +731,6 @@ footer { border-top: 1px solid var(--border); padding: 32px 0 40px; font-size: 1
       select(next); next.focus()
     })
   })
-
-  // Theme: system, light or dark, remembered in this browser when it can be
-  const root = document.documentElement
-  const buttons = [...document.querySelectorAll('[data-theme-set]')]
-  const apply = (v) => {
-    if (v === 'light' || v === 'dark') root.dataset.theme = v
-    else delete root.dataset.theme
-    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === (v || 'system'))))
-  }
-  let saved = null
-  try { saved = localStorage.getItem('crashyard-theme') } catch {}
-  apply(saved)
-  buttons.forEach((b) => b.addEventListener('click', () => {
-    apply(b.dataset.themeSet)
-    try { localStorage.setItem('crashyard-theme', b.dataset.themeSet) } catch {}
-  }))
 })()
 </script>
 </body>
