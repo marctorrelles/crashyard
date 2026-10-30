@@ -112,7 +112,8 @@
   deletes.
 - `priority.tsx`: `PriorityBadge`, an issue's priority as a badge (high red, medium amber, low muted) that opens a
   menu to change it, above a list row's link, 40 px on a phone; `PRIORITY_LABELS`.
-- `event-view.tsx`: an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's
+- `event-view.tsx` (its grids `grid-cols-1`, a `minmax(0, 1fr)` column, so a long line scrolls inside it and never
+  widens it over the issue's Tags, as Safari did with `auto`): an event as Sentry shows it: exception and stack (newest frame first, or oldest by the viewer's
   `stackOrder`, the crashing frame open; my code first, other frames folded unless `showOtherFrames`, context
   lines; a frame with a link, from `frameLinks` by its indexes in the event, has a button opening its line in the
   repository, 40 px on a phone; `Stack` folds a list of frames), then "Other threads" ("Threads" without an exception)

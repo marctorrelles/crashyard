@@ -22,7 +22,8 @@ export function EventView({
   // The thrown exception first (Sentry sends the chain oldest first)
   const exceptions = event.exceptions.map((e, i) => ({ e, i })).reverse()
   return (
-    <div className="grid gap-6">
+    // grid-cols-1, a minmax(0, 1fr) column: a long stack or header line scrolls inside it, never widens it (Safari did)
+    <div className="grid grid-cols-1 gap-6">
       {event.missingDebugFiles?.length ? (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           <p className="font-medium">Some frames show only memory addresses because their debug files are missing.</p>
@@ -377,7 +378,7 @@ function Breadcrumbs({ crumbs }: { crumbs: Breadcrumb[] }) {
 function Request({ request: r }: { request: RequestInfo }) {
   return (
     <Section title="Request">
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {(r.method || r.url) && (
           <p className="font-mono text-sm break-all">
             {r.method && <span className="mr-2 font-semibold">{r.method}</span>}

@@ -134,7 +134,7 @@ function IssuePage() {
         </div>
       </dl>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="min-w-0">
           {event ? (
             <>
