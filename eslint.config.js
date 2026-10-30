@@ -5,7 +5,9 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', '.wrangler', '.tanstack', 'tmp', 'src/routeTree.gen.ts', 'worker-configuration.d.ts'] },
+  {
+    ignores: ['dist', '.wrangler', '.tanstack', 'tmp', '.claude', 'src/routeTree.gen.ts', 'worker-configuration.d.ts'],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   reactHooks.configs.flat.recommended,
