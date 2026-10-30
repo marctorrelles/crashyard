@@ -67,6 +67,14 @@ describe('health', () => {
     expect((await health({ DB: db, FILES: files }, NOW)).cron).toEqual({ lastRun: NOW - 60_000, late: false })
     expect((await health({ DB: db, FILES: files }, NOW + 3 * 60_000)).cron.late).toBe(true)
   })
+
+  it('measures the database against the plan it was found on, Paid when not known', async () => {
+    const db = seeded()
+    const files = memoryR2()
+    expect((await health({ DB: db, FILES: files }, NOW)).database.limit).toBe(10e9)
+    await setSetting(db, 'cloudflare.plan', { paid: false, checked: NOW }, null)
+    expect((await health({ DB: db, FILES: files }, NOW)).database.limit).toBe(500e6)
+  })
 })
 
 describe('auto-resolve', () => {

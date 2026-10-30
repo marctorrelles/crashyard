@@ -1,4 +1,5 @@
 // The settings pages' numbers: what each day took in and turned away (Usage), and how the deployment is doing (Health).
+import { PLAN_KEY, type Plan } from './plan'
 import { CRON_KEY, getSetting } from './settings'
 import { lastDays } from './projects'
 
@@ -27,8 +28,9 @@ export async function usage(db: D1Database, projectId: number | undefined, days:
   }
 }
 
-/** D1's own cap on one database */
-export const D1_LIMIT = 10_000_000_000
+/** D1's own cap on one database, on Workers Paid and on Free */
+const D1_LIMIT = 10_000_000_000
+const D1_FREE_LIMIT = 500_000_000
 /** Past this, the R2 counts read "1,000 or more" */
 const LIST_CAP = 1000
 /** Past this, the pruning backlog reads "10,000 or more" */
@@ -66,7 +68,7 @@ export async function health(env: { DB: D1Database; FILES: R2Bucket }, now: numb
       )
       .bind(now, BACKLOG_CAP),
   ])
-  const [failureCount, pending, failed, lastRun] = await Promise.all([
+  const [failureCount, pending, failed, lastRun, plan] = await Promise.all([
     db
       .prepare('SELECT COUNT(*) AS n FROM notification_failures WHERE at >= ?')
       .bind(now - 7 * 864e5)
@@ -74,10 +76,11 @@ export async function health(env: { DB: D1Database; FILES: R2Bucket }, now: numb
     countKeys(env.FILES, 'pending/'),
     countKeys(env.FILES, 'failed/'),
     getSetting<number | null>(db, CRON_KEY, null),
+    getSetting<Plan | null>(db, PLAN_KEY, null),
   ])
   const f = files.results[0] as { debug_files: number; bundles: number; attachments: number }
   return {
-    database: { bytes: size.size_after ?? null, limit: D1_LIMIT },
+    database: { bytes: size.size_after ?? null, limit: plan?.paid === false ? D1_FREE_LIMIT : D1_LIMIT },
     files: { debugFiles: f.debug_files, bundles: f.bundles, attachments: f.attachments },
     cron: { lastRun, late: lastRun === null || now - lastRun > 3 * 60_000 },
     notifications: {
