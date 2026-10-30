@@ -461,11 +461,11 @@ function Branding() {
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="color">Brand colour</Label>
+          <Label htmlFor="color">Brand color</Label>
           <div className="flex gap-2">
             <input
               type="color"
-              aria-label="Pick the brand colour"
+              aria-label="Pick the brand color"
               value={color || '#000000'}
               onChange={(e) => setColor(e.target.value)}
               className="h-9 w-12 shrink-0 cursor-pointer rounded-md border bg-transparent p-1 max-sm:h-10"

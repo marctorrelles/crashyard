@@ -1206,7 +1206,7 @@ function ThresholdsField({
             update(d, warning, critical)
           }}
         >
-          <SelectTrigger aria-label="Colour it when it goes" className="w-full">
+          <SelectTrigger aria-label="Color it when it goes" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

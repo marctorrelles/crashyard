@@ -1858,13 +1858,12 @@ const STATUS_PAGE_CHECKS: { [K in keyof status.PageChange]-?: (v: unknown) => st
       title: text(o.title ?? '', 80, 'The page title').trim(),
       description: text(o.description ?? '', 500, 'The description').trim(),
       logo: https(o.logo, 'The logo address'),
-      color: text(o.color ?? '', 7, 'The brand colour')
+      color: text(o.color ?? '', 7, 'The brand color')
         .trim()
         .toLowerCase(),
       website: https(o.website, 'The website address'),
     }
-    if (b.color && !/^#[0-9a-f]{6}$/.test(b.color))
-      throw new Error('The brand colour is a hex colour, such as #f97316.')
+    if (b.color && !/^#[0-9a-f]{6}$/.test(b.color)) throw new Error('The brand color is a hex color, such as #f97316.')
     const set = Object.fromEntries(Object.entries(b).filter(([, x]) => x))
     return Object.keys(set).length ? JSON.stringify(set) : null
   },
