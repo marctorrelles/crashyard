@@ -4,8 +4,8 @@ import { codeUrl, commitUrl, indexFiles, linksOf, matchFile, repoUrl } from './s
 const files = indexFiles([
   'apple/Studio.swift',
   'apple/Sync/Sync.swift',
-  'android/app/src/main/java/com/marctorrelles/pocketband/Studio.kt',
-  'android/app/src/main/java/com/marctorrelles/pocketband/Sync.kt',
+  'android/app/src/main/java/com/example/app/Studio.kt',
+  'android/app/src/main/java/com/example/app/Sync.kt',
   'web/app/sync.ts',
   'web/app/studio.ts',
   'engine/src/voice.cpp',
@@ -17,22 +17,22 @@ describe('matchFile', () => {
   it.each([
     [
       'an Apple build path, from any checkout',
-      { absPath: '/Users/marc/code/phases/apple/Studio.swift' },
+      { absPath: '/Users/dev/code/app/apple/Studio.swift' },
       'apple/Studio.swift',
     ],
     [
       'a worktree',
-      { absPath: '/Users/marc/code/phases/.claude/worktrees/x/apple/Sync/Sync.swift' },
+      { absPath: '/Users/dev/code/app/.claude/worktrees/x/apple/Sync/Sync.swift' },
       'apple/Sync/Sync.swift',
     ],
     [
       'Kotlin, by its package',
-      { module: 'com.marctorrelles.pocketband.Studio$play$1', filename: 'Studio.kt' },
-      'android/app/src/main/java/com/marctorrelles/pocketband/Studio.kt',
+      { module: 'com.example.app.Studio$play$1', filename: 'Studio.kt' },
+      'android/app/src/main/java/com/example/app/Studio.kt',
     ],
     ['a source-mapped web file', { filename: 'webpack://_N_E/./app/sync.ts' }, 'web/app/sync.ts'],
     ['an app:// path', { absPath: 'app:///web/app/studio.ts' }, 'web/app/studio.ts'],
-    ['native code', { absPath: '/Users/marc/code/phases/engine/src/voice.cpp' }, 'engine/src/voice.cpp'],
+    ['native code', { absPath: '/Users/dev/code/app/engine/src/voice.cpp' }, 'engine/src/voice.cpp'],
     ['the better of two of a name', { absPath: '/x/engine/src/util.h' }, 'engine/src/util.h'],
   ])('%s', (_, frame, path) => expect(matchFile(files, frame)).toBe(path))
 
