@@ -7,14 +7,7 @@ import { Area, Bar, CartesianGrid, ComposedChart, Line, ReferenceArea, XAxis, YA
 import { count } from '@/components/bits'
 import { formatTime, type TimePrefs, useTimePrefs } from '@/components/time'
 import { Button } from '@/components/ui/button'
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart'
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFinePointer } from '@/hooks/use-fine-pointer'
 import { cn } from '@/lib/utils'
@@ -148,7 +141,7 @@ function Chart({
   const indexOf = (state: { activeIndex?: number | string | null }) =>
     state.activeIndex === undefined || state.activeIndex === null ? undefined : Number(state.activeIndex)
   const right = series.some((s) => s.axis === 'right')
-  return (
+  const chart = (
     <ChartContainer
       config={config}
       className={cn('aspect-auto select-none', onZoom && 'cursor-crosshair', size)}
@@ -211,9 +204,11 @@ function Chart({
         )}
         <ChartTooltip
           cursor={kind === 'bar' ? { fill: 'var(--muted)', opacity: 0.6 } : true}
+          // Above the axes and the series drawn after it
+          wrapperStyle={{ zIndex: 10 }}
           content={
             <ChartTooltipContent
-              className="min-w-40"
+              className="max-w-72 min-w-40"
               labelFormatter={(_, payload) => {
                 const i = (payload[0]?.payload as { i?: number } | undefined)?.i
                 return i === undefined ? '' : title(x[i], step, prefs)
@@ -221,7 +216,6 @@ function Chart({
             />
           }
         />
-        {legend && <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1 wrap-anywhere" />} />}
         {series.map((s) => {
           const as = s.kind ?? kind
           const axis = s.axis ?? 'left'
@@ -290,6 +284,23 @@ function Chart({
         )}
       </ComposedChart>
     </ChartContainer>
+  )
+  if (!legend) return chart
+  // Under the chart rather than recharts' own, which takes its lines out of the chart's height
+  return (
+    <div>
+      {chart}
+      <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 text-xs wrap-anywhere">
+        {Object.entries(config)
+          .filter(([key]) => key !== 'previous' || previous)
+          .map(([key, c]) => (
+            <li key={key} className="flex items-center gap-1.5">
+              <span className="size-2 shrink-0 rounded-[2px]" style={{ background: c.color }} />
+              {c.label}
+            </li>
+          ))}
+      </ul>
+    </div>
   )
 }
 

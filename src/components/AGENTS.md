@@ -8,7 +8,8 @@
   width, so a menu off a small trigger keeps each item on one line, and keep 8 px from the screen's edges
   (`collisionPadding`); and `sidebar`'s `SidebarInset` is a `div`, not a `main`, as the shell's page holds the one
   `main`; and `select`'s trigger is `min-w-0`, so a long value is cut short rather than widening the form past the
-  screen. Keep them all after a re-add. The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
+  screen; and `chart`'s tooltip rows keep a gap between a series' name and its value and truncate a long name. Keep
+  them all after a re-add. The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
   (font, radius, `--spacing`, colours, light and dark) so one can nest in another. A colour in a component is a
   theme variable, never a fixed shade, except the level and palette colours of `charts.tsx`; in the sidebar, the
   `sidebar-*` ones, which Hazard makes dark in light mode too.
@@ -65,13 +66,14 @@
   series' own `kind` and `axis: 'right'` (a second axis, `formatRight`; the transaction page's count under its p95),
   null values skipped in a line (joined across), `legend`, `onSeries` (a click on a series' bar, area or line, with a
   fine pointer only, `useFinePointer` in `src/hooks/`: on touch a tap shows the tooltip, and the table or legend drill
-  in), `previous` (the period before) as a dashed line in the text's colour, faded, a tooltip per bucket, and with
+  in), `previous` (the period before) as a dashed line in the text's colour, faded, a tooltip per bucket (at most 18 rem wide, a long name truncated), and with
   `onZoom` a drag across it gives the buckets' exact span (the logs page zooms with it). Days are written as the UTC day
   they are; hours in the viewer's zone and clock (`useTimePrefs`), and over two days or more of hours a tick a day with its date (over less, a
   tick that starts a day says its date); it draws inside `<ClientOnly>`, a `Skeleton` of its size before. Colours: a
   series' own, else `LEVEL_COLORS` by key, the same as `Level`'s dots (fatal red 600, error orange 500, warning and
   logs' warn amber 400, info sky 500, debug zinc 400, logs' trace fainter), else the theme's `--chart-n`; `PALETTE`, 8
-  colours for groups and projects; the legend wraps. `BarList`: values with a bar for their share, count and percent
+  colours for groups and projects; the legend is ours, under the chart, so however many lines it wraps to, the
+  chart keeps its height. `BarList`: values with a bar for their share, count and percent
   (or `format`'s text), a long value truncated inside the list's width; with a pointer that hovers, Show only and
   Exclude float in a small toolbar just above the row's end, taking no room, on hover or once tabbed to; on touch a + and
   a − follow the row, always shown, 40 px.
