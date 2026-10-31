@@ -30,9 +30,9 @@ node scripts/demo/preflight.mjs
 pnpm exec wrangler whoami -c $CONFIG
 
 if [[ ${1:-} == after-backfill ]]; then
-  status=$(curl -sf "https://crashyard-demo-feeder.$(<$DEMO_DIR/feeder/.subdomain).workers.dev/status")
-  print "Feeder: $status"
-  [[ $status == *'"caughtUp":true'* ]] || { print 'The feeder is still catching up. Run this again later.'; exit 1; }
+  feeder=$(curl -sf "https://crashyard-demo-feeder.$(<$DEMO_DIR/feeder/.subdomain).workers.dev/status")
+  print "Feeder: $feeder"
+  [[ $feeder == *'"caughtUp":true'* ]] || { print 'The feeder is still catching up. Run this again later.'; exit 1; }
   DEMO_D1_ID=$(pnpm exec wrangler d1 info crashyard-demo --json -c $CONFIG | node -e 'process.stdin.on("data",d=>console.log(JSON.parse(d).uuid))')
   cd $DEMO_DIR
   step 'Seed step 2: channels, routes and metric alerts'
