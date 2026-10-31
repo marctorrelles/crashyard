@@ -8,7 +8,7 @@
 #   scripts/demo-deploy.sh after-backfill  channels, routes and metric alerts, once the feeder has caught up
 #
 # DEMO_DIR is the crashyard-demo checkout, ../crashyard-demo by default, with `pnpm install` done and its debug/ from
-# record/record.sh. Its feeder/.secrets.json (git-ignored) keeps the tokens the seed makes, which it shows only once.
+# record/record.sh: web builds, dSYMs and R8 mappings. Its feeder/.secrets.json (git-ignored) keeps the tokens the seed makes, which it shows only once.
 set -euo pipefail
 
 ROOT=${0:A:h:h}
@@ -96,12 +96,13 @@ else
 fi
 UPLOAD_TOKEN=$(node -e 'console.log(require(process.argv[1]).UPLOAD_TOKEN)' $SECRETS)
 
-step 'Source maps: each recorded web build, before any event needs them'
+step 'Debug files: each recorded web build's source maps, the iPhone app's dSYMs, the Android app's R8 mappings'
 until curl -sf -o /dev/null https://demo.crashyard.dev/signin; do print 'Waiting for demo.crashyard.dev…'; sleep 10; done
-for build in debug/web/code-*; do
-  SENTRY_URL=https://demo.crashyard.dev SENTRY_AUTH_TOKEN=$UPLOAD_TOKEN SENTRY_ORG=brightpan SENTRY_PROJECT=brightpan-web \
-    node_modules/.bin/sentry-cli sourcemaps upload $build
-done
+upload() { SENTRY_URL=https://demo.crashyard.dev SENTRY_AUTH_TOKEN=$UPLOAD_TOKEN SENTRY_ORG=brightpan SENTRY_PROJECT=$1 \
+  node_modules/.bin/sentry-cli ${@:2} }
+for build in debug/web/code-*; do upload brightpan-web sourcemaps upload $build; done
+for build in debug/apple/code-*; do upload brightpan-apple debug-files upload $build; done
+for build in debug/android/code-*; do upload brightpan-android upload-proguard $build/mapping.txt; done
 
 step 'Corpus: crashyard-demo-corpus'
 pnpm exec wrangler r2 bucket info crashyard-demo-corpus -c feeder/wrangler.jsonc > /dev/null 2>&1 ||
