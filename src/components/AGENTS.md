@@ -6,7 +6,8 @@
   wrote `"cn"` (and `pnpm remove cn` if it added that package). One change from upstream: `dropdown-menu`'s content and sub content
   are `w-max` up to the room on screen (`max-w-(--radix-dropdown-menu-content-available-width)`), not the trigger's
   width, so a menu off a small trigger keeps each item on one line, and keep 8 px from the screen's edges
-  (`collisionPadding`); keep both after a re-add. The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
+  (`collisionPadding`); and `sidebar`'s `SidebarInset` is a `div`, not a `main`, as the shell's page holds the one
+  `main`. Keep all three after a re-add. The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
   (font, radius, `--spacing`, colours, light and dark) so one can nest in another. A colour in a component is a
   theme variable, never a fixed shade, except the level and palette colours of `charts.tsx`; in the sidebar, the
   `sidebar-*` ones, which Hazard makes dark in light mode too.
