@@ -96,7 +96,7 @@ else
 fi
 UPLOAD_TOKEN=$(node -e 'console.log(require(process.argv[1]).UPLOAD_TOKEN)' $SECRETS)
 
-step 'Debug files: each recorded web build's source maps, the iPhone app's dSYMs, the Android app's R8 mappings'
+step "Debug files: each recorded web build's source maps, the iPhone app's dSYMs, the Android app's R8 mappings"
 until curl -sf -o /dev/null https://demo.crashyard.dev/signin; do print 'Waiting for demo.crashyard.dev…'; sleep 10; done
 upload() { SENTRY_URL=https://demo.crashyard.dev SENTRY_AUTH_TOKEN=$UPLOAD_TOKEN SENTRY_ORG=brightpan SENTRY_PROJECT=$1 \
   node_modules/.bin/sentry-cli ${@:2} }
