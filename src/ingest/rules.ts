@@ -11,7 +11,7 @@
 //   match the same frame.
 // - Globs: `*` and `?`, `[…]`, `\` escapes. A path's (abs_path, package) `*` stops at a slash and `**` doesn't, and a
 //   relative path still matches a leading `**/`. Case: error.value, message, level and paths ignore it; the rest don't.
-import type { ExceptionValue, Frame, NormalizedEvent } from './event'
+import { culpritOf, type ExceptionValue, type Frame, type NormalizedEvent } from './event'
 
 type Matcher = { key: string; negate: boolean; test: (value: string | undefined) => boolean }
 export type Rule =
@@ -293,9 +293,9 @@ function fill(part: string, e: NormalizedEvent): string {
 }
 
 /**
- * Applies the rules: stack trace rules set each frame's in-app flag on the event itself, as Sentry shows it, and take
- * frames out of grouping; the first fingerprint rule that matches sets the fingerprint, over the SDK's. Answers the
- * event as grouping sees it
+ * Applies the rules: stack trace rules set each frame's in-app flag on the event itself, as Sentry shows it, and so its
+ * culprit, and take frames out of grouping; the first fingerprint rule that matches sets the fingerprint, over the
+ * SDK's. Answers the event as grouping sees it
  */
 export function applyRules(event: NormalizedEvent, rules: Rules): NormalizedEvent {
   if (!rules.stack.length && !rules.fingerprint.length) return event
@@ -323,6 +323,10 @@ export function applyRules(event: NormalizedEvent, rules: Rules): NormalizedEven
       })
     }
   }
+  // The culprit is the last in-app frame, as the rules left them (a security report's is its directive)
+  const main = event.exceptions.at(-1)
+  if (rules.stack.length && main && event.type !== 'csp')
+    event.culprit = culpritOf(main.frames)?.slice(0, 200) ?? event.culprit
   const exceptions: ExceptionValue[] = event.exceptions.map((x) => ({
     ...x,
     frames: x.frames.filter((f) => grouped.has(f)),

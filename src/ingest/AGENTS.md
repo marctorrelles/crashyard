@@ -62,7 +62,8 @@ order.
   `{{ tags.<name> }}` (`''` when missing). Stack actions `+app` `-app` `+group` `-group`, each with `^` (the frames
   above, nearer the crash) or `v` (below). Not supported, refused with the line: `logger`, `category`, sibling
   frames `[ … ] |`, `max-frames=`, `title=`. `applyRules` (processItems, after symbolication): stack rules in order
-  over each exception's frames, setting `inApp` on the event itself (stored so, as Sentry shows it) and dropping
+  over each exception's frames, setting `inApp` on the event itself (stored so, as Sentry shows it, and the culprit
+  taken again from the last in-app frame, so an SDK linked into the app isn't one) and dropping
   `-group` frames from a copy grouping sees; then the first fingerprint rule that matches sets the copy's fingerprint,
   over the SDK's. `rulesOf` parses a project's text once per isolate (100 kept); text that no longer parses applies as
   none, and `updateProject` refuses it with the line, so it can't be saved. The rules come with the project from

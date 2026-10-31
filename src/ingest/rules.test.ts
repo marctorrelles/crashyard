@@ -70,6 +70,25 @@ describe('grouping rules', () => {
     expect(e.exceptions[0].frames[1].inApp).toBe(false) // shown as Sentry does, on the event itself
   })
 
+  it('takes the culprit from the frames the rules leave in-app', () => {
+    const e = base({
+      platform: 'cocoa',
+      exceptions: [
+        {
+          type: 'HTTPClientError',
+          value: 'x',
+          frames: [
+            frame({ function: 'checkPantry' }),
+            frame({ function: '-[SentryStacktraceBuilder buildStacktraceForCurrentThread]' }),
+          ],
+        },
+      ],
+      culprit: '-[SentryStacktraceBuilder buildStacktraceForCurrentThread]',
+    })
+    applyRules(e, rules('family:native stack.function:*Sentry* -app'))
+    expect(e.culprit).toBe('checkPantry')
+  })
+
   it('matches a message glob, case aside, and fills variables', async () => {
     const r = rules('message:"*connection reset*" -> net, {{ level }}')
     const a = base({ exceptions: [], message: 'Upload failed: Connection reset by peer' })
