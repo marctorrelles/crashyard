@@ -107,7 +107,7 @@ function Notifications() {
       }
     : undefined
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-1 gap-8">
       <section>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-medium">Channels</h2>
@@ -391,7 +391,7 @@ function RouteRow({ route: r, d, onEdit }: { route: NotifyRoute; d: Data; onEdit
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">
+        <p className="text-sm font-medium wrap-anywhere">
           {project} → {channels.join(', ') || 'no channel'}
         </p>
         <p className="text-xs text-muted-foreground">
@@ -1081,13 +1081,13 @@ function MetricRow({ alert: a, d, onEdit }: { alert: MetricAlert; d: Data; onEdi
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <p className="flex flex-wrap items-center gap-2 text-sm font-medium wrap-anywhere">
           {a.name}
           <Badge variant={state.variant} className={a.state === 'warning' ? 'text-amber-700 dark:text-amber-400' : ''}>
             {state.label}
           </Badge>
         </p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs wrap-anywhere text-muted-foreground">
           {project} · {m.label} {a.direction} {metricText(a.metric, a.critical)} over {hoursText(a.window_hours)}
           {a.query && ` · ${a.query}`}
           {a.value !== null

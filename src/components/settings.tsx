@@ -194,7 +194,7 @@ export function SettingsCard({
   return (
     <section className={cn('min-w-0 rounded-xl border p-4 @xl:p-5', className)}>
       <h2 className="font-medium">{title}</h2>
-      {description && <div className="mt-0.5 text-sm text-muted-foreground">{description}</div>}
+      {description && <div className="mt-0.5 text-sm wrap-anywhere text-muted-foreground">{description}</div>}
       {children && <div className="mt-4">{children}</div>}
     </section>
   )

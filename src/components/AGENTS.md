@@ -7,14 +7,20 @@
   are `w-max` up to the room on screen (`max-w-(--radix-dropdown-menu-content-available-width)`), not the trigger's
   width, so a menu off a small trigger keeps each item on one line, and keep 8 px from the screen's edges
   (`collisionPadding`); and `sidebar`'s `SidebarInset` is a `div`, not a `main`, as the shell's page holds the one
-  `main`. Keep all three after a re-add. The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
+  `main`; and `select`'s trigger is `min-w-0`, so a long value is cut short rather than widening the form past the
+  screen. Keep them all after a re-add. The themes are in `src/styles.css`: Hazard on `:root`, the others on `[data-style]`, each setting every variable
   (font, radius, `--spacing`, colours, light and dark) so one can nest in another. A colour in a component is a
   theme variable, never a fixed shade, except the level and palette colours of `charts.tsx`; in the sidebar, the
   `sidebar-*` ones, which Hazard makes dark in light mode too.
 - Icons are Tabler's (`@tabler/icons-react`, `IconName`; `components.json`'s `iconLibrary` is `tabler`, so re-added
   shadcn components come with them too), brands included (`IconBrandSlack`, …). No other icon set.
 - Our own components sit beside `ui/`, built from those. Every one works on a phone (touch targets of 40 px or more,
-  nothing wider than the screen) and in light and dark.
+  nothing wider than the screen) and in light and dark. Nothing wider than the screen, with names of any length:
+  - A grid holding names or rows names its columns: `grid-cols-1` on a phone, not the implicit `auto` column, which
+    grows to the longest truncated line.
+  - Names, URLs and emails in text that wraps, such as headings, labels and fact lines, take `wrap-anywhere`.
+    `break-words` doesn't shrink a flex or grid item.
+  - A breadcrumb above the page truncates at half the bar.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
   pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications
   (what was sent; its settings are in Settings), and at

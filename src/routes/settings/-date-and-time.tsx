@@ -62,10 +62,10 @@ export function DateAndTime() {
           onValueChange={(v) => v && void save(() => savePreference({ data: { key: 'clock', value: v } }))}
           aria-label="Clock"
         >
-          <ToggleGroupItem value="24" className="h-10 px-4">
+          <ToggleGroupItem value="24" className="h-10 px-3 sm:px-4">
             24-hour, {formatTime(Date.UTC(2026, 0, 1, 15, 30), { zone: 'UTC', clock: '24' }, 'time')}
           </ToggleGroupItem>
-          <ToggleGroupItem value="12" className="h-10 px-4">
+          <ToggleGroupItem value="12" className="h-10 px-3 sm:px-4">
             12-hour, {formatTime(Date.UTC(2026, 0, 1, 15, 30), { zone: 'UTC', clock: '12' }, 'time')}
           </ToggleGroupItem>
         </ToggleGroup>

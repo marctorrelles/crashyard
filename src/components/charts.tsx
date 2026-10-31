@@ -221,7 +221,7 @@ function Chart({
             />
           }
         />
-        {legend && <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1" />} />}
+        {legend && <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1 wrap-anywhere" />} />}
         {series.map((s) => {
           const as = s.kind ?? kind
           const axis = s.axis ?? 'left'

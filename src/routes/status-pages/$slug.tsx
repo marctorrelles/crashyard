@@ -76,16 +76,16 @@ function StatusPageSettings() {
   const shown = checks.filter((c) => c.shown === 1)
   const projects = [...new Set(checks.map((c) => c.project))]
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <SettingsCard
         title="Checks on the page"
         description="A public page anyone with the link can open, with the checks you choose and what you post. It shows a check’s name, whether it’s up and its incidents, never its address. With checks from more than one project, each project’s name heads its checks."
       >
         {checks.length ? (
-          <div className="grid gap-5 @xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 @xl:grid-cols-2">
             {projects.map((project) => (
-              <fieldset key={project} className="grid content-start gap-3">
-                <legend className="mb-3 text-xs font-medium text-muted-foreground">{project}</legend>
+              <fieldset key={project} className="grid grid-cols-1 content-start gap-3">
+                <legend className="mb-3 text-xs font-medium wrap-anywhere text-muted-foreground">{project}</legend>
                 {checks
                   .filter((c) => c.project === project)
                   .map((c) => (
@@ -100,7 +100,9 @@ function StatusPageSettings() {
                           )
                         }
                       />
-                      <Label htmlFor={`check-${c.id}`}>{c.name}</Label>
+                      <Label htmlFor={`check-${c.id}`} className="wrap-anywhere">
+                        {c.name}
+                      </Label>
                     </div>
                   ))}
               </fieldset>
@@ -145,7 +147,7 @@ function Affects({ id, checks, chosen = [] }: { id: string; checks: Check[]; cho
               value={String(c.id)}
               defaultChecked={chosen.includes(c.id)}
             />
-            <Label htmlFor={`${id}-${c.id}`} className="font-normal">
+            <Label htmlFor={`${id}-${c.id}`} className="font-normal wrap-anywhere">
               {c.name}
             </Label>
           </div>

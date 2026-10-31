@@ -175,7 +175,7 @@ function StatusPage() {
   return (
     <main className="min-h-dvh bg-muted/40 px-4 py-10">
       {b.color && <div className="fixed inset-x-0 top-0 h-1" style={{ background: b.color }} />}
-      <div className="mx-auto grid max-w-2xl gap-6">
+      <div className="mx-auto grid max-w-2xl grid-cols-1 gap-6">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {b.logo && <img src={b.logo} alt="" className="size-10 shrink-0 rounded-lg object-contain" />}
           <div className="grid min-w-0 flex-1 gap-1">
@@ -206,7 +206,7 @@ function StatusPage() {
         )}
         {groups.map(([project, checks]) => (
           <section key={project ?? ''} className="grid gap-2" aria-label={project ?? 'Services'}>
-            {project && <h2 className="font-semibold">{project}</h2>}
+            {project && <h2 className="font-semibold wrap-anywhere">{project}</h2>}
             <div className="grid gap-px overflow-hidden rounded-xl border bg-border">
               {checks.map((c) => (
                 <Check key={c.name} check={c} />

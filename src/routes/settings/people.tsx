@@ -122,7 +122,7 @@ function People() {
         title="Invite someone"
         description={`An invite is a link to send them. It works once, for ${INVITE_DAYS} days.`}
       >
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {link && (
             <div className="grid gap-1 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
               <p className="text-sm">Send this link. It won’t be shown again.</p>
@@ -161,7 +161,7 @@ function People() {
             </Button>
           </form>
           {invites.length > 0 && (
-            <div className="grid gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <p className="text-sm font-medium">Waiting to be used</p>
               <ul className="divide-y rounded-xl border text-sm">
                 {invites.map((i) => (
@@ -172,7 +172,7 @@ function People() {
                         {i.email ?? 'Anyone with the link'}{' '}
                         <span className="font-normal text-muted-foreground">· {ROLE_LABELS[i.role]}</span>
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs wrap-anywhere text-muted-foreground">
                         {i.created_by} · created <Ago at={i.created_at} now={now} /> ·{' '}
                         {(() => {
                           const days = Math.ceil((i.expires_at - now) / 864e5)

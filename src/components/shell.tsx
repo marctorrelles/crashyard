@@ -175,11 +175,13 @@ export function Shell({
               return (
                 <Fragment key={i}>
                   {i > 0 && <BreadcrumbSeparator className={cn(i < crumbs.length - 1 && 'max-md:hidden')} />}
-                  <BreadcrumbItem className={cn('min-w-0', hidden, !last && 'shrink-0')}>
+                  <BreadcrumbItem className={cn('min-w-0', hidden, !last && 'max-w-1/2 shrink-0')}>
                     {last ? (
                       <BreadcrumbPage className="truncate">{crumb}</BreadcrumbPage>
                     ) : (
-                      <BreadcrumbLink asChild>{crumb}</BreadcrumbLink>
+                      <BreadcrumbLink asChild className="truncate">
+                        {crumb}
+                      </BreadcrumbLink>
                     )}
                   </BreadcrumbItem>
                 </Fragment>
@@ -589,8 +591,8 @@ export function PageHeader({
   return (
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight break-words">{title}</h1>
-        {children && <div className="mt-1 text-sm text-muted-foreground">{children}</div>}
+        <h1 className="text-xl font-semibold tracking-tight wrap-anywhere">{title}</h1>
+        {children && <div className="mt-1 text-sm wrap-anywhere text-muted-foreground">{children}</div>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

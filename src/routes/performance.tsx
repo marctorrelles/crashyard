@@ -48,10 +48,12 @@ function Performance() {
           and jobs then appear here, slowest first.
         </Empty>
       )}
-      <div className="grid gap-8">
+      <div className="grid grid-cols-1 gap-8">
         {shown.map((d) => (
           <section key={d.project.id}>
-            {!project && <h2 className="mb-2 text-sm font-medium text-muted-foreground">{d.project.name}</h2>}
+            {!project && (
+              <h2 className="mb-2 text-sm font-medium wrap-anywhere text-muted-foreground">{d.project.name}</h2>
+            )}
             {d.latest && d.previous && (
               <p className="mb-3 text-sm text-muted-foreground">
                 Change in p95 from <span className="font-mono">{d.previous}</span> to{' '}

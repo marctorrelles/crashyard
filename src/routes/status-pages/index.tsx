@@ -22,7 +22,7 @@ function StatusPages() {
         Public pages with the uptime checks you choose, from any of your projects, and the incidents and maintenance you
         post.
       </PageHeader>
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <NewPage />
         {pages.length ? (
           <ul className="divide-y rounded-xl border">

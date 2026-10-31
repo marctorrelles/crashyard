@@ -33,7 +33,7 @@ function Tokens() {
         title="Upload tokens"
         description="sentry-cli and the build plugins use these as SENTRY_AUTH_TOKEN to upload debug files and source maps and to create releases. They can do nothing else."
       >
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {made && (
             <div className="grid gap-1 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
               <p className="text-sm">Copy the token now. It won’t be shown again.</p>

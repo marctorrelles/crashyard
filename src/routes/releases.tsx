@@ -91,7 +91,7 @@ function Releases() {
           Releases appear once events name one. Most SDKs set the release for you. Otherwise, set the release option.
         </Empty>
       )}
-      <div className="grid gap-8">
+      <div className="grid grid-cols-1 gap-8">
         {shown.map(({ project: p, releases }) => (
           // A new sort starts each list on its first page
           <ReleaseList
@@ -128,7 +128,7 @@ function ReleaseList({
   const pages = Math.ceil(sorted.length / PAGE)
   return (
     <section className="grid gap-2">
-      {titled && <h2 className="text-sm font-medium text-muted-foreground">{p.name}</h2>}
+      {titled && <h2 className="text-sm font-medium wrap-anywhere text-muted-foreground">{p.name}</h2>}
       <ul className="divide-y rounded-xl border">
         {sorted.slice(page * PAGE, page * PAGE + PAGE).map((r) => (
           <li key={r.release}>

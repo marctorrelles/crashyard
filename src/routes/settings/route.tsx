@@ -44,7 +44,7 @@ function SettingsLayout() {
           <div className="@3xl/settings:col-start-1 @3xl/settings:row-span-2 @3xl/settings:row-start-1">
             <SettingsNav />
           </div>
-          <div className="@container mx-auto grid w-full max-w-4xl min-w-0 content-start gap-5 @3xl/settings:col-start-2">
+          <div className="@container mx-auto grid w-full max-w-4xl min-w-0 grid-cols-1 content-start gap-5 @3xl/settings:col-start-2">
             <Outlet />
           </div>
         </div>
