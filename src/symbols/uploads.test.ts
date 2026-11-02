@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
-import { type Build, chunkKey, chunksSize, MAX_PROGUARD_CACHE, storeBigDebugFile } from './uploads'
+import { ask, type Build, BUILD_RETRIES, chunkKey, chunksSize, MAX_PROGUARD_CACHE, storeBigDebugFile } from './uploads'
 
 // The Workers runtime's FixedLengthStream, as a plain pass-through
 class FixedLengthStream extends TransformStream {
@@ -66,7 +66,10 @@ function builder(file: Uint8Array) {
   return { build, asked }
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('debug files too big for the worker', () => {
   it('joins the chunks in R2 and stores what the builder made, without holding the file', async () => {
@@ -139,5 +142,48 @@ describe('debug files too big for the worker', () => {
     await expect(storeBigDebugFile(env, build, 1, checksum, 'x', undefined, chunks, file.length, 5)).rejects.toThrow(
       'unknown file format',
     )
+  })
+})
+
+describe('asking the builder', () => {
+  const NO_INSTANCE = 'there is no container instance that can be provided to this Durable Object, try again later'
+  const body = () => new Blob(['a dSYM']).stream()
+  // As many tries as in a deployment, without the waits
+  const waits = BUILD_RETRIES.map(() => 0)
+
+  it('tries again while Cloudflare has no container instance, with the file sent whole each time', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const got: string[] = []
+    let tries = 0
+    const build: Build = async (_path, stream) => {
+      got.push(await new Response(stream).text())
+      if (++tries === 1) throw new Error(NO_INSTANCE)
+      if (tries === 2) return Response.json({ error: 'busy' }, { status: 503 })
+      return Response.json([])
+    }
+    const answer = await ask(build, '/objects', body, 6, waits)
+    expect(await answer.json()).toEqual([])
+    expect(got).toEqual(['a dSYM', 'a dSYM', 'a dSYM'])
+  })
+
+  it('gives up once its tries are spent, with what went wrong', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let tries = 0
+    const build: Build = async () => {
+      tries++
+      throw new Error(NO_INSTANCE)
+    }
+    await expect(ask(build, '/objects', body, 6, waits)).rejects.toThrow(NO_INSTANCE)
+    expect(tries).toBe(BUILD_RETRIES.length + 1)
+  })
+
+  it('doesn’t try again when the builder refused the file', async () => {
+    let tries = 0
+    const build: Build = async () => {
+      tries++
+      return Response.json({ error: 'unknown file format' }, { status: 422 })
+    }
+    await expect(ask(build, '/objects', body, 6, waits)).rejects.toThrow('unknown file format')
+    expect(tries).toBe(1)
   })
 })

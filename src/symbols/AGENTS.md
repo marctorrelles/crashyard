@@ -14,8 +14,12 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   `/health`, and passes the request on. Started again on every try while not running: when Cloudflare has no instance
   to place it on ("there is no container instance that can be provided to this Durable Object, try again later") a
   start just doesn't happen, so one start then polling `/health` for 30 s failed whole iOS archives (two real
-  app builds); `@cloudflare/containers` retries the same way. One for the deployment (`idFromName('builder')`), so uploads take turns; 503
-  when there's no container, as on a dev server without `CONTAINERS=1`.
+  app builds); `@cloudflare/containers` retries the same way. That alone still failed two more app archives, so the
+  worker tries again too (`ask` in `uploads.ts`): when the Durable Object throws (no instance in its 30 s, a reset)
+  or answers 502, 503 or 504, after 2, 5, 10, 20 and 40 s (`BUILD_RETRIES`), about five minutes in all, each try with
+  the file read afresh (from R2 for a big one); a refusal (the container's 422) isn't tried again. One for the
+  deployment (`idFromName('builder')`), so uploads take turns; 501 when there's no container, as on a dev server
+  without `CONTAINERS=1`, so the worker doesn't wait on it.
 - `uploads.ts`: chunks (R2 `chunks/<sha1>`, deleted once assembled; an R2 rule drops strays after a day) joined
   into one buffer sized from their heads (the file held once) and checked; files up to 48 MB (`MAX_FILE`, what sentry-cli
   is told as `maxFileSize`: the file, its copy in the Wasm module and the conversion, about three times the file, must
@@ -32,7 +36,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   2026-10-29 on a 112 MB R8 mapping: a 48 MB cache in 0.85 s natively, read in 50 MB of Wasm, a lookup in 3 ms
   (building the old `ProguardMapper` took 561 MB and 0.5 s). Measured on a 107 MB arm64 dSYM: the Wasm module grew to 328 MB in Node, the
   native builder made the same 40 MB SymCache in 1.5 s. `uploads.test.ts` (a fake builder: assembled, stored,
-  checksum refused, a big mapping's cache stored, one too big to read refused, the builder's error said) and `test/big-dsym.e2e.test.ts` (opt-in). A
+  checksum refused, a big mapping's cache stored, one too big to read refused, the builder's error said; `ask` tried
+  again on no instance and a 503, given up after its tries, a refusal not tried again) and `test/big-dsym.e2e.test.ts` (opt-in). A
   debug file becomes a row per object with its
   SymCache (`symcaches/…`); a ProGuard mapping one row (its UUID from sentry-cli) with its ProguardCache; an artifact bundle (zip
   with `manifest.json`) becomes a SourceMapCache per minified file and its map, found by debug id or URL (`~/path`),

@@ -13,7 +13,8 @@ export class SymcacheBuilder extends DurableObject {
     if (!container)
       return Response.json(
         { error: 'The SymCache builder’s container isn’t running here. A dev server runs it with CONTAINERS=1.' },
-        { status: 503 },
+        // Not a 503: that one the worker tries again (uploads.ts, ask), and this won't change
+        { status: 501 },
       )
     const port = container.getTcpPort(PORT)
     for (let i = 0; ; i++) {

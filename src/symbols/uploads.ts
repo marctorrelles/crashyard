@@ -108,14 +108,42 @@ const mappingId = (claimed: string | undefined, name: string) => {
   return debugId
 }
 
-/** Asks the builder's container, and says what it refused */
-async function ask(build: Build, path: string, body: ReadableStream, size: number) {
-  const answer = await build(path, body, size)
-  if (!answer.ok) {
+// Waits before each new try at the builder, when it threw (Cloudflare had no container instance for it in the Durable
+// Object's own 30 s, the Durable Object was reset) or answered a gateway's 502, 503 or 504: about five minutes in
+// all with the Durable Object's waits, as one miss failed a whole iOS archive
+export const BUILD_RETRIES = [2, 5, 10, 20, 40].map((s) => s * 1000)
+const RETRIED = new Set([502, 503, 504])
+
+/** Asks the builder's container, trying again while it can't be reached, and says what it refused. `body` makes the
+ *  file afresh for each try, as a stream is read once; `waits` are BUILD_RETRIES but in tests */
+export async function ask(
+  build: Build,
+  path: string,
+  body: () => ReadableStream | Promise<ReadableStream>,
+  size: number,
+  waits = BUILD_RETRIES,
+) {
+  for (let i = 0; ; i++) {
+    const stream = await body()
+    let answer: Response
+    try {
+      answer = await build(path, stream, size)
+    } catch (error) {
+      if (i >= waits.length) throw error
+      console.warn(`SymCache builder ${path}: try ${i + 1} failed, trying again`, error)
+      await new Promise((resolve) => setTimeout(resolve, waits[i]))
+      continue
+    }
+    if (answer.ok) return answer
+    if (RETRIED.has(answer.status) && i < waits.length) {
+      await answer.body?.cancel()
+      console.warn(`SymCache builder ${path}: try ${i + 1} answered HTTP ${answer.status}, trying again`)
+      await new Promise((resolve) => setTimeout(resolve, waits[i]))
+      continue
+    }
     const why = (await answer.json().catch(() => null)) as { error?: string } | null
     throw new Error(why?.error ?? `the SymCache builder answered HTTP ${answer.status}`)
   }
-  return answer
 }
 
 /** What the builder made, straight on to R2 at the length it sent in `x-length` */
@@ -169,7 +197,7 @@ export async function storeDebugFile(
       await putBuilt(
         env.FILES,
         key,
-        await ask(build, '/proguardcache', new Blob([file]).stream(), file.length),
+        await ask(build, '/proguardcache', () => new Blob([file]).stream(), file.length),
         MAX_PROGUARD_CACHE,
       )
     else
@@ -229,11 +257,18 @@ export async function storeBigDebugFile(
   const fileKey = `debug-files/${projectId}/${checksum}`
   await assembleInto(env.FILES, chunks, checksum, fileKey)
   try {
-    const send = async (path: string) => {
-      const object = await env.FILES.get(fileKey)
-      if (!object) throw new Error('the assembled file is gone')
-      return ask(build, path, object.body, size)
-    }
+    // Read from R2 again for each try at the builder
+    const send = (path: string) =>
+      ask(
+        build,
+        path,
+        async () => {
+          const object = await env.FILES.get(fileKey)
+          if (!object) throw new Error('the assembled file is gone')
+          return object.body
+        },
+        size,
+      )
     const head = await env.FILES.get(fileKey, { range: { offset: 0, length: 4096 } })
     if (head && isProguard(new Uint8Array(await head.arrayBuffer()))) {
       const debugId = mappingId(claimedDebugId, name)
