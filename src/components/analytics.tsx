@@ -24,7 +24,10 @@ export type Tab = (typeof TABS)[number]['to']
 export function AnalyticsTabs({ at, search }: { at: Tab; search: FilterSearch & { project?: string } }) {
   const keep = { project: search.project, ...pickFilter(search) }
   return (
-    <nav aria-label="Analytics" className="mb-4 flex gap-1 overflow-x-auto border-b [scrollbar-width:none]">
+    <nav
+      aria-label="Analytics"
+      className="mb-4 flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]"
+    >
       {TABS.map((t) => (
         <Link
           key={t.to}
@@ -32,7 +35,7 @@ export function AnalyticsTabs({ at, search }: { at: Tab; search: FilterSearch & 
           search={keep}
           aria-current={t.to === at ? 'page' : undefined}
           className={cn(
-            '-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
+            'shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
             t.to === at
               ? 'border-foreground text-foreground'
               : 'border-transparent text-muted-foreground hover:text-foreground',
