@@ -13,6 +13,7 @@ export type ProjectRow = {
   event_retention_days: number
   daily_log_quota: number
   log_retention_days: number
+  action_retention_days: number
   daily_transaction_quota: number
   repo_url: string | null // where its code is, for stacks and commits to link to (`source.ts`)
   auto_resolve_days: number | null // resolve issues not seen for this many days; null is off
@@ -236,7 +237,8 @@ export async function createProject(db: D1Database, name: string, now: number) {
   return (await db
     .prepare(
       `INSERT INTO projects (slug, name, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota,
-         event_retention_days, log_retention_days, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+         event_retention_days, log_retention_days, action_retention_days, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     )
     .bind(
       slug,
@@ -247,6 +249,7 @@ export async function createProject(db: D1Database, name: string, now: number) {
       d.daily_transaction_quota,
       d.event_retention_days,
       d.log_retention_days,
+      d.action_retention_days,
       now,
     )
     .first<ProjectRow>())!
@@ -260,6 +263,7 @@ export const PROJECT_FIELDS = [
   'event_retention_days',
   'daily_log_quota',
   'log_retention_days',
+  'action_retention_days',
   'daily_transaction_quota',
   'repo_url',
   'auto_resolve_days',
@@ -339,6 +343,7 @@ export async function deleteProject(db: D1Database, files: R2Bucket, id: number,
   if (!project) return
   const batches = (sql: string) => inBatches(deadline, async () => changes(await db.prepare(sql).bind(id).run()))
   await batches('DELETE FROM logs WHERE rowid IN (SELECT rowid FROM logs WHERE project_id = ? LIMIT 1000)')
+  await batches('DELETE FROM actions WHERE id IN (SELECT id FROM actions WHERE project_id = ? LIMIT 1000)')
   await batches('DELETE FROM events WHERE rowid IN (SELECT rowid FROM events WHERE project_id = ? LIMIT 1000)')
   await batches('DELETE FROM issues WHERE id IN (SELECT id FROM issues WHERE project_id = ? LIMIT 100)')
   // Debug files one by one, as their files in R2 may be another row's too (a fat binary's archs share one)

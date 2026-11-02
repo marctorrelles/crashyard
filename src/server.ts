@@ -285,17 +285,20 @@ async function everyMinute(env: Env, now: number) {
   const { dispatch, flushHeld, pruneFailures } = await import('./notify/dispatch')
   await job('notifications', () => dispatch(env, notices, now))
   await job('held notifications', () => flushHeld(env, now))
-  // Hourly, from :15: events, attachments, issues, logs, transactions, check-ins and uptime results past their
+  // Hourly, from :15: events, attachments, issues, logs, actions, transactions, check-ins and uptime results past their
   // retention; what's left goes the next hour
   if (await due('retention', hour + 15 * MINUTE, 40 * MINUTE)) {
-    const [{ pruneEvents }, { pruneLogs }, { pruneMonitors }, { prunePerformance }] = await Promise.all([
-      import('./data/projects'),
-      import('./data/logs'),
-      import('./monitors/monitors'),
-      import('./data/performance'),
-    ])
+    const [{ pruneEvents }, { pruneLogs }, { pruneMonitors }, { prunePerformance }, { pruneActions }] =
+      await Promise.all([
+        import('./data/projects'),
+        import('./data/logs'),
+        import('./monitors/monitors'),
+        import('./data/performance'),
+        import('./data/analytics'),
+      ])
     await job('event retention', () => pruneEvents(env.DB, now, env.FILES, deadline))
     await job('log retention', () => pruneLogs(env.DB, now, deadline))
+    await job('action retention', () => pruneActions(env.DB, now, deadline))
     await job('performance retention', () => prunePerformance(env.DB, now))
     await job('monitor retention', () => pruneMonitors(env.DB, now))
   }

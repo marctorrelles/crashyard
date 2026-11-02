@@ -167,20 +167,25 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   can't loop. `forward_dsn` comes with the project from ingest's cached read, so a change takes up to a minute.
   Tail Workers' runs (`src/api/tail.ts`) aren't forwarded: Sentry wouldn't have had them, so their requests carry
   `FORWARDED`. The send times out after 10 seconds.
-- `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes), less the actions (`isAction`). Keeps release,
+- `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes), less the actions (`isAction`, written in the same batch by `storeLogs`'s `actions`). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).
   `storeLogs` writes each log, then its own (not `sentry.*`) attributes, up to 16, into `log_attributes` with
   `last_insert_rowid()` (that table is WITHOUT ROWID, so the id stays the log's), and adds the batch to `log_hours`
   (an upsert for each hour and level in it) and `project_days`, in one batch. About 2 + attributes rows a log, plus one
   for each hour and level.
 - `actions.ts`: product analytics through the SDK's logs. A log item whose `crashyard.action` attribute is true
-  (`true`, `"true"` or 1; `isAction`) is an action, not a log: `normalizeActions` takes its body as the name (200
-  characters, none when empty), its own attributes as properties (not `sentry.*`, `user.*` or the mark; 32, strings
-  200 characters; scrubbed), release, environment and trace id as logs do, and `user_hash` as `hashUser` of
-  `user.id`, else `user.email`, else `user.username`, as events pick theirs, so actions join a user's errors.
-  `storeActions` inserts them in one batch, three rows written an action with the indexes. `src/api/ingest.ts` passes
-  each `log` item to both, so the log quota counts actions too. Retries store an action again, as logs.
-  `actions.test.ts`.
+  (`true`, `"true"` or 1; `isAction`) is an action, not a log: `normalizeActions` takes its body, scrubbed as a log's
+  (`scrubText`), as the name (200 characters, none when empty), its own attributes as properties (not `sentry.*`,
+  `user.*`, `os.*`, `device.*`, `browser.*`, `server.*` or the mark; keys of 100 characters, 32 of them, strings 200;
+  scrubbed), release, environment and trace id as logs do, `platform` from `sentry.sdk.name` (`platformOf`: Web,
+  Apple, Android, Flutter, React Native, Server, Unity), `os.name`, `device.model` else `device.family`,
+  `browser.name`, the request's country from Cloudflare (`request.cf.country`, none on the cron's retries, never an
+  IP), and `user_hash` as `hashUser` of `user.id`, else `user.email`, else `user.name` (what the logs carry for the
+  username), numbers as text, as events pick theirs, so actions join a user's errors. Checked against
+  `@sentry/core` 11.9's `logs/internal.js`. `actionsStatement` writes any number as one `INSERT … SELECT` over
+  `json_each`, three rows written an action with the indexes; `storeLogs` puts it in the item's batch, so a retry
+  finds both or neither, and counts actions with logs in `project_days.logs`, the daily log limit. The seed runs
+  it alone. `actions.test.ts`.
 
 Checked against `@sentry/node` 11.9 (the e2e test) and GlitchTip's incoming event fixtures (`test/fixtures`).
 `ingest.test.ts` covers each function, and client keys through `handleIngest` (on `test/fakes.ts`, the Wasm module and

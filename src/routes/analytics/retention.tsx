@@ -1,24 +1,37 @@
-import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { ClientOnly, createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
 import { IconRepeat } from '@tabler/icons-react'
-import { AnalyticsTabs, RetentionGrid, share } from '@/components/analytics'
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
+import {
+  ActionSelect,
+  AnalyticsTabs,
+  FilterBar,
+  type FilterSearch,
+  readFilter,
+  RetentionGrid,
+  share,
+  toFilter,
+} from '@/components/analytics'
 import { count } from '@/components/bits'
 import { LEVEL_COLORS, PALETTE } from '@/components/charts'
 import { Empty, PageHeader, Shell } from '@/components/shell'
-import { getRetention } from '@/fns'
-import { ClientOnly } from '@tanstack/react-router'
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getRetention } from '@/fns'
 
-type Search = { project?: string }
+type Search = FilterSearch & { project?: string; start?: string; back?: string }
 
 export const Route = createFileRoute('/analytics/retention')({
   validateSearch: (s: Record<string, unknown>): Search => ({
     project: typeof s.project === 'string' && s.project ? s.project : undefined,
+    start: typeof s.start === 'string' && s.start ? s.start : undefined,
+    back: typeof s.back === 'string' && s.back ? s.back : undefined,
+    ...readFilter(s),
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
-    const data = await getRetention({ data: { slug: deps.project } })
+    const data = await getRetention({
+      data: { slug: deps.project, start: deps.start, back: deps.back, filter: toFilter(deps) },
+    })
     if (!data) throw notFound()
     return data
   },
@@ -32,8 +45,9 @@ const config = {
 } satisfies ChartConfig
 
 function Retention() {
-  const { project: p, retention } = Route.useLoaderData()
-  const { project } = Route.useSearch()
+  const { project: p, names, options, retention } = Route.useLoaderData()
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const d = retention && retention.users > 0 ? retention : null
   // Week 4 for each, or the furthest both reached
   const at = d
@@ -45,10 +59,38 @@ function Retention() {
   return (
     <Shell crumbs={p ? [<Link to="/analytics/retention">Analytics</Link>, p.name] : ['Analytics']}>
       <PageHeader title="Retention">{p?.name}</PageHeader>
-      <AnalyticsTabs at="/analytics/retention" project={project} />
+      <AnalyticsTabs at="/analytics/retention" search={search} />
+      <FilterBar
+        options={options}
+        search={search}
+        onChange={(f) => void navigate({ search: (s) => ({ ...s, ...f }) })}
+      />
+      {names.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Users who did</span>
+          <ActionSelect
+            names={names}
+            value={search.start}
+            any="any action"
+            label="Starting action"
+            className="w-48"
+            onChange={(start) => void navigate({ search: (s) => ({ ...s, start }) })}
+          />
+          <span className="text-muted-foreground">and came back to do</span>
+          <ActionSelect
+            names={names}
+            value={search.back}
+            any="any action"
+            label="Returning action"
+            className="w-48"
+            onChange={(back) => void navigate({ search: (s) => ({ ...s, back }) })}
+          />
+        </div>
+      )}
       {!d ? (
-        <Empty icon={IconRepeat} title="No returning users to show yet">
-          Retention fills in once actions name their user. Set the user in the SDK with <code>Sentry.setUser</code>.
+        <Empty icon={IconRepeat} title="No new users in the last 8 weeks">
+          Retention follows users from their first action. It fills in as new users come, as long as actions name their
+          user with <code>Sentry.setUser</code>.
         </Empty>
       ) : (
         <>
@@ -104,7 +146,8 @@ function Retention() {
           </section>
           <h2 className="mb-1 text-sm font-medium">Weekly cohorts</h2>
           <p className="mb-2 text-sm text-muted-foreground">
-            New users by the week of their first action, and the share who came back each week after.
+            New users by the week of their first action, and the share who came back each week after. Weeks run back
+            from today. In the first 8 weeks of keeping actions, everyone counts as new.
           </p>
           <RetentionGrid cohorts={d.cohorts} />
         </>

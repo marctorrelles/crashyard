@@ -267,6 +267,13 @@ const LIMIT_FIELDS = [
     hint: 'Issues are kept as long as their events.',
   },
   { name: 'log_retention_days', label: 'Log retention in days', min: 1, max: 3650 },
+  {
+    name: 'action_retention_days',
+    label: 'Action retention in days',
+    min: 1,
+    max: 3650,
+    hint: 'Analytics reads back this far.',
+  },
 ] as const
 
 /** A project's daily limits and retention, as named form fields */

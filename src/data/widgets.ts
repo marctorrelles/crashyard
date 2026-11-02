@@ -16,6 +16,7 @@ export const DATASETS = [
   'sessions',
   'monitors',
   'releases',
+  'actions',
   'markdown',
 ] as const
 export type Dataset = (typeof DATASETS)[number]
@@ -30,6 +31,7 @@ export const DISPLAYS: Record<Dataset, readonly Display[]> = {
   sessions: OVER_TIME,
   monitors: OVER_TIME,
   releases: ['table', 'bar', 'line'],
+  actions: OVER_TIME,
   markdown: ['text'],
 }
 
@@ -57,6 +59,7 @@ const AGGREGATES: Record<Dataset, { plain: Aggregate[]; fns?: readonly FieldFn[]
   sessions: { plain: ['count', 'crash_free_rate', 'crash_free_users'] },
   monitors: { plain: ['count', 'uptime', 'failure_rate'], fns: FIELD_FNS, fields: ['duration'] },
   releases: { plain: ['count', 'count_unique(user)', 'crash_free_rate'] },
+  actions: { plain: ['count', 'count_unique(user)'] },
   markdown: { plain: [] },
 }
 
@@ -99,6 +102,7 @@ export const NAMES: Record<Dataset, string> = {
   sessions: 'Sessions',
   monitors: 'Monitors',
   releases: 'Releases',
+  actions: 'Actions',
   markdown: 'Text',
 }
 
@@ -111,6 +115,7 @@ export const GROUPS: Record<Dataset, string[]> = {
   sessions: ['release', 'environment', 'project'],
   monitors: ['monitor', 'status', 'kind', 'project'],
   releases: ['release'],
+  actions: ['action', 'release', 'platform', 'os', 'country', 'device', 'environment', 'project'],
   markdown: [],
 }
 
@@ -123,6 +128,7 @@ export const FILTER_KEYS: Partial<Record<Dataset, string[]>> = {
   sessions: ['release', 'environment'],
   monitors: ['monitor', 'kind', 'status', 'environment', 'release'],
   releases: ['release', 'environment'],
+  actions: ['action', 'release', 'environment', 'platform', 'os', 'country'],
 }
 
 export type WidgetQuery = { query: string; aggregate: Aggregate; label?: string }
@@ -542,6 +548,28 @@ function monitorsSource(ctx: Ctx, q: WidgetQuery, groupBy: string[], span: Span)
   return { sql: `${checkIns.sql} UNION ALL ${uptime.sql}`, params: [...checkIns.params, ...uptime.params], raw: true }
 }
 
+/** Actions (product analytics, `src/data/analytics.ts`), each one row: its user for unique users */
+const ACTION_COLUMNS = {
+  action: 'a.name',
+  release: "COALESCE(a.release, '')",
+  environment: "COALESCE(a.environment, '')",
+  platform: "COALESCE(a.platform, '')",
+  os: "COALESCE(a.os, '')",
+  country: "COALESCE(a.country, '')",
+  device: "COALESCE(a.device, '')",
+  project: 'a.project_id',
+}
+function actionsSource(ctx: Ctx, q: WidgetQuery, groupBy: string[], span: Span): Source {
+  const c = columnFilter(q.query, ACTION_COLUMNS)
+  const project = ctx.projectId ? ' AND a.project_id = ?' : ''
+  return {
+    sql: `SELECT a.timestamp AS ts, ${groupCols(groupBy, ACTION_COLUMNS)}, NULL AS s, 1 AS n, 0 AS e, a.user_hash AS u,
+      NULL AS b FROM actions a WHERE a.timestamp >= ? AND a.timestamp < ?${project}${c.sql}`,
+    params: [span.from, span.to, ...(ctx.projectId ? [ctx.projectId] : []), ...c.params],
+    raw: true,
+  }
+}
+
 function sourceOf(ctx: Ctx, dataset: Dataset, q: WidgetQuery, groupBy: string[], span: Span): Source {
   switch (dataset) {
     case 'events':
@@ -554,6 +582,8 @@ function sourceOf(ctx: Ctx, dataset: Dataset, q: WidgetQuery, groupBy: string[],
       return sessionsSource(ctx, q, groupBy, span)
     case 'monitors':
       return monitorsSource(ctx, q, groupBy, span)
+    case 'actions':
+      return actionsSource(ctx, q, groupBy, span)
     case 'releases':
       return q.aggregate === 'crash_free_rate'
         ? sessionsSource(ctx, q, groupBy, span)
@@ -663,7 +693,7 @@ function intervalOf(w: Widget, span: number) {
   if (dataset === 'sessions' || (dataset === 'releases' && w.queries.some((q) => q.aggregate === 'crash_free_rate')))
     return '1d' as const
   const i = intervalFor(span)
-  if (dataset === 'logs' || dataset === 'monitors') return i
+  if (dataset === 'logs' || dataset === 'monitors' || dataset === 'actions') return i
   return i === '1d' ? ('1d' as const) : ('1h' as const)
 }
 

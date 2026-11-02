@@ -172,21 +172,37 @@ helpers (`change`).
   trace's events with their issue and project, 200, by `events_trace`; its logs, 500, by `logs_trace`; its stored
   transaction examples with their spans, 20). Plans: the window by `events_project` for a project, else by
   `events_received` (0031); tags by `event_tags`' primary key. `explore.test.ts` on `test/fakes.ts`.
-- `analytics.ts`: product analytics over `actions` (0036). `summary` (1, 7 or 30 days: active users, actions and
-  users who hit an error, a distinct `user_hash` also in `events` in the period, each against the period before; active users per
-  step, an hour, 6 hours or a day as performance's; the 50 most frequent actions with users, `trend` and change; one
-  batch), `actionNames` (90 days, most frequent first), `action` (one action: count and users per step, property keys
-  by `json_each` and the values of one by `json_extract`, releases, and issues whose events share a trace with it, by
-  `events_trace`), `funnel` (the users who did each step in order, each within `FUNNEL_WINDOW`, a day, of the one
-  before, read as one ordered scan of the steps' rows, 200,000 at most, and walked per user in JS; of those who
-  stopped at a step, those with an event of theirs within the window after it, and the three issues most of them hit;
-  the median time from the step before) and `retention` (8 weeks back from now: users by the week of their first
-  action in that span, active weeks per user, and the share back each week after; then the same curve for those
-  with an event in their first week and for the rest). Prototype limits: the funnel's error read takes the
-  project's events with a user in the period, 100,000 at most, and filters them in JS; first actions before the 8
-  weeks don't count as a first.
+- `analytics.ts`: product analytics over `actions` (0036), every read taking a `Filter` (`where`: release, platform,
+  OS, country, and one property by `json_extract` of `'$.' || json_quote(?)`, booleans as `true`/`false`; all bound)
+  and an error being an event of level error or fatal, windowed by `received` (`events_project`). Steps are a whole
+  constant in the SQL (`bucket`), as D1 binds numbers as REAL. `filterOptions` (each column's values and the
+  properties' keys with their top 20 values, from the newest 5000 actions in 30 days), `overview` (one batch: users,
+  actions with and without a user, so per user counts only named ones, new users by each user's first action ever,
+  users who hit an error; each user's UTC days for daily, weekly and monthly active users per day and stickiness, the
+  30-day average of daily over monthly; sessions per day from `sessions_daily`; users by platform, OS, country,
+  device and release; the 50 most frequent actions with a trend, only theirs read per step), `actionNames` (90 days),
+  `insights` (up to 3 actions, `total`, `users` or `per_user`, split by a column or `prop:<key>`, the 8 biggest lines,
+  each with its whole period against the one before, read apart as distinct users don't add up), `action` (per step,
+  totals since the period's start, property keys and the values of one, releases, platforms, countries, and issues
+  sharing a trace with its newest 2000 traces), `walk` (a user's furthest way through a funnel: a step done again
+  starts its chain again from there, each step within `FUNNEL_WINDOW` of the one before, a step named twice needing
+  two), `funnel` (one ordered read of the steps' rows, `MAX_ROWS` at most, `partial` past it; the errors of only the
+  users who stopped, by `json_each`; with `by`, each group's conversion, a user's group their first step's),
+  `savedFunnels`, `saveFunnel`, `deleteFunnel` (`funnels`, a project's), `retention` (8 weeks back from now, users by
+  the week of their first action, or first `start`, coming back by any action or `back`; weeks as
+  `CAST(… AS INTEGER)`; erred when an error falls in their first week, one before their first action not counting),
+  `flows` (each user's first `anchor` in the period, the next or previous `depth` steps within a visit, actions under
+  30 minutes apart, errors among them as `error:<issue>`, `end` when the visit ends; per step the top 6, and the top
+  10 paths), `users` (the 50 seen most recently, latest platform, OS, device, country and release from the row of
+  `MAX(timestamp)`, first seen and errors for those 50 by `json_each`), `userTimeline` (a hash's newest 300 actions
+  and 100 events, newest first, and each property's newest value) and `pruneActions` (the hourly cron, at :15 with
+  logs: past `projects.action_retention_days`, 1000 a batch). `analytics.test.ts` on `test/fakes.ts`: re-anchoring,
+  a funnel's errors and issue, retention's first week, anonymous actions, filters, flows, the timeline, the actions
+  metric, pruning.
 - `widgets.ts`: dashboard widgets, schema v2 (`Widget`): a dataset (`DATASETS`: issues, events, logs, transactions,
-  sessions, monitors, releases, markdown), a display it has (`DISPLAYS`; markdown is `text`), 1 to 3 queries
+  sessions, monitors, releases, actions, markdown; actions one row each from `actions`, count and unique users, by
+  action, release, platform, os, country, device, environment or project, filtered by the fixed keys action, release,
+  environment, platform, os and country, bucketed as logs), a display it has (`DISPLAYS`; markdown is `text`), 1 to 3 queries
   (`MAX_QUERIES`) each a search, an aggregate and a label (40), up to 2 group-by fields (`GROUPS`; logs also any
   attribute, only ever bound), a sort (by value or name, up or down), a limit of groups or issues shown (1 to 50, 8
   unset), thresholds for a number (warning, critical, above or below), or markdown text (4000), and a width.
@@ -239,7 +255,8 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   by its primary key.
 - `templates.ts`: `TEMPLATES`, the prebuilt dashboards "New dashboard" offers: Crashes (`STARTER`, as before), Mobile app
   health (with crash-free users, cold and warm starts, slow and frozen frames), Web app (with LCP, INP and CLS), Backend
-  and logs, Uptime and crons.
+  and logs, Uptime and crons, Product (active users, actions, crash-free users, active users by platform, users who
+  hit an error, top actions, users by country, sessions).
 - `export.ts`: the logs page's export: `exportLogs`, the newest 10,000 (`MAX_LINES`) logs of a search, times in UTC,
   as a stream read a thousand at a time by the `(timestamp, id)` cursor (the first page before the stream, so a search
   D1 refuses fails the request), so the file never sits whole in memory: CSV (a header, then a record a row:

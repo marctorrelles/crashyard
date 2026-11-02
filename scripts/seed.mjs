@@ -582,51 +582,69 @@ for (let d = 0; d < 14; d++) {
 
 // Eight weeks of actions (product analytics, src/ingest/actions.ts) from pocketband's and notes web's users. Some of
 // pocketband's users crash while exporting, in the same trace as their export, and come back less after
-const { storeActions } = await load('/src/ingest/actions.ts')
+const { actionsStatement } = await load('/src/ingest/actions.ts')
 const { hashUser } = await load('/src/search/user.ts')
+const { saveFunnel } = await load('/src/data/analytics.ts')
 const actions = { [pocketband.id]: [], [notes.id]: [] }
 const exportCrashes = []
-const act = (p, at, name, user, trace, release, properties = {}) =>
+// `who`: the user's id (none for someone signed out) and where they are, as ingest keeps it
+const act = (p, at, name, who, trace, release, properties = {}) =>
   actions[p.id].push({
     timestamp: Math.round(at),
     name,
-    userHash: hashUser(user),
+    userHash: who.user ? hashUser(who.user) : undefined,
     release,
     environment: 'production',
     traceId: trace,
+    platform: who.platform,
+    os: who.os,
+    device: who.device,
+    browser: who.browser,
+    country: who.country,
     properties,
   })
+const COUNTRIES = ['US', 'US', 'US', 'ES', 'ES', 'GB', 'DE', 'DE', 'FR', 'JP', 'BR', 'MX', 'NL', 'CA']
 const pocketRelease = (at) => (now - at > 12 * DAY ? '1.0 (9)' : '1.0 (10)')
 // A session: opens the app, maybe makes a song, records, exports; a wav export crashes now and then, more on 1.0 (10)
-const pocketSession = (user, at, device) => {
+const pocketSession = (who, at) => {
   const trace = hex(32)
   const release = pocketRelease(at)
-  act(pocketband, at, 'app opened', user, trace, release, { device })
+  act(pocketband, at, 'app opened', who, trace, release, { plan: who.plan })
   let t = at + 20_000 + random() * 60_000
   if (random() > 0.72) return false
-  act(pocketband, t, 'song created', user, trace, release, { template: pick(['blank', 'drums', 'lofi', 'lofi']) })
+  act(pocketband, t, 'song created', who, trace, release, { template: pick(['blank', 'drums', 'lofi', 'lofi']) })
   t += 60_000 + random() * 600_000
   if (random() > 0.8) return false
-  act(pocketband, t, 'pattern recorded', user, trace, release, { steps: pick([16, 32, 32, 64]) })
+  act(pocketband, t, 'pattern recorded', who, trace, release, { steps: pick([16, 32, 32, 64]) })
   t += 120_000 + random() * 900_000
   if (random() > 0.55) return false
   const format = pick(['wav', 'm4a', 'm4a'])
-  act(pocketband, t, 'export started', user, trace, release, { format })
+  act(pocketband, t, 'export started', who, trace, release, { format })
   t += 5_000 + random() * 40_000
   if (random() < (format === 'wav' ? (release === '1.0 (10)' ? 0.5 : 0.15) : 0.02)) {
-    exportCrashes.push({ at: t, user, trace, release })
+    exportCrashes.push({ at: t, user: who.user, trace, release })
     return true
   }
   if (random() > 0.93) return false
-  act(pocketband, t, 'song exported', user, trace, release, { format })
-  if (random() < 0.12)
-    act(pocketband, t + 30_000, 'subscribed', user, trace, release, { plan: pick(['monthly', 'yearly']) })
+  act(pocketband, t, 'song exported', who, trace, release, { format })
+  if (who.plan === 'free' && random() < 0.12) {
+    who.plan = pick(['monthly', 'yearly'])
+    act(pocketband, t + 30_000, 'subscribed', who, trace, release, { plan: who.plan })
+  }
   return false
 }
 for (let u = 0; u < 900; u++) {
   const user = `pb-${u}`
   const first = now - random() ** 0.8 * 56 * DAY
-  const device = pick(['iPhone', 'iPhone', 'iPhone', 'iPad'])
+  const ipad = random() < 0.25
+  const who = {
+    user,
+    platform: 'Apple',
+    os: ipad ? 'iPadOS' : 'iOS',
+    device: ipad ? pick(['iPad13,1', 'iPad14,3']) : pick(['iPhone15,2', 'iPhone16,1', 'iPhone17,1']),
+    country: pick(COUNTRIES),
+    plan: 'free',
+  }
   let hurt = false // crashed in their first week
   // Week 0 always, then each week back with a chance that fades, lower after a crash in their first week
   for (let week = 0; first + week * 7 * DAY < now; week++) {
@@ -635,7 +653,7 @@ for (let u = 0; u < 900; u++) {
     for (let n = 0; n < sessions; n++) {
       const at = first + week * 7 * DAY + (n === 0 && week === 0 ? 0 : random() * 7 * DAY)
       if (at > now - 3_600_000) continue
-      if (pocketSession(user, at, device) && week === 0) hurt = true
+      if (pocketSession(who, at) && week === 0) hurt = true
     }
   }
 }
@@ -643,12 +661,24 @@ for (let u = 0; u < 500; u++) {
   const user = `notes-${u}`
   const first = now - random() ** 0.9 * 56 * DAY
   const release = 'web@2026.10.20'
-  act(notes, first, 'signed up', user, hex(32), release, { via: pick(['email', 'google', 'google', 'github']) })
+  const browser = pick(['Chrome', 'Chrome', 'Safari', 'Firefox', 'Edge'])
+  const who = {
+    user,
+    platform: 'Web',
+    os: browser === 'Safari' ? pick(['macOS', 'iOS']) : pick(['Windows', 'macOS', 'Android', 'Linux']),
+    browser,
+    country: pick(COUNTRIES),
+  }
+  // Signed out first: the landing page, which names no user
+  act(notes, first - 120_000, 'landing viewed', { ...who, user: undefined }, hex(32), release, {
+    utm_source: pick(['google', 'twitter', 'newsletter', 'direct']),
+  })
+  act(notes, first, 'signed up', who, hex(32), release, { via: pick(['email', 'google', 'google', 'github']) })
   for (let at = first + 60_000; at < now;) {
     const trace = hex(32)
-    act(notes, at, 'note created', user, trace, release, { template: pick(['blank', 'meeting', 'todo']) })
-    if (random() < 0.3) act(notes, at + 120_000, 'note shared', user, trace, release, { with: pick(['link', 'team']) })
-    if (random() < 0.08) act(notes, at + 200_000, 'invite sent', user, trace, release)
+    act(notes, at, 'note created', who, trace, release, { template: pick(['blank', 'meeting', 'todo']) })
+    if (random() < 0.3) act(notes, at + 120_000, 'note shared', who, trace, release, { with: pick(['link', 'team']) })
+    if (random() < 0.08) act(notes, at + 200_000, 'invite sent', who, trace, release)
     if (random() > 0.8 * 0.92 ** ((at - first) / (7 * DAY))) break
     at += (0.3 + random() * 3) * DAY
   }
@@ -684,9 +714,17 @@ for (const c of exportCrashes.sort((a, b) => a.at - b.at)) {
 let actionCount = 0
 for (const [id, list] of Object.entries(actions)) {
   list.sort((a, b) => a.timestamp - b.timestamp)
-  for (let i = 0; i < list.length; i += 500) await storeActions(db, Number(id), list.slice(i, i + 500))
+  for (let i = 0; i < list.length; i += 500) await actionsStatement(db, Number(id), list.slice(i, i + 500)).run()
   actionCount += list.length
 }
+await saveFunnel(
+  db,
+  pocketband.id,
+  'Export',
+  ['song created', 'pattern recorded', 'export started', 'song exported'],
+  'dev@localhost',
+  now,
+)
 
 const channel = await db
   .prepare(

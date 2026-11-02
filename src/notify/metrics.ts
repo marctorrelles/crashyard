@@ -6,7 +6,7 @@ import type { Notice } from './notice'
 
 const HOUR = 3_600_000
 
-export type Metric = 'errors' | 'users' | 'crash_free_sessions' | 'p95' | 'failure_rate' | 'log_count'
+export type Metric = 'errors' | 'users' | 'crash_free_sessions' | 'p95' | 'failure_rate' | 'log_count' | 'actions'
 export type MetricState = 'ok' | 'warning' | 'critical'
 export type Direction = 'above' | 'below'
 export const WINDOW_HOURS = [1, 6, 24] as const
@@ -30,6 +30,18 @@ export const METRICS: Record<
   p95: { label: 'p95 duration', unit: 'ms', keys: { release: 'release', transaction: 'name' } },
   failure_rate: { label: 'Failure rate', unit: 'percent', keys: { release: 'release', transaction: 'name' } },
   log_count: { label: 'Logs', unit: 'count' },
+  actions: {
+    label: 'Actions',
+    unit: 'count',
+    keys: {
+      action: 'name',
+      release: 'release',
+      environment: 'environment',
+      platform: 'platform',
+      os: 'os',
+      country: 'country',
+    },
+  },
 }
 
 export type MetricAlert = {
@@ -143,6 +155,15 @@ export async function metricValue(
         fromHour,
       )
       return row?.n ? ((row.errors ?? 0) / row.n) * 100 : null
+    }
+    case 'actions': {
+      // Exact to the window, by `actions_name` when the filter names the action
+      const row = await one(
+        `SELECT COUNT(*) AS v FROM actions WHERE project_id = ? AND timestamp > ?${f.sql}`,
+        alert.project_id,
+        from,
+      )
+      return row?.v ?? 0
     }
     case 'log_count': {
       const tokens = tokenize(alert.query)

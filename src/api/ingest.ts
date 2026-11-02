@@ -10,7 +10,7 @@ import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { filterReason, originAllowed, parseFilters, transactionFilterReason } from '../ingest/filters'
 import { FORWARDED, forwardToSentry } from '../ingest/forward'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
-import { normalizeActions, storeActions } from '../ingest/actions'
+import { normalizeActions } from '../ingest/actions'
 import { recordCheckIn } from '../monitors/monitors'
 import { sessionCounts, spanTransactions, storeSessions, storeTransaction, summarize } from '../performance/ingest'
 import {
@@ -337,6 +337,7 @@ export async function handleIngest(
         held,
         body,
         waitUntil: (p) => ctx.waitUntil(p),
+        country: typeof request.cf?.country === 'string' ? request.cf.country : undefined,
       },
       items,
       parseTodo(todo),
@@ -393,6 +394,8 @@ type Pass = {
   held?: string
   body: Uint8Array
   waitUntil: (promise: Promise<unknown>) => void
+  // The sender's country, as Cloudflare says at the request; none on the cron's retries
+  country?: string
 }
 
 /**
@@ -489,8 +492,14 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
           await eventOf(cspEvent(report, extra), c.held ? stableEventId(c.held, index * 256 + j) : undefined)
       } else if (type === 'log') {
         const logs = payloadJson(item)
-        await storeLogs(env.DB, project.id, normalizeLogs(logs, now), now, dayOf(now))
-        await storeActions(env.DB, project.id, normalizeActions(logs, now))
+        await storeLogs(
+          env.DB,
+          project.id,
+          normalizeLogs(logs, now),
+          now,
+          dayOf(now),
+          normalizeActions(logs, now, c.country),
+        )
       } else if (type === 'event') {
         const payload = payloadJson(item)
         // An event without an id gets one that's the same on every try, so a retry finds it stored

@@ -2,7 +2,7 @@
 // each with a timestamp (seconds), level, body, trace id and typed attributes ({ value, type }).
 import { scrub, scrubText } from './scrub'
 import { timestampOf } from './event'
-import { isAction } from './actions'
+import { type Action, actionsStatement, isAction } from './actions'
 
 export type Log = {
   timestamp: number // ms
@@ -68,9 +68,18 @@ export function normalizeLogs(payload: unknown, received: number): Log[] {
  * Writes logs and their indexed attributes, in one batch (about 2 + attributes rows each), and adds them to
  * `log_hours` (a row for each project, hour and level in the batch) for the logs chart
  */
-export async function storeLogs(db: D1Database, projectId: number, logs: Log[], received: number, day: string) {
-  if (!logs.length) return
-  const statements: D1PreparedStatement[] = []
+export async function storeLogs(
+  db: D1Database,
+  projectId: number,
+  logs: Log[],
+  received: number,
+  day: string,
+  // The item's actions (actions.ts): in the same batch, so a retry finds both stored or neither, and counted as logs
+  // towards the daily log limit
+  actions: Action[] = [],
+) {
+  if (!logs.length && !actions.length) return
+  const statements: D1PreparedStatement[] = actions.length ? [actionsStatement(db, projectId, actions)] : []
   for (const log of logs) {
     statements.push(
       db
@@ -118,7 +127,7 @@ export async function storeLogs(db: D1Database, projectId: number, logs: Log[], 
       .prepare(
         'INSERT INTO project_days (project_id, day, logs) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET logs = logs + excluded.logs',
       )
-      .bind(projectId, day, logs.length),
+      .bind(projectId, day, logs.length + actions.length),
   )
   await db.batch(statements)
 }

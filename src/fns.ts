@@ -40,6 +40,7 @@ import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { version } from '../package.json'
 import { EVENT_KEYS, ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
+import { hashUser } from './search/user'
 import { DEMO_REFUSAL, demoRefuses, isDemo } from './demo'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
@@ -249,6 +250,7 @@ const LIMITS = {
   event_retention_days: retention('Event retention in days'),
   daily_log_quota: limit('The daily log limit'),
   log_retention_days: retention('Log retention in days'),
+  action_retention_days: retention('Action retention in days'),
   daily_transaction_quota: limit('The daily transaction limit'),
 }
 const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => projects.ProjectChange[K] } = {
@@ -666,25 +668,109 @@ export const getTransaction = createServerFn()
     return { project, now, ...detail, vitals }
   })
 
-// Analytics: actions sent through the Sentry SDK's logs (src/ingest/actions.ts), and the funnels and retention of them
+// Analytics: actions sent through the Sentry SDK's logs (src/ingest/actions.ts). Each page takes the filter bar's
+// `filter` and reads its options for the projects shown
+const ANALYTICS_DAYS = [1, 7, 30, 90] as const
+const daysOf = (v: unknown, fallback: number) => Number(oneOf(ANALYTICS_DAYS.map(String))(String(v ?? fallback)))
+const analyticsFilter = (v: unknown): analytics.Filter => {
+  if (v === undefined) return {}
+  const o = object(v)
+  const f: analytics.Filter = {}
+  for (const k of analytics.FILTER_COLUMNS) {
+    const value = optional((x) => text(x, 200))(o[k])
+    if (value !== undefined) f[k] = value === '(none)' ? '' : value
+  }
+  if (o.prop !== undefined) {
+    const p = object(o.prop)
+    f.prop = { key: text(p.key, 100), value: text(p.value, 200) }
+  }
+  return f
+}
+const breakdownOf = (v: unknown) => {
+  const by = optional((x) => text(x, 110))(v)
+  if (by === undefined) return undefined
+  if (!(analytics.BREAKDOWN_COLUMNS as readonly string[]).includes(by) && !by.startsWith('prop:'))
+    throw new Error('expected a breakdown')
+  return by
+}
+const actionNamesOf = (v: unknown) => (Array.isArray(v) ? v.slice(0, 8).map((s) => text(s, 200)) : [])
+
 export const getAnalytics = createServerFn()
   .validator((d: unknown) => {
     const o = object(d)
     return {
       slug: o.slug === undefined ? undefined : text(o.slug, 60),
-      days: oneOf(DAYS.map(String))(String(o.days ?? 7)),
+      days: daysOf(o.days, 30),
+      filter: analyticsFilter(o.filter),
     }
   })
   .handler(async ({ data }) => {
     const list = await projectsFor(data.slug)
     if (!list) return null
     const now = Date.now()
-    return Promise.all(
-      list.map(async (project) => ({
-        project,
-        ...(await analytics.summary(env.DB, project.id, Number(data.days), now)),
-      })),
-    )
+    const [sections, options] = await Promise.all([
+      Promise.all(
+        list.map(async (project) => ({
+          project,
+          ever: (await analytics.actionNames(env.DB, project.id, now)).length > 0,
+          ...(await analytics.overview(env.DB, project.id, data.days, now, data.filter)),
+        })),
+      ),
+      analytics.filterOptions(
+        env.DB,
+        list.map((p) => p.id),
+        now,
+      ),
+    ])
+    return { sections, options }
+  })
+
+// The other pages are one project's: the page's, else the first with actions
+async function analyticsProject(slug: string | undefined, now: number) {
+  const list = await projectsFor(slug)
+  if (!list) return null
+  for (const project of list) {
+    const names = await analytics.actionNames(env.DB, project.id, now)
+    if (names.length || slug)
+      return { project, names, options: await analytics.filterOptions(env.DB, [project.id], now) }
+  }
+  return { project: list[0] ?? null, names: [] as string[], options: await analytics.filterOptions(env.DB, [], now) }
+}
+
+export const getInsights = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      slug: o.slug === undefined ? undefined : text(o.slug, 60),
+      names: actionNamesOf(o.names),
+      measure: oneOf(analytics.MEASURES)(o.measure ?? 'users'),
+      by: breakdownOf(o.by),
+      days: daysOf(o.days, 30),
+      filter: analyticsFilter(o.filter),
+    }
+  })
+  .handler(async ({ data }) => {
+    const now = Date.now()
+    const found = await analyticsProject(data.slug, now)
+    if (!found) return null
+    const { project, names, options } = found
+    const chosen = data.names.length ? data.names : names.slice(0, 1)
+    return {
+      project,
+      names,
+      options,
+      chosen,
+      insights:
+        project && chosen.length
+          ? await analytics.insights(
+              env.DB,
+              project.id,
+              { names: chosen, measure: data.measure, by: data.by, days: data.days },
+              now,
+              data.filter,
+            )
+          : null,
+    }
   })
 
 export const getAction = createServerFn()
@@ -693,64 +779,157 @@ export const getAction = createServerFn()
     return {
       slug: text(o.slug, 60),
       name: text(o.name, 200),
-      days: oneOf(DAYS.map(String))(String(o.days ?? 7)),
-      by: optional((v) => text(v, 200))(o.by),
+      days: daysOf(o.days, 30),
+      by: optional((v) => text(v, 100))(o.by),
+      filter: analyticsFilter(o.filter),
     }
   })
   .handler(async ({ data }) => {
     const project = await projects.projectBySlug(env.DB, data.slug)
     if (!project) return null
     const now = Date.now()
-    return { project, ...(await analytics.action(env.DB, project.id, data.name, Number(data.days), now, data.by)) }
+    const [detail, options] = await Promise.all([
+      analytics.action(env.DB, project.id, data.name, data.days, now, data.by, data.filter),
+      analytics.filterOptions(env.DB, [project.id], now),
+    ])
+    return { project, options, ...detail }
   })
-
-// A funnel or retention is one project's: the page's, else the first with actions
-async function analyticsProject(slug: string | undefined, now: number) {
-  const list = await projectsFor(slug)
-  if (!list) return null
-  for (const project of list) {
-    const names = await analytics.actionNames(env.DB, project.id, now)
-    if (names.length || slug) return { project, names }
-  }
-  return { project: list[0] ?? null, names: [] as string[] }
-}
 
 export const getFunnel = createServerFn()
   .validator((d: unknown) => {
     const o = object(d)
     return {
       slug: o.slug === undefined ? undefined : text(o.slug, 60),
-      steps: Array.isArray(o.steps) ? o.steps.slice(0, 8).map((s) => text(s, 200)) : [],
-      days: oneOf(DAYS.map(String))(String(o.days ?? 30)),
+      steps: actionNamesOf(o.steps),
+      days: daysOf(o.days, 30),
+      by: breakdownOf(o.by),
+      filter: analyticsFilter(o.filter),
     }
   })
   .handler(async ({ data }) => {
     const now = Date.now()
     const found = await analyticsProject(data.slug, now)
     if (!found) return null
-    const { project, names } = found
-    // With no steps chosen, the three most frequent actions, as a start
-    const steps = data.steps.length >= 2 ? data.steps : names.slice(0, 3)
+    const { project, names, options } = found
+    const steps = data.steps.length >= 2 ? data.steps : []
     return {
       project,
       names,
+      options,
       steps,
+      saved: project ? await analytics.savedFunnels(env.DB, project.id) : [],
       funnel:
-        project && steps.length >= 2 ? await analytics.funnel(env.DB, project.id, steps, Number(data.days), now) : [],
+        project && steps.length >= 2
+          ? await analytics.funnel(env.DB, project.id, steps, data.days, now, data.filter, data.by)
+          : null,
     }
+  })
+
+export const saveFunnel = createServerFn({ method: 'POST' })
+  .middleware([member])
+  .validator((d: unknown) => {
+    const o = object(d)
+    const steps = actionNamesOf(o.steps)
+    if (steps.length < 2) throw new Error('A funnel needs two steps or more.')
+    return { slug: text(o.slug, 60), name: text(o.name, 80, 'The funnel name').trim() || 'Funnel', steps }
+  })
+  .handler(async ({ data }) => {
+    const project = await projects.projectBySlug(env.DB, data.slug)
+    if (!project) throw new Error('That project no longer exists.')
+    return analytics.saveFunnel(env.DB, project.id, data.name, data.steps, viewer(), Date.now())
+  })
+
+export const deleteFunnel = createServerFn({ method: 'POST' })
+  .middleware([member])
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { slug: text(o.slug, 60), id: int(o.id) }
+  })
+  .handler(async ({ data }) => {
+    const project = await projects.projectBySlug(env.DB, data.slug)
+    if (project) await analytics.deleteFunnel(env.DB, project.id, data.id)
   })
 
 export const getRetention = createServerFn()
   .validator((d: unknown) => {
     const o = object(d)
-    return { slug: o.slug === undefined ? undefined : text(o.slug, 60) }
+    return {
+      slug: o.slug === undefined ? undefined : text(o.slug, 60),
+      start: optional((v) => text(v, 200))(o.start),
+      back: optional((v) => text(v, 200))(o.back),
+      filter: analyticsFilter(o.filter),
+    }
   })
   .handler(async ({ data }) => {
     const now = Date.now()
     const found = await analyticsProject(data.slug, now)
     if (!found) return null
-    const { project } = found
-    return { project, retention: project ? await analytics.retention(env.DB, project.id, 8, now) : null }
+    const { project, names, options } = found
+    return {
+      project,
+      names,
+      options,
+      retention: project
+        ? await analytics.retention(env.DB, project.id, 8, now, data.filter, { start: data.start, back: data.back })
+        : null,
+    }
+  })
+
+export const getFlows = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      slug: o.slug === undefined ? undefined : text(o.slug, 60),
+      anchor: optional((v) => text(v, 200))(o.anchor),
+      direction: oneOf(['after', 'before'] as const)(o.direction ?? 'after'),
+      days: daysOf(o.days, 30),
+      filter: analyticsFilter(o.filter),
+    }
+  })
+  .handler(async ({ data }) => {
+    const now = Date.now()
+    const found = await analyticsProject(data.slug, now)
+    if (!found) return null
+    const { project, names, options } = found
+    const anchor = data.anchor ?? names[0]
+    return {
+      project,
+      names,
+      options,
+      anchor,
+      flows:
+        project && anchor
+          ? await analytics.flows(env.DB, project.id, anchor, data.direction, data.days, now, data.filter)
+          : null,
+    }
+  })
+
+export const getUsers = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      slug: o.slug === undefined ? undefined : text(o.slug, 60),
+      days: daysOf(o.days, 30),
+      filter: analyticsFilter(o.filter),
+      // A user to open: the id as the app sets it, hashed here as ingest does, or a hash from the list
+      user: optional((v) => text(v, 200))(o.user),
+      hash: optional((v) => text(v, 32))(o.hash),
+    }
+  })
+  .handler(async ({ data }) => {
+    const now = Date.now()
+    const found = await analyticsProject(data.slug, now)
+    if (!found) return null
+    const { project, options } = found
+    const hash = data.user ? hashUser(data.user.trim()) : data.hash
+    return {
+      project,
+      options,
+      now,
+      hash,
+      users: project ? await analytics.users(env.DB, project.id, data.days, now, data.filter) : null,
+      timeline: project && hash ? await analytics.userTimeline(env.DB, project.id, hash) : null,
+    }
   })
 
 // Explore: events across issues for a search, with columns, a chart and a group-by; `issue` scopes it to one issue
@@ -1611,6 +1790,7 @@ export const saveProjectDefaults = createServerFn({ method: 'POST' })
       daily_transaction_quota: LIMITS.daily_transaction_quota(o.daily_transaction_quota),
       event_retention_days: LIMITS.event_retention_days(o.event_retention_days),
       log_retention_days: LIMITS.log_retention_days(o.log_retention_days),
+      action_retention_days: LIMITS.action_retention_days(o.action_retention_days),
     }
   })
   .handler(({ data }) => settings.setSetting(env.DB, 'defaults.project', data, viewer()).then(() => undefined))

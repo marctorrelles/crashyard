@@ -241,11 +241,13 @@
         <div>
           <div class="grid max-w-[680px] gap-3.5">
             <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Product analytics from the SDK you already have</h2>
-            <p class="text-[17px] text-fg-2">Mark a Sentry log as an action and crashyard counts it: what people do, which steps they finish and who comes back. There's no second SDK in your app and no second bill. And because actions and crashes share their users, you see where one causes the other.</p>
+            <p class="text-[17px] text-fg-2">Mark a Sentry log as an action and crashyard counts it: what people do, which steps they finish and who comes back. There's no second SDK in your app and no second bill. And because actions and errors share their users, you see where one causes the other.</p>
           </div>
           <ul class="mt-7 grid gap-[18px] *:grid *:grid-cols-[22px_1fr] *:gap-3">
             <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-funnel"/></svg><div><b class="block font-semibold">Funnels that show what broke</b><span class="text-fg-2">Of the people who stopped at a step, see how many hit an error first, and which issue it was.</span></div></li>
-            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-repeat"/></svg><div><b class="block font-semibold">Retention, with and without crashes</b><span class="text-fg-2">Weekly cohorts, and how much less often people come back after a crash in their first week.</span></div></li>
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-repeat"/></svg><div><b class="block font-semibold">Retention, with and without errors</b><span class="text-fg-2">Weekly cohorts, and how much less often people come back after an error in their first week.</span></div></li>
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-list"/></svg><div><b class="block font-semibold">Each person's timeline</b><span class="text-fg-2">Look someone up by their id and see what they did and what broke for them, in order.</span></div></li>
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-layout"/></svg><div><b class="block font-semibold">Insights, flows and a Product dashboard</b><span class="text-fg-2">Chart any action by platform, country, release or your own properties, follow what people do next, and alert when an action drops.</span></div></li>
             <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-shield"/></svg><div><b class="block font-semibold">Users only as hashes</b><span class="text-fg-2">An action keeps its user as the same hash its errors have. No IP addresses, no emails.</span></div></li>
           </ul>
           <p class="mt-6 inline-flex items-center gap-1.5 rounded-md bg-accent-soft px-2.5 py-1.5 text-[13.5px] text-fg-2"><svg class="size-[15px] flex-none text-accent-text" aria-hidden="true"><use href="#i-info"/></svg>Actions are logs on the wire, so they share the daily log limit.</p>
@@ -256,8 +258,8 @@
         </div>
       </div>
       <div class="mt-10 overflow-hidden rounded-[14px] border border-border bg-card shadow-card"><div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
-        <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/analytics-light.jpg" width="2560" height="1600" loading="lazy" alt="A funnel for pocketband: of 780 people who recorded a pattern, 436 started an export and 373 finished it. Of the 63 who stopped at the export, 41 hit the same crash first">
-        <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/analytics-dark.jpg" width="2560" height="1600" loading="lazy" alt="A funnel for pocketband: of 780 people who recorded a pattern, 436 started an export and 373 finished it. Of the 63 who stopped at the export, 41 hit the same crash first">
+        <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/analytics-light.jpg" width="2560" height="1600" loading="lazy" alt="A funnel for pocketband: of 778 people who recorded a pattern, 631 started an export and 557 finished it. Of the 74 who stopped at the export, 44 hit the same crash first">
+        <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/analytics-dark.jpg" width="2560" height="1600" loading="lazy" alt="A funnel for pocketband: of 778 people who recorded a pattern, 631 started an export and 557 finished it. Of the 74 who stopped at the export, 44 hit the same crash first">
       </div></div>
     </div>
   </section>
