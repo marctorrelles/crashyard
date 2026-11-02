@@ -53,6 +53,8 @@
   <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></symbol>
   <symbol id="i-broadcast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.364 19.364a9 9 0 1 0 -12.728 0"/><path d="M15.536 16.536a5 5 0 1 0 -7.072 0"/><path d="M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol>
   <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10"/><path d="M7 20h10"/><path d="M9 16v4"/><path d="M15 16v4"/></symbol>
+  <symbol id="i-funnel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.387 3h15.226a1 1 0 0 1 .948 1.316l-5.105 15.316a2.326 2.326 0 0 1 -4.912 0l-5.105 -15.316a1 1 0 0 1 .948 -1.316"/><path d="M5 9h14"/><path d="M7 15h10"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3"/><path d="M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3"/></symbol>
 </svg>
 
 <a class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-4 focus:z-20 focus:inline-flex focus:h-[42px] focus:items-center focus:rounded-lg focus:border focus:border-border-2 focus:bg-card focus:px-4 focus:text-[15px] focus:font-[550]" href="#main">Skip to content</a>
@@ -230,6 +232,35 @@
           <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/status-dark.jpg" width="2560" height="1600" loading="lazy" alt="Brightpan's public status page: an incident on its image CDN, a scheduled maintenance and each service's last 30 days">
         </div></div>
       </div>
+    </div>
+  </section>
+
+  <section class="pt-[120px] max-sm:pt-[88px]" id="analytics">
+    <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
+      <div class="grid items-start gap-10 xl:grid-cols-[1fr_1.1fr] xl:gap-16 *:min-w-0">
+        <div>
+          <div class="grid max-w-[680px] gap-3.5">
+            <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Product analytics from the SDK you already have</h2>
+            <p class="text-[17px] text-fg-2">Mark a Sentry log as an action and crashyard counts it: what people do, which steps they finish and who comes back. There's no second SDK in your app and no second bill. And because actions and errors share their users, you see where one causes the other.</p>
+          </div>
+          <ul class="mt-7 grid gap-[18px] *:grid *:grid-cols-[22px_1fr] *:gap-3">
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-funnel"/></svg><div><b class="block font-semibold">Funnels that show what broke</b><span class="text-fg-2">Of the people who stopped at a step, see how many hit an error first, and which issue it was.</span></div></li>
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-repeat"/></svg><div><b class="block font-semibold">Retention, with and without errors</b><span class="text-fg-2">Weekly cohorts, and how much less often people come back after an error in their first week.</span></div></li>
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-list"/></svg><div><b class="block font-semibold">Each person's timeline</b><span class="text-fg-2">Look someone up by their id and see what they did and what broke for them, in order.</span></div></li>
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-layout"/></svg><div><b class="block font-semibold">Insights, flows and a Product dashboard</b><span class="text-fg-2">Chart any action by platform, country, release or your own properties, follow what people do next, and alert when an action drops.</span></div></li>
+            <li><svg class="mt-[3px] size-[18px] flex-none text-accent-text" aria-hidden="true"><use href="#i-shield"/></svg><div><b class="block font-semibold">Users only as hashes</b><span class="text-fg-2">An action keeps its user as the same hash its errors have. No IP addresses, no emails.</span></div></li>
+          </ul>
+          <p class="mt-6 inline-flex items-center gap-1.5 rounded-md bg-accent-soft px-2.5 py-1.5 text-[13.5px] text-fg-2"><svg class="size-[15px] flex-none text-accent-text" aria-hidden="true"><use href="#i-info"/></svg>Actions are logs on the wire, so they share the daily log limit.</p>
+        </div>
+        <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code>
+          <div class="flex items-center gap-0.5 overflow-x-auto border-b border-code-line bg-code-bar py-1.5 pr-1.5 pl-2 [scrollbar-width:none]"><span class="px-2 font-mono text-[13px] leading-none whitespace-nowrap text-code-dim">track.ts</span><button class="ml-auto inline-flex h-[30px] flex-none cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[12.5px] leading-none font-medium text-code-dim hover:bg-white/7 hover:text-code-fg" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" tabindex="0"><span class="text-code-dim">// With enableLogs: true in Sentry.init</span><span data-keep><span class="text-code-key">export function</span> track(name: string, props = {}) {</span><span data-keep>  Sentry.logger.info(name, { ...props, <span class="text-code-str">'crashyard.action'</span>: <span class="text-code-key">true</span> })</span><span data-keep>}</span><span> </span><span class="text-code-dim">// Once someone signs in, so actions meet their crashes</span><span data-keep>Sentry.setUser({ id: account.id })</span><span> </span><span data-keep>track(<span class="text-code-str">'song exported'</span>, { format: <span class="text-code-str">'wav'</span> })</span></pre>
+        </div>
+      </div>
+      <div class="mt-10 overflow-hidden rounded-[14px] border border-border bg-card shadow-card"><div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
+        <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/analytics-light.jpg" width="2560" height="1600" loading="lazy" alt="A funnel for pocketband: of 778 people who recorded a pattern, 631 started an export and 557 finished it. Of the 74 who stopped at the export, 44 hit the same crash first">
+        <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] hidden dark:block" src="/images/analytics-dark.jpg" width="2560" height="1600" loading="lazy" alt="A funnel for pocketband: of 778 people who recorded a pattern, 631 started an export and 557 finished it. Of the 74 who stopped at the export, 44 hit the same crash first">
+      </div></div>
     </div>
   </section>
 

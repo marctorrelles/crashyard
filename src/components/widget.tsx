@@ -89,6 +89,7 @@ const PLACEHOLDERS: Partial<Record<Dataset, string>> = {
   sessions: 'environment:production release:1.2.*',
   monitors: 'kind:uptime monitor:homepage',
   releases: 'environment:production',
+  actions: 'action:"song exported" platform:Apple',
 }
 
 // A value as it reads: none (a log without a release) and the rest beyond those shown can't be filtered by
@@ -135,6 +136,7 @@ export function listOf(w: Widget, project: string | undefined, range: Range) {
   if (w.dataset === 'monitors') return { to: '/monitors' as const, label: 'Open in Monitors', search: {} }
   if (w.dataset === 'sessions' || w.dataset === 'releases')
     return { to: '/releases' as const, label: 'Open in Releases', search: {} }
+  if (w.dataset === 'actions') return { to: '/analytics' as const, label: 'Open in Analytics', search: { project } }
 }
 
 /** Show only (or exclude) one of a widget's values: the logs or the issues, with the value added */

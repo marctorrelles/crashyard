@@ -9,6 +9,7 @@ import {
   IconBell,
   IconBroadcast,
   IconBug,
+  IconChartFunnel,
   IconCheck,
   IconCompass,
   IconGauge,
@@ -205,7 +206,21 @@ export function Shell({
 type Page = { path: string; search: Record<string, unknown>; issueProject?: string }
 
 // The pages that list across projects and narrow to one with ?project= (a dashboard too, below)
-const LISTS = ['/', '/dashboards', '/issues', '/explore', '/releases', '/performance', '/logs'] as const
+const LISTS = [
+  '/',
+  '/dashboards',
+  '/issues',
+  '/explore',
+  '/releases',
+  '/performance',
+  '/analytics',
+  '/analytics/insights',
+  '/analytics/funnel',
+  '/analytics/retention',
+  '/analytics/flows',
+  '/analytics/users',
+  '/logs',
+] as const
 type List = (typeof LISTS)[number]
 const isList = (path: string): path is List => (LISTS as readonly string[]).includes(path)
 // A dashboard's id, when the page is one
@@ -215,7 +230,9 @@ const dashboardOf = (path: string) => path.match(/^\/dashboards\/([^/]+)$/)?.[1]
 function projectOf({ path, search, issueProject }: Page) {
   const slug = path.match(/^\/(?:settings\/)?projects\/([^/]+)/)?.[1]
   if (slug) return decodeURIComponent(slug)
-  if (isList(path) || dashboardOf(path)) return typeof search.project === 'string' ? search.project : null
+  // An action's page is its project's, as `?project=` says
+  if (isList(path) || dashboardOf(path) || path === '/analytics/action')
+    return typeof search.project === 'string' ? search.project : null
   return issueProject
 }
 
@@ -314,6 +331,13 @@ function AppSidebar() {
             >
               {(c) => (
                 <Link to="/performance" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Analytics" icon={IconChartFunnel} active={at('/analytics')}>
+              {(c) => (
+                <Link to="/analytics" search={search} onClick={close}>
                   {c}
                 </Link>
               )}
@@ -460,6 +484,7 @@ function ProjectSwitcher({
       void navigate({ to: slug ? `/settings/projects/${slug}/${settingsPage}` : '/settings/projects' })
     else if (sub) void navigate({ to: `/${sub}`, search })
     else if (page.path.startsWith('/issues/')) void navigate({ to: '/issues', search })
+    else if (page.path === '/analytics/action') void navigate({ to: '/analytics', search })
   }
   return (
     <SidebarMenu>

@@ -96,6 +96,27 @@ server, the build, or `tsr generate`): never edit it.
   with vitals and no transactions too); `projects/$slug/performance/transaction.tsx` (`?name=`): its own vitals, p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and Open trace.
+- `analytics/`: product analytics (`src/data/analytics.ts`), its own sidebar section. Every tab takes the filter
+  bar's `release`, `platform`, `os`, `country` and `prop` (`key:value`) in the URL, which `AnalyticsTabs` keeps from
+  tab to tab with `?project=`, and a period of 1, 7, 30 (unset) or 90 days. `index.tsx`, Overview (`getAnalytics`, a
+  section per project with actions): active and new users, actions per user, users who hit an error, each against
+  the period before; daily, weekly and monthly active users and stickiness; active users as three lines, new users
+  as bars under sessions on a second axis; users by platform, OS, country, release and device (+ filters by one;
+  one with only None is left out); a line for actions without a user; then the actions, each opening `action.tsx`
+  (`?name=&by=`: count bars and a users line, By property, release, platform and country, Issues in the same trace,
+  Open in Insights and Create alert, `/settings/notifications?metric=actions`). Empty: No actions yet with how to
+  send one (`enableLogs`, the mark, `setUser`), or No actions in this period. `insights.tsx` (`?names=` up to 3,
+  `?measure=total|per_user`, unique users unset, `?by=`): a line per action and group, a table of each line's total
+  against the period before, Add to dashboard (`AddToDashboard`, an actions widget with the filter's columns, not
+  for per user or a property filter). `funnel.tsx` (`?steps=` 2 to 8, `?by=`): saved funnels to open and Delete
+  funnel, the step builder (Show funnel applies it, Save funnel names it, `saveFunnel`, member), a line saying only
+  named users count and when the read was partial, the four numbers, `FunnelSteps`, Conversion by group.
+  `retention.tsx` (`?start=`, `?back=`): Do errors drive people away?, then `RetentionGrid`. `flows.tsx`
+  (`?anchor=`, `?direction=before`): Before or After, the anchor's card, a card a step (stacked on a phone), the most
+  common paths, errors in amber linking to their issue and Left for the visit's end. `users.tsx` (`?user=` an id
+  typed into Find user, hashed on the server; `?hash=` from the list): the 50 seen most recently, each by the start
+  of its hash, or one user's facts, properties and timeline by day, errors linking to their event, Trace to the
+  trace. Funnels, retention, flows and users are one project's: the page's, else the first with actions.
 - `settings/`: the settings area. `route.tsx` is its frame: `Shell` (`full`) with Settings, then Projects and the
   project on a project's page, then the page; `SettingsNav` (`src/components/settings.tsx`) at the left edge, the
   page's name as the title (the project's name under it on its pages) and the page centred beside it, up to
@@ -133,8 +154,8 @@ server, the build, or `tsr generate`): never edit it.
   turning a key off, then Create key), `stack-traces` (`-source` the repository and how to send commits; then
   `-debug-files`, from the page's own loader, `getProjectPage`: `NeedsPaid`, how to upload, `UploadSteps`, the newest
   500 debug files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, and the
-  newest 10 source map bundles), `events` (`-limits` daily event, log and transaction limits, event and log
-  retention; then `-filters`, a switch per inbound filter with what it catches, text areas of error message globs,
+  newest 10 source map bundles), `events` (`-limits` daily event, log and transaction limits, event, log and
+  action retention; then `-filters`, a switch per inbound filter with what it catches, text areas of error message globs,
   release globs and allowed domains, one a line, and what was filtered in 30 days, `getProjectSettings`' `filtered`,
   saved as `filters` through `updateProject`, which keeps the switches that are on and the lists' lines, 100 of 200
   characters at most), `issues`

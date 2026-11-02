@@ -1116,6 +1116,7 @@ const DEFAULTS: Record<Metric, { direction: Direction; warning: string; critical
   p95: { direction: 'above', warning: '800', critical: '1000' },
   failure_rate: { direction: 'above', warning: '2', critical: '5' },
   log_count: { direction: 'above', warning: '', critical: '1000' },
+  actions: { direction: 'below', warning: '', critical: '10' },
 }
 const UNITS = { count: '', percent: 'in percent', ms: 'in milliseconds' }
 const FILTERS: Record<Metric, string> = {
@@ -1125,6 +1126,7 @@ const FILTERS: Record<Metric, string> = {
   p95: 'transaction:/checkout release:1.2.*',
   failure_rate: 'transaction:/checkout',
   log_count: 'level:error song:intro',
+  actions: 'action:"checkout completed" platform:Web',
 }
 
 function MetricDialog({

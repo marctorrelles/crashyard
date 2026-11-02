@@ -115,4 +115,4 @@ files and code comments are for contributors and keep their own terse style.
   1.0 (10) · Reached 100 events".
 - **Numbers carry their unit in words.** "Event retention in days", "Timeout in seconds", "up 50% on the week before".
 - **Product words stay the same everywhere.** Issue, event, release, project, monitor, channel, route, alert,
-  dashboard, widget, log, transaction.
+  dashboard, widget, log, transaction, action (what someone did in an app, for analytics), funnel.

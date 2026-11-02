@@ -23,19 +23,31 @@
     `break-words` doesn't shrink a flex or grid item.
   - A breadcrumb above the page truncates at half the bar.
 - `shell.tsx`: `Layout` (the root's: shadcn's `Sidebar`, kept between pages: the project filter on top, then the same
-  pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Logs, Monitors, Notifications
+  pages whatever's picked, Overview, Dashboards, Issues, Explore, Releases, Performance, Analytics, Logs, Monitors, Notifications
   (what was sent; its settings are in Settings), and at
   the foot, for owners while a newer crashyard is out, Update available (tinted, unlike the pages' grey hover; it opens `UpdateDialog`), Settings, then who's signed in, their name else email, with Sign out: a form POST to `/auth/signout`; in the demo Leave demo,
   Demo visitor, and `DemoBanner` over every page, a slim bar with Deploy your own (`DEPLOY_YOUR_OWN`, the README's Get
   started) until closed for the browser's session, sessionStorage through `useSyncExternalStore`, open in the server render), `Shell` (a page: the top bar with the
   sidebar's toggle and the page's `crumbs`, section down to the page, a phone showing the last two; then its width,
   `wide` for lists, `full` for settings: from the sidebar's edge, not centred), `PageHeader`, `Empty` (shadcn's Empty: an icon, a title, one line and an optional action; `compact` inside a
-  section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). `Logo`: the mark, one path (its tiled drawings are `docs/images/logo.svg`, the README's, and `src/favicon.svg`). `Loader`, the sidebar's logo once a page has been loading 300 ms: the mark's centreline, from whole, taken away from its start and drawn back, 3.6 s a round (`.cy-draw` in `src/styles.css`, still with reduced motion); a round always ends, whole again, before it turns back into the logo. The only loader of its kind: elsewhere a Loading… line has Tabler's `IconLoader2` spinning, and charts keep their skeletons. The lists (overview, dashboards, issues, Explore, releases, performance, logs)
+  section), `useProjects`, `usePreferences` (the viewer's, from the root's loader). `Logo`: the mark, one path (its tiled drawings are `docs/images/logo.svg`, the README's, and `src/favicon.svg`). `Loader`, the sidebar's logo once a page has been loading 300 ms: the mark's centreline, from whole, taken away from its start and drawn back, 3.6 s a round (`.cy-draw` in `src/styles.css`, still with reduced motion); a round always ends, whole again, before it turns back into the logo. The only loader of its kind: elsewhere a Loading… line has Tabler's `IconLoader2` spinning, and charts keep their skeletons. The lists (overview, dashboards, issues, Explore, releases, performance, every analytics tab, logs)
   take the filter as `?project=` (on a dashboard, picking a project keeps it and its range); the project shown comes
   from that, `/projects/$slug` or an issue's own; pages of no project keep the one last picked (cookie
   `crashyard_project`, read back by the root's loader, like shadcn's `sidebar_state`). The filter's menu also has the
   picked project's settings (`/settings/projects/<slug>/general`); picking a project on one of its settings pages
-  keeps the page for the new project, and All projects goes to Settings, Projects.
+  keeps the page for the new project, and All projects goes to Settings, Projects. An action's page is its
+  `?project=`'s; picking another goes to Analytics.
+- `analytics.tsx`: the analytics pages' `AnalyticsTabs` (links with `aria-current`, scrolling sideways on a phone),
+  `FilterBar` (a `Select` each for platform, OS, country and release, of what the last 30 days had, then a property
+  and one of its values, and Clear filters; `readFilter` and `toFilter` turn the URL's filter into the server
+  functions'), `PeriodSelect` and `readDays`, `Stats` (tiles of a number, its change and a hint), `Change` (green
+  the way that's good), `Breakdown` (a card of `BarList` bars, + filtering by a value), `share`, `gap`,
+  `countryName` (`Intl.DisplayNames`), `valueLabel`, `FunnelSteps` (a card a step: its bar in `--chart-1`, users,
+  the share of the step before and the median time; who stopped there, how many hit an error first, amber, and
+  their issues as `IssueRows`), `RetentionGrid` (a row a weekly cohort, a cell shaded by `--chart-1`, scrolling
+  inside its border), `ActionSelect` and `BreakdownSelect`.
+- `add-to-dashboard.tsx`: `AddToDashboard`, a chart as a widget at the end of a picked dashboard (`addWidget`), from
+  the logs page and Insights.
 - `bits.tsx`: `Sparkline` (SVG bars, no chart library; `label` for what they are when not events per day), `Ago`
   (relative to a `now` from the loader, the whole date in its title), `Level`, `count`, `percent`, `Pager` ("Page 2 of 5" and two arrows under a list paged in the browser, nothing when it fits on one; the releases' lists and the widget viewer's table).
 - `time.tsx`: `formatTime(at, { zone, clock }, style)` (`Intl.DateTimeFormat` in English, `hourCycle` from the clock,
