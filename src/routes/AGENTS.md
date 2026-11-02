@@ -96,6 +96,16 @@ server, the build, or `tsr generate`): never edit it.
   with vitals and no transactions too); `projects/$slug/performance/transaction.tsx` (`?name=`): its own vitals, p95 per hour
   (a line, gaps joined) over the count (bars, a second axis), by release, the slowest with their
   span waterfall and Open trace.
+- `analytics/`: product analytics (`src/data/analytics.ts`), its own sidebar section; `AnalyticsTabs` links Actions,
+  Funnel and Retention, keeping `?project=`. `index.tsx` (`getAnalytics`, `?days=1|30`, a section per project with
+  actions): active users, actions, actions per user and users who hit an error, active users per step, then actions
+  by count with a sparkline, users and change (hidden on a phone), each opening `action.tsx` (`?project=&name=&by=`:
+  count bars and a users line, By property, a `Select` of its keys, By release, and Issues in the same trace).
+  `funnel.tsx` (`getFunnel`, `?steps=` a JSON list of up to 8 names, the three most frequent when unset; `?days=1|7`,
+  30 by default): a `Select` a step, Remove step past two, Add step; Started, Finished, Conversion and Stopped after
+  an error; `FunnelSteps`. `retention.tsx` (`getRetention`): Do errors drive people away?, a line each for users with
+  and without an error in their first week, then `RetentionGrid`. A funnel and retention are one project's: the
+  page's, else the first with actions.
 - `settings/`: the settings area. `route.tsx` is its frame: `Shell` (`full`) with Settings, then Projects and the
   project on a project's page, then the page; `SettingsNav` (`src/components/settings.tsx`) at the left edge, the
   page's name as the title (the project's name under it on its pages) and the page centred beside it, up to

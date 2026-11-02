@@ -47,6 +47,9 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
 - **Releases.** See what is new, what regressed and what is gone in each release, with crash-free sessions. Crashes from
   App Review and TestFlight are called out.
 - **Logs.** Search Sentry logs, follow them live, group them and jump to the issues in the same trace.
+- **Product analytics.** Mark a Sentry log as an action and crashyard counts it, with no second SDK: actions with
+  their users and properties, funnels and weekly retention. Actions and errors share their users, so a funnel shows
+  how many people stopped at a step after an error, and retention compares those who hit one with those who didn't.
 - **Dashboards.** Build charts, numbers and tables from issues, events and logs, or start from the Crashes template.
 - **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs, with public status pages showing the
   checks you choose from any of your projects. Post incidents, notices and planned maintenance with their updates and

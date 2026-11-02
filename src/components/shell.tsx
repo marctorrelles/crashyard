@@ -9,6 +9,7 @@ import {
   IconBell,
   IconBroadcast,
   IconBug,
+  IconChartFunnel,
   IconCheck,
   IconCompass,
   IconGauge,
@@ -205,7 +206,18 @@ export function Shell({
 type Page = { path: string; search: Record<string, unknown>; issueProject?: string }
 
 // The pages that list across projects and narrow to one with ?project= (a dashboard too, below)
-const LISTS = ['/', '/dashboards', '/issues', '/explore', '/releases', '/performance', '/logs'] as const
+const LISTS = [
+  '/',
+  '/dashboards',
+  '/issues',
+  '/explore',
+  '/releases',
+  '/performance',
+  '/analytics',
+  '/analytics/funnel',
+  '/analytics/retention',
+  '/logs',
+] as const
 type List = (typeof LISTS)[number]
 const isList = (path: string): path is List => (LISTS as readonly string[]).includes(path)
 // A dashboard's id, when the page is one
@@ -314,6 +326,13 @@ function AppSidebar() {
             >
               {(c) => (
                 <Link to="/performance" search={search} onClick={close}>
+                  {c}
+                </Link>
+              )}
+            </Item>
+            <Item label="Analytics" icon={IconChartFunnel} active={at('/analytics')}>
+              {(c) => (
+                <Link to="/analytics" search={search} onClick={close}>
                   {c}
                 </Link>
               )}

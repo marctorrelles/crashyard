@@ -580,6 +580,114 @@ for (let d = 0; d < 14; d++) {
   ])
 }
 
+// Eight weeks of actions (product analytics, src/ingest/actions.ts) from pocketband's and notes web's users. Some of
+// pocketband's users crash while exporting, in the same trace as their export, and come back less after
+const { storeActions } = await load('/src/ingest/actions.ts')
+const { hashUser } = await load('/src/search/user.ts')
+const actions = { [pocketband.id]: [], [notes.id]: [] }
+const exportCrashes = []
+const act = (p, at, name, user, trace, release, properties = {}) =>
+  actions[p.id].push({
+    timestamp: Math.round(at),
+    name,
+    userHash: hashUser(user),
+    release,
+    environment: 'production',
+    traceId: trace,
+    properties,
+  })
+const pocketRelease = (at) => (now - at > 12 * DAY ? '1.0 (9)' : '1.0 (10)')
+// A session: opens the app, maybe makes a song, records, exports; a wav export crashes now and then, more on 1.0 (10)
+const pocketSession = (user, at, device) => {
+  const trace = hex(32)
+  const release = pocketRelease(at)
+  act(pocketband, at, 'app opened', user, trace, release, { device })
+  let t = at + 20_000 + random() * 60_000
+  if (random() > 0.72) return false
+  act(pocketband, t, 'song created', user, trace, release, { template: pick(['blank', 'drums', 'lofi', 'lofi']) })
+  t += 60_000 + random() * 600_000
+  if (random() > 0.8) return false
+  act(pocketband, t, 'pattern recorded', user, trace, release, { steps: pick([16, 32, 32, 64]) })
+  t += 120_000 + random() * 900_000
+  if (random() > 0.55) return false
+  const format = pick(['wav', 'm4a', 'm4a'])
+  act(pocketband, t, 'export started', user, trace, release, { format })
+  t += 5_000 + random() * 40_000
+  if (random() < (format === 'wav' ? (release === '1.0 (10)' ? 0.5 : 0.15) : 0.02)) {
+    exportCrashes.push({ at: t, user, trace, release })
+    return true
+  }
+  if (random() > 0.93) return false
+  act(pocketband, t, 'song exported', user, trace, release, { format })
+  if (random() < 0.12)
+    act(pocketband, t + 30_000, 'subscribed', user, trace, release, { plan: pick(['monthly', 'yearly']) })
+  return false
+}
+for (let u = 0; u < 900; u++) {
+  const user = `pb-${u}`
+  const first = now - random() ** 0.8 * 56 * DAY
+  const device = pick(['iPhone', 'iPhone', 'iPhone', 'iPad'])
+  let hurt = false // crashed in their first week
+  // Week 0 always, then each week back with a chance that fades, lower after a crash in their first week
+  for (let week = 0; first + week * 7 * DAY < now; week++) {
+    if (week > 0 && random() > (hurt ? 0.38 * 0.8 ** (week - 1) : 0.64 * 0.9 ** (week - 1))) continue
+    const sessions = 1 + Math.floor(random() * 3)
+    for (let n = 0; n < sessions; n++) {
+      const at = first + week * 7 * DAY + (n === 0 && week === 0 ? 0 : random() * 7 * DAY)
+      if (at > now - 3_600_000) continue
+      if (pocketSession(user, at, device) && week === 0) hurt = true
+    }
+  }
+}
+for (let u = 0; u < 500; u++) {
+  const user = `notes-${u}`
+  const first = now - random() ** 0.9 * 56 * DAY
+  const release = 'web@2026.10.20'
+  act(notes, first, 'signed up', user, hex(32), release, { via: pick(['email', 'google', 'google', 'github']) })
+  for (let at = first + 60_000; at < now;) {
+    const trace = hex(32)
+    act(notes, at, 'note created', user, trace, release, { template: pick(['blank', 'meeting', 'todo']) })
+    if (random() < 0.3) act(notes, at + 120_000, 'note shared', user, trace, release, { with: pick(['link', 'team']) })
+    if (random() < 0.08) act(notes, at + 200_000, 'invite sent', user, trace, release)
+    if (random() > 0.8 * 0.92 ** ((at - first) / (7 * DAY))) break
+    at += (0.3 + random() * 3) * DAY
+  }
+}
+const exportFrames = [
+  native('start', 'dyld', 0, false),
+  native('AVAssetWriter.finishWriting', 'AVFoundation', 0, false),
+  native('ExportSession.finish(_:)', 'ExportSession.swift', 141),
+  native('WavWriter.flush()', 'WavWriter.swift', 77),
+]
+for (const c of exportCrashes.sort((a, b) => a.at - b.at)) {
+  const raw = {
+    ...apple(c.release, pick(['iPhone15,2', 'iPhone16,1', 'iPad13,1'])),
+    level: 'fatal',
+    event_id: hex(32),
+    timestamp: c.at / 1000,
+    user: { id: c.user },
+    exception: {
+      values: [
+        {
+          type: 'EXC_BAD_ACCESS',
+          value: 'KERN_INVALID_ADDRESS at 0x0000000000000008',
+          mechanism: { type: 'mach', handled: false },
+          stacktrace: { frames: exportFrames },
+        },
+      ],
+    },
+  }
+  raw.contexts = { ...raw.contexts, trace: { trace_id: c.trace, span_id: hex(16) } }
+  const event = await normalizeEvent(raw, c.at, raw.event_id)
+  await storeEvent(db, pocketband, event, await fingerprintOf(event))
+}
+let actionCount = 0
+for (const [id, list] of Object.entries(actions)) {
+  list.sort((a, b) => a.timestamp - b.timestamp)
+  for (let i = 0; i < list.length; i += 500) await storeActions(db, Number(id), list.slice(i, i + 500))
+  actionCount += list.length
+}
+
 const channel = await db
   .prepare(
     "INSERT INTO channels (kind, name, config, quiet_from, quiet_to, created_at) VALUES ('telegram', 'My phone', ?, 1320, 420, ?) RETURNING id",
@@ -594,7 +702,7 @@ await db
   .run()
 
 console.log(
-  `${events.length} events in ${issueOf.size} issues, ${logs.length} logs and ${transactions} transactions, in 3 projects`,
+  `${events.length + exportCrashes.length} events in ${issueOf.size + 1} issues, ${logs.length} logs, ${transactions} transactions and ${actionCount} actions, in 3 projects`,
 )
 await proxy.dispose()
 await vite.close()

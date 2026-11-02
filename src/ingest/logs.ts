@@ -2,6 +2,7 @@
 // each with a timestamp (seconds), level, body, trace id and typed attributes ({ value, type }).
 import { scrub, scrubText } from './scrub'
 import { timestampOf } from './event'
+import { isAction } from './actions'
 
 export type Log = {
   timestamp: number // ms
@@ -35,28 +36,32 @@ const valueOf = (v: unknown): string | number | boolean | undefined => {
 export function normalizeLogs(payload: unknown, received: number): Log[] {
   const items = obj(payload).items
   if (!Array.isArray(items)) return []
-  return items.slice(0, 1000).map((raw) => {
-    const item = obj(raw)
-    const attributes: Log['attributes'] = {}
-    for (const [key, value] of Object.entries(obj(item.attributes)).slice(0, MAX_ATTRIBUTES)) {
-      // The SDK adds the scope's user (id, email, name) to every log: not kept, as events keep only a hash
-      if (key.startsWith('user.')) continue
-      const v = valueOf(value)
-      if (v !== undefined) attributes[key] = v
-    }
-    const scrubbed = scrub(attributes) as Log['attributes']
-    const level = String(item.level ?? 'info').toLowerCase()
-    const str = (k: string) => (typeof scrubbed[k] === 'string' ? (scrubbed[k] as string) : undefined)
-    return {
-      timestamp: timestampOf(item.timestamp) ?? received,
-      level: LEVELS.has(level) ? level : (ALIASES[level] ?? 'info'),
-      body: scrubText(String(item.body ?? '')).slice(0, MAX_BODY),
-      attributes: scrubbed,
-      release: str('sentry.release'),
-      environment: str('sentry.environment'),
-      traceId: typeof item.trace_id === 'string' && /^[0-9a-f]{32}$/.test(item.trace_id) ? item.trace_id : undefined,
-    }
-  })
+  // An action (`crashyard.action`) is product analytics, stored apart by actions.ts, not as a log
+  return items
+    .slice(0, 1000)
+    .filter((raw) => !isAction(raw))
+    .map((raw) => {
+      const item = obj(raw)
+      const attributes: Log['attributes'] = {}
+      for (const [key, value] of Object.entries(obj(item.attributes)).slice(0, MAX_ATTRIBUTES)) {
+        // The SDK adds the scope's user (id, email, name) to every log: not kept, as events keep only a hash
+        if (key.startsWith('user.')) continue
+        const v = valueOf(value)
+        if (v !== undefined) attributes[key] = v
+      }
+      const scrubbed = scrub(attributes) as Log['attributes']
+      const level = String(item.level ?? 'info').toLowerCase()
+      const str = (k: string) => (typeof scrubbed[k] === 'string' ? (scrubbed[k] as string) : undefined)
+      return {
+        timestamp: timestampOf(item.timestamp) ?? received,
+        level: LEVELS.has(level) ? level : (ALIASES[level] ?? 'info'),
+        body: scrubText(String(item.body ?? '')).slice(0, MAX_BODY),
+        attributes: scrubbed,
+        release: str('sentry.release'),
+        environment: str('sentry.environment'),
+        traceId: typeof item.trace_id === 'string' && /^[0-9a-f]{32}$/.test(item.trace_id) ? item.trace_id : undefined,
+      }
+    })
 }
 
 /**

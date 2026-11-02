@@ -3,6 +3,7 @@
 import { createMiddleware, createServerFn } from '@tanstack/react-start'
 import { getCookie, getRequest, getRequestHeader, setCookie } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
+import * as analytics from './data/analytics'
 import * as charts from './data/charts'
 import * as dashboards from './data/dashboards'
 import * as explore from './data/explore'
@@ -663,6 +664,93 @@ export const getTransaction = createServerFn()
       performance.vitals(env.DB, project.id, Number(data.days), now, data.name),
     ])
     return { project, now, ...detail, vitals }
+  })
+
+// Analytics: actions sent through the Sentry SDK's logs (src/ingest/actions.ts), and the funnels and retention of them
+export const getAnalytics = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      slug: o.slug === undefined ? undefined : text(o.slug, 60),
+      days: oneOf(DAYS.map(String))(String(o.days ?? 7)),
+    }
+  })
+  .handler(async ({ data }) => {
+    const list = await projectsFor(data.slug)
+    if (!list) return null
+    const now = Date.now()
+    return Promise.all(
+      list.map(async (project) => ({
+        project,
+        ...(await analytics.summary(env.DB, project.id, Number(data.days), now)),
+      })),
+    )
+  })
+
+export const getAction = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      slug: text(o.slug, 60),
+      name: text(o.name, 200),
+      days: oneOf(DAYS.map(String))(String(o.days ?? 7)),
+      by: optional((v) => text(v, 200))(o.by),
+    }
+  })
+  .handler(async ({ data }) => {
+    const project = await projects.projectBySlug(env.DB, data.slug)
+    if (!project) return null
+    const now = Date.now()
+    return { project, ...(await analytics.action(env.DB, project.id, data.name, Number(data.days), now, data.by)) }
+  })
+
+// A funnel or retention is one project's: the page's, else the first with actions
+async function analyticsProject(slug: string | undefined, now: number) {
+  const list = await projectsFor(slug)
+  if (!list) return null
+  for (const project of list) {
+    const names = await analytics.actionNames(env.DB, project.id, now)
+    if (names.length || slug) return { project, names }
+  }
+  return { project: list[0] ?? null, names: [] as string[] }
+}
+
+export const getFunnel = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return {
+      slug: o.slug === undefined ? undefined : text(o.slug, 60),
+      steps: Array.isArray(o.steps) ? o.steps.slice(0, 8).map((s) => text(s, 200)) : [],
+      days: oneOf(DAYS.map(String))(String(o.days ?? 30)),
+    }
+  })
+  .handler(async ({ data }) => {
+    const now = Date.now()
+    const found = await analyticsProject(data.slug, now)
+    if (!found) return null
+    const { project, names } = found
+    // With no steps chosen, the three most frequent actions, as a start
+    const steps = data.steps.length >= 2 ? data.steps : names.slice(0, 3)
+    return {
+      project,
+      names,
+      steps,
+      funnel:
+        project && steps.length >= 2 ? await analytics.funnel(env.DB, project.id, steps, Number(data.days), now) : [],
+    }
+  })
+
+export const getRetention = createServerFn()
+  .validator((d: unknown) => {
+    const o = object(d)
+    return { slug: o.slug === undefined ? undefined : text(o.slug, 60) }
+  })
+  .handler(async ({ data }) => {
+    const now = Date.now()
+    const found = await analyticsProject(data.slug, now)
+    if (!found) return null
+    const { project } = found
+    return { project, retention: project ? await analytics.retention(env.DB, project.id, 8, now) : null }
   })
 
 // Explore: events across issues for a search, with columns, a chart and a group-by; `issue` scopes it to one issue

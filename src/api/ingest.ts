@@ -10,6 +10,7 @@ import { eventIdOf, normalizeEvent } from '../ingest/event'
 import { filterReason, originAllowed, parseFilters, transactionFilterReason } from '../ingest/filters'
 import { FORWARDED, forwardToSentry } from '../ingest/forward'
 import { normalizeLogs, storeLogs } from '../ingest/logs'
+import { normalizeActions, storeActions } from '../ingest/actions'
 import { recordCheckIn } from '../monitors/monitors'
 import { sessionCounts, spanTransactions, storeSessions, storeTransaction, summarize } from '../performance/ingest'
 import {
@@ -487,7 +488,9 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
         for (const [j, report] of reports.entries())
           await eventOf(cspEvent(report, extra), c.held ? stableEventId(c.held, index * 256 + j) : undefined)
       } else if (type === 'log') {
-        await storeLogs(env.DB, project.id, normalizeLogs(payloadJson(item), now), now, dayOf(now))
+        const logs = payloadJson(item)
+        await storeLogs(env.DB, project.id, normalizeLogs(logs, now), now, dayOf(now))
+        await storeActions(env.DB, project.id, normalizeActions(logs, now))
       } else if (type === 'event') {
         const payload = payloadJson(item)
         // An event without an id gets one that's the same on every try, so a retry finds it stored

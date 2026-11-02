@@ -172,6 +172,19 @@ helpers (`change`).
   trace's events with their issue and project, 200, by `events_trace`; its logs, 500, by `logs_trace`; its stored
   transaction examples with their spans, 20). Plans: the window by `events_project` for a project, else by
   `events_received` (0031); tags by `event_tags`' primary key. `explore.test.ts` on `test/fakes.ts`.
+- `analytics.ts`: product analytics over `actions` (0036). `summary` (1, 7 or 30 days: active users, actions and
+  users who hit an error, a distinct `user_hash` also in `events` in the period, each against the period before; active users per
+  step, an hour, 6 hours or a day as performance's; the 50 most frequent actions with users, `trend` and change; one
+  batch), `actionNames` (90 days, most frequent first), `action` (one action: count and users per step, property keys
+  by `json_each` and the values of one by `json_extract`, releases, and issues whose events share a trace with it, by
+  `events_trace`), `funnel` (the users who did each step in order, each within `FUNNEL_WINDOW`, a day, of the one
+  before, read as one ordered scan of the steps' rows, 200,000 at most, and walked per user in JS; of those who
+  stopped at a step, those with an event of theirs within the window after it, and the three issues most of them hit;
+  the median time from the step before) and `retention` (8 weeks back from now: users by the week of their first
+  action in that span, active weeks per user, and the share back each week after; then the same curve for those
+  with an event in their first week and for the rest). Prototype limits: the funnel's error read takes the
+  project's events with a user in the period, 100,000 at most, and filters them in JS; first actions before the 8
+  weeks don't count as a first.
 - `widgets.ts`: dashboard widgets, schema v2 (`Widget`): a dataset (`DATASETS`: issues, events, logs, transactions,
   sessions, monitors, releases, markdown), a display it has (`DISPLAYS`; markdown is `text`), 1 to 3 queries
   (`MAX_QUERIES`) each a search, an aggregate and a label (40), up to 2 group-by fields (`GROUPS`; logs also any

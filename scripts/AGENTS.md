@@ -22,7 +22,7 @@
   so a deployment that renames its database in `wrangler.local.json` would reach one called `crashyard` instead.
 - `seed.mjs` (`pnpm seed`): fills the local dev database with a month of made-up crashes from three apps, through
   ingest's own code (normalise, fingerprint, store) and `src/data/`, with a regression, an ignored issue, a note, a
-  week of transactions (one made slower by the newest release), two weeks of sessions, monitors, a channel and a route. Wipes local projects first; it only ever opens `.wrangler/state`. Use it to look at the
+  week of transactions (one made slower by the newest release), two weeks of sessions, monitors, a channel and a route, and eight weeks of actions from pocketband's and notes web's users (a wav export on 1.0 (10) crashes now and then, in the same trace, and those who crash in their first week come back less). Wipes local projects first; it only ever opens `.wrangler/state`. Use it to look at the
   dashboard, and for screenshots.
 - `demo/wrangler.json`: the public demo's overlay (`CRASHYARD_OVERLAY=scripts/demo/wrangler.json pnpm build`): Worker
   `crashyard-demo` on demo.crashyard.dev and demo-status.crashyard.dev, D1 `crashyard-demo`, R2

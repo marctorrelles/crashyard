@@ -167,12 +167,20 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   can't loop. `forward_dsn` comes with the project from ingest's cached read, so a change takes up to a minute.
   Tail Workers' runs (`src/api/tail.ts`) aren't forwarded: Sentry wouldn't have had them, so their requests carry
   `FORWARDED`. The send times out after 10 seconds.
-- `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes). Keeps release,
+- `logs.ts`: Sentry's structured logs (a `log` item: `{ items: [...] }`, typed attributes), less the actions (`isAction`). Keeps release,
   environment and trace id from the attributes; drops `user.*` (the SDK adds the scope's user, email included).
   `storeLogs` writes each log, then its own (not `sentry.*`) attributes, up to 16, into `log_attributes` with
   `last_insert_rowid()` (that table is WITHOUT ROWID, so the id stays the log's), and adds the batch to `log_hours`
   (an upsert for each hour and level in it) and `project_days`, in one batch. About 2 + attributes rows a log, plus one
   for each hour and level.
+- `actions.ts`: product analytics through the SDK's logs. A log item whose `crashyard.action` attribute is true
+  (`true`, `"true"` or 1; `isAction`) is an action, not a log: `normalizeActions` takes its body as the name (200
+  characters, none when empty), its own attributes as properties (not `sentry.*`, `user.*` or the mark; 32, strings
+  200 characters; scrubbed), release, environment and trace id as logs do, and `user_hash` as `hashUser` of
+  `user.id`, else `user.email`, else `user.username`, as events pick theirs, so actions join a user's errors.
+  `storeActions` inserts them in one batch, three rows written an action with the indexes. `src/api/ingest.ts` passes
+  each `log` item to both, so the log quota counts actions too. Retries store an action again, as logs.
+  `actions.test.ts`.
 
 Checked against `@sentry/node` 11.9 (the e2e test) and GlitchTip's incoming event fixtures (`test/fixtures`).
 `ingest.test.ts` covers each function, and client keys through `handleIngest` (on `test/fakes.ts`, the Wasm module and
