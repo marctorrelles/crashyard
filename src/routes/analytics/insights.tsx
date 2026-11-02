@@ -14,6 +14,7 @@ import {
   readFilter,
   toFilter,
   valueLabel,
+  openAnalyticsProject,
 } from '@/components/analytics'
 import { count } from '@/components/bits'
 import { PALETTE, TimeChart } from '@/components/charts'
@@ -36,6 +37,7 @@ export const Route = createFileRoute('/analytics/insights')({
     days: readDays(s.days),
     ...readFilter(s),
   }),
+  beforeLoad: ({ search }) => openAnalyticsProject('/analytics/insights', search),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const data = await getInsights({

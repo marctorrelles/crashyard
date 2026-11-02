@@ -10,6 +10,7 @@ import {
   RetentionGrid,
   share,
   toFilter,
+  openAnalyticsProject,
 } from '@/components/analytics'
 import { count } from '@/components/bits'
 import { LEVEL_COLORS, PALETTE } from '@/components/charts'
@@ -27,6 +28,7 @@ export const Route = createFileRoute('/analytics/retention')({
     back: typeof s.back === 'string' && s.back ? s.back : undefined,
     ...readFilter(s),
   }),
+  beforeLoad: ({ search }) => openAnalyticsProject('/analytics/retention', search),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const data = await getRetention({

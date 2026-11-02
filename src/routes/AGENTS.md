@@ -116,7 +116,9 @@ server, the build, or `tsr generate`): never edit it.
   common paths, errors in amber linking to their issue and Left for the visit's end. `users.tsx` (`?user=` an id
   typed into Find user, hashed on the server; `?hash=` from the list): the 50 seen most recently, each by the start
   of its hash, or one user's facts, properties and timeline by day, errors linking to their event, Trace to the
-  trace. Funnels, retention, flows and users are one project's: the page's, else the first with actions.
+  trace. Insights, funnels, retention, flows and users are one project's: with none picked, their `beforeLoad`
+  (`openAnalyticsProject`) redirects to the first with actions as `?project=` (`getFirstAnalyticsProject`), so the
+  sidebar's switcher and the breadcrumb name it; with none having actions, the page's empty state.
 - `settings/`: the settings area. `route.tsx` is its frame: `Shell` (`full`) with Settings, then Projects and the
   project on a project's page, then the page; `SettingsNav` (`src/components/settings.tsx`) at the left edge, the
   page's name as the title (the project's name under it on its pages) and the page centred beside it, up to

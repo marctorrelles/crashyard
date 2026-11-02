@@ -725,6 +725,14 @@ export const getAnalytics = createServerFn()
     return { sections, options }
   })
 
+// With no project picked, the one-project tabs open the first with actions, put in the URL so the page says which
+export const getFirstAnalyticsProject = createServerFn().handler(async () => {
+  const now = Date.now()
+  for (const project of await projects.allProjects(env.DB))
+    if ((await analytics.actionNames(env.DB, project.id, now)).length) return project.slug
+  return null
+})
+
 // The other pages are one project's: the page's, else the first with actions
 async function analyticsProject(slug: string | undefined, now: number) {
   const list = await projectsFor(slug)

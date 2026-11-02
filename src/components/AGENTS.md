@@ -37,7 +37,9 @@
   picked project's settings (`/settings/projects/<slug>/general`); picking a project on one of its settings pages
   keeps the page for the new project, and All projects goes to Settings, Projects. An action's page is its
   `?project=`'s; picking another goes to Analytics.
-- `analytics.tsx`: the analytics pages' `AnalyticsTabs` (links with `aria-current`, scrolling sideways on a phone),
+- `analytics.tsx`: the analytics pages' `AnalyticsTabs` (links with `aria-current`, scrolling sideways on a phone,
+  only sideways: the y axis clipped, the baseline an inset shadow under the underline), `openAnalyticsProject` (a
+  one-project tab's `beforeLoad`, see `src/routes/AGENTS.md`),
   `FilterBar` (a `Select` each for platform, OS, country and release, of what the last 30 days had, then a property
   and one of its values, and Clear filters; `readFilter` and `toFilter` turn the URL's filter into the server
   functions'), `PeriodSelect` and `readDays`, `Stats` (tiles of a number, its change and a hint), `Change` (green

@@ -15,6 +15,7 @@ import {
   share,
   toFilter,
   valueLabel,
+  openAnalyticsProject,
 } from '@/components/analytics'
 import { count } from '@/components/bits'
 import { Empty, PageHeader, Shell } from '@/components/shell'
@@ -42,6 +43,7 @@ export const Route = createFileRoute('/analytics/funnel')({
     by: typeof s.by === 'string' && s.by ? s.by : undefined,
     ...readFilter(s),
   }),
+  beforeLoad: ({ search }) => openAnalyticsProject('/analytics/funnel', search),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const data = await getFunnel({

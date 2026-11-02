@@ -1,12 +1,13 @@
 // Pieces of the analytics pages: their tabs, the filter bar and period, stat tiles, breakdowns, the funnel's bars and
 // the retention grid. The filter lives in the URL (`release`, `platform`, `os`, `country`, `prop` as key:value), the
 // same on every tab, so moving between tabs keeps it.
-import { Link } from '@tanstack/react-router'
+import { Link, redirect } from '@tanstack/react-router'
 import { IconAlertTriangle, IconX } from '@tabler/icons-react'
 import { count, Level } from '@/components/bits'
 import { BarList } from '@/components/charts'
 import { formatTime, useTimePrefs } from '@/components/time'
 import { Button } from '@/components/ui/button'
+import { getFirstAnalyticsProject } from '@/fns'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +20,14 @@ const TABS = [
   { to: '/analytics/users', label: 'Users' },
 ] as const
 export type Tab = (typeof TABS)[number]['to']
+
+/** A one-project tab's `beforeLoad`: with no project picked, open the first with actions, as `?project=`, so the
+ * switcher and breadcrumb name it rather than the page choosing out of sight */
+export async function openAnalyticsProject(to: Exclude<Tab, '/analytics'>, search: { project?: string }) {
+  if (search.project) return
+  const project = await getFirstAnalyticsProject()
+  if (project) throw redirect({ to, search: { ...search, project } as never, replace: true })
+}
 
 /** The tabs, as links that keep the project and the filter */
 export function AnalyticsTabs({ at, search }: { at: Tab; search: FilterSearch & { project?: string } }) {

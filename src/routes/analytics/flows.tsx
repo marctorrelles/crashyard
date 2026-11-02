@@ -10,6 +10,7 @@ import {
   readFilter,
   share,
   toFilter,
+  openAnalyticsProject,
 } from '@/components/analytics'
 import { count } from '@/components/bits'
 import { Empty, PageHeader, Shell } from '@/components/shell'
@@ -27,6 +28,7 @@ export const Route = createFileRoute('/analytics/flows')({
     days: readDays(s.days),
     ...readFilter(s),
   }),
+  beforeLoad: ({ search }) => openAnalyticsProject('/analytics/flows', search),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const data = await getFlows({

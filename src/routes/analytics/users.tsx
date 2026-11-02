@@ -10,6 +10,7 @@ import {
   readDays,
   readFilter,
   toFilter,
+  openAnalyticsProject,
 } from '@/components/analytics'
 import { Ago, count, Level } from '@/components/bits'
 import { Empty, PageHeader, Shell } from '@/components/shell'
@@ -29,6 +30,7 @@ export const Route = createFileRoute('/analytics/users')({
     hash: typeof s.hash === 'string' && /^[0-9a-f]{32}$/.test(s.hash) ? s.hash : undefined,
     ...readFilter(s),
   }),
+  beforeLoad: ({ search }) => openAnalyticsProject('/analytics/users', search),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const data = await getUsers({
