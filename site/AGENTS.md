@@ -28,7 +28,7 @@ pnpm site:deploy   # build to site/dist and deploy it; the custom domains create
   - Grey text and Yes and No in the plans table are 4.5:1 or more.
   - Icons are `<use>` of a symbol carrying its stroke, `aria-hidden`, beside text.
 - `public/images/`: the app's screenshots (sample apps acme-ios, acme-web, sync from `pnpm seed`, light and dark,
-  2560 × 1600), `analytics-*.jpg`, the funnel of `pnpm seed`'s pocketband (pattern recorded, export started, song exported, by release) at 1280 × 800 twice over, `status-*.jpg`, a Brightpan status page with an open incident and planned maintenance, rendered from a
+  2560 × 1600), `analytics-*.jpg`, Analytics' Overview for All projects, with `pnpm seed`'s pocketband and notes-web renamed acme-ios and acme-web in the local database first, at 1280 × 800 twice over, `status-*.jpg`, a Brightpan status page with an open incident and planned maintenance, rendered from a
   throwaway local database (the demo's own page only fills its 30 days live), `og.png`, the share image (2560 × 1280,
   `og:image`, a large Twitter card, and the repo's social preview, uploaded by hand), and `logo.svg`, a copy of
   `docs/images/logo.svg`. The Status pages tab links to the demo's page, demo-status.crashyard.dev.
