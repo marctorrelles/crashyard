@@ -60,7 +60,7 @@
 
 <header class="sticky top-[env(safe-area-inset-top,0px)] z-10 border-b border-border bg-[color-mix(in_oklch,var(--bg),transparent_8%)] backdrop-blur-[10px] backdrop-saturate-[1.4]">
   <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) flex h-[60px] items-center gap-7">
-    <a class="flex items-center gap-2 text-[17px] font-[650] tracking-[-0.02em]" href="/" data-logo><svg class="size-[34px] flex-none text-accent" viewBox="1.5 1.5 21 21" aria-hidden="true"><path d="M18.99 5.71A9.4 9.4 0 1 0 18.28 19L15.95 16.91A6.3 6.3 0 1 1 15.95 7.09L13.59 9.22A3.2 3.2 0 1 0 14.38 14.14" pathLength="1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="butt" stroke-linejoin="miter" stroke-dasharray="1 1.05"/></svg>crashyard</a>
+    <a class="flex items-center gap-2 text-[17px] font-[650] tracking-[-0.02em]" href="/" data-logo><svg class="size-[34px] flex-none fill-accent" viewBox="1.5 1.5 21 21" aria-hidden="true"><path d="M19.73 5.04A10.4 10.4 0 1 0 19.73 18.96L15.94 15.55A5.3 5.3 0 1 1 14.31 7.23L13.41 8.04A4.2 4.2 0 1 0 15.12 14.81L13.63 13.47A2.2 2.2 0 1 1 13.63 10.53L17.42 7.12A7.3 7.3 0 1 0 15.88 18.18L16.72 18.95A8.4 8.4 0 1 1 18.24 6.38Z" data-whole/><g opacity="0" data-parts><path d="M19.730 5.042A10.4 10.4 0 1 0 19.729 18.959L18.242 17.621A8.4 8.4 0 1 1 18.243 6.380Z" data-ring/><path d="M17.425 7.115A7.3 7.3 0 1 0 17.424 16.885L15.937 15.548A5.3 5.3 0 1 1 15.938 8.453Z" data-ring/><path d="M15.121 9.189A4.2 4.2 0 1 0 15.121 14.811L13.634 13.473A2.2 2.2 0 1 1 13.634 10.527Z" data-ring/><path d="M18.465 17.822A8.7 8.7 0 0 1 16.946 19.157L15.653 17.972A7 7 0 0 0 17.201 16.685Z" data-ring/><path d="M16.161 8.253A5.6 5.6 0 0 0 14.550 7.014L13.150 8.274A3.9 3.9 0 0 1 14.898 9.390Z" data-ring/></g></svg>crashyard</a>
     <nav class="flex gap-[22px] text-[14.5px] text-fg-2 max-md:hidden *:hover:text-fg" aria-label="Main">
       <a href="#symbols">Stack traces</a>
       <a href="#tour">Product</a>
@@ -460,29 +460,58 @@
     setTimeout(() => { label.textContent = 'Copy'; announce.textContent = '' }, 1600)
   }))
 
-  // The nav's logo plays the app's loading animation (src/styles.css, .cy-draw) once as the page opens, and again on
-  // a pointer over it or a press: its centreline, from whole, taken away from its start, then drawn back. Faster than
-  // the app's, 2 s: taken away speeding up, a beat empty (160 ms), drawn back from fast to slow. Its pathLength is 1, so the
-  // offsets are fractions of it. Never with reduced motion
-  const logo = document.querySelector('[data-logo] path')
+  // The nav's logo plays the app's loading animation, Tumblers (Loader in src/components/shell.tsx), on a pointer over
+  // it or a press, not as the page opens: its five pieces (the app's PIECES, the same paths in the same
+  // order), outside in each turning the other way from the one before, then the whole mark again. Each round draws its
+  // own numbers: each piece 1 to 3 turns, starting within 0.25 s, its turn 2.2 to 3.4 s but never over 400° a second
+  // on average (one that drew too many turns for its time takes longer). Each moves as the app's do: up to its speed
+  // within 40°, on at it, then braking evenly over its last 90° into its place, in its own time. The whole mark at
+  // rest; its pieces only while they turn. Never with reduced motion
+  const rings = [...document.querySelectorAll('[data-logo] [data-ring]')]
+  const whole = document.querySelector('[data-logo] [data-whole]')
+  const parts = document.querySelector('[data-logo] [data-parts]')
+  // In drawing order (outer, middle and inner rings, then the outer and inner folds): the way each turns
+  const DIRS = [1, 1, 1, -1, -1]
+  const rand = (lo, hi) => lo + Math.random() * (hi - lo)
+  const rotate = (deg, offset, easing) => ({ transform: `rotate(${deg}deg)`, offset, easing })
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
   // One round at a time: a press or a pointer while it plays leaves it be
   const draw = () => {
-    if (still() || logo.getAnimations().length) return
-    logo.animate(
-      [
-        { strokeDashoffset: '0', easing: 'cubic-bezier(0.55, 0, 0.9, 0.5)' },
-        { strokeDashoffset: '-1.02', offset: 0.42, easing: 'step-end' },
-        { strokeDashoffset: '1.02', offset: 0.5, easing: 'cubic-bezier(0.1, 0.5, 0.3, 1)' },
-        { strokeDashoffset: '0' },
-      ],
-      { duration: 2000 },
-    )
+    if (still() || rings.some((r) => r.getAnimations().length)) return
+    const plan = rings.map(() => {
+      const turns = Math.floor(rand(1, 4))
+      return { turns, delay: rand(0, 250), duration: Math.max(rand(2200, 3400), turns * 900) }
+    })
+    const round = Math.max(...plan.map((p) => p.delay + p.duration))
+    whole.setAttribute('opacity', '0')
+    parts.setAttribute('opacity', '1')
+    const done = rings.map((ring, i) => {
+      const { turns, delay, duration } = plan[i]
+      const dir = DIRS[i], total = turns * 360, at = (ms) => (delay + ms) / round
+      // Its speed from its average over the turn (the ramp and brake each take twice their angle's time at it)
+      const speed = (total + 130) / duration, ramp = 80 / speed, coast = (total - 130) / speed
+      ring.style.transformBox = 'view-box'
+      ring.style.transformOrigin = '12px 12px'
+      return ring.animate(
+        [
+          rotate(0, 0),
+          rotate(0, at(0), 'cubic-bezier(0.5, 0, 0.75, 0.5)'),
+          rotate(dir * 40, at(ramp), 'linear'),
+          rotate(dir * (total - 90), at(ramp + coast), 'cubic-bezier(0.333, 0.667, 0.667, 1)'),
+          rotate(dir * total, at(duration)),
+          rotate(dir * total, 1),
+        ],
+        { duration: round },
+      ).finished
+    })
+    Promise.all(done).then(() => {
+      whole.setAttribute('opacity', '1')
+      parts.setAttribute('opacity', '0')
+    })
   }
-  draw()
   // A mouse over it, or a press of a finger or pen, which has no hover. Already on this page, a press goes back to the
   // top instead of loading it again, which would start another round
-  const home = logo.closest('a')
+  const home = document.querySelector('[data-logo]')
   home.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && draw())
   home.addEventListener('pointerdown', draw)
   home.addEventListener('click', (e) => {

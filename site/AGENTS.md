@@ -12,9 +12,12 @@ pnpm site:deploy   # build to site/dist and deploy it; the custom domains create
 - `index.html`: the whole page, styled with Tailwind utilities inline (no component classes), one inline script.
   Prettier skips it, as its `<pre>` blocks are whitespace-exact: each line of a snippet is one `pre > span`. The hero's
   columns align to the top, so a taller snippet grows the code card downward. The nav's logo is the C mark alone, the
-  Deploy button's height: its centreline, playing the app's loading animation (`.cy-draw` in `src/styles.css`, the
-  same path), faster here, 2 s: taken away speeding up, a beat empty (160 ms), drawn back from fast to slow, once on load, on a mouse over it and on a press (touch has no hover), one round at a time,
-  through the Web Animations API, never with reduced motion. Pressed on this page, it scrolls to the top rather than
+  Deploy button's height: the whole mark at rest (`data-whole`), and while it plays the app's loader's five pieces (`PIECES` in
+  `src/components/shell.tsx`, the same paths in the same order, `data-ring`), outside in each turning the other way
+  from the one before, moving as the app's do (up to speed within 40°, on, braking evenly over the last 90°), with
+  each round's own numbers: 1 to 3 turns a piece, starting within 0.25 s, 2.2 to 3.4 s a turn and never over 400° a
+  second on average; on a mouse over it and on a press (touch has no hover), not on load, one round at a
+  time, through the Web Animations API, never with reduced motion. Pressed on this page, it scrolls to the top rather than
   loading it again. The footer's is the filled mark.
 - `styles.css`: only what utilities can't be: the Geist faces, Hazard's tokens light and dark (as the system is, no
   switch) mapped to Tailwind colors (`bg-card`, `text-fg-2`, `text-code-key`…), the breakpoints (xs 420, sm 640, md

@@ -23,7 +23,7 @@ import {
   IconTag,
   IconX,
 } from '@tabler/icons-react'
-import { Fragment, useEffect, useState, useSyncExternalStore } from 'react'
+import { Fragment, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -461,9 +461,9 @@ function ProjectSwitcher({
 }) {
   const navigate = useNavigate()
   const loading = usePageLoading()
-  // Set once the loader's first round starts, cleared at the end of the round in which the page came: a round always
-  // finishes, back to the whole mark, so the swap to the logo is seamless
-  const [drawing, setDrawing] = useState(false)
+  // On while the page loads and until the loader's pieces are back in their places, so the swap to the logo is seamless
+  const [spinning, setSpinning] = useState(false)
+  if (loading && !spinning) setSpinning(true)
   const pick = (slug?: string) => {
     onPick()
     keep(slug ?? null)
@@ -493,11 +493,11 @@ function ProjectSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" tooltip="Switch project">
               <span className="flex size-8 shrink-0 items-center justify-center">
-                {loading || drawing ? (
+                {loading || spinning ? (
                   <Loader
-                    className="size-8! shrink-0 text-sidebar-foreground group-data-[collapsible=icon]:size-5!"
-                    onStart={() => setDrawing(true)}
-                    onRound={() => !loading && setDrawing(false)}
+                    className="size-8! shrink-0 fill-sidebar-foreground group-data-[collapsible=icon]:size-5!"
+                    loading={loading}
+                    onDone={() => setSpinning(false)}
                   />
                 ) : (
                   <Logo />
@@ -543,14 +543,46 @@ function ProjectSwitcher({
 }
 
 // The c of crashyard: one band drawn round three times, folding back at the mouth, every end and fold cut square on
-// the mouth's two lines (the tiled drawings are docs/images/logo.svg and src/favicon.svg). MARK is its outline; LINE
-// its centreline, which stroked 2 wide with butt caps and miter joins covers exactly the outline, so the loader draws
-// the same mark. 32 px, as tall as the name and project beside it, 20 folded to icons, over the menu button's 16 px
+// the mouth's two lines (the tiled drawings are docs/images/logo.svg and src/favicon.svg). MARK is its outline. 32 px, as tall as the name and project beside it, 20 folded to icons, over the menu button's 16 px
 // for every svg; in the sidebar's colour, which isn't always the page's
 const MARK =
   'M19.73 5.04A10.4 10.4 0 1 0 19.73 18.96L15.94 15.55A5.3 5.3 0 1 1 14.31 7.23L13.41 8.04A4.2 4.2 0 1 0 15.12 14.81L13.63 13.47A2.2 2.2 0 1 1 13.63 10.53L17.42 7.12A7.3 7.3 0 1 0 15.88 18.18L16.72 18.95A8.4 8.4 0 1 1 18.24 6.38Z'
-const LINE =
-  'M18.99 5.71A9.4 9.4 0 1 0 18.28 19L15.95 16.91A6.3 6.3 0 1 1 15.95 7.09L13.59 9.22A3.2 3.2 0 1 0 14.38 14.14'
+// MARK in five pieces, for the loader, in drawing order: its three rings, each cut on the mouth's lines, then the two
+// folds between them over the rings, each reaching 0.3 into the rings beside it so no seam shows where they join.
+// Worked out from MARK's corners; together they're MARK to 0.01. Each turns its own way, outside in each the other way
+// from the one before: a turn in `period` ms, starting `delay` ms after the loader does
+const PIECES = [
+  {
+    d: 'M19.730 5.042A10.4 10.4 0 1 0 19.729 18.959L18.242 17.621A8.4 8.4 0 1 1 18.243 6.380Z',
+    dir: 1,
+    period: 1600,
+    delay: 0,
+  },
+  {
+    d: 'M17.425 7.115A7.3 7.3 0 1 0 17.424 16.885L15.937 15.548A5.3 5.3 0 1 1 15.938 8.453Z',
+    dir: 1,
+    period: 1400,
+    delay: 100,
+  },
+  {
+    d: 'M15.121 9.189A4.2 4.2 0 1 0 15.121 14.811L13.634 13.473A2.2 2.2 0 1 1 13.634 10.527Z',
+    dir: 1,
+    period: 1000,
+    delay: 200,
+  },
+  {
+    d: 'M18.465 17.822A8.7 8.7 0 0 1 16.946 19.157L15.653 17.972A7 7 0 0 0 17.201 16.685Z',
+    dir: -1,
+    period: 1200,
+    delay: 50,
+  },
+  {
+    d: 'M16.161 8.253A5.6 5.6 0 0 0 14.550 7.014L13.150 8.274A3.9 3.9 0 0 1 14.898 9.390Z',
+    dir: -1,
+    period: 1100,
+    delay: 150,
+  },
+] as const
 
 /** crashyard's mark, the sidebar's size and colour unless told otherwise */
 export function Logo({
@@ -565,25 +597,81 @@ export function Logo({
   )
 }
 
+type Piece = (typeof PIECES)[number]
+const rotate = (deg: number) => ({ transform: `rotate(${deg}deg)` })
+const angleOf = (el: Element) => {
+  const m = new DOMMatrix(getComputedStyle(el).transform)
+  return (Math.atan2(m.b, m.a) * 180) / Math.PI
+}
+
+// From where it is, up to its steady speed within 40° (a quadratic ease-in, ending at that speed), then turn after turn
+function spin(el: SVGPathElement, { dir, period, delay }: Piece) {
+  const a = angleOf(el)
+  for (const x of el.getAnimations()) x.cancel()
+  const b = a + dir * 40
+  const ramp = el.animate([rotate(a), rotate(b)], {
+    duration: (period * 80) / 360,
+    delay,
+    easing: 'cubic-bezier(0.5, 0, 0.75, 0.5)',
+    fill: 'backwards',
+  })
+  ramp.onfinish = () => el.animate([rotate(b), rotate(b + dir * 360)], { duration: period, iterations: Infinity })
+}
+
+// To its place like a dial: on at its speed until 90° before it, then braking evenly to a stop there (a quadratic
+// ease-out, which starts at that speed); one more turn if it's within those 90° already. One still waiting to start
+// just stays
+function land(el: SVGPathElement, { dir, period, delay }: Piece) {
+  const running = el.getAnimations()[0]
+  const a = angleOf(el)
+  const waiting = !running || (running.currentTime as number) < delay
+  for (const x of el.getAnimations()) x.cancel()
+  if (waiting) return Promise.resolve()
+  const brake = 90
+  let rest = dir > 0 ? ((-a % 360) + 360) % 360 : ((a % 360) + 360) % 360
+  if (rest < brake) rest += 360
+  const coast = rest - brake
+  return el.animate(
+    [
+      { ...rotate(a), easing: 'linear' },
+      {
+        ...rotate(a + dir * coast),
+        offset: coast / (coast + 2 * brake),
+        easing: 'cubic-bezier(0.333, 0.667, 0.667, 1)',
+      },
+      rotate(a + dir * rest),
+    ],
+    { duration: ((coast + 2 * brake) * period) / 360, fill: 'forwards' },
+  ).finished
+}
+
 /**
- * The sidebar's logo while a page loads: from the whole mark it takes itself away from its start, then draws itself
- * back (`.cy-draw` in styles.css). `onRound` at the end of each round, when it's whole again
+ * The sidebar's logo while a page loads: Tumblers, its five pieces turning on, each its own way and speed, for as long
+ * as `loading`; then each lands back in its place and `onDone`, when it's the whole logo again. Loading again while
+ * they land sets them turning from where they are. With reduced motion, still
  */
-function Loader({ className, onStart, onRound }: { className: string; onStart: () => void; onRound: () => void }) {
+function Loader({ className, loading, onDone }: { className: string; loading: boolean; onDone: () => void }) {
+  const ref = useRef<SVGSVGElement>(null)
+  const done = useEffectEvent(onDone)
+  useEffect(() => {
+    const els = [...(ref.current?.querySelectorAll('path') ?? [])]
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (!loading) done()
+      return
+    }
+    if (loading) els.forEach((el, i) => spin(el, PIECES[i]))
+    // A landing cut short by loading again rejects, and then it isn't done
+    else
+      Promise.all(els.map((el, i) => land(el, PIECES[i]))).then(
+        () => done(),
+        () => {},
+      )
+  }, [loading])
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path
-        d={LINE}
-        pathLength={1}
-        className="cy-draw"
-        onAnimationStart={onStart}
-        onAnimationIteration={onRound}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="butt"
-        strokeLinejoin="miter"
-      />
+    <svg ref={ref} viewBox="0 0 24 24" className={className} aria-hidden="true">
+      {PIECES.map((p) => (
+        <path key={p.d} d={p.d} className="origin-[12px_12px] [transform-box:view-box]" />
+      ))}
     </svg>
   )
 }
