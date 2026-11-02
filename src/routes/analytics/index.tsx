@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router'
-import { IconChartFunnel, IconInfoCircle } from '@tabler/icons-react'
+import { IconChartPie, IconInfoCircle } from '@tabler/icons-react'
 import {
   AnalyticsTabs,
   Breakdown,
@@ -66,11 +66,11 @@ function Overview() {
       />
       {shown.length === 0 &&
         (ever ? (
-          <Empty icon={IconChartFunnel} title="No actions in this period">
+          <Empty icon={IconChartPie} title="No actions in this period">
             Nothing matches this period and these filters. Try a longer period or clear the filters.
           </Empty>
         ) : (
-          <Empty icon={IconChartFunnel} title="No actions yet">
+          <Empty icon={IconChartPie} title="No actions yet">
             Turn on logs with <code>enableLogs: true</code> in <code>Sentry.init</code>, then send a log with{' '}
             <code>crashyard.action</code> set, such as{' '}
             <code>

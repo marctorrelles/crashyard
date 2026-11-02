@@ -9,7 +9,7 @@ import {
   IconBell,
   IconBroadcast,
   IconBug,
-  IconChartFunnel,
+  IconChartPie,
   IconCheck,
   IconCompass,
   IconGauge,
@@ -335,7 +335,7 @@ function AppSidebar() {
                 </Link>
               )}
             </Item>
-            <Item label="Analytics" icon={IconChartFunnel} active={at('/analytics')}>
+            <Item label="Analytics" icon={IconChartPie} active={at('/analytics')}>
               {(c) => (
                 <Link to="/analytics" search={search} onClick={close}>
                   {c}
