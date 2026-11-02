@@ -68,7 +68,6 @@ function builder(file: Uint8Array) {
 
 afterEach(() => {
   vi.unstubAllGlobals()
-  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -149,18 +148,10 @@ describe('debug files too big for the worker', () => {
 describe('asking the builder', () => {
   const NO_INSTANCE = 'there is no container instance that can be provided to this Durable Object, try again later'
   const body = () => new Blob(['a dSYM']).stream()
-
-  async function settled<T>(promise: Promise<T>) {
-    const result = promise.then(
-      (value) => ({ value }),
-      (error: unknown) => ({ error }),
-    )
-    await vi.runAllTimersAsync()
-    return result
-  }
+  // As many tries as in a deployment, without the waits
+  const waits = BUILD_RETRIES.map(() => 0)
 
   it('tries again while Cloudflare has no container instance, with the file sent whole each time', async () => {
-    vi.useFakeTimers()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const got: string[] = []
     let tries = 0
@@ -170,21 +161,19 @@ describe('asking the builder', () => {
       if (tries === 2) return Response.json({ error: 'busy' }, { status: 503 })
       return Response.json([])
     }
-    const { value } = (await settled(ask(build, '/objects', body, 6))) as { value: Response }
-    expect(await value.json()).toEqual([])
+    const answer = await ask(build, '/objects', body, 6, waits)
+    expect(await answer.json()).toEqual([])
     expect(got).toEqual(['a dSYM', 'a dSYM', 'a dSYM'])
   })
 
   it('gives up once its tries are spent, with what went wrong', async () => {
-    vi.useFakeTimers()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     let tries = 0
     const build: Build = async () => {
       tries++
       throw new Error(NO_INSTANCE)
     }
-    const { error } = (await settled(ask(build, '/objects', body, 6))) as { error: Error }
-    expect(error.message).toBe(NO_INSTANCE)
+    await expect(ask(build, '/objects', body, 6, waits)).rejects.toThrow(NO_INSTANCE)
     expect(tries).toBe(BUILD_RETRIES.length + 1)
   })
 
@@ -194,7 +183,7 @@ describe('asking the builder', () => {
       tries++
       return Response.json({ error: 'unknown file format' }, { status: 422 })
     }
-    await expect(ask(build, '/objects', body, 6)).rejects.toThrow('unknown file format')
+    await expect(ask(build, '/objects', body, 6, waits)).rejects.toThrow('unknown file format')
     expect(tries).toBe(1)
   })
 })

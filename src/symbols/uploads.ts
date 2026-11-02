@@ -115,12 +115,13 @@ export const BUILD_RETRIES = [2, 5, 10, 20, 40].map((s) => s * 1000)
 const RETRIED = new Set([502, 503, 504])
 
 /** Asks the builder's container, trying again while it can't be reached, and says what it refused. `body` makes the
- *  file afresh for each try, as a stream is read once */
+ *  file afresh for each try, as a stream is read once; `waits` are BUILD_RETRIES but in tests */
 export async function ask(
   build: Build,
   path: string,
   body: () => ReadableStream | Promise<ReadableStream>,
   size: number,
+  waits = BUILD_RETRIES,
 ) {
   for (let i = 0; ; i++) {
     const stream = await body()
@@ -128,16 +129,16 @@ export async function ask(
     try {
       answer = await build(path, stream, size)
     } catch (error) {
-      if (i >= BUILD_RETRIES.length) throw error
+      if (i >= waits.length) throw error
       console.warn(`SymCache builder ${path}: try ${i + 1} failed, trying again`, error)
-      await new Promise((resolve) => setTimeout(resolve, BUILD_RETRIES[i]))
+      await new Promise((resolve) => setTimeout(resolve, waits[i]))
       continue
     }
     if (answer.ok) return answer
-    if (RETRIED.has(answer.status) && i < BUILD_RETRIES.length) {
+    if (RETRIED.has(answer.status) && i < waits.length) {
       await answer.body?.cancel()
       console.warn(`SymCache builder ${path}: try ${i + 1} answered HTTP ${answer.status}, trying again`)
-      await new Promise((resolve) => setTimeout(resolve, BUILD_RETRIES[i]))
+      await new Promise((resolve) => setTimeout(resolve, waits[i]))
       continue
     }
     const why = (await answer.json().catch(() => null)) as { error?: string } | null
