@@ -2,7 +2,7 @@
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/marctorrelles/crashyard/badge)](https://scorecard.dev/viewer/?uri=github.com/marctorrelles/crashyard)
 
-Crash reporting, error tracking and logs that run on your own Cloudflare account.
+Crash reporting, error tracking, logs and product analytics that run on your own Cloudflare account.
 
 **[Try the live demo](https://demo.crashyard.dev)** with six made-up apps sending real crashes, or read more on
 [crashyard.dev](https://crashyard.dev).
@@ -52,8 +52,10 @@ crashyard speaks Sentry's protocol. It isn't affiliated with Sentry.
   funnels you can save, with conversion by release; weekly retention; flows; each person's timeline; a Product
   dashboard template; and alerts on an action's count. Actions and errors share their users, so a funnel shows how
   many people stopped at a step after an error, and retention compares those who hit one with those who didn't.
-  Actions count towards the daily log limit and are kept 365 days.
-- **Dashboards.** Build charts, numbers and tables from issues, events and logs, or start from the Crashes template.
+  Actions count towards the daily log limit and are kept 365 days. [docs/linking.md](docs/linking.md#product-analytics)
+  shows how to send them.
+- **Dashboards.** Build charts, numbers and tables from issues, events, logs and actions, or start from the Crashes or
+  Product template.
 - **Monitors.** Cron monitors for scheduled jobs and uptime checks for URLs, with public status pages showing the
   checks you choose from any of your projects. Post incidents, notices and planned maintenance with their updates and
   the services they affect, with your own look and your own domain.

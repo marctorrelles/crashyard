@@ -203,6 +203,26 @@ Some SDKs need logs turned on first:
 - Apple: `options.experimental.enableLogs = true`.
 - Android: `io.sentry.logs.enabled`.
 
+## Product analytics
+
+An action is a log with `crashyard.action` set. crashyard counts it under Analytics instead of listing it under Logs:
+
+```js
+Sentry.setUser({ id: account.id })
+Sentry.logger.info('song exported', { format: 'wav', 'crashyard.action': true })
+```
+
+The log's message is the action's name, and its other attributes are its properties, so `format` can filter and break
+down any chart. Logs have to be turned on first, as above. Each action records its platform, OS, device, browser,
+release and the visitor's country, never their IP address.
+
+Set the user before sending actions. Actions and errors are matched by the user's id, or their email or username when
+there is no id, so a funnel shows who stopped after an error. Without a user, an action still counts towards totals
+but not towards active users, funnels, retention or flows.
+
+Actions count towards the project's daily log limit. They are kept for its action retention, 365 days unless you change
+it in the project's settings, under Limits and retention.
+
 ## Cron jobs and uptime
 
 A scheduled job checks in each time it runs, and crashyard alerts you when a run is missed, fails or takes too long:

@@ -22,7 +22,7 @@ flowchart LR
 
   ingest --> symbolic
   upload --> symbolic
-  ingest --> d1[("D1<br/>issues, events, logs,<br/>monitors, performance")]
+  ingest --> d1[("D1<br/>issues, events, logs, actions,<br/>monitors, performance")]
   ingest --> r2[("R2<br/>raw and pending envelopes,<br/>attachments, debug files, source maps")]
   upload --> r2
   upload --> d1
@@ -37,7 +37,7 @@ flowchart LR
 - **Ingest**, in `src/api/ingest.ts` and `src/ingest/`. Each envelope is checked against its project's key and daily
   limits, kept in R2 while it's processed, then each item in it is handled. An item that fails is tried again by the
   scheduled task. An event is scrubbed, symbolicated, fingerprinted and stored in its issue.
-  Logs, check-ins, transactions and sessions go to their own tables. Anything worth an alert, such as a new issue, a
+  Logs, actions, check-ins, transactions and sessions go to their own tables. Anything worth an alert, such as a new issue, a
   regression or a threshold, becomes an alert that is sent after the response, through `ctx.waitUntil`.
 - **Readable stack traces**, in `src/symbols/` and `symcache/`. Sentry's own `symbolic` library, written in Rust, is
   compiled to WebAssembly and runs in the worker. Uploads are turned into SymCaches and SourceMapCaches in R2, and each

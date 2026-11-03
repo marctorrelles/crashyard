@@ -225,7 +225,7 @@ What fills up first on Free:
 
 - **D1 writes.** Free allows 100,000 rows written a day, and an event writes about 30, so a few thousand events a day.
 - **D1 storage.** A database holds 500 MB on Free and 10 GB on Paid. Settings, Health shows how much is used. Each
-  project's retention decides how long events and logs stay.
+  project's retention decides how long events, logs and actions stay.
 - **R2 writes.** Free includes a million class A operations a month, which hold about 16,000 events a day.
 
 ## Backups
