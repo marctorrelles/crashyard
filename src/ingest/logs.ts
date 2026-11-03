@@ -2,7 +2,7 @@
 // each with a timestamp (seconds), level, body, trace id and typed attributes ({ value, type }).
 import { scrub, scrubText } from './scrub'
 import { timestampOf } from './event'
-import { type Action, actionsStatement, isAction } from './actions'
+import { type Action, actionsStatement, actionUsersStatement, isAction } from './actions'
 
 export type Log = {
   timestamp: number // ms
@@ -80,6 +80,8 @@ export async function storeLogs(
 ) {
   if (!logs.length && !actions.length) return
   const statements: D1PreparedStatement[] = actions.length ? [actionsStatement(db, projectId, actions)] : []
+  const users = actions.length ? actionUsersStatement(db, projectId, actions) : null
+  if (users) statements.push(users)
   for (const log of logs) {
     statements.push(
       db

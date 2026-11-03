@@ -195,10 +195,12 @@ helpers (`change`).
   30 minutes apart, errors among them as `error:<issue>`, `end` when the visit ends; per step the top 6, and the top
   10 paths), `users` (the 50 seen most recently, latest platform, OS, device, country and release from the row of
   `MAX(timestamp)`, first seen and errors for those 50 by `json_each`), `userTimeline` (a hash's newest 300 actions
-  and 100 events, newest first, and each property's newest value) and `pruneActions` (the hourly cron, at :15 with
-  logs: past `projects.action_retention_days`, 1000 a batch). `analytics.test.ts` on `test/fakes.ts`: re-anchoring,
+  and 100 events, newest first, and each property's newest value), `findUser` (a typed id, email or username:
+  its field hashes, `userMatch`, looked up in `action_users` by primary key, the most recently seen; else the text
+  hashed as an id, so actions from before 0037 are found by id) and `pruneActions` (the hourly cron, at :15 with
+  logs: past `projects.action_retention_days`, 1000 a batch, then `action_users` last seen past it). `analytics.test.ts` on `test/fakes.ts`: re-anchoring,
   a funnel's errors and issue, retention's first week, anonymous actions, filters, flows, the timeline, the actions
-  metric, pruning.
+  metric, pruning (`actions.test.ts`: `findUser` by email).
 - `widgets.ts`: dashboard widgets, schema v2 (`Widget`): a dataset (`DATASETS`: issues, events, logs, transactions,
   sessions, monitors, releases, actions, markdown; actions one row each from `actions`, count and unique users, by
   action, release, platform, os, country, device, environment or project, filtered by the fixed keys action, release,

@@ -40,7 +40,6 @@ import { type Assertion, UPTIME_METHODS } from './monitors/monitors'
 import { frequencyOf, INTERVALS, tagFilterError } from './notify/rules'
 import { version } from '../package.json'
 import { EVENT_KEYS, ISSUE_KEYS, issueFilter, type KeyInfo, LOG_KEYS } from './search/query'
-import { hashUser } from './search/user'
 import { DEMO_REFUSAL, demoRefuses, isDemo } from './demo'
 
 const viewer = () => getRequestHeader('x-crashyard-viewer') ?? 'unknown'
@@ -919,7 +918,7 @@ export const getUsers = createServerFn()
       slug: o.slug === undefined ? undefined : text(o.slug, 60),
       days: daysOf(o.days, 30),
       filter: analyticsFilter(o.filter),
-      // A user to open: the id as the app sets it, hashed here as ingest does, or a hash from the list
+      // A user to open: an id, email or username as the app sets it (`findUser`), or a hash from the list
       user: optional((v) => text(v, 200))(o.user),
       hash: optional((v) => text(v, 32))(o.hash),
     }
@@ -929,7 +928,7 @@ export const getUsers = createServerFn()
     const found = await analyticsProject(data.slug, now)
     if (!found) return null
     const { project, options } = found
-    const hash = data.user ? hashUser(data.user.trim()) : data.hash
+    const hash = data.user && project ? await analytics.findUser(env.DB, project.id, data.user.trim()) : data.hash
     return {
       project,
       options,

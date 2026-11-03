@@ -2,7 +2,7 @@
 // action (signed up, exported a song), not a log. Its body is the action's name, its own attributes its properties,
 // and the scope's user is kept as a hash, as events' are, so actions and errors meet on the same user.
 //   Sentry.logger.info('song exported', { format: 'wav', 'crashyard.action': true })
-import { hashUser } from '../search/user'
+import { hashUser, userKeysOf } from '../search/user'
 import { timestampOf } from './event'
 import { scrub, scrubText } from './scrub'
 
@@ -16,6 +16,7 @@ export type Action = {
   timestamp: number // ms
   name: string
   userHash?: string
+  userKeys?: string[] // a hash per user field sent, as events.user_keys, for finding the user by any of them
   release?: string
   environment?: string
   traceId?: string
@@ -88,6 +89,9 @@ export function normalizeActions(payload: unknown, received: number, country?: s
           timestamp: timestampOf(item.timestamp) ?? received,
           name,
           userHash: user ? hashUser(user) : undefined,
+          userKeys: user
+            ? userKeysOf({ id: str('user.id'), email: str('user.email'), username: str('user.name') })?.split(' ')
+            : undefined,
           release: str('sentry.release'),
           environment: str('sentry.environment'),
           platform: platformOf(str('sentry.sdk.name')),
@@ -119,4 +123,22 @@ export function actionsStatement(db: D1Database, projectId: number, actions: Act
        FROM json_each(?)`,
     )
     .bind(projectId, JSON.stringify(actions))
+}
+
+/**
+ * The statement that keeps each user's field hashes (`action_users`, 0037), so Analytics finds a user by their email
+ * or username as well as their id. One upsert over them as JSON; a key's row moves only once a day (`seen`), so it
+ * costs a row written a user a day, not an action. Null when no action names a user
+ */
+export function actionUsersStatement(db: D1Database, projectId: number, actions: Action[]) {
+  const rows = actions.flatMap((a) => (a.userHash ? (a.userKeys ?? []).map((k) => [k, a.userHash, a.timestamp]) : []))
+  if (!rows.length) return null
+  return db
+    .prepare(
+      `INSERT INTO action_users (project_id, key, user_hash, seen)
+       SELECT ?, json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]') FROM json_each(?) WHERE true
+       ON CONFLICT (project_id, key) DO UPDATE SET user_hash = excluded.user_hash, seen = excluded.seen
+         WHERE excluded.seen > action_users.seen + 86400000`,
+    )
+    .bind(projectId, JSON.stringify(rows))
 }

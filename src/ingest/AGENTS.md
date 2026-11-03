@@ -181,7 +181,10 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   Apple, Android, Flutter, React Native, Server, Unity), `os.name`, `device.model` else `device.family`,
   `browser.name`, the request's country from Cloudflare (`request.cf.country`, none on the cron's retries, never an
   IP), and `user_hash` as `hashUser` of `user.id`, else `user.email`, else `user.name` (what the logs carry for the
-  username), numbers as text, as events pick theirs, so actions join a user's errors. Checked against
+  username), numbers as text, as events pick theirs, so actions join a user's errors; `userKeys`, a hash per field
+  sent (`userKeysOf` of `user.id`, `user.email`, `user.name` as the username), which `actionUsersStatement` keeps in
+  `action_users` (0037) in the same batch, an upsert that moves a key's row (its user and `seen`) only once a day,
+  so Find user takes an email too. Checked against
   `@sentry/core` 11.9's `logs/internal.js`. `actionsStatement` writes any number as one `INSERT … SELECT` over
   `json_each`, three rows written an action with the indexes; `storeLogs` puts it in the item's batch, so a retry
   finds both or neither, and counts actions with logs in `project_days.logs`, the daily log limit. The seed runs

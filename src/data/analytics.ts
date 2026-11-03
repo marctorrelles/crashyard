@@ -3,6 +3,7 @@
 // flows; and users with their timeline. Actions and events hash their user alike, so each says which users also hit an
 // error (an event of level error or fatal). Every read takes a `Filter`: release, platform, OS, country and one
 // property, all bound. Events are windowed by `received`, which `events_project` indexes, then held to their own time.
+import { userMatch } from '../search/user'
 import { inBatches, PRUNE_BUDGET } from './projects'
 
 const HOUR = 3_600_000
@@ -956,5 +957,35 @@ export async function pruneActions(db: D1Database, now: number, deadline = Date.
           .run()
       ).meta.changes ?? 0,
   )
-  return { actions }
+  // The users' field hashes go with their actions' retention, by when each was last seen
+  const users = await inBatches(
+    deadline,
+    async () =>
+      (
+        await db
+          .prepare(
+            `DELETE FROM action_users WHERE (project_id, key) IN (SELECT u.project_id, u.key FROM action_users u
+             JOIN projects p ON p.id = u.project_id WHERE u.seen < ? - p.action_retention_days * 86400000 LIMIT 1000)`,
+          )
+          .bind(now)
+          .run()
+      ).meta.changes ?? 0,
+  )
+  return { actions, users }
+}
+
+/**
+ * The user hash a typed id, email or username names in a project's actions (`action_users`, by `userMatch`'s field
+ * hashes), the most recently seen when several do; else the typed text hashed as ingest hashes an id, which also finds
+ * actions stored before 0037
+ */
+export async function findUser(db: D1Database, projectId: number, typed: string) {
+  const { legacy, keys } = userMatch('user', typed)
+  const row = await db
+    .prepare(
+      `SELECT user_hash AS user FROM action_users WHERE project_id = ? AND key IN (${marks(keys.length)}) ORDER BY seen DESC LIMIT 1`,
+    )
+    .bind(projectId, ...keys)
+    .first<{ user: string }>()
+  return row?.user ?? legacy
 }

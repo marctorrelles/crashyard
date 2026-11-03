@@ -109,3 +109,7 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
 - `0035_artifact_cache_ranges.sql`: `artifact_files.cache_offset` and `cache_length`, a file's SourceMapCache as a range
   of its bundle's one packed object; null on older rows, whose `cache_key` is the whole object. A worker from before
   reads a new row's whole packed object as one cache, so its JavaScript frames stay unmapped until the deploy finishes.
+- `0037_action_users.sql`: `action_users`, a hash per user field (id, email, username; `src/search/user.ts`) of a
+  project's actions naming the `user_hash` they carry, with `seen` (moved once a day at most), WITHOUT ROWID by
+  `(project_id, key)`; pruned with the actions' retention. A worker from before writes none, so Find user takes only
+  ids for what it stored.

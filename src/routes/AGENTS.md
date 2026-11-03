@@ -113,8 +113,8 @@ server, the build, or `tsr generate`): never edit it.
   named users count and when the read was partial, the four numbers, `FunnelSteps`, Conversion by group.
   `retention.tsx` (`?start=`, `?back=`): Do errors drive people away?, then `RetentionGrid`. `flows.tsx`
   (`?anchor=`, `?direction=before`): Before or After, the anchor's card, a card a step (stacked on a phone), the most
-  common paths, errors in amber linking to their issue and Left for the visit's end. `users.tsx` (`?user=` an id
-  typed into Find user, hashed on the server; `?hash=` from the list): the 50 seen most recently, each by the start
+  common paths, errors in amber linking to their issue and Left for the visit's end. `users.tsx` (`?user=` an id,
+  email or username typed into Find user, matched on the server by `findUser`; `?hash=` from the list): the 50 seen most recently, each by the start
   of its hash, or one user's facts, properties and timeline by day, errors linking to their event, Trace to the
   trace. Insights, funnels, retention, flows and users are one project's: with none picked, their `beforeLoad`
   (`openAnalyticsProject`) redirects to the first with actions as `?project=` (`getFirstAnalyticsProject`), so the

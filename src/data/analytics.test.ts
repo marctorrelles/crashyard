@@ -128,7 +128,9 @@ describe('analytics', () => {
     const { db, act } = setup()
     await act('old', 'a', NOW - 400 * DAY)
     await act('new', 'a', NOW - DAY)
-    expect(await pruneActions(db, NOW)).toEqual({ actions: 1 })
+    db.sqlite.exec(`INSERT INTO action_users (project_id, key, user_hash, seen) VALUES
+      (1, 'old', 'u1', ${NOW - 400 * DAY}), (1, 'new', 'u1', ${NOW - DAY})`)
+    expect(await pruneActions(db, NOW)).toEqual({ actions: 1, users: 1 })
   })
 })
 

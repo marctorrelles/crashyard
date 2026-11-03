@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
 import { normalizeActions, platformOf } from './actions'
+import { findUser } from '../data/analytics'
 import { normalizeLogs, storeLogs } from './logs'
-import { hashUser } from '../search/user'
+import { hashUser, userKeysOf } from '../search/user'
 
 // A log item as @sentry/core 11.9's logger sends it (logs/internal.js): typed attributes, the scope's user as
 // user.id, user.email and user.name
@@ -40,6 +41,7 @@ describe('actions', () => {
       timestamp: 1_790_000_000_500,
       name: 'song exported',
       userHash: hashUser('42'),
+      userKeys: userKeysOf({ id: '42', email: 'ada@example.com' })!.split(' '),
       release: 'web@1.2.0',
       environment: 'production',
       traceId: 'a'.repeat(32),
@@ -94,5 +96,25 @@ describe('actions', () => {
     ])
     expect(db.sqlite.prepare('SELECT logs FROM project_days').get()).toEqual({ logs: 2 })
     expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM logs').get()).toEqual({ n: 1 })
+  })
+
+  it('finds an action’s user by their email, in any case, as well as by their id', async () => {
+    const db = sqliteD1()
+    db.sqlite.exec("INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'p', 'p', 'k', 0)")
+    const day = 86_400_000
+    const at = (ms: number, id: string) => ({
+      ...normalizeActions(payload, 0)[0],
+      timestamp: ms,
+      userHash: hashUser(id),
+    })
+    await storeLogs(db, 1, [], 0, '2026-11-02', normalizeActions(payload, 0))
+    expect(await findUser(db, 1, ' Ada@Example.com ')).toBe(hashUser('42'))
+    expect(await findUser(db, 1, '42')).toBe(hashUser('42'))
+    expect(await findUser(db, 1, 'someone@example.com')).toBe(hashUser('someone@example.com'))
+    // The same email under a new id: the row moves only once a day, then names the newer user
+    await storeLogs(db, 1, [], 0, '2026-11-02', [at(1_790_000_000_500 + 1000, '43')])
+    expect(await findUser(db, 1, 'ada@example.com')).toBe(hashUser('42'))
+    await storeLogs(db, 1, [], 0, '2026-11-03', [at(1_790_000_000_500 + 2 * day, '43')])
+    expect(await findUser(db, 1, 'ada@example.com')).toBe(hashUser('43'))
   })
 })

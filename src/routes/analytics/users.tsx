@@ -94,7 +94,7 @@ function Users() {
   )
 }
 
-/** Find a user by the id the app sets, hashed on the server as ingest hashes it */
+/** Find a user by the id, email or username the app sets, matched on the server by their hashes (`findUser`) */
 function Find({ initial, onFind }: { initial: string; onFind: (user: string | undefined) => void }) {
   const [value, setValue] = useState(initial)
   return (
@@ -109,8 +109,8 @@ function Find({ initial, onFind }: { initial: string; onFind: (user: string | un
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="A user id, as your app sets it"
-        aria-label="User id"
+        placeholder="A user id, email or username"
+        aria-label="User id, email or username"
         className="h-10"
         maxLength={200}
       />
@@ -212,7 +212,8 @@ function Timeline({ data, typed, onBack }: { data: Data; typed?: string; onBack:
         <Empty icon={IconUserQuestion} title="No one by that id">
           {typed ? (
             <>
-              No action or error names <code>{typed}</code>. Ids match exactly, as your app set them.
+              No action or error names <code>{typed}</code>. Ids and usernames match exactly as your app set them,
+              emails in any case.
             </>
           ) : (
             'This user has no actions or errors kept.'
