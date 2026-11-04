@@ -3,6 +3,13 @@
 Every change worth knowing, newest first. Versions follow [Semantic Versioning](https://semver.org/). Release notes are
 written from the commit messages, and a release whose migration changes data says so at its top.
 
+## [0.1.1](https://github.com/marctorrelles/crashyard/compare/v0.1.0...v0.1.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **symcache:** zstd 0.13.4 and zstd-safe 7.4, for RUSTSEC-2026-0391 and 0395 to 0406 ([87e674e](https://github.com/marctorrelles/crashyard/commit/87e674e3890d8050f062d54e58702cf440146c82))
+
 ## 0.1.0 (2026-11-04)
 
 The first public release of crashyard.
