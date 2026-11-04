@@ -8,3 +8,6 @@ dist/
 test/fixtures/
 site/public/
 site/index.html
+# Written by release-please in its own format
+CHANGELOG.md
+.release-please-manifest.json
