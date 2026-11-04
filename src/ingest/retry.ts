@@ -144,18 +144,25 @@ export async function settle(
   await env.FILES.put(held.key.replace(/^pending\//, 'failed/'), body, {
     customMetadata: meta(held.endpoint, attempts, left),
   })
-  const counted = env.DB.prepare(
-    'INSERT INTO project_days (project_id, day, failed) VALUES (?, ?, 1) ON CONFLICT DO UPDATE SET failed = failed + 1',
-  ).bind(held.projectId, new Date(now).toISOString().slice(0, 10))
+  const day = new Date(now).toISOString().slice(0, 10)
   if (held.store === 'd1')
-    // The row and the count go together, so a run that stops between them never counts it twice
+    // Counted only while the row is there, and dropped with it in one batch: two runs settling it (a pass that
+    // outlived its lease) or one stopped between the two count it once
     await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO project_days (project_id, day, failed)
+         SELECT ?, ?, 1 WHERE EXISTS (SELECT 1 FROM held_envelopes WHERE received = ? AND key = ?)
+         ON CONFLICT DO UPDATE SET failed = failed + 1`,
+      ).bind(held.projectId, day, held.received, held.key),
       env.DB.prepare('DELETE FROM held_envelopes WHERE received = ? AND key = ?').bind(held.received, held.key),
-      counted,
     ])
   else {
     await env.FILES.delete(held.key)
-    await counted.run()
+    await env.DB.prepare(
+      'INSERT INTO project_days (project_id, day, failed) VALUES (?, ?, 1) ON CONFLICT DO UPDATE SET failed = failed + 1',
+    )
+      .bind(held.projectId, day)
+      .run()
   }
   return 'failed'
 }
@@ -189,18 +196,11 @@ export async function retryPending(
   // D1: the oldest first, past their first two minutes and any lease, read from the primary key's start, so a
   // backlog of failing envelopes costs the rows returned and the leased ones skipped, never the whole table
   const rows = await env.DB.prepare(
-    `SELECT key, project_id, received, endpoint, attempts, items FROM held_envelopes
+    `SELECT received, key, project_id, endpoint FROM held_envelopes
      WHERE received <= ? AND (leased_until IS NULL OR leased_until <= ?) ORDER BY received LIMIT ?`,
   )
     .bind(now - MIN_AGE, now, BATCH)
-    .all<{
-      key: string
-      project_id: number
-      received: number
-      endpoint: string
-      attempts: number
-      items: string | null
-    }>()
+    .all<{ received: number; key: string; project_id: number; endpoint: string }>()
   for (const row of rows.results) {
     if (!open()) return counts
     const held: Held = {
@@ -210,16 +210,6 @@ export async function retryPending(
       endpoint: row.endpoint === 'store' ? 'store' : 'envelope',
       store: 'd1',
     }
-    const todo = row.items ? row.items.split(',') : undefined
-    if (row.attempts >= MAX_ATTEMPTS) {
-      // Its last try started and never settled, as when it stopped its worker: no more tries
-      const found = await env.DB.prepare('SELECT body FROM held_envelopes WHERE received = ? AND key = ?')
-        .bind(held.received, held.key)
-        .first<{ body: string }>()
-      if (found && (await settle(env, held, encoder.encode(found.body), row.attempts, todo ?? 'all', now)) === 'failed')
-        counts.failed++
-      continue
-    }
     // Counted and leased in one write, only while no other run holds it, which answers the body
     const claimed = await env.DB.prepare(
       `UPDATE held_envelopes SET attempts = attempts + 1, leased_until = ?
@@ -228,12 +218,14 @@ export async function retryPending(
       .bind(now + LEASE, held.received, held.key, now)
       .first<{ attempts: number; items: string | null; body: string }>()
     if (!claimed) continue
-    await tryOnce(
-      held,
-      encoder.encode(claimed.body),
-      claimed.attempts,
-      claimed.items ? claimed.items.split(',') : undefined,
-    )
+    const body = encoder.encode(claimed.body)
+    const todo = claimed.items ? claimed.items.split(',') : undefined
+    if (claimed.attempts > MAX_ATTEMPTS) {
+      // Its last try started and never settled, as when it stopped its worker: no more tries
+      if ((await settle(env, held, body, MAX_ATTEMPTS, todo ?? 'all', now)) === 'failed') counts.failed++
+      continue
+    }
+    await tryOnce(held, body, claimed.attempts, todo)
   }
 
   // R2, paged on, so envelopes still in flight (younger than two minutes) never hide older ones listed after them

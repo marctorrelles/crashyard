@@ -270,6 +270,32 @@ describe('the cron', () => {
     expect(plans).toEqual([expect.stringMatching(/^SEARCH held_envelopes USING PRIMARY KEY \(received<\?\)$/)])
   })
 
+  it('moves an envelope whose last try never settled to failed/ once, though two runs overlap', async () => {
+    const env = emptyEnv()
+    const held = (await hold(env, pendingKey(1, NOW - 10 * 60_000), text, 'envelope'))!
+    // Its fifth try started and stopped its worker; the lease is long past
+    env.DB.sqlite.exec(`UPDATE held_envelopes SET attempts = ${MAX_ATTEMPTS}, leased_until = ${NOW - 60_000}`)
+    const runs = await Promise.all([
+      retryPending(env, NOW, soon(), async () => []),
+      retryPending(env, NOW, soon(), async () => []),
+    ])
+    expect(runs.map((r) => r.failed).sort()).toEqual([0, 1])
+    expect(heldCount(env)).toBe(0)
+    expect(env.FILES.objects.get(held.key.replace('pending/', 'failed/'))?.customMetadata.attempts).toBe('5')
+    expect(failedOf(env)).toBe(1)
+  })
+
+  it('counts a D1 envelope in failed/ once, though a pass outlived its lease and both runs settle it', async () => {
+    const env = emptyEnv()
+    const held = (await hold(env, pendingKey(1, NOW - 10 * 60_000), text, 'envelope'))!
+    await Promise.all([
+      settle(env, held, text, MAX_ATTEMPTS, 'all', NOW),
+      settle(env, held, text, MAX_ATTEMPTS, 'all', NOW),
+    ])
+    expect(heldCount(env)).toBe(0)
+    expect(failedOf(env)).toBe(1)
+  })
+
   it('reaches old R2 envelopes past a page of young ones', async () => {
     const env = emptyEnv()
     // A busy project 1, all in flight, listed first; project 2's old failures after them
