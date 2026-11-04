@@ -96,8 +96,10 @@ type DebugRow = { debug_id: string; kind: string; file_key: string; symcache_key
 
 /**
  * The file each debug id symbolicates with: one with debug info over one with a symbol table only (an executable sent
- * beside its dSYM has the same debug id, and only the dSYM has lines), then the newest. Among files uploaded before
- * 0040, whose debug_info is unknown, the larger: a dSYM outweighs its executable.
+ * beside its dSYM has the same debug id, and only the dSYM has lines), then the larger, then the newest. Size is what
+ * tells files from before 0040 apart, whose debug_info is unknown: a dSYM outweighs its executable, and a target whose
+ * code didn't change sends its executable again with every build (a new checksum, the same debug id) but its dSYM once,
+ * so the newest of them is an executable.
  */
 export async function debugFilesFor(db: D1Database, projectId: number, ids: string[]) {
   const fileOf = new Map<string, DebugRow>()
@@ -105,7 +107,7 @@ export async function debugFilesFor(db: D1Database, projectId: number, ids: stri
   const { results } = await db
     .prepare(
       `SELECT debug_id, kind, file_key, symcache_key FROM debug_files WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
-       ORDER BY debug_info IS 0, created_at DESC, size DESC`,
+       ORDER BY debug_info IS 0, size DESC, created_at DESC`,
     )
     .bind(projectId, JSON.stringify(ids))
     .all<DebugRow>()

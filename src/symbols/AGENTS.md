@@ -46,7 +46,9 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   from before 0035 have no offset and read their whole `smcaches/<checksum>/<file>`.
 - `symbolicate.ts`: on each event, before grouping, every stack: the exceptions', then each thread's, with the same
   caches. A debug id's file (`debugFilesFor`) is one with debug info before a symbol table only (an
-  executable sent beside its dSYM shares its debug id), then the newest, then, for files from before 0040, the larger. Native frames by address within their image (the crashing
+  executable sent beside its dSYM shares its debug id), then the larger, then the newest: size tells files from before
+  0040 apart, and a target whose code didn't change sends its executable again with each build but its dSYM once (25
+  of production project 4's debug ids, 2026-11-04), so the newest is often an executable. Native frames by address within their image (the crashing
   frame as is, the others one byte back: return addresses), inlined calls as frames of their own; Android frames and
   obfuscated exception classes through the mapping's ProguardCache, pinned as SymCaches are (a row without one is
   missing); JavaScript through SourceMapCaches, with context lines. Each image's
