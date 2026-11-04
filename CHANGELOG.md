@@ -3,6 +3,24 @@
 Every change worth knowing, newest first. Versions follow [Semantic Versioning](https://semver.org/). Release notes are
 written from the commit messages, and a release whose migration changes data says so at its top.
 
+## [0.2.0](https://github.com/marctorrelles/crashyard/compare/v0.1.1...v0.2.0) (2026-11-04)
+
+
+### Features
+
+* delete debug files and source maps no lookup has used for the project's retention ([#14](https://github.com/marctorrelles/crashyard/issues/14)) ([821d85c](https://github.com/marctorrelles/crashyard/commit/821d85c86f986eb2aca1a15544e115ce0a100cb8))
+
+
+### Bug Fixes
+
+* **symbols:** symbolicate with the dSYM, not the executable sent beside it ([#16](https://github.com/marctorrelles/crashyard/issues/16)) ([b2fdb83](https://github.com/marctorrelles/crashyard/commit/b2fdb8306b04bf24eca01194500efb53023acd3a))
+
+
+### Performance Improvements
+
+* **ingest:** hold small envelopes in D1 instead of R2 ([#12](https://github.com/marctorrelles/crashyard/issues/12)) ([d46fe2d](https://github.com/marctorrelles/crashyard/commit/d46fe2ddd160688a6ac7117bc8f732ecbef7ba1d))
+* **ingest:** stop keeping a raw copy of every envelope in R2 ([#13](https://github.com/marctorrelles/crashyard/issues/13)) ([ca28023](https://github.com/marctorrelles/crashyard/commit/ca28023f002bd97112a2625e4a24a694d899c527))
+
 ## [0.1.1](https://github.com/marctorrelles/crashyard/compare/v0.1.0...v0.1.1) (2026-11-04)
 
 
