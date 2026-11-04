@@ -19,6 +19,24 @@ pnpm site:deploy   # build to site/dist and deploy it; the custom domains create
   second on average; on a mouse over it and on a press (touch has no hover), not on load, one round at a
   time, through the Web Animations API, never with reduced motion. Pressed on this page, it scrolls to the top rather than
   loading it again. The footer's is the filled mark.
+- Motion follows Emil Kowalski's rules (emilkowalski/skills): `ease-out` and `ease-in-out` are redefined in
+  `styles.css` as his strong curves, only `transform`, `opacity`, `clip-path` and `filter` animate (the tab pills'
+  `width` aside, one absolute element), nothing animates on a keyboard action, everything has a reduced-motion
+  state at rest. What moves, and why:
+  - Buttons press to 97% (`active:scale-97`, 160 ms).
+  - The hero's added DSN line writes in once as the page opens (`animate-diff-in`, a clip from the left). The
+    screenshot under it leans back and settles flat as it scrolls in (`scroll-tilt`, a scroll timeline, flat where
+    unsupported).
+  - Both tab lists have one pill (`data-pill`) under the selected tab that slides to the next; panels swap at once.
+  - Copy's icon turns into a check and back.
+  - Two demos play once as they come into view (`once` in the script), and only when they start below the fold, so
+    what's on screen as the page opens is at rest: the stack trace card shows the raw addresses, then reads them
+    row by row, and Show raw frames flips it back; the Telegram alert is held at 03:12 and its clock runs to 08:00
+    before it arrives. Their frames and addresses are the screenshots' crash (Voice.swift:41).
+  - The rest of the job's cards light up under the mouse (`spotlight`, `--x` and `--y` set on the card).
+- Identity: a blueprint grid and the accent's glow behind the hero (`bg-grid`), a mono label over each section's
+  heading naming its part, icon tiles in the accent, and the deploy band dark in both themes under hazard tape
+  (`hazard`), the theme's namesake.
 - `styles.css`: only what utilities can't be: the Geist faces, Hazard's tokens light and dark (as the system is, no
   switch) mapped to Tailwind colors (`bg-card`, `text-fg-2`, `text-code-key`…), the breakpoints (xs 420, sm 640, md
   820, lg 900, xl 1000 px) and base element styles. `source('.')` keeps Tailwind to this folder.

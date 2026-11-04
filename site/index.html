@@ -53,6 +53,7 @@
   <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></symbol>
   <symbol id="i-broadcast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.364 19.364a9 9 0 1 0 -12.728 0"/><path d="M15.536 16.536a5 5 0 1 0 -7.072 0"/><path d="M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></symbol>
   <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10"/><path d="M7 20h10"/><path d="M9 16v4"/><path d="M15 16v4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></symbol>
   <symbol id="i-chart-pie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2a9 9 0 1 0 10.8 10.8a1 1 0 0 0 -1 -1h-6.8a2 2 0 0 1 -2 -2v-7a.9 .9 0 0 0 -1 -.8"/><path d="M15 3.5a9 9 0 0 1 5.5 5.5h-4.5a1 1 0 0 1 -1 -1v-4.5"/></symbol>
 </svg>
 
@@ -70,46 +71,49 @@
     </nav>
     <div class="ml-auto flex items-center gap-2">
       <a class="inline-flex h-[34px] items-center gap-1.5 px-2.5 text-[14px] text-fg-2 hover:text-fg" href="https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-github"/></svg><span class="max-xs:sr-only">GitHub</span></a>
-      <a class="inline-flex h-[34px] cursor-pointer items-center justify-center rounded-[7px] border border-transparent bg-accent px-3 text-[14px] leading-none font-[550] whitespace-nowrap text-accent-fg hover:bg-accent-hover motion-safe:transition-colors motion-safe:duration-[120ms]" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard">Deploy</a>
+      <a class="inline-flex h-[34px] cursor-pointer items-center justify-center rounded-[7px] border border-transparent bg-accent px-3 text-[14px] leading-none font-[550] whitespace-nowrap text-accent-fg hover:bg-accent-hover motion-safe:transition-[color,background-color,border-color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard">Deploy</a>
     </div>
   </div>
 </header>
 
 <main id="main">
-  <div class="pt-[72px] max-sm:pt-11">
+  <div class="relative isolate pt-[72px] max-sm:pt-11">
+    <div class="bg-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-[760px]" aria-hidden="true"></div>
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
       <div class="grid items-start gap-10 xl:grid-cols-[1.05fr_1fr] xl:gap-14">
         <div class="grid gap-[22px]">
+          <a class="group -mb-1 inline-flex w-max max-w-full items-center gap-2 rounded-full border border-border-2 bg-card py-1 pr-3 pl-1 text-[13.5px] text-fg-2 hover:text-fg" href="https://github.com/marctorrelles/crashyard"><span class="rounded-full bg-accent-soft px-2 py-0.5 font-mono text-[12px] leading-[1.4] font-medium text-fg">MIT</span>Open source, on GitHub<svg class="size-[15px] flex-none motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-out [@media(hover:hover)]:group-hover:translate-x-0.5" aria-hidden="true"><use href="#i-arrow"/></svg></a>
           <h1 class="text-[length:clamp(38px,5.4vw,60px)] leading-[1.04] tracking-[-0.035em]">Crash reporting on your own Cloudflare account</h1>
           <p class="max-w-[56ch] text-[length:clamp(17px,1.5vw,19px)] leading-[1.55] text-fg-2">crashyard is an open-source, Sentry-compatible crash, error and log reporter. It runs as one Worker with D1 and R2 that you deploy in a click. <strong class="font-[550] text-fg">Your apps keep the official Sentry SDKs and only change their DSN.</strong></p>
           <div class="flex flex-wrap gap-2.5">
-            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-transparent bg-accent text-accent-fg hover:bg-accent-hover" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
-            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-border-2 bg-card text-fg hover:border-fg-3" href="https://demo.crashyard.dev"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-play"/></svg>Try the demo</a>
-            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-transparent text-fg-2 hover:text-fg" href="https://github.com/marctorrelles/crashyard/tree/main/docs"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-book"/></svg>Read the docs</a>
+            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-[color,background-color,border-color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97 border-transparent bg-accent text-accent-fg hover:bg-accent-hover" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
+            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-[color,background-color,border-color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97 border-border-2 bg-card text-fg hover:border-fg-3" href="https://demo.crashyard.dev"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-play"/></svg>Try the demo</a>
+            <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-[color,background-color,border-color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97 border-transparent text-fg-2 hover:text-fg" href="https://github.com/marctorrelles/crashyard/tree/main/docs"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-book"/></svg>Read the docs</a>
           </div>
           <p class="flex max-w-[54ch] items-start gap-2.5 text-[14px] text-fg-2"><svg class="mt-0.5 size-4 flex-none text-accent-text" aria-hidden="true"><use href="#i-info"/></svg><span>Cloudflare's free plan handles a few thousand events a day. Native crashes and source maps need Workers Paid. <a class="text-fg underline underline-offset-3" href="#plans">See why</a>.</span></p>
         </div>
 
         <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code data-sdk>
           <div class="group relative flex items-center border-b border-code-line bg-code-bar py-1.5">
-            <div class="flex min-w-0 flex-1 gap-0.5 overflow-x-auto scroll-pe-[84px] pr-[84px] pl-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="SDK">
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-js" aria-controls="sdk-js" aria-selected="true">JavaScript</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-swift" aria-controls="sdk-swift" aria-selected="false" tabindex="-1">Swift</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-android" aria-controls="sdk-android" aria-selected="false" tabindex="-1">Android</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-python" aria-controls="sdk-python" aria-selected="false" tabindex="-1">Python</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-node" aria-controls="sdk-node" aria-selected="false" tabindex="-1">Node.js</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-react" aria-controls="sdk-react" aria-selected="false" tabindex="-1">React</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-go" aria-controls="sdk-go" aria-selected="false" tabindex="-1">Go</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-ruby" aria-controls="sdk-ruby" aria-selected="false" tabindex="-1">Ruby</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-php" aria-controls="sdk-php" aria-selected="false" tabindex="-1">PHP</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-java" aria-controls="sdk-java" aria-selected="false" tabindex="-1">Java</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-dotnet" aria-controls="sdk-dotnet" aria-selected="false" tabindex="-1">.NET</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-rust" aria-controls="sdk-rust" aria-selected="false" tabindex="-1">Rust</button>
-              <button class="h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:bg-white/9 aria-selected:text-code-fg" type="button" role="tab" id="tab-flutter" aria-controls="sdk-flutter" aria-selected="false" tabindex="-1">Flutter</button>
+            <div class="relative flex min-w-0 flex-1 gap-0.5 overflow-x-auto scroll-pe-[84px] pr-[84px] pl-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="SDK">
+              <span class="pointer-events-none absolute inset-y-0 left-0 rounded-md bg-white/9 motion-safe:data-ready:transition-[translate,width] motion-safe:data-ready:duration-250 motion-safe:data-ready:ease-in-out" aria-hidden="true" data-pill></span>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-js" aria-controls="sdk-js" aria-selected="true">JavaScript</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-swift" aria-controls="sdk-swift" aria-selected="false" tabindex="-1">Swift</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-android" aria-controls="sdk-android" aria-selected="false" tabindex="-1">Android</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-python" aria-controls="sdk-python" aria-selected="false" tabindex="-1">Python</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-node" aria-controls="sdk-node" aria-selected="false" tabindex="-1">Node.js</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-react" aria-controls="sdk-react" aria-selected="false" tabindex="-1">React</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-go" aria-controls="sdk-go" aria-selected="false" tabindex="-1">Go</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-ruby" aria-controls="sdk-ruby" aria-selected="false" tabindex="-1">Ruby</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-php" aria-controls="sdk-php" aria-selected="false" tabindex="-1">PHP</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-java" aria-controls="sdk-java" aria-selected="false" tabindex="-1">Java</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-dotnet" aria-controls="sdk-dotnet" aria-selected="false" tabindex="-1">.NET</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-rust" aria-controls="sdk-rust" aria-selected="false" tabindex="-1">Rust</button>
+              <button class="relative h-[30px] flex-none cursor-pointer rounded-md px-[11px] text-[13px] leading-none font-medium whitespace-nowrap text-code-dim hover:text-code-fg focus-visible:-outline-offset-2 aria-selected:text-code-fg" type="button" role="tab" id="tab-flutter" aria-controls="sdk-flutter" aria-selected="false" tabindex="-1">Flutter</button>
             </div>
             <button class="absolute inset-y-1.5 right-0 inline-flex cursor-pointer items-center gap-1.5 border-l border-transparent bg-code-bar px-3.5 text-[12.5px] leading-none font-medium text-code-dim group-data-overflowing:border-code-line hover:text-code-fg focus-visible:-outline-offset-2" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button>
           </div>
-<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-js" role="tabpanel" aria-labelledby="tab-js" tabindex="0"><span class="text-code-dim">// app.ts</span><span><span class="text-code-key">import</span> * <span class="text-code-key">as</span> Sentry <span class="text-code-key">from</span> <span class="text-code-str">'@sentry/browser'</span></span><span> </span><span>Sentry.init({</span><span class="bg-code-rm-bg text-code-rm">-  dsn: <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/451'</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+  dsn: <span>'https://8b41d2f09c@crashyard.example.com/3'</span>,</span><span>   release: import.meta.env.VITE_RELEASE,</span><span>})</span></pre>
+<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-js" role="tabpanel" aria-labelledby="tab-js" tabindex="0"><span class="text-code-dim">// app.ts</span><span><span class="text-code-key">import</span> * <span class="text-code-key">as</span> Sentry <span class="text-code-key">from</span> <span class="text-code-str">'@sentry/browser'</span></span><span> </span><span>Sentry.init({</span><span class="bg-code-rm-bg text-code-rm">-  dsn: <span>'https://5e1c0a7d3b@o4507.ingest.sentry.io/451'</span>,</span><span class="bg-code-add-bg text-code-add motion-safe:animate-diff-in" data-keep>+  dsn: <span>'https://8b41d2f09c@crashyard.example.com/3'</span>,</span><span>   release: import.meta.env.VITE_RELEASE,</span><span>})</span></pre>
 <pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-swift" role="tabpanel" aria-labelledby="tab-swift" tabindex="0" hidden><span class="text-code-dim">// AppDelegate.swift</span><span><span class="text-code-key">import</span> Sentry</span><span> </span><span>SentrySDK.start { options <span class="text-code-key">in</span></span><span class="bg-code-rm-bg text-code-rm">-   options.dsn = <span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/452"</span></span><span class="bg-code-add-bg text-code-add" data-keep>+   options.dsn = <span>"https://2c7f90e1a4@crashyard.example.com/1"</span></span><span>    options.sendDefaultPii = <span class="text-code-key">false</span></span><span>}</span></pre>
 <pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-android" role="tabpanel" aria-labelledby="tab-android" tabindex="0" hidden><span class="text-code-dim">&lt;!-- AndroidManifest.xml, inside &lt;application&gt; --&gt;</span><span>&lt;meta-data android:name=<span class="text-code-str">"io.sentry.dsn"</span></span><span class="bg-code-rm-bg text-code-rm">-  android:value=<span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/453"</span> /&gt;</span><span class="bg-code-add-bg text-code-add" data-keep>+  android:value=<span>"https://71d3c4b8e2@crashyard.example.com/4"</span> /&gt;</span><span>&lt;meta-data android:name=<span class="text-code-str">"io.sentry.send-default-pii"</span></span><span>  android:value=<span class="text-code-str">"false"</span> /&gt;</span></pre>
 <pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" id="sdk-python" role="tabpanel" aria-labelledby="tab-python" tabindex="0" hidden><span class="text-code-dim"># app.py</span><span><span class="text-code-key">import</span> sentry_sdk</span><span> </span><span>sentry_sdk.init(</span><span class="bg-code-rm-bg text-code-rm">-   dsn=<span>"https://5e1c0a7d3b@o4507.ingest.sentry.io/454"</span>,</span><span class="bg-code-add-bg text-code-add" data-keep>+   dsn=<span>"https://4f02a9d6c1@crashyard.example.com/2"</span>,</span><span>    traces_sample_rate=1.0,</span><span>)</span></pre>
@@ -126,7 +130,7 @@
         </div>
       </div>
 
-      <figure class="overflow-hidden rounded-[14px] border border-border bg-card shadow-card mt-16">
+      <figure class="scroll-tilt mt-16 overflow-hidden rounded-[14px] border border-border bg-card shadow-card">
         <div class="flex h-[38px] items-center gap-2.5 border-b border-border bg-bg-2 px-3.5"><span class="flex gap-1.5 max-sm:hidden *:size-2.5 *:rounded-full *:bg-border-2" aria-hidden="true"><i></i><i></i><i></i></span><span class="mx-auto max-w-[60%] truncate rounded-md border border-border bg-card px-3 py-1.5 font-mono text-[12.5px] leading-none text-fg-3 max-sm:max-w-full">crashyard.example.com/issues/3</span></div>
         <div class="max-sm:aspect-[4/3.7] max-sm:overflow-hidden">
           <img class="w-full max-sm:h-full max-sm:object-cover max-sm:object-[0_0] dark:hidden" src="/images/issue-light.jpg" width="2560" height="1600" alt="An iOS crash in crashyard: EXC_BAD_ACCESS in acme-ios 1.0 (10), with its stack trace read back to Voice.swift line 41, its events over time and its tags">
@@ -144,6 +148,7 @@
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid items-start gap-10 xl:grid-cols-[1fr_1.1fr] xl:gap-16 *:min-w-0">
       <div>
         <div class="grid max-w-[680px] gap-3.5">
+          <p class="flex items-center gap-2 font-mono text-[12.5px] leading-none font-medium tracking-[0.08em] text-accent-text uppercase"><span class="size-1.5 rounded-[1px] bg-accent" aria-hidden="true"></span>Stack traces</p>
           <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Readable stack traces from the files you already upload</h2>
           <p class="text-[17px] text-fg-2">Point sentry-cli, the Xcode build phase, the Gradle plugin or <code>@sentry/vite-plugin</code> at crashyard. It reads dSYMs, R8 mappings, native libraries and source maps with Sentry's own symbolic library, built to WebAssembly.</p>
         </div>
@@ -154,26 +159,42 @@
         </ul>
         <p class="mt-6 inline-flex items-center gap-1.5 rounded-md bg-accent-soft px-2.5 py-1.5 text-[13.5px] text-fg-2"><svg class="size-[15px] flex-none text-accent-text" aria-hidden="true"><use href="#i-info"/></svg>Uploads need Workers Paid.</p>
       </div>
-      <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code>
-          <div class="flex items-center gap-0.5 overflow-x-auto border-b border-code-line bg-code-bar py-1.5 pr-1.5 pl-2 [scrollbar-width:none]"><span class="px-2 font-mono text-[13px] leading-none whitespace-nowrap text-code-dim">Terminal</span><button class="ml-auto inline-flex h-[30px] flex-none cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[12.5px] leading-none font-medium text-code-dim hover:bg-white/7 hover:text-code-fg" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
-<pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" tabindex="0"><span class="text-code-dim"># Point Sentry's own tools at crashyard</span><span data-keep>export SENTRY_URL=https://crashyard.example.com/</span><span data-keep>export SENTRY_ORG=crashyard</span><span data-keep>export SENTRY_PROJECT=acme-ios</span><span data-keep>export SENTRY_AUTH_TOKEN=cy_…</span><span> </span><span class="text-code-dim"># After archiving the iOS app</span><span><span class="text-code-dim select-none">$ </span><span data-keep>sentry-cli debug-files upload --include-sources ./dSYMs</span></span><span> </span><span class="text-code-dim"># Send the release's commits for suspect commits and links</span><span><span class="text-code-dim select-none">$ </span><span data-keep>sentry-cli releases set-commits "1.0 (10)" --local</span></span></pre>
-        </div>
+      <div class="grid gap-4">
+        <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code>
+            <div class="flex items-center gap-0.5 overflow-x-auto border-b border-code-line bg-code-bar py-1.5 pr-1.5 pl-2 [scrollbar-width:none]"><span class="px-2 font-mono text-[13px] leading-none whitespace-nowrap text-code-dim">Terminal</span><button class="ml-auto inline-flex h-[30px] flex-none cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[12.5px] leading-none font-medium text-code-dim hover:bg-white/7 hover:text-code-fg" type="button" data-copy><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+  <pre class="m-0 overflow-x-auto py-[18px] font-mono text-[13.5px] leading-[1.75] [tab-size:2] focus-visible:-outline-offset-2 *:block *:min-w-max *:px-5 *:whitespace-pre" tabindex="0"><span class="text-code-dim"># Point Sentry's own tools at crashyard</span><span data-keep>export SENTRY_URL=https://crashyard.example.com/</span><span data-keep>export SENTRY_ORG=crashyard</span><span data-keep>export SENTRY_PROJECT=acme-ios</span><span data-keep>export SENTRY_AUTH_TOKEN=cy_…</span><span> </span><span class="text-code-dim"># After archiving the iOS app</span><span><span class="text-code-dim select-none">$ </span><span data-keep>sentry-cli debug-files upload --include-sources ./dSYMs</span></span><span> </span><span class="text-code-dim"># Send the release's commits for suspect commits and links</span><span><span class="text-code-dim select-none">$ </span><span data-keep>sentry-cli releases set-commits "1.0 (10)" --local</span></span></pre>
+          </div>
+        <figure class="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card" data-frames>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-bg-2 px-4 py-3">
+            <div class="min-w-0"><b class="block font-mono text-[14px] font-semibold">EXC_BAD_ACCESS</b><span class="block text-[13px] text-fg-3">KERN_INVALID_ADDRESS at 0x10 · acme-ios 1.0 (10)</span></div>
+            <button class="ml-auto inline-flex h-[30px] cursor-pointer items-center rounded-md border border-border-2 bg-card px-2.5 text-[13px] font-medium text-fg-2 hover:text-fg motion-safe:transition-[color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97" type="button" data-raw-toggle>Show raw frames</button>
+          </div>
+          <ol class="group font-mono text-[13px] leading-[1.5]" aria-label="Stack trace">
+            <li class="grid border-b border-border px-4 py-2.5 [overflow-wrap:anywhere] *:col-start-1 *:row-start-1" style="--d:0ms"><span class="[transition:opacity_300ms_var(--ease-out)_var(--d),filter_300ms_var(--ease-out)_var(--d)] group-data-raw:opacity-0 group-data-raw:blur-[2px]" data-sym>Voice.next() <span class="text-fg-3">Voice.swift:41</span></span><span class="text-fg-3 opacity-0 blur-[2px] [transition:opacity_300ms_var(--ease-out)_var(--d),filter_300ms_var(--ease-out)_var(--d)] group-data-raw:opacity-100 group-data-raw:blur-none" aria-hidden="true" data-addr>0x0000000104b2a1c8 acme-ios + 41416</span></li>
+            <li class="grid border-b border-border px-4 py-2.5 [overflow-wrap:anywhere] *:col-start-1 *:row-start-1" style="--d:50ms"><span class="[transition:opacity_300ms_var(--ease-out)_var(--d),filter_300ms_var(--ease-out)_var(--d)] group-data-raw:opacity-0 group-data-raw:blur-[2px]" data-sym>Mixer.mix(into:count:) <span class="text-fg-3">Mixer.swift:88</span></span><span class="text-fg-3 opacity-0 blur-[2px] [transition:opacity_300ms_var(--ease-out)_var(--d),filter_300ms_var(--ease-out)_var(--d)] group-data-raw:opacity-100 group-data-raw:blur-none" aria-hidden="true" data-addr>0x0000000104b2c9f0 acme-ios + 51696</span></li>
+            <li class="grid border-b border-border px-4 py-2.5 [overflow-wrap:anywhere] *:col-start-1 *:row-start-1" style="--d:110ms"><span class="[transition:opacity_300ms_var(--ease-out)_var(--d),filter_300ms_var(--ease-out)_var(--d)] group-data-raw:opacity-0 group-data-raw:blur-[2px]" data-sym>AudioEngine.render(frames:) <span class="text-fg-3">AudioEngine.swift:212</span></span><span class="text-fg-3 opacity-0 blur-[2px] [transition:opacity_300ms_var(--ease-out)_var(--d),filter_300ms_var(--ease-out)_var(--d)] group-data-raw:opacity-100 group-data-raw:blur-none" aria-hidden="true" data-addr>0x0000000104b31d64 acme-ios + 73060</span></li>
+          </ol>
+          <figcaption class="px-4 py-2.5 text-[13px] text-fg-3" data-frames-caption>Read with the dSYM uploaded for 1.0 (10), so each frame opens its line.</figcaption>
+        </figure>
+      </div>
     </div>
   </section>
 
   <section class="pt-[120px] max-sm:pt-[88px]" id="tour">
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
       <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <p class="flex items-center gap-2 font-mono text-[12.5px] leading-none font-medium tracking-[0.08em] text-accent-text uppercase"><span class="size-1.5 rounded-[1px] bg-accent" aria-hidden="true"></span>Product</p>
         <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Everything a small team uses Sentry for</h2>
         <p class="text-[17px] text-fg-2">Issues, releases, logs, traces, product analytics and monitors in one dashboard, light or dark, on a desktop or a phone.</p>
       </div>
-      <div class="flex w-max max-w-full gap-1 overflow-x-auto rounded-[10px] border border-border bg-bg-2 p-1 [scrollbar-width:none]" role="tablist" aria-label="Product">
-        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-issues" aria-controls="t-issues" aria-selected="true"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-bug"/></svg>Issues</button>
-        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-releases" aria-controls="t-releases" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-tag"/></svg>Releases</button>
-        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-logs" aria-controls="t-logs" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-list"/></svg>Logs</button>
-        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-analytics" aria-controls="t-analytics" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-chart-pie"/></svg>Analytics</button>
-        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-monitors" aria-controls="t-monitors" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-activity"/></svg>Monitors</button>
-        <button class="inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:bg-card aria-selected:text-fg aria-selected:shadow-[0_1px_2px_oklch(0_0_0/10%)]" type="button" role="tab" id="tb-status" aria-controls="t-status" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-broadcast"/></svg>Status pages</button>
+      <div class="relative flex w-max max-w-full gap-1 overflow-x-auto rounded-[10px] border border-border bg-bg-2 p-1 [scrollbar-width:none]" role="tablist" aria-label="Product">
+        <span class="pointer-events-none absolute inset-y-1 left-0 rounded-[7px] bg-card shadow-[0_1px_2px_oklch(0_0_0/10%)] motion-safe:data-ready:transition-[translate,width] motion-safe:data-ready:duration-250 motion-safe:data-ready:ease-in-out" aria-hidden="true" data-pill></span>
+        <button class="relative inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:text-fg" type="button" role="tab" id="tb-issues" aria-controls="t-issues" aria-selected="true"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-bug"/></svg>Issues</button>
+        <button class="relative inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:text-fg" type="button" role="tab" id="tb-releases" aria-controls="t-releases" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-tag"/></svg>Releases</button>
+        <button class="relative inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:text-fg" type="button" role="tab" id="tb-logs" aria-controls="t-logs" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-list"/></svg>Logs</button>
+        <button class="relative inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:text-fg" type="button" role="tab" id="tb-analytics" aria-controls="t-analytics" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-chart-pie"/></svg>Analytics</button>
+        <button class="relative inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:text-fg" type="button" role="tab" id="tb-monitors" aria-controls="t-monitors" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-activity"/></svg>Monitors</button>
+        <button class="relative inline-flex h-9 flex-none cursor-pointer items-center gap-[7px] rounded-[7px] px-3.5 text-[14.5px] leading-none font-medium whitespace-nowrap text-fg-2 hover:text-fg aria-selected:text-fg" type="button" role="tab" id="tb-status" aria-controls="t-status" aria-selected="false" tabindex="-1"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-broadcast"/></svg>Status pages</button>
       </div>
 
       <div class="mt-6 grid gap-6 xl:grid-cols-[300px_1fr] xl:items-start xl:gap-10" role="tabpanel" id="t-issues" aria-labelledby="tb-issues" tabindex="0">
@@ -254,6 +275,7 @@
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid items-start gap-10 xl:grid-cols-[1.1fr_1fr] xl:gap-16 *:min-w-0">
       <div>
         <div class="grid max-w-[680px] gap-3.5">
+          <p class="flex items-center gap-2 font-mono text-[12.5px] leading-none font-medium tracking-[0.08em] text-accent-text uppercase"><span class="size-1.5 rounded-[1px] bg-accent" aria-hidden="true"></span>Alerts</p>
           <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Alerts where you already are</h2>
           <p class="text-[17px] text-fg-2">Route each alert by type, project, level and environment. Quiet hours hold the ones that can wait until morning, and a weekly summary lands on Monday.</p>
         </div>
@@ -265,19 +287,20 @@
           <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-bell"/></svg>Web push</li>
           <li><svg class="size-4 flex-none text-fg-2" aria-hidden="true"><use href="#i-webhook"/></svg>Webhook</li>
         </ul>
-        <figure class="mt-7 grid max-w-[520px] gap-2.5 rounded-xl border border-border bg-card p-4 shadow-card">
+        <figure class="mt-7 grid max-w-[520px] gap-2.5 rounded-xl border border-border bg-card p-4 shadow-card motion-safe:transition-[opacity,translate] motion-safe:duration-[400ms] motion-safe:ease-out data-held:translate-y-1.5 data-held:opacity-55" data-quiet>
           <figcaption class="sr-only">A crashyard alert in Telegram</figcaption>
-          <div class="flex items-center gap-2.5 text-[14px] font-semibold"><img class="size-7 rounded-full" src="/images/logo.svg" alt=""><div>crashyard <span class="font-normal text-fg-3">bot</span></div></div>
+          <div class="flex items-center gap-2.5 text-[14px] font-semibold"><img class="size-7 rounded-full" src="/images/logo.svg" alt=""><div>crashyard <span class="font-normal text-fg-3">bot</span></div><time class="ml-auto font-mono text-[13px] font-normal text-fg-3 tabular-nums" data-clock>08:00</time></div>
           <div class="grid gap-[3px] text-[14.5px]">
             <b class="font-semibold [overflow-wrap:anywhere]">EXC_BAD_ACCESS: KERN_INVALID_ADDRESS at 0x10</b>
             <span class="text-fg-2">acme-ios · 1.0 (10) · Reached 100 events</span>
-            <span class="flex items-center gap-1.5 text-[13.5px] text-fg-3"><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-moon"/></svg>Held for quiet hours, sent at 08:00</span>
+            <span class="flex items-center gap-1.5 text-[13.5px] text-fg-3"><svg class="size-[15px] flex-none" aria-hidden="true"><use href="#i-moon"/></svg><span data-quiet-note>Held for quiet hours, sent at 08:00</span></span>
           </div>
           <div class="grid grid-cols-3 gap-1.5 *:rounded-[7px] *:border *:border-border *:bg-bg-2 *:px-1 *:py-2 *:text-center *:text-[13.5px] *:font-[550]"><span>Resolve</span><span>Ignore</span><span>Assign to me</span></div>
         </figure>
       </div>
       <div>
         <div class="grid max-w-[680px] gap-3.5 mb-6">
+          <p class="flex items-center gap-2 font-mono text-[12.5px] leading-none font-medium tracking-[0.08em] text-accent-text uppercase"><span class="size-1.5 rounded-[1px] bg-accent" aria-hidden="true"></span>MCP server</p>
           <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">Triage from your agent</h2>
           <p class="text-[17px] text-fg-2">An MCP server at <code>/mcp</code> lets an agent such as Claude Code read issues, events, logs, traces and releases, and resolve, assign or merge what it finds. A token acts as you and never does more than your role allows.</p>
         </div>
@@ -292,18 +315,19 @@
   <section class="pt-[120px] max-sm:pt-[88px]" id="more">
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
       <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <p class="flex items-center gap-2 font-mono text-[12.5px] leading-none font-medium tracking-[0.08em] text-accent-text uppercase"><span class="size-1.5 rounded-[1px] bg-accent" aria-hidden="true"></span>Also included</p>
         <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">The rest of the job, in the same Worker</h2>
       </div>
-      <div class="grid gap-px overflow-hidden rounded-[14px] border border-border bg-border sm:grid-cols-2 xl:grid-cols-3">
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-gauge"/></svg>Performance</h3><p class="text-[15px] text-fg-2">Transactions by p95, how each release changed them, and web and mobile vitals.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-layout"/></svg>Dashboards</h3><p class="text-[15px] text-fg-2">Charts, numbers and tables from issues, events and logs, or the Crashes template.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-cpu"/></svg>Worker runs</h3><p class="text-[15px] text-fg-2">Catches Workers that run out of CPU time or memory, which their own SDK never gets to send.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-fingerprint"/></svg>Passkeys</h3><p class="text-[15px] text-fg-2">No passwords. Four roles from owner to viewer, invites, recovery codes, and Sign in with GitHub if you want it.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-refresh"/></svg>Updates from GitHub releases</h3><p class="text-[15px] text-fg-2">crashyard checks for new releases daily and installs one from the dashboard, or every night.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-device"/></svg>Installable app</h3><p class="text-[15px] text-fg-2">Add it to your phone's home screen, with push notifications on iOS 16.4 and later.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-exchange"/></svg>Next to Sentry</h3><p class="text-[15px] text-fg-2">Forward every event on to Sentry too, so you can compare the two until you switch.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-shield"/></svg>Private by default</h3><p class="text-[15px] text-fg-2">No telemetry, no IP addresses. Passwords, tokens and emails are scrubbed before storing.</p></div>
-        <div class="grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-[9px] text-[16px] tracking-[-0.01em]"><svg class="size-[18px] flex-none text-fg-2" aria-hidden="true"><use href="#i-monitor"/></svg>Moving from Sentry</h3><p class="text-[15px] text-fg-2">Import a project's issues with their latest event, counts, status and comments. New events land on the same issues.</p></div>
+      <div class="grid gap-px overflow-hidden rounded-[14px] border border-border bg-border sm:grid-cols-2 xl:grid-cols-3" data-spotlight>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-gauge"/></svg></span>Performance</h3><p class="text-[15px] text-fg-2">Transactions by p95, how each release changed them, and web and mobile vitals.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-layout"/></svg></span>Dashboards</h3><p class="text-[15px] text-fg-2">Charts, numbers and tables from issues, events and logs, or the Crashes template.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-cpu"/></svg></span>Worker runs</h3><p class="text-[15px] text-fg-2">Catches Workers that run out of CPU time or memory, which their own SDK never gets to send.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-fingerprint"/></svg></span>Passkeys</h3><p class="text-[15px] text-fg-2">No passwords. Four roles from owner to viewer, invites, recovery codes, and Sign in with GitHub if you want it.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-refresh"/></svg></span>Updates from GitHub releases</h3><p class="text-[15px] text-fg-2">crashyard checks for new releases daily and installs one from the dashboard, or every night.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-device"/></svg></span>Installable app</h3><p class="text-[15px] text-fg-2">Add it to your phone's home screen, with push notifications on iOS 16.4 and later.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-exchange"/></svg></span>Next to Sentry</h3><p class="text-[15px] text-fg-2">Forward every event on to Sentry too, so you can compare the two until you switch.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-shield"/></svg></span>Private by default</h3><p class="text-[15px] text-fg-2">No telemetry, no IP addresses. Passwords, tokens and emails are scrubbed before storing.</p></div>
+        <div class="spotlight grid content-start gap-2 bg-card p-6 sm:max-xl:col-span-2"><h3 class="flex items-center gap-3 text-[16px] tracking-[-0.01em]"><span class="grid size-8 flex-none place-items-center rounded-lg bg-accent-soft text-accent-text"><svg class="size-[18px]" aria-hidden="true"><use href="#i-monitor"/></svg></span>Moving from Sentry</h3><p class="text-[15px] text-fg-2">Import a project's issues with their latest event, counts, status and comments. New events land on the same issues.</p></div>
       </div>
     </div>
   </section>
@@ -311,6 +335,7 @@
   <section class="pt-[120px] max-sm:pt-[88px]" id="plans">
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
       <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <p class="flex items-center gap-2 font-mono text-[12.5px] leading-none font-medium tracking-[0.08em] text-accent-text uppercase"><span class="size-1.5 rounded-[1px] bg-accent" aria-hidden="true"></span>Cloudflare plans</p>
         <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">What runs on which Cloudflare plan</h2>
         <p class="text-[17px] text-fg-2">crashyard runs in your account, so Cloudflare's plan is the only bill. Cloudflare's free plan handles a few thousand events a day.</p>
       </div>
@@ -349,6 +374,7 @@
   <section class="pt-[120px] max-sm:pt-[88px]" id="compare">
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l)">
       <div class="grid max-w-[680px] gap-3.5 mb-11">
+        <p class="flex items-center gap-2 font-mono text-[12.5px] leading-none font-medium tracking-[0.08em] text-accent-text uppercase"><span class="size-1.5 rounded-[1px] bg-accent" aria-hidden="true"></span>Alternatives</p>
         <h2 class="text-[length:clamp(28px,3.4vw,40px)] leading-[1.1]">How it compares</h2>
         <p class="text-[17px] text-fg-2">Other projects keep crash reports yourself too. Here's where crashyard differs.</p>
       </div>
@@ -372,15 +398,16 @@
     </div>
   </section>
 
-  <div class="mt-[120px] border-t border-border bg-bg-2 py-24">
+  <div class="relative mt-[120px] bg-code-bar pt-[106px] pb-24 text-code-fg">
+    <div class="hazard absolute inset-x-0 top-0 h-2.5" aria-hidden="true"></div>
     <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid items-center gap-10 xl:grid-cols-[1fr_1.1fr] xl:gap-16">
       <div>
         <h2 class="text-[length:clamp(30px,3.8vw,44px)] leading-[1.08]">Running in about fifteen minutes</h2>
-        <p class="max-w-[56ch] text-[length:clamp(17px,1.5vw,19px)] leading-[1.55] text-fg-2 mt-4">The button copies crashyard to your GitHub account, creates the D1 database and the R2 bucket, and deploys. Add a setup code, create your owner passkey, and give each app's SDK its project's DSN.</p>
+        <p class="max-w-[56ch] text-[length:clamp(17px,1.5vw,19px)] leading-[1.55] text-code-dim mt-4">The button copies crashyard to your GitHub account, creates the D1 database and the R2 bucket, and deploys. Add a setup code, create your owner passkey, and give each app's SDK its project's DSN.</p>
         <div class="mt-7 flex flex-wrap gap-2.5">
-          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-transparent bg-accent text-accent-fg hover:bg-accent-hover" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
-          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-border-2 bg-card text-fg hover:border-fg-3" href="https://github.com/marctorrelles/crashyard/blob/main/docs/deploying.md"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-book"/></svg>Read the deploy guide</a>
-          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-colors motion-safe:duration-[120ms] border-border-2 bg-card text-fg hover:border-fg-3" href="https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
+          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-[color,background-color,border-color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97 border-transparent bg-accent text-accent-fg hover:bg-accent-hover" href="https://deploy.workers.cloudflare.com/?url=https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-cloudflare"/></svg>Deploy to Cloudflare</a>
+          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-[color,background-color,border-color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97 border-white/15 bg-white/5 text-code-fg hover:border-white/35" href="https://github.com/marctorrelles/crashyard/blob/main/docs/deploying.md"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-book"/></svg>Read the deploy guide</a>
+          <a class="inline-flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-[15px] leading-none font-[550] whitespace-nowrap motion-safe:transition-[color,background-color,border-color,scale] motion-safe:duration-[160ms] motion-safe:ease-out motion-safe:active:scale-97 border-white/15 bg-white/5 text-code-fg hover:border-white/35" href="https://github.com/marctorrelles/crashyard"><svg class="size-[18px] flex-none" aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
         </div>
       </div>
       <div class="min-w-0 overflow-hidden rounded-xl border border-code-line bg-code-bg text-code-fg shadow-card" data-code>
@@ -395,7 +422,7 @@
   <div class="mx-auto max-w-[1200px] pr-[max(var(--gutter-r),24px)] pl-[max(var(--gutter-l),24px)] max-sm:pr-(--gutter-r) max-sm:pl-(--gutter-l) grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
     <div class="grid gap-1.5">
       <a class="flex w-max items-center gap-2 text-[17px] font-[650] tracking-[-0.02em] text-fg" href="/"><svg class="size-6 flex-none text-accent" aria-hidden="true"><use href="#i-logo"/></svg>crashyard</a>
-      <p>Open source under the MIT license. crashyard speaks Sentry's protocol and isn't affiliated with Sentry. Made by <a class="underline" href="https://marctorrelles.com">Marc Torrelles</a>.</p>
+      <p>Your crashes, kept in your own yard. Open source under the MIT license. crashyard speaks Sentry's protocol and isn't affiliated with Sentry. Made by <a class="underline" href="https://marctorrelles.com">Marc Torrelles</a>.</p>
     </div>
     <nav class="flex flex-wrap items-center gap-x-5 gap-y-1.5 *:hover:text-fg" aria-label="Footer">
       <a href="https://github.com/marctorrelles/crashyard/tree/main/docs">Docs</a>
@@ -412,10 +439,38 @@
 <script>
 (() => {
   const announce = document.querySelector('[data-announce]')
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+  const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)'
+
+  // Plays a demo once as it comes into view: armed only when it starts below the fold, so what's on screen as the
+  // page opens, and everything with reduced motion, is at rest in its final state
+  const once = (el, arm, play) => {
+    if (still() || el.getBoundingClientRect().top < innerHeight) return
+    arm()
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return
+      io.disconnect()
+      play()
+    }, { threshold: 0.6 })
+    io.observe(el)
+  }
 
   // Tab lists, as WAI-ARIA's tabs pattern: one Tab stop, the selected tab; the arrow keys, Home and End move and select
   document.querySelectorAll('[role="tablist"]').forEach((list) => {
     const tabs = [...list.querySelectorAll('[role="tab"]')]
+    // One pill under the selected tab, sliding to the next one rather than each tab fading its own background
+    const pill = list.querySelector('[data-pill]')
+    const place = () => {
+      const on = tabs.find((t) => t.getAttribute('aria-selected') === 'true')
+      pill.style.translate = `${on.offsetLeft}px`
+      pill.style.width = `${on.offsetWidth}px`
+    }
+    place()
+    new ResizeObserver(place).observe(list)
+    document.fonts.ready.then(() => {
+      place()
+      requestAnimationFrame(() => pill.setAttribute('data-ready', ''))
+    })
     const select = (tab, focus) => {
       tabs.forEach((t) => {
         const on = t === tab
@@ -423,6 +478,7 @@
         t.tabIndex = on ? 0 : -1
         document.getElementById(t.getAttribute('aria-controls')).hidden = !on
       })
+      place()
       if (focus) {
         tab.focus()
         tab.scrollIntoView({ block: 'nearest', inline: 'nearest' })
@@ -451,14 +507,80 @@
     const pre = btn.closest('[data-code]').querySelector('pre:not([hidden])')
     const text = [...pre.querySelectorAll('[data-keep]')].map((l) => l.textContent.replace(/^\+\s{0,2}/, '  ')).join('\n')
     const label = btn.querySelector('span')
+    const icon = btn.querySelector('svg')
+    // The icon swaps to a check and back, each arriving from a little smaller and soft, so it reads as one icon
+    const swap = (href) => {
+      icon.firstElementChild.setAttribute('href', href)
+      if (!still()) icon.animate([{ scale: '0.7', opacity: 0, filter: 'blur(2px)' }, { scale: '1', opacity: 1, filter: 'blur(0)' }], { duration: 200, easing: EASE_OUT })
+    }
     try {
       await navigator.clipboard.writeText(text)
       label.textContent = announce.textContent = 'Copied'
+      swap('#i-check')
     } catch {
       label.textContent = announce.textContent = 'Select to copy'
     }
-    setTimeout(() => { label.textContent = 'Copy'; announce.textContent = '' }, 1600)
+    clearTimeout(btn.reset)
+    btn.reset = setTimeout(() => {
+      label.textContent = 'Copy'
+      announce.textContent = ''
+      if (icon.firstElementChild.getAttribute('href') !== '#i-copy') swap('#i-copy')
+    }, 1600)
   }))
+
+  // The stack trace demo: raw addresses as the app sent them, or the frames read with the dSYM. It shows the raw
+  // ones as it comes into view, then reads them once, row by row
+  const frames = document.querySelector('[data-frames]')
+  const stack = frames.querySelector('ol')
+  const toggle = frames.querySelector('[data-raw-toggle]')
+  const caption = frames.querySelector('[data-frames-caption]')
+  const READ = caption.textContent
+  let touched = false
+  const showRaw = (raw) => {
+    stack.toggleAttribute('data-raw', raw)
+    toggle.textContent = raw ? 'Show readable frames' : 'Show raw frames'
+    caption.textContent = raw ? 'As the app sent it, before its dSYM was uploaded.' : READ
+    stack.querySelectorAll('[data-sym]').forEach((el) => el.setAttribute('aria-hidden', String(raw)))
+    stack.querySelectorAll('[data-addr]').forEach((el) => el.setAttribute('aria-hidden', String(!raw)))
+  }
+  toggle.addEventListener('click', () => {
+    touched = true
+    showRaw(!stack.hasAttribute('data-raw'))
+  })
+  once(frames, () => showRaw(true), () => setTimeout(() => touched || showRaw(false), 500))
+
+  // Quiet hours: the alert held at 03:12, the clock running on to 08:00, then the alert arriving
+  const quiet = document.querySelector('[data-quiet]')
+  const clock = quiet.querySelector('[data-clock]')
+  const note = quiet.querySelector('[data-quiet-note]')
+  const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  once(quiet, () => {
+    quiet.setAttribute('data-held', '')
+    clock.textContent = '03:12'
+    note.textContent = 'Held for quiet hours'
+  }, () => {
+    const from = 3 * 60 + 12, to = 8 * 60, length = 1400
+    let start
+    const tick = (now) => {
+      start ??= now
+      const t = Math.min(1, (now - start) / length)
+      clock.textContent = hhmm(Math.round(from + (to - from) * (1 - (1 - t) ** 3)))
+      if (t < 1) return requestAnimationFrame(tick)
+      quiet.removeAttribute('data-held')
+      note.textContent = 'Held for quiet hours, sent at 08:00'
+    }
+    setTimeout(() => requestAnimationFrame(tick), 300)
+  })
+
+  // A light under the pointer on the cards of the rest of the job. Mouse only, set on the card itself
+  const fine = matchMedia('(hover: hover) and (pointer: fine)')
+  document.querySelector('[data-spotlight]').addEventListener('pointermove', (e) => {
+    const card = fine.matches && e.target.closest('.spotlight')
+    if (!card) return
+    const r = card.getBoundingClientRect()
+    card.style.setProperty('--x', `${e.clientX - r.left}px`)
+    card.style.setProperty('--y', `${e.clientY - r.top}px`)
+  })
 
   // The nav's logo plays the app's loading animation, Tumblers (Loader in src/components/shell.tsx), on a pointer over
   // it or a press, not as the page opens: its five pieces (the app's PIECES, the same paths in the same
@@ -474,7 +596,6 @@
   const DIRS = [1, 1, 1, -1, -1]
   const rand = (lo, hi) => lo + Math.random() * (hi - lo)
   const rotate = (deg, offset, easing) => ({ transform: `rotate(${deg}deg)`, offset, easing })
-  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
   // One round at a time: a press or a pointer while it plays leaves it be
   const draw = () => {
     if (still() || rings.some((r) => r.getAnimations().length)) return

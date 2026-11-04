@@ -113,6 +113,76 @@
   --breakpoint-xl: 62.5rem;
 }
 
+/* Motion: two curves for the whole page. ease-out for what enters or answers a press, ease-in-out for what moves
+   on screen. The built-in curves are too soft to read as intended */
+@theme {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* The hero's DSN line, written in once as the page opens */
+  --animate-diff-in: diff-in 700ms var(--ease-in-out) 450ms both;
+  @keyframes diff-in {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
+}
+
+/* Behind the hero: a blueprint grid fading out from the top, and the accent's glow behind the code card */
+@utility bg-grid {
+  background:
+    radial-gradient(40% 50% at 78% 22%, color-mix(in oklch, var(--accent), transparent 86%), transparent 70%),
+    linear-gradient(to right, var(--border) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px) 0 0 / 48px 48px;
+  mask-image: radial-gradient(90% 70% at 50% 0%, #000 30%, transparent 85%);
+}
+
+/* Hazard tape, the theme's namesake, for the one band that asks for a deploy */
+@utility hazard {
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 14px, var(--code-bg) 14px 28px);
+}
+
+/* The hero's screenshot leans back and settles flat as it scrolls into view, off the main thread. Where scroll
+   timelines aren't supported, or with reduced motion, it's simply flat */
+@utility scroll-tilt {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      transform-origin: 50% 0;
+      animation: tilt-in linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 45%;
+    }
+  }
+}
+@keyframes tilt-in {
+  from {
+    transform: perspective(1800px) rotateX(16deg) scale(0.94);
+  }
+}
+
+/* A soft light that follows the pointer over a card, from --x and --y set by the page's script. Mouse only */
+@utility spotlight {
+  position: relative;
+  isolation: isolate;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0;
+    background: radial-gradient(
+      260px circle at var(--x, 50%) var(--y, 50%),
+      color-mix(in oklch, var(--accent), transparent 88%),
+      transparent 70%
+    );
+    transition: opacity 200ms ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    &:hover::before {
+      opacity: 1;
+    }
+  }
+}
+
 @layer base {
   html {
     scroll-padding-top: 72px;
