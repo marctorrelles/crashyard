@@ -7,6 +7,13 @@ updates:
     groups:
       dependencies:
         patterns: ['*']
+    ignore:
+      # Node's types follow the Node major in .nvmrc, bumped by hand with it
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # typescript-eslint doesn't support TypeScript 7 yet: typescript-eslint/typescript-eslint#10940
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:

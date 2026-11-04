@@ -10,8 +10,8 @@ description = "Sentry's symbolic, built to WebAssembly for crashyard's worker: d
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-symbolic = { version = "12", default-features = false, features = ["debuginfo", "symcache", "sourcemapcache"] }
-symbolic-demangle = { version = "12", default-features = false, features = ["cpp", "rust", "msvc", "swift"] }
+symbolic = { version = "13", default-features = false, features = ["debuginfo", "symcache", "sourcemapcache"] }
+symbolic-demangle = { version = "13", default-features = false, features = ["cpp", "rust", "msvc", "swift"] }
 serde_json = "1"
 proguard = "5"
 # The container's server only (src/bin/builder.rs), not the Wasm module
