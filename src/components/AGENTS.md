@@ -163,7 +163,7 @@
   the page, `@3xl/settings`, one `Select` of the same, labelled Settings page; no project picker of its own, the
   sidebar's filter is the only one), `useSettingsProject` (the project whose settings the path is), `pageOf` (a
   path's page name), `Subhead` (a heading over a few cards with an id to link to, Connect's Client keys), `Status` (a
-  check's line, a tick or an amber warning, on Usage and Health), `SettingsCard`, `ReadOnly` (a value with where it's set, `SET_IN_WRANGLER`),
+  check's line, a tick or an amber warning, on Usage and Health), `SettingsCard`,
   `Hint`, `LimitInputs` (a project's limits and retention as form fields, also Defaults for new projects), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
 - `push.tsx`: `usePushDevice` (this browser's state, Turn on and off), `PushHint`, `PushControls` (also in the push

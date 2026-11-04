@@ -200,20 +200,6 @@ export function SettingsCard({
   )
 }
 
-/** Where a deployment's own values live */
-export const SET_IN_WRANGLER = 'Set in wrangler.local.json. Change it there, then deploy again.'
-
-/** A value the page shows but can't change, with where it's set */
-export function ReadOnly({ label, value, note }: { label: string; value: React.ReactNode; note?: React.ReactNode }) {
-  return (
-    <div className="grid gap-1">
-      <Label>{label}</Label>
-      <p className="min-w-0 text-sm break-words">{value}</p>
-      {note && <p className="text-xs text-muted-foreground">{note}</p>}
-    </div>
-  )
-}
-
 /** A field's line under it */
 export const Hint = ({ children }: { children: React.ReactNode }) => (
   <p className="text-xs text-muted-foreground">{children}</p>

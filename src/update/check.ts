@@ -5,6 +5,7 @@ import { version } from '../../package.json'
 export const REPO = 'marctorrelles/crashyard'
 const RELEASES = `https://api.github.com/repos/${REPO}/releases?per_page=100`
 const DAY = 86_400
+const HOUR = 3_600
 
 /** What the release workflow adds to the notes of a release that changes `symcache/` (.github/workflows/release-please.yml) */
 export const BUILDER_NOTE = 'This release changes the SymCache builder.'
@@ -59,16 +60,29 @@ export function pick(releases: Release[], current: string): Update | null {
   }
 }
 
-export async function update(): Promise<Update | null> {
+/** What GitHub was last asked: the newest release past this version, and when it said so, null when it couldn't be asked */
+export type Checked = { update: Update | null; checkedAt: number | null }
+
+/** Check now's refusal when GitHub doesn't answer: the answer kept stays */
+export const UNREACHABLE = 'GitHub didn’t answer. Try again in a few minutes.'
+
+/**
+ * The day's answer, kept through the Cache API (per Cloudflare location). `fresh`, an owner's Check now: GitHub asked
+ * again, the answer kept replaced only by a newer one, else `UNREACHABLE` thrown. Without it, never throws
+ */
+export async function latest(fresh = false): Promise<Checked> {
   try {
     const cache = (caches as unknown as { default: Cache }).default
-    let response = await cache.match(RELEASES)
+    let response = fresh ? undefined : await cache.match(RELEASES)
     if (!response) {
-      const fresh = await fetch(RELEASES, {
+      const asked = await fetch(RELEASES, {
+        cache: 'no-store',
         headers: { 'user-agent': 'crashyard', accept: 'application/vnd.github+json' },
-      })
-      // A private repo, no release yet or GitHub down: no update, asked again tomorrow
-      const releases = fresh.ok ? ((await fresh.json()) as Release[]) : []
+      }).catch(() => null)
+      if (!asked?.ok && fresh) throw new Error(UNREACHABLE)
+      // A private repo, no release yet, GitHub down or its limit for this address reached: no update and no time it
+      // was checked, asked again in an hour
+      const releases = asked?.ok ? ((await asked.json()) as Release[]) : []
       const kept = releases.map(({ tag_name, html_url, body, draft, prerelease, assets }) => ({
         tag_name,
         html_url,
@@ -79,12 +93,21 @@ export async function update(): Promise<Update | null> {
         assets: assets.map(({ name, browser_download_url, digest }) => ({ name, browser_download_url, digest })),
       }))
       response = new Response(JSON.stringify(kept), {
-        headers: { 'cache-control': `max-age=${DAY}`, 'content-type': 'application/json' },
+        headers: {
+          'cache-control': `max-age=${asked?.ok ? DAY : HOUR}`,
+          'content-type': 'application/json',
+          ...(asked?.ok && { 'x-checked-at': String(Date.now()) }),
+        },
       })
       await cache.put(RELEASES, response.clone())
     }
-    return pick((await response.json()) as Release[], version)
-  } catch {
-    return null
+    const at = response.headers.get('x-checked-at')
+    return { update: pick((await response.json()) as Release[], version), checkedAt: at ? Number(at) : null }
+  } catch (error) {
+    if (fresh) throw new Error(UNREACHABLE, { cause: error })
+    return { update: null, checkedAt: null }
   }
 }
+
+/** The newest release past this version, from the day's answer */
+export const update = async () => (await latest()).update

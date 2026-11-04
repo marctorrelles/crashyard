@@ -1,7 +1,7 @@
 # Upgrading crashyard
 
 When a newer version is available, owners see **Update available** at the bottom of the sidebar. crashyard checks
-GitHub for new releases once a day. [CHANGELOG.md](../CHANGELOG.md) lists what changed. If a release's migration
+GitHub for new releases once a day. To check again, choose **Check now** in Settings, General. [CHANGELOG.md](../CHANGELOG.md) lists what changed. If a release's migration
 changes existing data, the changelog says so at the top of that release.
 
 Choose **Update available** to update. You can install the update from the dashboard, or deploy it yourself.
@@ -14,7 +14,7 @@ as they are. This needs the Workers Paid plan.
 
 1. **Create an API token.** In the Cloudflare dashboard, open My Profile, then API Tokens, and create a custom token
    with two permissions on your account: **Workers Scripts: Edit** and **D1: Edit**.
-2. **Connect it.** Open **Update available**, or Settings, General, then **Automatic updates**. Paste the token, check
+2. **Connect it.** Open **Update available**, or Settings, General, then **Set up** beside **Automatic updates**. Paste the token, check
    the Worker's name, which is `crashyard` unless you renamed it, and choose **Connect Cloudflare**.
 3. **Install.** Choose **Install** and keep the page open for up to a minute. The page reloads on the new version.
    Anyone else with crashyard open sees a message that a new version is ready, with a button to reload.

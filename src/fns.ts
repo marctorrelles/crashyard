@@ -1715,10 +1715,13 @@ export const deleteDebugFile = createServerFn({ method: 'POST' })
   .handler(({ data }) => tokens.deleteDebugFile(env.DB, env.FILES, data.project, data.id))
 
 export const getInstanceSettings = createServerFn().handler(async () => {
-  const [defaults, scrubFields, update] = await Promise.all([
+  const owns = role() === 'owner'
+  const [defaults, scrubFields, { update, checkedAt }, connection, auto] = await Promise.all([
     settings.projectDefaults(env.DB),
     settings.getSetting<string[]>(env.DB, settings.SCRUB_KEY, []),
-    updates.update(),
+    updates.latest(),
+    owns ? settings.getSetting<installs.Connection | null>(env.DB, installs.CONNECTION_KEY, null) : null,
+    owns && settings.getSetting(env.DB, installs.AUTO_KEY, false),
   ])
   return {
     origin: origin(),
@@ -1727,8 +1730,17 @@ export const getInstanceSettings = createServerFn().handler(async () => {
     scrubFields,
     version,
     update,
+    checkedAt,
+    // Owners only, who set it up
+    autoUpdates: !!connection && auto,
+    now: Date.now(),
   }
 })
+
+// An owner's Check now on Settings, General: GitHub asked again instead of the day's kept answer, which a failure leaves
+export const checkForUpdate = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .handler(() => updates.latest(true))
 
 // Updates, for owners: the newest release, whether it installs from here, the Cloudflare connection and the daily check
 export const getUpdate = createServerFn()
