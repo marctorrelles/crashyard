@@ -115,6 +115,8 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   ids for what it stored.
 - `0038_held_envelopes.sql`: `held_envelopes`, envelopes held while they're processed or waiting for the cron's
   retry, when the body is UTF-8 text of 512 KB or less (`src/ingest/retry.ts`): the body as TEXT (D1 carries a BLOB as
-  an array of numbers), attempts, items left, lease; WITHOUT ROWID by `key`, the R2 key it would have had, and no other
-  index, so holding and dropping one write a row each. Rows cascade with their project. A worker from before holds in
-  R2 as it did and never reads the table: rows left in it at a rollback wait for the deploy after.
+  an array of numbers), attempts, items left, lease; WITHOUT ROWID by `(received, key)`, `key` being the R2 key it
+  would have had, and no other index, so holding and dropping one write a row each, and the cron reads the oldest from
+  the primary key's start, not the whole table (a backlog of failing envelopes would otherwise cost its size in rows
+  read every minute). Rows cascade with their project. A worker from before holds in R2 as it did and never reads the
+  table: rows left in it at a rollback wait for the deploy after.

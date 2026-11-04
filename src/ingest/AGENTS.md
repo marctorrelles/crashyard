@@ -138,10 +138,12 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   (an `EnvelopeError`). `settle` after a pass: nothing failed releases it, else the row is updated (or the R2 object
   rewritten) with what failed and the attempts so far, no lease, and the fifth moves the body to R2's
   `failed/<project>/<…>` from either store and adds 1 to `project_days.failed` (a row's delete and the count in one
-  batch). `retryPending` (every minute, last of the cron's jobs, until its shared deadline), 25 retries in all: first
-  D1's rows older than two minutes and not leased, oldest first (a scan, no index: the table holds only envelopes in
-  flight or failing), each claimed by one `UPDATE … SET attempts = attempts + 1, leased_until … WHERE` not leased
-  `RETURNING` the body, so an overlapping run claims none twice; then R2, as before 0038 and for envelopes held there
+  batch). `retryPending` (every minute, last
+  of the cron's jobs, until its shared deadline), 25 retries in all: first D1's rows older than two minutes and not
+  leased, oldest first (read from the primary key, `(received, key)`, so never the whole table; every statement on a
+  row names both), each claimed by one `UPDATE … SET attempts = attempts + 1, leased_until … WHERE` not leased
+  `RETURNING` the body, so an overlapping run claims none twice;
+  then R2, as before 0038 and for envelopes held there
   by a worker from before it: pages through `pending/` (1000 keys a page, by `cursor`) so envelopes still in flight
   never hide older ones listed after them, skips one whose `leased_until` hasn't passed, and before each pass
   rewrites the copy with `attempts + 1` and `leased_until` the cron's `now` + 90 s. So a pass that stops the worker

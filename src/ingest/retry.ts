@@ -104,7 +104,7 @@ export async function hold(
 /** Drops the held copy, as when its envelope turns out not to be one */
 export const release = (env: RetryEnv, held: Held) =>
   held.store === 'd1'
-    ? env.DB.prepare('DELETE FROM held_envelopes WHERE key = ?').bind(held.key).run()
+    ? env.DB.prepare('DELETE FROM held_envelopes WHERE received = ? AND key = ?').bind(held.received, held.key).run()
     : env.FILES.delete(held.key)
 
 const meta = (endpoint: Endpoint, attempts: number, todo?: Todo, leasedUntil?: number): Record<string, string> => ({
@@ -133,8 +133,10 @@ export async function settle(
   }
   if (attempts < MAX_ATTEMPTS) {
     if (held.store === 'd1')
-      await env.DB.prepare('UPDATE held_envelopes SET attempts = ?, items = ?, leased_until = NULL WHERE key = ?')
-        .bind(attempts, left ? left.join(',') : null, held.key)
+      await env.DB.prepare(
+        'UPDATE held_envelopes SET attempts = ?, items = ?, leased_until = NULL WHERE received = ? AND key = ?',
+      )
+        .bind(attempts, left ? left.join(',') : null, held.received, held.key)
         .run()
     else await env.FILES.put(held.key, body, { customMetadata: meta(held.endpoint, attempts, left) })
     return 'pending'
@@ -147,7 +149,10 @@ export async function settle(
   ).bind(held.projectId, new Date(now).toISOString().slice(0, 10))
   if (held.store === 'd1')
     // The row and the count go together, so a run that stops between them never counts it twice
-    await env.DB.batch([env.DB.prepare('DELETE FROM held_envelopes WHERE key = ?').bind(held.key), counted])
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM held_envelopes WHERE received = ? AND key = ?').bind(held.received, held.key),
+      counted,
+    ])
   else {
     await env.FILES.delete(held.key)
     await counted.run()
@@ -181,8 +186,8 @@ export async function retryPending(
     if ((await settle(env, held, body, attempts, left, now)) === 'failed') counts.failed++
   }
 
-  // D1: the oldest first, past their first two minutes and any lease. The table holds only envelopes in flight or
-  // failing, so a scan without an index reads few rows
+  // D1: the oldest first, past their first two minutes and any lease, read from the primary key's start, so a
+  // backlog of failing envelopes costs the rows returned and the leased ones skipped, never the whole table
   const rows = await env.DB.prepare(
     `SELECT key, project_id, received, endpoint, attempts, items FROM held_envelopes
      WHERE received <= ? AND (leased_until IS NULL OR leased_until <= ?) ORDER BY received LIMIT ?`,
@@ -208,8 +213,8 @@ export async function retryPending(
     const todo = row.items ? row.items.split(',') : undefined
     if (row.attempts >= MAX_ATTEMPTS) {
       // Its last try started and never settled, as when it stopped its worker: no more tries
-      const found = await env.DB.prepare('SELECT body FROM held_envelopes WHERE key = ?')
-        .bind(held.key)
+      const found = await env.DB.prepare('SELECT body FROM held_envelopes WHERE received = ? AND key = ?')
+        .bind(held.received, held.key)
         .first<{ body: string }>()
       if (found && (await settle(env, held, encoder.encode(found.body), row.attempts, todo ?? 'all', now)) === 'failed')
         counts.failed++
@@ -218,9 +223,9 @@ export async function retryPending(
     // Counted and leased in one write, only while no other run holds it, which answers the body
     const claimed = await env.DB.prepare(
       `UPDATE held_envelopes SET attempts = attempts + 1, leased_until = ?
-       WHERE key = ? AND (leased_until IS NULL OR leased_until <= ?) RETURNING attempts, items, body`,
+       WHERE received = ? AND key = ? AND (leased_until IS NULL OR leased_until <= ?) RETURNING attempts, items, body`,
     )
-      .bind(now + LEASE, held.key, now)
+      .bind(now + LEASE, held.received, held.key, now)
       .first<{ attempts: number; items: string | null; body: string }>()
     if (!claimed) continue
     await tryOnce(

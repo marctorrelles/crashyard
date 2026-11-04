@@ -14,7 +14,7 @@ envelope D1 refuses. Both use the same key, so event ids made from it stay the s
 tries D1's rows first, then R2's, 25 in all, and an envelope that fails five times moves to R2's `failed/` from either.
 Envelopes held in R2 by an earlier version are retried as before.
 
-**What it costs.** Two rows written for each envelope held in D1, one to hold it and one to drop it, and one more for
-each retry. An envelope over 512 KB still costs an R2 write. The cron still lists `pending/` in R2 every minute,
+**What it costs.** Two rows written for each envelope held in D1, one to hold it and one to drop it, and two more for
+each retry, one to claim it and one to record how it went. An envelope over 512 KB still costs an R2 write. The cron still lists `pending/` in R2 every minute,
 about 43,000 class A operations a month. A long outage that fails every envelope now fills D1 rather than R2 until the
 envelopes run out of tries.

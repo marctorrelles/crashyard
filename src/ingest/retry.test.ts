@@ -251,6 +251,25 @@ describe('the cron', () => {
     expect(heldCount(env)).toBe(0)
   })
 
+  it('reads D1’s oldest from the primary key, not the whole table', async () => {
+    const env = emptyEnv()
+    const sql: string[] = []
+    const prepare = env.DB.prepare.bind(env.DB)
+    env.DB.prepare = (query: string) => {
+      sql.push(query)
+      return prepare(query)
+    }
+    await retryPending(env, NOW, soon(), async () => [])
+    const plans = sql
+      .filter((q) => q.includes('held_envelopes'))
+      .map((q) =>
+        (env.DB.sqlite.prepare(`EXPLAIN QUERY PLAN ${q}`).all() as { detail: string }[])
+          .map((r) => r.detail)
+          .join('; '),
+      )
+    expect(plans).toEqual([expect.stringMatching(/^SEARCH held_envelopes USING PRIMARY KEY \(received<\?\)$/)])
+  })
+
   it('reaches old R2 envelopes past a page of young ones', async () => {
     const env = emptyEnv()
     // A busy project 1, all in flight, listed first; project 2's old failures after them
