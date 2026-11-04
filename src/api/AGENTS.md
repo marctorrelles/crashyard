@@ -54,8 +54,8 @@ signature; `/mcp` comes after sign-in.
   they say something's alive), `transaction` and `span` (streamed spans, `span.v2`: what @sentry/node 11 sends instead
   of transactions, checked against 11.9.0, and sentry-dart 10 by default; see `src/performance/`); other item types are accepted and dropped. An event without an id gets one from the held key and its index
   (`stableEventId`), the same on every try. An event goes through the project's inbound filters (`filterReason`,
-  right after `normalizeEvent`, before symbols, as Relay filters what the SDK sent), then symbols, grouping rules
-  (`applyRules`) and `groupingOf`, then `discarded_fingerprints` (one read by key); a transaction or span segment
+  right after `normalizeEvent`, before symbols, as Relay filters what the SDK sent), then symbols, `groupingFor` (the
+  project's rules and the grouping version), then `discarded_fingerprints` (one read by key); a transaction or span segment
   through `transactionFilterReason`. What they drop isn't stored, and the pass adds it to `project_days.filtered`
   once, at its end (`countFiltered`, best-effort: a failure is logged, never a failed envelope); `project_days.events` counts only stored events, so the quota never sees them. A
   worker stopped mid-pass may count a filtered event twice, as logs. A retry reads the project by id alone (a key turned off since doesn't lose

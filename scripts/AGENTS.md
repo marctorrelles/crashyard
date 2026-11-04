@@ -35,3 +35,8 @@
   feeder with its tokens as secrets; `after-backfill` runs seed step 2 once the feeder has caught up. Every remote
   command passes `-c`: the demo build for crashyard's, each sample Worker's own for the rest; the seed writes its own
   config naming `crashyard-demo` alone.
+- `sentry-grouping-fixtures.mjs` (`node scripts/sentry-grouping-fixtures.mjs <sentry checkout>`): from a checkout of
+  getsentry/sentry at 24.10.0, copies its grouping test events to `test/fixtures/sentry-grouping/events` and writes
+  `expected.json`, each event's winning variant (app, else system, else the others) and its contributing values in
+  order, read from the `newstyle@2023_01_11` variant snapshots (a value counts when every component above it is
+  marked `*`). `src/ingest/grouping.test.ts` reads them.

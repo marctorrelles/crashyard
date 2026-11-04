@@ -12,6 +12,8 @@ export type Frame = {
   lineno?: number
   colno?: number
   inApp: boolean
+  origInApp?: boolean // the SDK's own in-app flag, kept where a grouping rule changed it, so rules apply again from it
+  platform?: string // the frame's own, where it differs from the event's: React Native's JavaScript in a Java crash
   package?: string // the image (Mach-O, ELF) the frame is in, for native code
   instructionAddr?: string
   imageAddr?: string
@@ -25,6 +27,12 @@ export type ExceptionValue = {
   handled?: boolean
   mechanism?: string
   synthetic?: boolean // made by the SDK to carry a stack (captureMessage), not thrown
+  nsError?: { domain?: string; code?: number | string } // an NSError's, from `mechanism.meta.ns_error`
+  // An exception group (Python's ExceptionGroup, JavaScript's AggregateError): this one's id, its parent's, and
+  // whether it is a group itself, from the mechanism
+  exceptionId?: number
+  parentId?: number
+  isGroup?: boolean
   frames: Frame[] // oldest first: the last frame is where it happened
 }
 /** The HTTP request an event happened in, scrubbed: headers as pairs, the body as text of 8 KB at most */
@@ -54,6 +62,9 @@ export type NormalizedEvent = {
   title: string
   culprit: string
   message: string
+  // A logged message's template before its parameters, `Hello there %s!`, which grouping v2 reads over the message,
+  // as Sentry; none when it sent only the formatted text
+  template?: string
   exceptions: ExceptionValue[] // oldest first, as Sentry sends them: the last is the one that was thrown
   threads?: Thread[] // the crashed or current one first; events stored before threads were kept have none
   tags: Record<string, string>
@@ -116,6 +127,7 @@ function frameOf(raw: unknown): Frame {
     lineno: num(f.lineno),
     colno: num(f.colno),
     inApp: f.in_app === true,
+    platform: str(f.platform),
     package: str(f.package),
     instructionAddr: str(f.instruction_addr),
     imageAddr: str(f.image_addr),
@@ -123,6 +135,8 @@ function frameOf(raw: unknown): Frame {
       contextLine !== undefined
         ? { pre: lines(f.pre_context), line: contextLine, post: lines(f.post_context) }
         : undefined,
+    // Mapped with a source map before it came, as Sentry's own events are (an import): nothing to map again
+    symbolicated: obj(f.data).sourcemap !== undefined || undefined,
   }
 }
 
@@ -144,6 +158,8 @@ function exceptionsOf(event: Json, threads: Json[], used: Set<Json>): ExceptionV
     // Either way the thread's stack is the exception's: it's kept once, there
     if (frames.length && thread) used.add(thread)
     const mechanism = obj(e.mechanism)
+    const nsError = obj(obj(mechanism.meta).ns_error)
+    const code = nsError.code
     return {
       type: str(e.type) ?? 'Error',
       value: scrubText(str(e.value) ?? ''),
@@ -151,6 +167,16 @@ function exceptionsOf(event: Json, threads: Json[], used: Set<Json>): ExceptionV
       handled: typeof mechanism.handled === 'boolean' ? mechanism.handled : undefined,
       mechanism: str(mechanism.type),
       synthetic: mechanism.synthetic === true || undefined,
+      nsError:
+        str(nsError.domain) || typeof code === 'number' || typeof code === 'string'
+          ? {
+              domain: str(nsError.domain),
+              code: typeof code === 'number' || typeof code === 'string' ? code : undefined,
+            }
+          : undefined,
+      exceptionId: num(mechanism.exception_id),
+      parentId: num(mechanism.parent_id),
+      isGroup: mechanism.is_exception_group === true || undefined,
       frames,
     }
   })
@@ -249,6 +275,18 @@ function extraOf(raw: unknown, trimmed: string[]): Record<string, unknown> | und
     size += n
   }
   return Object.keys(extra).length ? extra : undefined
+}
+
+/** The logged message's template, when the SDK sent one apart from its formatted text */
+function templateOf(event: Json): string | undefined {
+  const entry = obj(event.logentry)
+  const legacy = obj(event.message)
+  const template = str(entry.message) ?? str(legacy.message)
+  return template &&
+    template !== (str(entry.formatted) ?? str(legacy.formatted)) &&
+    (entry.formatted ?? legacy.formatted ?? entry.params ?? legacy.params) !== undefined
+    ? cut(scrubText(template), 8192)
+    : undefined
 }
 
 function messageOf(event: Json): string {
@@ -376,6 +414,7 @@ export async function normalizeEvent(
     title,
     culprit,
     message,
+    template: templateOf(event),
     exceptions,
     threads: threads.length ? threads : undefined,
     tags,

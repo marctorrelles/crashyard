@@ -70,7 +70,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   a bundle has hundreds; failures logged, as it runs after the answer) are mapped
   again, grouped as ingest groups them (`groupingFor` in `src/ingest/store.ts`: the project's grouping rules, then its
   grouping version, each event's `fingerprint` and `grouping_version` rewritten), and their issues regrouped (the new
-  fingerprint, or a merge into the issue that already has it). `reprocess.test.ts` keeps a rule's fingerprint.
+  fingerprint, its old one kept in `issue_fingerprints` as `regrouped`, or a merge into the issue that already has
+  it). `reprocess.test.ts` keeps a rule's fingerprint.
 
 `test/uploads.e2e.test.ts` runs the real sentry-cli against the dev server with the fixtures in `test/fixtures`
 (a tiny dSYM, a minified bundle, a ProGuard mapping).

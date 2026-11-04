@@ -70,10 +70,29 @@ Rate limits answer the way Sentry's do. When nothing in an envelope can be kept,
 `error;default;security;attachment;feedback`, `log_item` or `transaction;span`, so SDKs stop sending that kind until the
 next day. A client key past its own daily event limit gets the same answer for errors, scoped to the key.
 
-A project's grouping rules use Sentry's syntax for fingerprint rules and stack trace rules. The matchers are
-`error.type`, `error.value`, `message`, `level`, `tags.<name>` and the `stack.*` ones with `app` and `family`, and the
-actions are `+app`, `-app`, `+group` and `-group`. Logger and category matchers, sibling frames, `max-frames` and
-custom titles aren't supported yet, and the settings page says so on the line that uses them.
+Events are grouped into issues the way Sentry groups them. crashyard follows Sentry's grouping as of Sentry 24.10.0,
+with the same built-in rules for every platform. Each event groups by its exceptions, every one in a chain. An
+exception groups by the app's own frames, or by all its frames when none are the app's, then its type. With no
+usable frames it groups by its message, with numbers, IDs, dates and addresses taken out. Function names are cleaned
+the way Sentry cleans them, so a Swift closure or a C++ template keeps one name from build to build.
+
+A few things differ from Sentry on purpose:
+
+- An exception groups by the 5 frames nearest the crash, not all of them. One crash reached from several places
+  stays one issue.
+- A frame of the app's own code without symbols groups by its place in the binary. A crash still groups before its
+  debug file is uploaded, and its issue regroups once it is.
+- Every app hang is one kind of error, whatever the SDK calls it and however long it lasted. "App Hanging", "App Hang
+  Fully Blocked" and a watchdog's "Fatal App Hang" with the same frames are one issue.
+- A script bundle's content hash, as in `index-DS-ilMhP.js`, is left out of its name when there's no source map, so a
+  deploy doesn't open new issues.
+- An event without an exception groups by its message, not by its threads.
+
+A project's grouping rules use Sentry's syntax for fingerprint rules and stack trace rules, and run after the
+built-in ones. The matchers are `error.type`, `error.value`, `message`, `level`, `tags.<name>`, the `stack.*` ones,
+`app`, `family` and `category`, with `[ … ] |` and `| [ … ]` for the frame before and after. The actions are `+app`,
+`-app`, `+group`, `-group` and `category=`. Logger matchers, `max-frames`, `min-frames` and custom titles aren't
+supported yet, and the settings page says so on the line that uses them.
 
 A project's inbound filters drop events as Sentry's do, before they're stored and without counting towards the daily
 limits: browser extensions, localhost, legacy browsers, web crawlers, health-check transactions, React hydration

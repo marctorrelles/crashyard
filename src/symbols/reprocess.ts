@@ -60,7 +60,7 @@ export async function reprocess(
     } else if (!other) {
       await env.DB.batch([
         env.DB.prepare(
-          'INSERT OR REPLACE INTO issue_fingerprints (project_id, fingerprint, issue_id) VALUES (?, ?, ?)',
+          'INSERT OR REPLACE INTO issue_fingerprints (project_id, fingerprint, issue_id, regrouped) VALUES (?, ?, ?, 1)',
         ).bind(projectId, issue.fingerprint, issueId),
         env.DB.prepare('UPDATE issues SET fingerprint = ?, title = ?, culprit = ? WHERE id = ?').bind(
           fingerprint,

@@ -34,40 +34,114 @@ order.
   stores no IPs), `extra` (scrubbed, keys in order while they fit in 16 KB of JSON) and `_trimmed`
   (what was cut: `request body`, `extra`). A `captureMessage` sends a made-up exception: `synthetic`, titled
   by its message, `type` `message`.
-- `grouping.ts`: the fingerprint. Exception type + the top 5 in-app frames; a native frame without symbols is its
-  image's basename + offset; an anonymous function (`?`, `<anonymous>`) is its context line, or file and line; a
-  synthetic exception or a message groups by its masked text (numbers, hex, UUIDs, quoted text). A custom
-  `fingerprint` wins, `{{ default }}` expands to the default. `GROUPING_VERSION` (1) and `HASHERS` (version →
-  hash): version 1 is that hash, unchanged; `rules.test.ts` checks it against `grouping-v1.json`, every fixture's
-  fingerprint taken before versions existed, so no open issue split. A change that moves fingerprints adds version 2
-  to `HASHERS` and bumps `GROUPING_VERSION`: `groupingOf` (store.ts, through `groupingFor`, which applies the
-  project's rules first, for ingest and `src/symbols/reprocess.ts` alike) then, on a project's first event at it, records
-  `grouping_previous` and `grouping_until` 30 days ahead (`GROUPING_OVERLAP`; the `UPDATE … WHERE grouping_version =`
-  the old one, so racing isolates write it once, and the cached project row is updated in place), and until then
-  computes the old hash too: when it differs and no issue has the new one, the issue holding the old (directly or
-  through `issue_fingerprints`) gets the new in `issue_fingerprints` (`INSERT OR IGNORE`, one statement per event
-  during the overlap). Past it, the old hash isn't computed. Events record `fingerprint` (before any merge) and
-  `grouping_version`.
-- `rules.ts`: a project's grouping rules (a project's settings, Issues, `projects.grouping_rules`), Sentry's syntax, from its docs
-  "Fingerprint Rules" and "Stack Trace Rules" (docs.sentry.io, read 2026-10-26). `parseGroupingRules` answers
+  For grouping v2 it also keeps a logged message's `template` (`logentry.message` when sent apart from `formatted`),
+  an exception's `nsError` (`mechanism.meta.ns_error` domain and code), `exceptionId`, `parentId` and `isGroup` (the
+  mechanism's, for exception groups) and a frame's own `platform`; a frame with `data.sourcemap` (mapped before it
+  came, as Sentry's own events are) is `symbolicated`.
+- `grouping.ts`: the fingerprint, by version (`HASHERS`, version → `(event, rules) => hash`, pure: neither changes
+  the event). `GROUPING_VERSION` is 2.
+  - Version 1 (`fingerprintOf`, `fingerprintV1`): crashyard's first, unchanged. Exception type + the top 5 in-app
+    frames; a native frame without symbols is its image's basename + offset; an anonymous function (`?`,
+    `<anonymous>`) is its context line, or file and line; a synthetic exception's type left out; no frames, the
+    masked value (`mask`: numbers, hex, UUIDs, quoted text); a message its masked text. A custom `fingerprint` wins,
+    `{{ default }}` expands to the default. Run on a copy from the SDK's in-app flags (`origInApp`) with the project's
+    rules through `applyRules`, which reads them as it always has (below). `rules.test.ts` checks it against `grouping-v1.json`, every fixture's fingerprint
+    taken before versions existed.
+  - Version 2 (`fingerprintV2`, `componentsV2`): Sentry's grouping, `newstyle:2023-01-11` as getsentry/sentry
+    24.10.0 has it (`src/sentry/grouping/strategies/newstyle.py`, `enhancer/`, `stacktraces/functions.py`,
+    `lang/javascript/utils.py`, `strategies/message.py`, `parameterization.py`; Apache-2.0 since 2026-10-15 under
+    its FSL-1.1-Apache-2.0 license, so nothing later is ported). Frames get Sentry's built-in rules then the project's
+    (`statesOf`: `stackStates` of `BUILTIN_RULES` + the project's stack rules, cached per event, so hashing and
+    `showInApp` read one). A frame is its module (Java's generated classes as `<auto>`, a JavaScript module made from
+    an http/webpack/app URL as Sentry's `generate_modules`), else its filename's basename lower-cased (none for a URL
+    origin, `<anonymous>`, `[native code]`), then its function trimmed (`trimFunction`; Ruby blocks and erb, PHP
+    anonymous classes, Java lambdas, JavaScript's last segment and anonymous names left out, a source-mapped one where
+    its line is known), then for javascript, node, python, php and ruby its context line of 120 characters or fewer;
+    a JavaScript `eval` or native-code frame is nothing; recursion (equal to the frame before, function trimmed) and
+    `-group` frames don't count. Per exception: the app variant's frames (in-app only), else the system variant's
+    (all), else none; then its type (not a synthetic one), an NSError's domain and code, and its value
+    (`parameterize`) when neither a stack nor an NSError counts. Every exception of the chain, after Sentry's
+    exception-group filter (`groupedExceptions`: one distinct top-level exception and its first path, else each
+    distinct one and the root). The app variant wins if any exception has app frames, else the system variant. No
+    exception: the message's template (`template`, `Hello %s`) or text, parameterized. Fingerprint: a project's rule,
+    else the SDK's when it isn't only `{{ default }}`, else Sentry's built-in fingerprints (`BUILTIN_FINGERPRINTS`),
+    else the default. A frame's own `platform` wins over the event's (React Native). A browser script's filename
+    loses its query string, as Sentry strips it.
+  - Version 2's differences from Sentry, commented `crashyard:` where they're done: the 5 frames nearest the crash
+    per exception, not all (`limit`); an in-app native frame without symbols is its image + offset (a system one is
+    nothing, as Sentry); `mechanism: AppHang` is one type, "App Hang", its value never counted (macOS's "App Hanging",
+    iOS's "App Hang Fully Blocked", "Non Fully Blocked", "Fatal …"); a JavaScript file or module not source-mapped
+    loses a bundler's content hash (`withoutBundleHash`); an event without an exception groups by its text, not its
+    threads; the built-in rules' crashyard section (`builtin-rules.ts`); security reports keep their own fingerprint;
+    Django template frames, `max-frames=` and `min-frames=` aren't ported; a frame's `function` is read before its
+    `raw_function` (C# would group by the raw one); emails are scrubbed before grouping. Bounds against what anyone
+    with a DSN can send: only the innermost 250 frames of an exception (`GROUPING_FRAMES`, as Relay keeps 250) get
+    rules and group, the rest keep the SDK's flags; `parameterize` reads 1,000 characters; `trimFunction` 4,000;
+    the exception-group walk has no recursion and falls back to every exception if it throws, as Sentry's.
+  - `grouping.test.ts`: every event of Sentry's grouping tests at 24.10.0 (`test/fixtures/sentry-grouping`) groups by
+    the same values as Sentry (`componentsV2` with no frame limit), the differences listed in `DIFFERENT` as
+    `it.fails`, so a fixed one shows; app hangs (`test/fixtures/hangs`); function names and modules; hostile events
+    (30,000 frames, a 100 KB value, a 5,000-deep group, deep generics) staying fast. Cost: about 2 ms for a
+    100-frame native stack on an M2, most of it the 460 rules over every frame.
+  - Changing versions: a change that moves fingerprints adds the next version to `HASHERS` and bumps
+    `GROUPING_VERSION`: `groupingOf` (store.ts, through `groupingFor`, with the project's rules, for ingest,
+    `src/symbols/reprocess.ts` and the import alike) then, on a project's first event at it, records
+    `grouping_previous` and `grouping_until` 30 days ahead (`GROUPING_OVERLAP`; the `UPDATE … WHERE grouping_version =`
+    the old one, so racing isolates write it once, and the cached project row is updated in place), and until then
+    computes the old hash too: when it differs and no issue has the new one, the issue holding the old (directly or
+    through `issue_fingerprints`) gets the new in `issue_fingerprints` as `regrouped` (0041: not a merge, so not
+    counted, listed or unmerged as one), and a discarded old hash discards the new too (`discarded_fingerprints`;
+    `INSERT OR IGNORE`, one batch of two per event during the overlap). Past it, the old hash isn't computed. Then `showInApp` sets the frames' in-app flags on the
+    event as the current version's rules leave them, the SDK's own kept in `origInApp`, and the culprit again.
+    Events record `fingerprint` (before any merge) and `grouping_version`.
+- `functions.ts`: `trimFunction` (Sentry's `trim_native_function_name` for native platforms: no arguments, return
+  type, `const`, `[clone .…]`, generics as `<T>`, lambdas as `lambda`, MSVC anonymous namespaces, Rust hashes,
+  `@GLIBC_`; Swift's `closure in X`, `thunk for closure`, `specialized`, `@objc` gone; Objective-C as it is),
+  `behaviourOf` (native, javascript, other), `jsModule` (`generate_module`) and `withoutBundleHash`.
+- `parameterize.ts`: Sentry 24.10.0's message parameterization for grouping v2: the first two non-empty lines (and
+  `...` when cut), then email, url, hostname, ip, uuid, sha1, md5, date, duration, hex, float, int, and a quoted string
+  or bool after `=`, each as `<kind>`, as one regular expression in Sentry's order. Not its unique-id experiment.
+- `builtin-rules.ts`: `BUILTIN_RULES`, `sentry-rules.txt` (Sentry 24.10.0's `newstyle@2023-01-11.txt`, unchanged,
+  read with Vite's `?raw`) then crashyard's: an app bundle's `main` and Swift `*.$main` are threadbase (Sentry gets
+  there through `UIApplicationMain`, which crashyard can't name); an unnamed libsystem_pthread frame is `system`, not
+  threadbase (Sentry's rule would hide every caller of a wait crashyard can't name); `function:Sentry*` (the SDK's
+  Swift types) `-app -group`. `BUILTIN_FINGERPRINTS`: Sentry's `javascript@2024-02-02` (ChunkLoadError, React
+  hydration errors per transaction). Parsed once per isolate; a bad line throws.
+- `rules.ts`: grouping rules in Sentry's syntax, from its docs "Fingerprint Rules" and "Stack Trace Rules"
+  (docs.sentry.io, read 2026-10-26) and Sentry 24.10.0's enhancer (`src/sentry/grouping/enhancer/`), a project's
+  (its settings, Issues, `projects.grouping_rules`) and the built-in ones. `parseGroupingRules` answers
   `{ fingerprint, stack }` or `{ error, line }` (the first bad line and a sentence). Supported: matchers `error.type`
-  (`type`), `error.value` (`value`), `message` (also every exception's value), `level`, `tags.<name>`, and on a frame
-  `stack.function` (`function`), `stack.module` (`module`), `stack.abs_path` (`path`, abs_path or filename),
-  `stack.package` (`package`), `app` (yes, no), `family` (javascript, native, other, all; from the event's platform:
-  `familyOf`); `!` negates; quoted values. Globs (`globToRegExp`): `*`, `?`, `[…]`, `[!…]`, `\`; paths `*` within a
-  folder and `**` across, a leading `**/` matching a relative path; case-insensitive for error.value, message, level
-  and paths, as the docs say. Fingerprint values split by commas or spaces, variables `{{ default }}`, `{{ error.type }}`,
-  `{{ error.value }}`, `{{ message }}`, `{{ level }}`, `{{ transaction }}`, `{{ stack.function }}`, `{{ stack.module }}`,
-  `{{ stack.abs_path }}`, `{{ stack.filename }}`, `{{ stack.package }}` (of the app's frame nearest the crash) and
-  `{{ tags.<name> }}` (`''` when missing). Stack actions `+app` `-app` `+group` `-group`, each with `^` (the frames
-  above, nearer the crash) or `v` (below). Not supported, refused with the line: `logger`, `category`, sibling
-  frames `[ … ] |`, `max-frames=`, `title=`. `applyRules` (processItems, after symbolication): stack rules in order
-  over each exception's frames, setting `inApp` on the event itself (stored so, as Sentry shows it, and the culprit
-  taken again from the last in-app frame, so an SDK linked into the app isn't one) and dropping
-  `-group` frames from a copy grouping sees; then the first fingerprint rule that matches sets the copy's fingerprint,
-  over the SDK's. `rulesOf` parses a project's text once per isolate (100 kept); text that no longer parses applies as
-  none, and `updateProject` refuses it with the line, so it can't be saved. The rules come with the project from
-  ingest's cached read: a change applies within a minute, to new events only.
+  (`type`), `error.value` (`value`), `message` (also every exception's value), `level`, `tags.<name>`
+  (in version 2 `tags.transaction` falls back to the event's transaction, a tag in Sentry), and on a frame `stack.function`
+  (`function`), `stack.module` (`module`), `stack.abs_path` (`path`, abs_path or filename), `stack.package`
+  (`package`), `app` (yes, no), `family` (javascript, native, other, all; from the event's platform, `familyOf`, or
+  in version 2 `behaviourOf` the frame's own) and `category`; `!` negates; quoted values (`\"` a quote; `\\` a
+  backslash only with `{ escapes: true }`, the built-in rules, as Sentry reads its own: a project's keep it as written);
+  `[ m ] |`
+  matches the frame before (the caller), `| [ m ]` the one after (the callee), spaced or not, one frame matcher each,
+  none past the ends; `#` after a space starts a comment, also after a rule's matchers and actions (after a
+  fingerprint's arrow it stays a value, as before). Globs (`globToRegExp`): `*`, `?`, `[…]`, `[!…]`,
+  `\`; paths `*` within a folder and `**` across, a leading `**/` matching a relative path; case-insensitive for
+  error.value, message, level and paths, as the docs say. Fingerprint values split by commas or spaces, variables
+  `{{ default }}`, `{{ error.type }}`, `{{ error.value }}`, `{{ message }}`, `{{ level }}`, `{{ transaction }}`,
+  `{{ stack.function }}`, `{{ stack.module }}`, `{{ stack.abs_path }}`, `{{ stack.filename }}`, `{{ stack.package }}`
+  (of the app's frame nearest the crash) and `{{ tags.<name> }}` (`''` when missing); a fingerprint rule's `family`
+  is the event's in version 2, needing no frame; version 1 reads it on a frame. Stack actions `+app` `-app` `+group` `-group`, each with `^` (the frames above,
+  nearer the crash) or `v` (below), and `category=<name>`. Not supported, refused with the line: `logger`,
+  `max-frames=`, `min-frames=`, `title=`.
+  - Version 1 (`applyRules`): stack rules in order over each exception's frames, each acting as it matches (no
+    categories), setting `inApp` on the event and dropping `-group` frames from a copy; the culprit again; then the
+    first fingerprint rule that matches.
+  - Version 2 (`stackStates`, pure): Sentry's two passes over each stack, from the SDK's in-app flags
+    (`origInApp ?? inApp`): first every rule's `+app`/`-app` and `category=`, rule by rule, each rule finding its
+    frames before it acts; then, on the flags and categories left, `+group`/`-group`. Function matchers read the
+    trimmed name (`trimFunction`, cached per frame), `<unknown>` for a frame without one; a path matcher reads the
+    abs_path, else the filename, a relative one also with a leading slash, as Sentry's `path_like_match`. `setInApp` shows the states
+    on the event (`origInApp` kept where they differ) and takes the culprit again; `fingerprintRule` the first
+    matching fingerprint rule, filled in.
+  - `rulesOf` parses a project's text once per isolate (100 kept); text that no longer parses applies as none, and
+    `updateProject` refuses it with the line, so it can't be saved. The rules come with the project from ingest's
+    cached read: a change applies within a minute, to new events only. `NO_RULES`: a project without any.
 - `filters.ts`: inbound filters (a project's settings, Events, `projects.filters` JSON, `parseFilters` keeps only known switches
   and string lists). `filterReason(event, filters)` answers a Relay stat key or null: `browser-extensions` (the first
   exception's value against `EXTENSION_EXC_VALUES`, or the abs_path of its frame nearest the crash, skipping

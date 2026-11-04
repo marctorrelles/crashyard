@@ -49,7 +49,8 @@ helpers (`change`).
   `discarded_fingerprints`, so ingest drops their events as filtered; their events go first, 1000 a statement, for
   up to 20 seconds, else it throws and deleting again goes on; each written to the
   activity with who did it), notes, and `mergeIssues`: events, counts, days, tags, users and feedback move into
-  the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it).
+  the first issue, and the merged fingerprints go in `issue_fingerprints` so new events follow (ingest reads it);
+  the fingerprints that routed to the merged issues move too, as merges (`regrouped` 0).
   `autoResolve` (the hourly cron, at :20): unresolved issues of a project with `auto_resolve_days`, last seen before
   that many days, resolved 100 a batch with an `auto_resolved` activity entry (`{ days }`), within the cron's deadline; the
   overview's resolved per day counts only `resolved`, what a person did. Ignoring takes `untilEscalating`
@@ -60,7 +61,8 @@ helpers (`change`).
   (an email or null, with an `assigned` entry `{ assignee }`), `bookmarkIssue` and `isBookmarked` (`bookmarks`, by
   email), `markViewed` (`issue_views`, an upsert, from `getIssue`'s server function for a person, not an agent),
   `linkIssue` (`external_url`, http or https as `fns.ts` checks, with a `linked` entry `{ url }`). `getIssue`'s
-  `merged` counts its `issue_fingerprints`. `mergedFingerprints` lists them with their kept events
+  `merged` counts its `issue_fingerprints` that are merges, not `regrouped` (the issue's own fingerprint under a newer
+  grouping version, or once its stack became readable, 0041). `mergedFingerprints` lists those with their kept events
   (by `events.fingerprint`, `events_issue_fingerprint`), the newest's first line as a title and its top in-app frame (`topFrame`, nearest the crash, else the nearest,
   `function (file:line)`), first and last seen; `unmergeIssue` moves one
   out: a new issue with that fingerprint (title, culprit and level from its newest event, the source's priority,

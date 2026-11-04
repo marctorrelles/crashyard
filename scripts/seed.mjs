@@ -14,8 +14,7 @@ const vite = await createServer({
 })
 const load = (path) => vite.ssrLoadModule(path)
 const { normalizeEvent } = await load('/src/ingest/event.ts')
-const { fingerprintOf } = await load('/src/ingest/grouping.ts')
-const { storeEvent } = await load('/src/ingest/store.ts')
+const { groupingFor, storeEvent } = await load('/src/ingest/store.ts')
 const { changeIssues, addNote } = await load('/src/data/issues.ts')
 const { storeLogs } = await load('/src/ingest/logs.ts')
 const { storeSessions, storeTransaction } = await load('/src/performance/ingest.ts')
@@ -341,7 +340,8 @@ for (const e of events) {
   if (now - e.at < DAY) raw.contexts = { ...raw.contexts, trace: { trace_id: traceOf(e.at), span_id: hex(16) } }
   raw.breadcrumbs = raw.breadcrumbs?.map((b, n) => ({ ...b, timestamp: e.at / 1000 - (3 - n) * 2.5 }))
   const event = await normalizeEvent(raw, e.at, raw.event_id)
-  const stored = await storeEvent(db, issue.project, event, await fingerprintOf(event))
+  const { fingerprint, version } = await groupingFor(db, issue.project, event, event.received)
+  const stored = await storeEvent(db, issue.project, event, fingerprint, version)
   if (!stored) continue
   issueOf.set(e.i, stored.issue.id)
   // Resolved against the old release just before the first event of the next one
@@ -709,7 +709,8 @@ for (const c of exportCrashes.sort((a, b) => a.at - b.at)) {
   }
   raw.contexts = { ...raw.contexts, trace: { trace_id: c.trace, span_id: hex(16) } }
   const event = await normalizeEvent(raw, c.at, raw.event_id)
-  await storeEvent(db, pocketband, event, await fingerprintOf(event))
+  const grouped = await groupingFor(db, pocketband, event, event.received)
+  await storeEvent(db, pocketband, event, grouped.fingerprint, grouped.version)
 }
 let actionCount = 0
 for (const [id, list] of Object.entries(actions)) {

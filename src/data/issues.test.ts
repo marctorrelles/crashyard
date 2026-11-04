@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { sqliteD1 } from '../../test/fakes'
 import { normalizeEvent } from '../ingest/event'
 import { HASHERS } from '../ingest/grouping'
+import { NO_RULES } from '../ingest/rules'
 import { storeEvent } from '../ingest/store'
 import {
   assignees,
@@ -89,6 +90,7 @@ describe('unmerge', () => {
     db.sqlite.exec("UPDATE events SET fingerprint = NULL WHERE id = '00000000000000000000000000000004'")
     const legacy = await HASHERS[1](
       JSON.parse((db.sqlite.prepare("SELECT data FROM events WHERE id LIKE '%4'").get() as { data: string }).data),
+      NO_RULES,
     )
     db.sqlite.exec(
       `UPDATE issues SET fingerprint = '${legacy}' WHERE id = ${b}; UPDATE events SET fingerprint = '${legacy}' WHERE id LIKE '%3'`,
