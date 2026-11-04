@@ -130,8 +130,11 @@ server, the build, or `tsr generate`): never edit it.
   `getRouteApi`. `$.tsx` and `projects/$slug/$.tsx` send the old addresses of joined pages where they went (`email`
   to Notifications; a project's `keys` to Connect at Client keys, `debug-files` and `source` to Stack traces, `limits` and `filters` to
   Events, `import` to Sentry, `status-page` to Monitors), anything else a 404.
-  The deployment's pages, the group "crashyard": `notifications` (below), `general` (the public URL, read-only, saying it's set in
-  `wrangler.local.json`; the version and a newer release, with Update, or Automatic updates when there's none, opening `UpdateDialog` for owners; the docs), `people` (owners only, and only listed for them:
+  The deployment's pages, the group "crashyard": `notifications` (below), `general` (Public URL, read-only, saying it's set in
+  `wrangler.local.json`; Updates, the version and a newer release, else Up to date with when GitHub was last asked,
+  or that it couldn't be reached; for owners Update to <version>, else Check now (`checkForUpdate`, its failure a
+  toast, then the page reloaded so the sidebar's Update available follows), and Automatic updates, on with a
+  Cloudflare connection and the daily switch, Set up or Manage, both opening `UpdateDialog`; the docs), `people` (owners only, and only listed for them:
   everyone with their role as a `Select` whose menu says what each can do, last seen and passkeys, Remove after a
   confirmation, not themselves; Invite someone, an optional email and a role, the link shown once; the invites
   waiting, each with Withdraw invite; Sign in with GitHub: an optional organization and Add Sign in with GitHub,

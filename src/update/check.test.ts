@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { BUILDER_NOTE, BUNDLE, newer, pick, type Release } from './check'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { BUILDER_NOTE, BUNDLE, latest, newer, pick, type Release, UNREACHABLE } from './check'
 
 const release = (tag: string, extra: Partial<Release> = {}): Release => ({
   tag_name: tag,
@@ -37,5 +37,43 @@ describe('pick', () => {
   it('skips drafts and pre-releases, and tells a major version and a release without a build', () => {
     const releases = [release('v2.0.0', { prerelease: true }), release('v1.0.0', { assets: [] }), release('v0.9.0')]
     expect(pick(releases, '0.9.0')).toMatchObject({ version: '1.0.0', major: true, bundle: null })
+  })
+})
+
+describe('latest', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  // The Cache API as a map, and GitHub answering `status` with a release past this version
+  const stub = (status: number) => {
+    const kept = new Map<string, Response>()
+    vi.stubGlobal('caches', {
+      default: {
+        match: async (url: string) => kept.get(url)?.clone(),
+        put: async (url: string, response: Response) => void kept.set(url, response),
+      },
+    })
+    const fetch = vi.fn(async () => Response.json([release('v99.0.0')], { status }))
+    vi.stubGlobal('fetch', fetch)
+    return { kept, fetch }
+  }
+
+  it('keeps the day’s answer with when it was asked, and Check now asks again', async () => {
+    const { fetch } = stub(200)
+    const first = await latest()
+    expect(first.update?.version).toBe('99.0.0')
+    expect(first.checkedAt).toBeTypeOf('number')
+    expect(await latest()).toEqual(first)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    await latest(true)
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('never reads a failed ask as up to date, and Check now’s failure keeps the answer it had', async () => {
+    const { kept, fetch } = stub(403)
+    expect(await latest()).toEqual({ update: null, checkedAt: null })
+    kept.clear()
+    fetch.mockResolvedValueOnce(Response.json([release('v99.0.0')]))
+    const good = await latest()
+    await expect(latest(true)).rejects.toThrow(UNREACHABLE)
+    expect(await latest()).toEqual(good)
   })
 })

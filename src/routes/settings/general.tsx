@@ -1,5 +1,6 @@
 import { createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { ago } from '@/components/bits'
 import { Hint, SettingsCard } from '@/components/settings'
 import { Button } from '@/components/ui/button'
@@ -62,9 +63,14 @@ function Updates() {
   const [checking, setChecking] = useState(false)
   const checkNow = async () => {
     setChecking(true)
-    await checkForUpdate().catch(() => null)
-    await router.invalidate()
-    setChecking(false)
+    try {
+      await checkForUpdate()
+      await router.invalidate()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'That didn’t work. Try again.')
+    } finally {
+      setChecking(false)
+    }
   }
   const row = 'flex items-center justify-between gap-3'
   return (
@@ -81,8 +87,10 @@ function Updates() {
                     See what’s new
                   </a>
                 </>
+              ) : checkedAt ? (
+                `Up to date. Checked ${ago(checkedAt, now)}.`
               ) : (
-                `Up to date.${checkedAt ? ` Checked ${ago(checkedAt, now)}.` : ''}`
+                'Couldn’t reach GitHub to check for a newer release.'
               )}
             </Hint>
           </div>
