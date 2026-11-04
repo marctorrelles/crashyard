@@ -120,3 +120,9 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   the primary key's start, not the whole table (a backlog of failing envelopes would otherwise cost its size in rows
   read every minute). Rows cascade with their project. A worker from before holds in R2 as it did and never reads the
   table: rows left in it at a rollback wait for the deploy after.
+- `0039_upload_retention.sql` (after `0038_held_envelopes.sql`): `projects.debug_file_retention_days` (90) and
+  `last_used_at` on `debug_files` and `artifact_bundles` (null: not read by a lookup since), moved at most once a day,
+  so no new rows per event; `pruneUploads` deletes by them (`src/data/AGENTS.md`). Rows already there get the
+  migration's time, so an older build still crashing has a whole retention to be noted before the first prune. No
+  index: the tables hold a row a build and file, and the hourly prune reads them whole. A worker from before writes no
+  `last_used_at` and prunes nothing.

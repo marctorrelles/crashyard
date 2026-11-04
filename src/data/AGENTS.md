@@ -21,7 +21,19 @@ helpers (`change`).
   a batch deletes nothing or the deadline, the cron's shared one (`PRUNE_BUDGET`, 20 s, when called alone); `inBatches`;
   `retention.test.ts` prunes 12,000 of each in one run, on `test/fakes.ts`; then `event_hours` past retention and an
   hour, 1000 a batch, then `issue_minutes` past a day, then
-  `session_users_daily` past the event retention, then `session_crashes` past two days, 1000 a batch each), `dsnOf` (a project id and a key), `seenWorkers` (the `tail.workers` setting, newest run first, each
+  `session_users_daily` past the event retention, then `session_crashes` past two days, 1000 a batch each),
+  `pruneUploads` (the same cron, last: debug files and artifact bundles uploaded and last used, `last_used_at`, before
+  the project's `debug_file_retention_days`, 90 by default; never the newest build. Debug files go by upload, the rows
+  sharing a `created_at` (one assemble; a file sent again moves into the new one, `src/api/sentry.ts`), read whole
+  once a run (a row a build and file, cheaper than a correlated lookup of newer rows for each): an upload stays while
+  any of its rows is recent, used, or the newest of its project, kind, name and arch (a ProGuard mapping: of any
+  mapping, as its name is its UUID). iOS and macOS builds of one app share name and arm64, so a macOS build's arm64
+  slice stays with its x86_64 one, and a dSYM with the binary uploaded beside it whichever a lookup reads. Not told
+  apart: two apps of one name and the same archs, or two Android apps in a project; the older one's goes once unused.
+  A bundle once a newer bundle of another release of its package, the release before `@` (release-less bundles are
+  one package, so two uploaded by one build without a release don't protect each other). Rows then the R2 keys no row
+  names any more, debug files 500 a batch (deleted only if their `created_at` didn't move since read, so a file sent
+  again mid-prune stays) so one R2 delete of 1000 keys at most, bundles 50, keys sliced by 1000; `retention.test.ts`), `dsnOf` (a project id and a key), `seenWorkers` (the `tail.workers` setting, newest run first, each
   Worker with the projects whose `workers` list it, for Connect an app), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
   Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
@@ -301,7 +313,7 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
 - `tokens.ts`: upload tokens (`cyt_`, kept as a SHA-256, shown once), each for one project (`project_id`) or every
   project (null), listed with their project's slug; `tokenOf` marks one used; `uploadsOf`, a project's debug files and
   bundles; `debugFilesOf` (the newest 500) and `deleteDebugFile` (the row, then its file and symcache in R2 unless
-  another row still names them: a fat binary's archs share one file). `source.ts`'s `storeCommits` takes `only`, a scoped token's project.
+  another row still names them: a fat binary's archs share one file). Retention deletes them too, `pruneUploads`. `source.ts`'s `storeCommits` takes `only`, a scoped token's project.
 - `people.ts`: crashyard's own sign-in (`src/auth/AGENTS.md`). `ROLES` (owner, admin, member, viewer) with
   `ROLE_LABELS`, `ROLE_HINTS` and `reaches`; users (`createUser`, emails lowercased, `listUsers` with their passkey
   count, `changeRole` and `removeUser`, both refused when they'd leave no owner; removing cascades to sessions,

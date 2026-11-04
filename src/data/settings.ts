@@ -55,6 +55,7 @@ export type ProjectDefaults = {
   event_retention_days: number
   log_retention_days: number
   action_retention_days: number
+  debug_file_retention_days: number
 }
 export const PROJECT_DEFAULTS: ProjectDefaults = {
   daily_event_quota: 10_000,
@@ -63,6 +64,7 @@ export const PROJECT_DEFAULTS: ProjectDefaults = {
   event_retention_days: 90,
   log_retention_days: 30,
   action_retention_days: 365,
+  debug_file_retention_days: 90,
 }
 export const projectDefaults = async (db: D1Database) => ({
   ...PROJECT_DEFAULTS,

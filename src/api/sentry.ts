@@ -138,8 +138,11 @@ export async function handleSentryApi(
     const fresh: string[] = []
     for (const [checksum, file] of Object.entries(body)) {
       const chunks = file.chunks ?? []
-      const existing = await env.DB.prepare('SELECT * FROM debug_files WHERE project_id = ? AND checksum = ? LIMIT 1')
-        .bind(id, checksum)
+      // A file sent again (a build that didn't change it) is part of this upload, for retention (pruneUploads)
+      const existing = await env.DB.prepare(
+        'UPDATE debug_files SET created_at = ? WHERE project_id = ? AND checksum = ? RETURNING *',
+      )
+        .bind(now, id, checksum)
         .first<DebugFileRow>()
       if (existing) {
         out[checksum] = { state: 'ok', missingChunks: [], dif: difOf(existing) }

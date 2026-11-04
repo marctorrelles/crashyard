@@ -250,6 +250,7 @@ const LIMITS = {
   daily_log_quota: limit('The daily log limit'),
   log_retention_days: retention('Log retention in days'),
   action_retention_days: retention('Action retention in days'),
+  debug_file_retention_days: retention('Debug file retention in days'),
   daily_transaction_quota: limit('The daily transaction limit'),
 }
 const PROJECT_CHECKS: { [K in keyof projects.ProjectChange]-?: (v: unknown) => projects.ProjectChange[K] } = {
@@ -1798,6 +1799,7 @@ export const saveProjectDefaults = createServerFn({ method: 'POST' })
       event_retention_days: LIMITS.event_retention_days(o.event_retention_days),
       log_retention_days: LIMITS.log_retention_days(o.log_retention_days),
       action_retention_days: LIMITS.action_retention_days(o.action_retention_days),
+      debug_file_retention_days: LIMITS.debug_file_retention_days(o.debug_file_retention_days),
     }
   })
   .handler(({ data }) => settings.setSetting(env.DB, 'defaults.project', data, viewer()).then(() => undefined))

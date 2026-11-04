@@ -105,6 +105,8 @@ export function memoryR2(): R2Bucket & { objects: Map<string, Stored> } {
       }
     },
     delete: async (keys: string | string[]) => {
+      // R2's own limit: a delete of more keys fails there
+      if (Array.isArray(keys) && keys.length > 1000) throw new Error(`R2 deletes 1000 keys at most, not ${keys.length}`)
       for (const key of Array.isArray(keys) ? keys : [keys]) objects.delete(key)
     },
     list: async (options?: R2ListOptions) => {
