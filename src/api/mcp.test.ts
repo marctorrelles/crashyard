@@ -155,11 +155,14 @@ describe('MCP for agents', () => {
       ['ignore_issue', { id: ids[1], until_escalating: true }],
       ['post_status_update', { page: 'all', kind: 'minor', title: 'Slow API', message: 'Looking', affects: [1] }],
     ]
+    const replies: Record<string, string> = {}
     for (const [name, args] of changes) {
       expect((await call(db, name, args, 'viewer')).text, name).toMatch(/can only read/)
       const r = await call(db, name, args)
       expect(r.error, `${name}: ${r.text}`).toBe(false)
+      replies[name] = r.text
     }
+    expect(replies.merge_issues).toBe(`Merged into #${ids[1]}.`)
     const issue = (id: number) =>
       db.sqlite
         .prepare('SELECT status, fixed_in_release, priority, assignee, external_url FROM issues WHERE id = ?')

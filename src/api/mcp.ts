@@ -694,8 +694,8 @@ const TOOLS: Tool[] = [
     run: async (a, { db, viewer }) => {
       const ids = issueIds({ ids: a.ids })
       if (ids.length < 2) throw new Error('Name at least two issues.')
-      const into = await issues.mergeIssues(db, ids, viewer, Date.now())
-      return `Merged into #${into}.`
+      await issues.mergeIssues(db, ids, viewer, Date.now())
+      return `Merged into #${ids[0]}.`
     },
   },
   {
