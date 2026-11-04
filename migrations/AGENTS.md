@@ -120,3 +120,5 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   the primary key's start, not the whole table (a backlog of failing envelopes would otherwise cost its size in rows
   read every minute). Rows cascade with their project. A worker from before holds in R2 as it did and never reads the
   table: rows left in it at a rollback wait for the deploy after.
+- `0040_debug_files_debug_info.sql`: `debug_files.debug_info`, 1 when the object has debug info, 0 a symbol table only,
+  null before; lookups prefer 1. Follows 0039 on the debug-retention branch (#14): merge that first.

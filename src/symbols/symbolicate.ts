@@ -94,6 +94,25 @@ const hex = (v?: string) => {
 
 type DebugRow = { debug_id: string; kind: string; file_key: string; symcache_key: string | null }
 
+/**
+ * The file each debug id symbolicates with: one with debug info over one with a symbol table only (an executable sent
+ * beside its dSYM has the same debug id, and only the dSYM has lines), then the newest. Among files uploaded before
+ * 0040, whose debug_info is unknown, the larger: a dSYM outweighs its executable.
+ */
+export async function debugFilesFor(db: D1Database, projectId: number, ids: string[]) {
+  const fileOf = new Map<string, DebugRow>()
+  if (!ids.length) return fileOf
+  const { results } = await db
+    .prepare(
+      `SELECT debug_id, kind, file_key, symcache_key FROM debug_files WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
+       ORDER BY debug_info IS 0, created_at DESC, size DESC`,
+    )
+    .bind(projectId, JSON.stringify(ids))
+    .all<DebugRow>()
+  for (const row of results) if (!fileOf.has(row.debug_id)) fileOf.set(row.debug_id, row)
+  return fileOf
+}
+
 export async function symbolicate(
   env: SymbolEnv,
   symbolic: () => Promise<Symbolic>,
@@ -109,18 +128,7 @@ export async function symbolicate(
   if (!stacks.length) return
   const images = event.debugImages.filter((i) => i.debugId)
   const ids = [...new Set(images.map((i) => i.debugId!.toLowerCase()))]
-  const rows = ids.length
-    ? (
-        await env.DB.prepare(
-          `SELECT debug_id, kind, file_key, symcache_key FROM debug_files WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
-           ORDER BY created_at DESC`,
-        )
-          .bind(projectId, JSON.stringify(ids))
-          .all<DebugRow>()
-      ).results
-    : []
-  const fileOf = new Map<string, DebugRow>()
-  for (const row of rows) if (!fileOf.has(row.debug_id)) fileOf.set(row.debug_id, row)
+  const fileOf = await debugFilesFor(env.DB, projectId, ids)
   const missing = new Map<string, NonNullable<NormalizedEvent['missingDebugFiles']>[number]>()
 
   // Native
