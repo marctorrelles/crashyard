@@ -160,7 +160,7 @@ describe('grouping versions', () => {
     expect([fingerprint, version]).toEqual([`v2-${v1}`, 2])
     const row = db.sqlite.prepare('SELECT grouping_version, grouping_previous, grouping_until FROM projects').get()
     expect(row).toEqual({ grouping_version: 2, grouping_previous: 1, grouping_until: now + 30 * 86_400_000 })
-    const stored = await storeEvent(db, project, { ...e, id: 'b'.repeat(32) }, fingerprint, undefined, version)
+    const stored = await storeEvent(db, project, { ...e, id: 'b'.repeat(32) }, fingerprint, version)
     expect(stored?.isNew).toBe(false)
     expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM issues').get()).toEqual({ n: 1 })
     // Past the overlap, the old hash isn't computed: a new crash at v2 alone makes its own issue

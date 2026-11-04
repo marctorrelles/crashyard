@@ -419,7 +419,6 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
   const failed: Todo = []
   let firstEventId: string | undefined
   const attachments: [number, EnvelopeItem][] = []
-  const rawKept = new Set<string>()
   // One event: filters, symbols, grouping, then stored with its notices; dropped ones counted as filtered
   const eventOf = async (payload: Record<string, unknown>, fallback: string | undefined) => {
     const event = await normalizeEvent(payload, now, fallback)
@@ -438,14 +437,7 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
       filteredEvents++
       return
     }
-    // The envelope as it came, once however many events it holds (named by its header's id when it has one)
-    const envelopeKey =
-      c.endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${c.envelopeId ?? event.id}` : undefined
-    const stored = await storeEvent(env.DB, project, event, fingerprint, envelopeKey, version)
-    if (envelopeKey && stored?.stored && !rawKept.has(envelopeKey)) {
-      rawKept.add(envelopeKey)
-      c.waitUntil(env.FILES.put(envelopeKey, c.body))
-    }
+    const stored = await storeEvent(env.DB, project, event, fingerprint, version)
     if (stored) notices.push(...(await noticesFor(env, c.origin, project, event, stored)))
   }
   for (const [index, from] of todo) {

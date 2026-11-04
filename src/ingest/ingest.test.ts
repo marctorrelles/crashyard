@@ -675,7 +675,7 @@ describe('what a pass that fails costs', () => {
     }
     expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM events').get()).toEqual({ n: 1 })
     expect(env.DB.sqlite.prepare('SELECT count FROM issues').get()).toEqual({ count: 1 })
-    expect([...env.FILES.objects.keys()].filter((k) => !k.startsWith('envelopes/'))).toEqual([])
+    expect(env.FILES.objects.size).toBe(0)
   })
 
   it('holds no envelope of sessions alone', async () => {
@@ -687,7 +687,7 @@ describe('what a pass that fails costs', () => {
     expect((await send(env, [{}, { type: 'session' }, session, { type: 'event' }, { message: 'boom' }])).status).toBe(
       200,
     )
-    expect(env.FILES.objects.size).toBe(1) // the event's envelopes/ copy; the held one went once stored
+    expect(env.FILES.objects.size).toBe(0) // the held copy went once stored
     expect(pending(env)).toEqual([])
   })
 

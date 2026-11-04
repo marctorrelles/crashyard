@@ -119,13 +119,11 @@ code once and adds a new passkey.
 
 ## 4. Clean up stored files
 
-This step is optional but recommended. crashyard keeps every envelope in R2 exactly as it arrived, so it can be
-reprocessed or inspected. An envelope holds what the app sent before anything was scrubbed, request headers included,
-so keep it no longer than you need. These lifecycle rules delete envelopes after 30 days, envelopes that failed five
-times after 30 days, and the pieces of uploads that never finished after one day:
+This step is optional but recommended. An envelope that failed five times stays in R2 as it arrived, before anything
+was scrubbed, request headers included, so keep it no longer than you need. These lifecycle rules delete those after
+30 days, and the pieces of uploads that never finished after one day:
 
 ```sh
-pnpm wrangler r2 bucket lifecycle add crashyard-files envelopes envelopes/ --expire-days 30
 pnpm wrangler r2 bucket lifecycle add crashyard-files failed failed/ --expire-days 30
 pnpm wrangler r2 bucket lifecycle add crashyard-files chunks chunks/ --expire-days 1
 ```
