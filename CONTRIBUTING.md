@@ -18,6 +18,7 @@ pnpm seed                                     # optional: a month of sample cras
 ## Before you open a pull request
 
 - `pnpm check` passes. It runs lint, formatting, types, unused code with knip, the tests and the build, just like CI.
+- New features and bug fixes come with tests that would fail without them.
 - Tests run in seconds. They test pure functions with fixtures, not full renders or sleeps.
 - The AGENTS.md file of each part you changed is still accurate. Every folder that has one describes itself in it.
 - Migrations are new files. Merged migrations are never edited.
