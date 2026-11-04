@@ -132,6 +132,10 @@ crashyard deletes an event's attachments itself once the event is past its proje
 no rule. An older setup added one of 90 days: remove it if a project keeps events longer, or their screenshots go
 first.
 
+crashyard 0.1.1 and earlier also kept a raw copy of every event's envelope under `envelopes/`, unscrubbed, and
+nothing reads it. If your bucket has no `envelopes` rule, add one to delete what's left:
+`pnpm wrangler r2 bucket lifecycle add crashyard-files envelopes envelopes/ --expire-days 1`.
+
 ## 5. Email notifications
 
 This step is optional. crashyard sends email through Cloudflare Email Routing, and only to addresses you have verified
@@ -235,7 +239,7 @@ with `pnpm wrangler d1 time-travel restore crashyard --timestamp <time>`. To kee
 pnpm wrangler d1 export crashyard --remote --output crashyard.sql
 ```
 
-R2 holds the raw envelopes, attachments and uploaded debug files, which the database points to. Copy the
+R2 holds the attachments and uploaded debug files the database points to, and envelopes waiting for a retry. Copy the
 `crashyard-files` bucket with any S3 tool if you want those too.
 
 ## Removing crashyard

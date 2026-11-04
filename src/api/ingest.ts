@@ -331,12 +331,9 @@ export async function handleIngest(
         env,
         origin: url.origin,
         project,
-        endpoint,
         received: now,
         envelopeId,
         held,
-        body,
-        waitUntil: (p) => ctx.waitUntil(p),
         country: typeof request.cf?.country === 'string' ? request.cf.country : undefined,
       },
       items,
@@ -388,12 +385,9 @@ type Pass = {
   env: IngestEnv
   origin: string
   project: Project
-  endpoint: Endpoint
   received: number
   envelopeId?: string
   held?: string
-  body: Uint8Array
-  waitUntil: (promise: Promise<unknown>) => void
   // The sender's country, as Cloudflare says at the request; none on the cron's retries
   country?: string
 }
@@ -585,7 +579,6 @@ export async function retryEnvelope(
     return [] // it parsed when it came; if it no longer does, no try will
   }
   const all = items.flatMap((item, i) => (KEPT.has(item.header.type ?? 'event') ? [String(i)] : []))
-  const waits: Promise<unknown>[] = []
   let result: Awaited<ReturnType<typeof processItems>>
   try {
     result = await processItems(
@@ -593,12 +586,9 @@ export async function retryEnvelope(
         env,
         origin: env.PUBLIC_URL ?? '',
         project,
-        endpoint: held.endpoint,
         received: held.received,
         envelopeId,
         held: held.key,
-        body,
-        waitUntil: (p) => void waits.push(p),
       },
       items,
       parseTodo(todo ?? all),
@@ -607,7 +597,6 @@ export async function retryEnvelope(
     if (error instanceof EnvelopeError) return []
     throw error
   }
-  await Promise.allSettled(waits)
   if (result.notices.length) await (await import('../notify/dispatch')).dispatch(env, result.notices)
   return result.failed
 }

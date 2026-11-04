@@ -298,7 +298,7 @@ export async function storeEvent(
           event.release ?? null,
           event.environment ?? null,
           `${event.title}\n${event.message}`.trim(),
-          eventJson(event), // within its size budget: the full envelope stays in R2
+          eventJson(event), // within its size budget (budget.ts)
           null, // envelope_key: the raw envelope is no longer kept (old rows still name theirs)
           event.traceId ?? null,
           event.userHash ?? null,
