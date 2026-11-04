@@ -14,7 +14,7 @@ helpers (`change`).
   (`keysOf` with today's events from `key_days`, `createKey`, `updateKey`: label, on or off, daily limit),
   `updateProject` (only the fields given, of `PROJECT_FIELDS`, `grouping_rules` and the release thresholds among them, checked in `fns.ts`; a slug another project has throws), deleting (`deleteProject`: logs, events and issues in batches, its debug files
   through `deleteDebugFile`, its R2 objects under `attachments/`, `envelopes/` (raw copies 0.1.1 and earlier kept), `pending/` and `failed/`, then the
-  project, whose foreign keys cascade the rest; within 20 seconds, else it throws and deleting again goes on;
+  project, whose foreign keys cascade the rest (`held_envelopes` too); within 20 seconds, else it throws and deleting again goes on;
   `retention.test.ts`), `pruneEvents` (the hourly cron, at :15: events past
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last
   seen before it with all their rows by cascade, 100 a batch; events and attachments 1000 a batch; each in a loop until
@@ -294,8 +294,9 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
   logs, transactions, `dropped` (whole envelopes a limit turned away), `filtered`, `failed`) and `health` (Settings,
   Usage and Health: the database's size, `meta.size_after` of a `SELECT 1`, against D1's 10 GB; the sizes of debug files,
   bundles and attachments; the cron's heartbeat `cron.last_run`, late past 3 minutes or when never written;
-  notification failures in 7 days, the newest 20 with their channel's name; R2's `pending/` and `failed/`, one list of
-  1000 each, `more` when there are more; events and logs past retention by the prune's own joins, counted up to 10,000,
+  notification failures in 7 days, the newest 20 with their channel's name; envelopes pending (`held_envelopes` rows, counted up to 1001,
+  and R2's `pending/`, added and capped at 1000) and failed (R2's `failed/`), each R2 prefix one list of 1000, `more`
+  when there are more; events and logs past retention by the prune's own joins, counted up to 10,000,
   `BACKLOG_CAP`). `health.test.ts` covers both, and `autoResolve`.
 - `tokens.ts`: upload tokens (`cyt_`, kept as a SHA-256, shown once), each for one project (`project_id`) or every
   project (null), listed with their project's slug; `tokenOf` marks one used; `uploadsOf`, a project's debug files and
