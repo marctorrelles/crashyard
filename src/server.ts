@@ -286,9 +286,9 @@ async function everyMinute(env: Env, now: number) {
   await job('notifications', () => dispatch(env, notices, now))
   await job('held notifications', () => flushHeld(env, now))
   // Hourly, from :15: events, attachments, issues, logs, actions, transactions, check-ins and uptime results past their
-  // retention; what's left goes the next hour
+  // retention, then debug files and source maps unused for theirs; what's left goes the next hour
   if (await due('retention', hour + 15 * MINUTE, 40 * MINUTE)) {
-    const [{ pruneEvents }, { pruneLogs }, { pruneMonitors }, { prunePerformance }, { pruneActions }] =
+    const [{ pruneEvents, pruneUploads }, { pruneLogs }, { pruneMonitors }, { prunePerformance }, { pruneActions }] =
       await Promise.all([
         import('./data/projects'),
         import('./data/logs'),
@@ -301,6 +301,7 @@ async function everyMinute(env: Env, now: number) {
     await job('action retention', () => pruneActions(env.DB, now, deadline))
     await job('performance retention', () => prunePerformance(env.DB, now))
     await job('monitor retention', () => pruneMonitors(env.DB, now))
+    await job('debug file retention', () => pruneUploads(env.DB, env.FILES, now, deadline))
   }
   // Hourly, from :20: sessions and passkey challenges past their end, issues not seen for their project's "Resolve issues
   // not seen for", and notification failures past 30 days

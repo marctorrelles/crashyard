@@ -14,6 +14,7 @@ export type ProjectRow = {
   daily_log_quota: number
   log_retention_days: number
   action_retention_days: number
+  debug_file_retention_days: number // debug files and source maps unused this long go, the newest kept (pruneUploads)
   daily_transaction_quota: number
   repo_url: string | null // where its code is, for stacks and commits to link to (`source.ts`)
   auto_resolve_days: number | null // resolve issues not seen for this many days; null is off
@@ -237,8 +238,8 @@ export async function createProject(db: D1Database, name: string, now: number) {
   return (await db
     .prepare(
       `INSERT INTO projects (slug, name, public_key, daily_event_quota, daily_log_quota, daily_transaction_quota,
-         event_retention_days, log_retention_days, action_retention_days, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+         event_retention_days, log_retention_days, action_retention_days, debug_file_retention_days, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     )
     .bind(
       slug,
@@ -250,6 +251,7 @@ export async function createProject(db: D1Database, name: string, now: number) {
       d.event_retention_days,
       d.log_retention_days,
       d.action_retention_days,
+      d.debug_file_retention_days,
       now,
     )
     .first<ProjectRow>())!
@@ -264,6 +266,7 @@ export const PROJECT_FIELDS = [
   'daily_log_quota',
   'log_retention_days',
   'action_retention_days',
+  'debug_file_retention_days',
   'daily_transaction_quota',
   'repo_url',
   'auto_resolve_days',
@@ -555,3 +558,127 @@ export async function weeklySummaries(db: D1Database, origin: string, now: numbe
     } satisfies Notice
   })
 }
+
+/** R2 deletes up to 1000 keys a call */
+const R2_DELETE_MAX = 1000
+async function deleteKeys(files: R2Bucket, keys: string[]) {
+  for (let i = 0; i < keys.length; i += R2_DELETE_MAX) await files.delete(keys.slice(i, i + R2_DELETE_MAX))
+}
+
+/**
+ * The hourly cron, with retention: debug files and artifact bundles uploaded and last read by a lookup (`markUsed`,
+ * src/symbols/symbolicate.ts) more than their project's `debug_file_retention_days` ago, rows and R2 objects, until
+ * done or the deadline. Debug files go by upload, the rows sharing a `created_at` (one assemble; a file sent again
+ * moves into the new one, `files/difs/assemble`), and an upload stays while any of its rows is recent, used, or the
+ * newest of its project, kind, name and arch (ProGuard mappings carry their UUID in the name: any mapping). So a
+ * build is never gone while a part of it is current: a macOS build's arm64 slice stays beside its x86_64 one though an
+ * iOS build of the same name came after, and a dSYM beside the binary uploaded with it whichever of the two lookups
+ * read. A bundle only once a newer bundle of another release of the same package (`caliu-web` of `caliu-web@1.2`; a
+ * release without `@` or none is one package) came after it. So an app's current build reads its stacks even before
+ * its first crash. Stacks already symbolicated keep their names
+ */
+export async function pruneUploads(db: D1Database, files: R2Bucket, now: number, deadline = Date.now() + PRUNE_BUDGET) {
+  // Every row once, a few thousand: cheaper than a correlated lookup of the newer ones for each
+  const { results: rows } = await db
+    .prepare(
+      `SELECT d.id, d.project_id, d.kind, d.name, d.arch, d.file_key, d.symcache_key, d.created_at, d.last_used_at,
+         ?1 - p.debug_file_retention_days * 86400000 AS cutoff
+       FROM debug_files d JOIN projects p ON p.id = d.project_id`,
+    )
+    .bind(now)
+    .all<{
+      id: number
+      project_id: number
+      kind: string
+      name: string
+      arch: string | null
+      file_key: string
+      symcache_key: string | null
+      created_at: number
+      last_used_at: number | null
+      cutoff: number
+    }>()
+  const slot = (r: (typeof rows)[number]) =>
+    JSON.stringify([r.project_id, r.kind, r.arch, r.kind === 'proguard' ? '' : r.name])
+  const newest = new Map<string, number>()
+  for (const r of rows) newest.set(slot(r), Math.max(newest.get(slot(r)) ?? 0, r.created_at))
+  const upload = (r: (typeof rows)[number]) => `${r.project_id}:${r.created_at}`
+  const kept = new Set(
+    rows
+      .filter(
+        (r) => r.created_at >= r.cutoff || (r.last_used_at ?? 0) >= r.cutoff || newest.get(slot(r)) === r.created_at,
+      )
+      .map(upload),
+  )
+  const gone = rows.filter((r) => !kept.has(upload(r)))
+  // Up to two keys a row (the file, its SymCache or ProguardCache), so one R2 delete a batch
+  let debugFiles = 0
+  for (let i = 0; i < gone.length && Date.now() < deadline; i += 500) {
+    const batch = gone.slice(i, i + 500)
+    const keys = [...new Set(batch.flatMap((r) => [r.file_key, r.symcache_key ?? []].flat()))]
+    // The rows first, each unless sent again since (its created_at moved), then what no row names any more: the
+    // archs of one fat binary share its file
+    const [deleted, still] = await db.batch<{ k: string }>([
+      db
+        .prepare(
+          `DELETE FROM debug_files WHERE (id, created_at) IN (SELECT value ->> 0, value ->> 1 FROM json_each(?))
+           RETURNING id AS k`,
+        )
+        .bind(JSON.stringify(batch.map((r) => [r.id, r.created_at]))),
+      db
+        .prepare(
+          `SELECT file_key AS k FROM debug_files WHERE file_key IN (SELECT value FROM json_each(?1))
+           UNION SELECT symcache_key FROM debug_files WHERE symcache_key IN (SELECT value FROM json_each(?1))`,
+        )
+        .bind(JSON.stringify(keys)),
+    ])
+    const named = new Set(still.results.map((r) => r.k))
+    await deleteKeys(
+      files,
+      keys.filter((k) => !named.has(k)),
+    )
+    debugFiles += deleted.results.length
+  }
+  // A bundle's keys all name its checksum (`bundles/<checksum>`, `smcaches/<checksum>`, before 0035 one
+  // `smcaches/<checksum>/<file>` a file), shared by every project it went to: kept while another row has the checksum
+  const bundles = await inBatches(deadline, async () => {
+    const { results } = await db
+      .prepare(
+        `SELECT b.id, b.checksum, b.file_key FROM artifact_bundles b JOIN projects p ON p.id = b.project_id
+         WHERE MAX(b.created_at, COALESCE(b.last_used_at, 0)) < ?1 - p.debug_file_retention_days * 86400000
+         AND EXISTS (SELECT 1 FROM artifact_bundles n WHERE n.project_id = b.project_id
+           AND ${pkg('n')} = ${pkg('b')} AND n.created_at > b.created_at
+           AND (b.release IS NULL OR n.release IS NOT b.release))
+         LIMIT 50`,
+      )
+      .bind(now)
+      .all<{ id: number; checksum: string; file_key: string }>()
+    if (!results.length) return 0
+    const ids = JSON.stringify(results.map((r) => r.id))
+    const [caches, , still] = await db.batch<{ k: string; bundle_id: number }>([
+      db
+        .prepare(
+          'SELECT DISTINCT bundle_id, cache_key AS k FROM artifact_files WHERE bundle_id IN (SELECT value FROM json_each(?)) AND cache_key IS NOT NULL',
+        )
+        .bind(ids),
+      // Its files go with it, by cascade
+      db.prepare('DELETE FROM artifact_bundles WHERE id IN (SELECT value FROM json_each(?))').bind(ids),
+      db
+        .prepare(
+          'SELECT DISTINCT checksum AS k FROM artifact_bundles WHERE checksum IN (SELECT value FROM json_each(?))',
+        )
+        .bind(JSON.stringify(results.map((r) => r.checksum))),
+    ])
+    const kept = new Set(still.results.map((r) => r.k))
+    const gone = new Set(results.filter((r) => !kept.has(r.checksum)).map((r) => r.id))
+    const keys = new Set(results.filter((r) => gone.has(r.id)).map((r) => r.file_key))
+    for (const c of caches.results) if (gone.has(c.bundle_id)) keys.add(c.k)
+    await deleteKeys(files, [...keys])
+    return results.length
+  })
+  return { debugFiles, bundles }
+}
+
+/** A bundle's package, the part of its release before `@`; '' for a release without one, or none */
+const pkg = (t: string) =>
+  `CASE WHEN instr(${t}.release, '@') > 0 THEN substr(${t}.release, 1, instr(${t}.release, '@') - 1) ELSE '' END`

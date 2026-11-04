@@ -274,6 +274,13 @@ const LIMIT_FIELDS = [
     max: 3650,
     hint: 'Analytics reads back this far.',
   },
+  {
+    name: 'debug_file_retention_days',
+    label: 'Debug file retention in days',
+    min: 1,
+    max: 3650,
+    hint: 'Debug files and source maps unused this long are deleted. The newest of each app is kept.',
+  },
 ] as const
 
 /** A project's daily limits and retention, as named form fields */
