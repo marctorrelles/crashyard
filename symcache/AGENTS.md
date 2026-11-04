@@ -21,7 +21,7 @@ The built file is committed, so deploying needs no Rust; rebuild it after changi
 - `src/bin/builder.rs` (feature `builder`, with `tiny_http`): the same `list_objects`, `make_symcache` and
   `make_proguard_cache`, native, over HTTP on 8080 (`/health`, `/objects`, `/symcache?id=`, `/proguardcache`, the
   cache's length in `x-length`) for the SymCache
-  builder's container (`src/symbols/builder.ts`). `Dockerfile` builds it on Debian; wrangler builds the image on
+  builder's container (`src/symbols/builder.ts`). `Dockerfile` builds it on Debian, its two images pinned by digest (Dependabot's docker updates move them); wrangler builds the image on
   deploy for linux/amd64 (under emulation on Apple silicon, a few minutes the first time). `cargo build --release
 --features builder --bin builder` runs it locally. A 107 MB dSYM: 1.5 s natively, 2.4 s in the amd64 image
   under emulation, the same SymCache byte for byte.
