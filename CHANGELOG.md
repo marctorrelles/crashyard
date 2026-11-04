@@ -3,6 +3,13 @@
 Every change worth knowing, newest first. Versions follow [Semantic Versioning](https://semver.org/). Release notes are
 written from the commit messages, and a release whose migration changes data says so at its top.
 
+## [0.3.1](https://github.com/marctorrelles/crashyard/compare/v0.3.0...v0.3.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **update:** check for releases outside GitHub's API limit ([#24](https://github.com/marctorrelles/crashyard/issues/24)) ([42a30f7](https://github.com/marctorrelles/crashyard/commit/42a30f730d457152450d3441d12ac9e11d337bcb))
+
 ## [0.3.0](https://github.com/marctorrelles/crashyard/compare/v0.2.0...v0.3.0) (2026-11-04)
 
 
