@@ -680,11 +680,11 @@ describe('what a pass that fails costs', () => {
     }
     expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM events').get()).toEqual({ n: 1 })
     expect(env.DB.sqlite.prepare('SELECT count FROM issues').get()).toEqual({ count: 1 })
-    expect([...env.FILES.objects.keys()].filter((k) => !k.startsWith('envelopes/'))).toEqual([])
+    expect(env.FILES.objects.size).toBe(0)
     expect(pending(env)).toEqual([])
   })
 
-  it('holds a failed envelope in D1, no R2 write but the raw copy, and the cron stores it with the same event id', async () => {
+  it('holds a failed envelope in D1, no R2 write, and the cron stores it with the same event id', async () => {
     const env = setup()
     const prepare = env.DB.prepare.bind(env.DB)
     let failOnce = true
@@ -725,7 +725,7 @@ describe('what a pass that fails costs', () => {
     expect((await send(env, [{}, { type: 'session' }, session, { type: 'event' }, { message: 'boom' }])).status).toBe(
       200,
     )
-    expect(env.FILES.objects.size).toBe(1) // the event's envelopes/ copy; the held one went once stored
+    expect(env.FILES.objects.size).toBe(0) // the held copy went once stored
     expect(pending(env)).toEqual([])
   })
 

@@ -31,7 +31,7 @@ describe('reprocessing', () => {
     const event = await normalizeEvent(payload, NOW)
     const { fingerprint, version } = await groupingFor(env.DB, project, event, NOW)
     expect(fingerprint).not.toBe(await fingerprintOf(await normalizeEvent(payload, NOW)))
-    await storeEvent(env.DB, project, event, fingerprint, undefined, version)
+    await storeEvent(env.DB, project, event, fingerprint, version)
     await reprocess(env, () => Promise.reject(new Error('no symbols needed')), 1, [...OTHERS, DEBUG_ID], NOW)
     expect(env.DB.sqlite.prepare('SELECT fingerprint FROM issues').get()).toEqual({ fingerprint })
     expect(env.DB.sqlite.prepare('SELECT fingerprint, grouping_version FROM events').get()).toEqual({

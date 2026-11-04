@@ -167,7 +167,6 @@ export async function storeEvent(
   project: Project,
   event: NormalizedEvent,
   fingerprint: string,
-  envelopeKey?: string,
   groupingVersion = GROUPING_VERSION,
 ): Promise<Stored | null> {
   if (await db.prepare('SELECT 1 FROM events WHERE id = ?').bind(event.id).first()) return null // sent twice
@@ -299,8 +298,8 @@ export async function storeEvent(
           event.release ?? null,
           event.environment ?? null,
           `${event.title}\n${event.message}`.trim(),
-          eventJson(event), // within its size budget: the full envelope stays in R2
-          envelopeKey ?? null,
+          eventJson(event), // within its size budget (budget.ts)
+          null, // envelope_key: the raw envelope is no longer kept (old rows still name theirs)
           event.traceId ?? null,
           event.userHash ?? null,
           event.userKeys ?? null,

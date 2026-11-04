@@ -17,9 +17,9 @@ project's day. Events are stored once by their event ID, so trying one again nev
 An envelope of sessions alone isn't held. Sessions are small, frequent and counted as they come, and losing one now
 and then costs less than a write for each.
 
-**What it costs.** R2's class A operations, its writes and lists. An event envelope costs 2 writes, the held copy and
-the copy under `envelopes/`. The minute cron's list costs about 43,000 a month. So the free 1 million class A
-operations a month hold about 16,000 event envelopes a day. An item that fails waits two minutes or more before it's
-tried again. A worker stopped halfway through an envelope, for running out of time, has its whole envelope tried
+**What it costs.** R2's class A operations, its writes and lists. An event envelope costs 1 write, the held copy (a
+raw copy under `envelopes/` was dropped: unscrubbed and never read). The minute cron's list costs about 43,000 a
+month. So the free 1 million class A operations a month hold about 32,000 event envelopes a day. An item that fails
+waits two minutes or more before it's tried again. A worker stopped halfway through an envelope, for running out of time, has its whole envelope tried
 again. Its events are stored once, but the logs, transactions and filtered events it had already counted are counted
 again.

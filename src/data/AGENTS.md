@@ -13,7 +13,7 @@ helpers (`change`).
   in `project_keys` too by 0013's trigger, the limits and retention of `projectDefaults`), changing, its client keys
   (`keysOf` with today's events from `key_days`, `createKey`, `updateKey`: label, on or off, daily limit),
   `updateProject` (only the fields given, of `PROJECT_FIELDS`, `grouping_rules` and the release thresholds among them, checked in `fns.ts`; a slug another project has throws), deleting (`deleteProject`: logs, events and issues in batches, its debug files
-  through `deleteDebugFile`, its R2 objects under `attachments/`, `envelopes/`, `pending/` and `failed/`, then the
+  through `deleteDebugFile`, its R2 objects under `attachments/`, `envelopes/` (raw copies 0.1.1 and earlier kept), `pending/` and `failed/`, then the
   project, whose foreign keys cascade the rest (`held_envelopes` too); within 20 seconds, else it throws and deleting again goes on;
   `retention.test.ts`), `pruneEvents` (the hourly cron, at :15: events past
   their project's retention, then attachments past it, rows and R2 objects, by `attachments.received`, then issues last

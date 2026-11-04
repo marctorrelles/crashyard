@@ -59,8 +59,8 @@ signature; `/mcp` comes after sign-in.
   through `transactionFilterReason`. What they drop isn't stored, and the pass adds it to `project_days.filtered`
   once, at its end (`countFiltered`, best-effort: a failure is logged, never a failed envelope); `project_days.events` counts only stored events, so the quota never sees them. A
   worker stopped mid-pass may count a filtered event twice, as logs. A retry reads the project by id alone (a key turned off since doesn't lose
-  what was accepted) and skips the quota (what's held was let in). The raw envelope goes
-  to R2 once an envelope (`envelopes/<project>/<day>/<envelope id, else its first stored event's>`). An attachment (1 MB at most) goes to
+  what was accepted) and skips the quota (what's held was let in). The raw envelope isn't
+  kept (it was unscrubbed and never read). An attachment (1 MB at most) goes to
   `attachments/<project>/<event>/<item index>-<filename>`, its row inserted `ON CONFLICT (event_id, r2_key) DO NOTHING`
   (0019's unique index), so two files of one name both stay and a whole-envelope retry writes no second row. Feedback
   joins the issue of its event only when that event is the project's own, and the issue page lists only the

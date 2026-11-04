@@ -49,20 +49,7 @@ if (await yes('Deploy now (build, migrate the D1 database, deploy)?')) {
   console.log(
     `\nOpen ${vars.PUBLIC_URL ?? 'your crashyard'}/setup and enter the setup code ${code} to create your owner passkey.\n`,
   )
-  if (await yes('Have R2 delete raw envelopes and failed ones after 30 days, and unfinished uploads after one?')) {
-    run([
-      'wrangler',
-      'r2',
-      'bucket',
-      'lifecycle',
-      'add',
-      'crashyard-files',
-      'envelopes',
-      'envelopes/',
-      '--expire-days',
-      '30',
-      '--force',
-    ])
+  if (await yes('Have R2 delete failed envelopes after 30 days, and unfinished uploads after one?')) {
     run([
       'wrangler',
       'r2',

@@ -23,7 +23,7 @@ flowchart LR
   ingest --> symbolic
   upload --> symbolic
   ingest --> d1[("D1<br/>issues, events, logs, actions,<br/>monitors, performance,<br/>small pending envelopes")]
-  ingest --> r2[("R2<br/>raw envelopes, large pending ones,<br/>attachments, debug files, source maps")]
+  ingest --> r2[("R2<br/>large pending and failed envelopes,<br/>attachments, debug files, source maps")]
   upload --> r2
   upload --> d1
   dashboard --> d1

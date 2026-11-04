@@ -59,9 +59,8 @@ Attachments are listed on their event. Screenshots in PNG, JPEG, GIF or WebP are
 sentry-cocoa and sentry-android attach is shown as a tree. Every other file, SVG and HTML included, only downloads.
 
 An event keeps up to 32 of its threads, each with its last 100 frames. An event larger than 900 KB is cut down to fit,
-starting with old breadcrumbs and frames far from the crash, and the event names what was cut. Its full envelope is
-still kept in R2. The crashed thread's stack is shown as the
-exception's, and the others are listed under it.
+starting with old breadcrumbs and frames far from the crash, and the event names what was cut. The crashed thread's
+stack is shown as the exception's, and the others are listed under it.
 
 An envelope is accepted before it's processed, as Sentry's Relay does. If storing an item fails, the answer is still a
 `200` with the event ID, and crashyard tries the item again within a few minutes, up to five times.

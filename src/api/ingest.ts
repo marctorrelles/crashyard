@@ -332,12 +332,9 @@ export async function handleIngest(
         env,
         origin: url.origin,
         project,
-        endpoint,
         received: now,
         envelopeId,
         held: held?.key,
-        body,
-        waitUntil: (p) => ctx.waitUntil(p),
         country: typeof request.cf?.country === 'string' ? request.cf.country : undefined,
       },
       items,
@@ -386,12 +383,9 @@ type Pass = {
   env: IngestEnv
   origin: string
   project: Project
-  endpoint: Endpoint
   received: number
   envelopeId?: string
   held?: string
-  body: Uint8Array
-  waitUntil: (promise: Promise<unknown>) => void
   // The sender's country, as Cloudflare says at the request; none on the cron's retries
   country?: string
 }
@@ -417,7 +411,6 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
   const failed: Todo = []
   let firstEventId: string | undefined
   const attachments: [number, EnvelopeItem][] = []
-  const rawKept = new Set<string>()
   // One event: filters, symbols, grouping, then stored with its notices; dropped ones counted as filtered
   const eventOf = async (payload: Record<string, unknown>, fallback: string | undefined) => {
     const event = await normalizeEvent(payload, now, fallback)
@@ -436,14 +429,7 @@ async function processItems(c: Pass, items: EnvelopeItem[], todo: Map<number, nu
       filteredEvents++
       return
     }
-    // The envelope as it came, once however many events it holds (named by its header's id when it has one)
-    const envelopeKey =
-      c.endpoint === 'envelope' ? `envelopes/${project.id}/${dayOf(now)}/${c.envelopeId ?? event.id}` : undefined
-    const stored = await storeEvent(env.DB, project, event, fingerprint, envelopeKey, version)
-    if (envelopeKey && stored?.stored && !rawKept.has(envelopeKey)) {
-      rawKept.add(envelopeKey)
-      c.waitUntil(env.FILES.put(envelopeKey, c.body))
-    }
+    const stored = await storeEvent(env.DB, project, event, fingerprint, version)
     if (stored) notices.push(...(await noticesFor(env, c.origin, project, event, stored)))
   }
   for (const [index, from] of todo) {
@@ -591,7 +577,6 @@ export async function retryEnvelope(
     return [] // it parsed when it came; if it no longer does, no try will
   }
   const all = items.flatMap((item, i) => (KEPT.has(item.header.type ?? 'event') ? [String(i)] : []))
-  const waits: Promise<unknown>[] = []
   let result: Awaited<ReturnType<typeof processItems>>
   try {
     result = await processItems(
@@ -599,12 +584,9 @@ export async function retryEnvelope(
         env,
         origin: env.PUBLIC_URL ?? '',
         project,
-        endpoint: held.endpoint,
         received: held.received,
         envelopeId,
         held: held.key,
-        body,
-        waitUntil: (p) => void waits.push(p),
       },
       items,
       parseTodo(todo ?? all),
@@ -613,7 +595,6 @@ export async function retryEnvelope(
     if (error instanceof EnvelopeError) return []
     throw error
   }
-  await Promise.allSettled(waits)
   if (result.notices.length) await (await import('../notify/dispatch')).dispatch(env, result.notices)
   return result.failed
 }
