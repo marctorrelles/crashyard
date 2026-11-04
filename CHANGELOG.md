@@ -3,6 +3,14 @@
 Every change worth knowing, newest first. Versions follow [Semantic Versioning](https://semver.org/). Release notes are
 written from the commit messages, and a release whose migration changes data says so at its top.
 
+## [0.3.0](https://github.com/marctorrelles/crashyard/compare/v0.2.0...v0.3.0) (2026-11-04)
+
+
+### Features
+
+* **grouping:** group events as Sentry does, for every platform ([#19](https://github.com/marctorrelles/crashyard/issues/19)) ([5f79a49](https://github.com/marctorrelles/crashyard/commit/5f79a49e6ab2f54c2ada2df7dcc88827d35a3a4d))
+* **settings:** an Updates card with Check now, and a clearer Public URL ([#17](https://github.com/marctorrelles/crashyard/issues/17)) ([36850b4](https://github.com/marctorrelles/crashyard/commit/36850b43dab7f5182d3b75a2456a836e6bcdb9f6))
+
 ## [0.2.0](https://github.com/marctorrelles/crashyard/compare/v0.1.1...v0.2.0) (2026-11-04)
 
 
