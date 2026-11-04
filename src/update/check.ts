@@ -59,9 +59,11 @@ export function pick(releases: Release[], current: string): Update | null {
   }
 }
 
-export async function update(): Promise<Update | null> {
+/** `fresh`: an owner's Check now, past the day's cached answer (one request; the cache is per Cloudflare location) */
+export async function update(fresh = false): Promise<Update | null> {
   try {
     const cache = (caches as unknown as { default: Cache }).default
+    if (fresh) await cache.delete(RELEASES)
     let response = await cache.match(RELEASES)
     if (!response) {
       const fresh = await fetch(RELEASES, {
@@ -79,11 +81,25 @@ export async function update(): Promise<Update | null> {
         assets: assets.map(({ name, browser_download_url, digest }) => ({ name, browser_download_url, digest })),
       }))
       response = new Response(JSON.stringify(kept), {
-        headers: { 'cache-control': `max-age=${DAY}`, 'content-type': 'application/json' },
+        headers: {
+          'cache-control': `max-age=${DAY}`,
+          'content-type': 'application/json',
+          'x-checked-at': String(Date.now()),
+        },
       })
       await cache.put(RELEASES, response.clone())
     }
     return pick((await response.json()) as Release[], version)
+  } catch {
+    return null
+  }
+}
+
+/** When the cached answer was asked of GitHub, null when there's none (or the cache can't be read) */
+export async function checkedAt(): Promise<number | null> {
+  try {
+    const at = (await (caches as unknown as { default: Cache }).default.match(RELEASES))?.headers.get('x-checked-at')
+    return at ? Number(at) : null
   } catch {
     return null
   }

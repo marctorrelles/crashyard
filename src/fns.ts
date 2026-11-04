@@ -1715,10 +1715,12 @@ export const deleteDebugFile = createServerFn({ method: 'POST' })
   .handler(({ data }) => tokens.deleteDebugFile(env.DB, env.FILES, data.project, data.id))
 
 export const getInstanceSettings = createServerFn().handler(async () => {
-  const [defaults, scrubFields, update] = await Promise.all([
+  const [defaults, scrubFields, update, connection, auto] = await Promise.all([
     settings.projectDefaults(env.DB),
     settings.getSetting<string[]>(env.DB, settings.SCRUB_KEY, []),
     updates.update(),
+    settings.getSetting<installs.Connection | null>(env.DB, installs.CONNECTION_KEY, null),
+    settings.getSetting(env.DB, installs.AUTO_KEY, false),
   ])
   return {
     origin: origin(),
@@ -1727,8 +1729,17 @@ export const getInstanceSettings = createServerFn().handler(async () => {
     scrubFields,
     version,
     update,
+    // After update(), so it's the answer just read or asked for
+    checkedAt: await updates.checkedAt(),
+    autoUpdates: !!connection && auto,
+    now: Date.now(),
   }
 })
+
+// An owner's Check now on Settings, General: GitHub asked again instead of the day's cached answer
+export const checkForUpdate = createServerFn({ method: 'POST' })
+  .middleware([owner])
+  .handler(() => updates.update(true))
 
 // Updates, for owners: the newest release, whether it installs from here, the Cloudflare connection and the daily check
 export const getUpdate = createServerFn()
