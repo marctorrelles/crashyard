@@ -69,7 +69,8 @@ Where things are:
   so is the optional SymCache builder's container (Workers Paid, Docker to deploy; `CONTAINERS=1 pnpm dev` runs it
   locally).
 - `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
-  three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root; a
+  three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root, a
+  breaking change bumping the minor while on 0.x; a
   release gets its build, `scripts/release-bundle.mjs`, and a line in its notes when it changes `symcache/`), issue
   and PR templates, Dependabot. Actions are pinned by commit SHA.
 - `site/`: crashyard.dev, the landing page, Tailwind built by Vite to static files on their own Worker (`pnpm site:deploy`, see its AGENTS.md).
