@@ -131,7 +131,8 @@ pnpm wrangler r2 bucket lifecycle add crashyard-files chunks chunks/ --expire-da
 ```
 
 crashyard deletes an event's attachments itself once the event is past its project's retention, so attachments need
-no rule. An older setup added one of 90 days: remove it if a project keeps events longer, or their screenshots go
+no rule. Debug files and source maps go once no crash has used them for the project's debug file retention, so they
+need no rule either. An older setup added one of 90 days: remove it if a project keeps events longer, or their screenshots go
 first.
 
 ## 5. Email notifications

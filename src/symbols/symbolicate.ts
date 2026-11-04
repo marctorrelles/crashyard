@@ -92,7 +92,42 @@ const hex = (v?: string) => {
   }
 }
 
-type DebugRow = { debug_id: string; kind: string; file_key: string; symcache_key: string | null }
+type DebugRow = {
+  id: number
+  debug_id: string
+  kind: string
+  file_key: string
+  symcache_key: string | null
+  last_used_at: number | null
+}
+
+const DAY = 86_400_000
+/** Whether a row's `last_used_at` is due to move: never set, or a day old. At most one write a row a day */
+const usedStale = (lastUsedAt: number | null, now: number) => lastUsedAt === null || now - lastUsedAt >= DAY
+
+/**
+ * Notes that a lookup read these debug files or bundles, for retention (`pruneUploads`, src/data/projects.ts): only rows
+ * not noted in the last day, in one statement whose guard keeps two isolates from both writing; each row given is
+ * moved in place too, so a row remembered in the isolate isn't written again
+ */
+export async function markUsed(
+  db: D1Database,
+  table: 'debug_files' | 'artifact_bundles',
+  rows: { id: number; last_used_at: number | null }[],
+  now: number,
+) {
+  const due = rows.filter((r) => usedStale(r.last_used_at, now))
+  if (!due.length) return
+  for (const r of due) r.last_used_at = now
+  await db
+    .prepare(
+      `UPDATE ${table} SET last_used_at = ?1 WHERE id IN (SELECT value FROM json_each(?2))
+       AND (last_used_at IS NULL OR last_used_at <= ?1 - ${DAY})`,
+    )
+    .bind(now, JSON.stringify([...new Set(due.map((r) => r.id))]))
+    .run()
+    .catch((error) => console.error("symbols: couldn't note a lookup", error))
+}
 
 export async function symbolicate(
   env: SymbolEnv,
@@ -112,7 +147,8 @@ export async function symbolicate(
   const rows = ids.length
     ? (
         await env.DB.prepare(
-          `SELECT debug_id, kind, file_key, symcache_key FROM debug_files WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
+          `SELECT id, debug_id, kind, file_key, symcache_key, last_used_at FROM debug_files
+           WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
            ORDER BY created_at DESC`,
         )
           .bind(projectId, JSON.stringify(ids))
@@ -122,6 +158,8 @@ export async function symbolicate(
   const fileOf = new Map<string, DebugRow>()
   for (const row of rows) if (!fileOf.has(row.debug_id)) fileOf.set(row.debug_id, row)
   const missing = new Map<string, NonNullable<NormalizedEvent['missingDebugFiles']>[number]>()
+  // The rows a lookup read, for retention
+  const used = new Set<DebugRow>()
 
   // Native
   const native = images
@@ -160,6 +198,7 @@ export async function symbolicate(
           if (!lookup) {
             const row = fileOf.get(debugId)
             const symcache = row?.symcache_key ? await pinSymcache(s, env.FILES, row.symcache_key) : null
+            if (symcache) used.add(row!)
             lookup = { symcache, addresses: [], found: [] }
             byImage.set(debugId, lookup)
           }
@@ -201,7 +240,8 @@ export async function symbolicate(
   // Android
   const proguard = images.filter((i) => i.type === 'proguard').map((i) => i.debugId!.toLowerCase())
   for (const debugId of new Set(proguard)) {
-    const key = fileOf.get(debugId)?.symcache_key
+    const row = fileOf.get(debugId)
+    const key = row?.symcache_key
     if (!key) {
       missing.set(debugId, { debugId, type: 'proguard' })
       continue
@@ -209,6 +249,7 @@ export async function symbolicate(
     const s = await symbolic()
     const cache = await pinSymcache(s, env.FILES, key)
     if (!cache) continue
+    used.add(row!)
     // Every stack's frames and every exception's class in one call: the mapper is built once a mapping, not once a
     // stack, which for a large mapping and an ANR's every thread was most of the work
     const java = stacks.map((frames) =>
@@ -254,6 +295,8 @@ export async function symbolicate(
       }
     }
   }
+
+  await markUsed(env.DB, 'debug_files', [...used], Date.now())
 
   // JavaScript, for projects with artifact bundles
   if (!(await hasBundles(env.DB, projectId))) return finish(event, targets, stacks, missing)
@@ -330,13 +373,19 @@ async function sourceMapCacheFor(env: SymbolEnv, projectId: number, debugId: str
   } catch {
     tilde = url.startsWith('~') ? url : `~/${url.replace(/^\/+/, '')}`
   }
-  type Row = { cache_key: string; cache_offset: number | null; cache_length: number | null }
+  type Row = {
+    cache_key: string
+    cache_offset: number | null
+    cache_length: number | null
+    id: number // its bundle's
+    last_used_at: number | null
+  }
   const row = await remember<Row | false>(
     `smrow:${projectId}:${debugId ?? tilde}`,
     () => 64,
     async () =>
       (await env.DB.prepare(
-        `SELECT f.cache_key, f.cache_offset, f.cache_length FROM artifact_files f JOIN artifact_bundles b ON b.id = f.bundle_id
+        `SELECT f.cache_key, f.cache_offset, f.cache_length, b.id, b.last_used_at FROM artifact_files f JOIN artifact_bundles b ON b.id = f.bundle_id
          WHERE f.project_id = ? AND f.type = 'minified_source' AND f.cache_key IS NOT NULL AND (f.debug_id = ? OR f.url = ?)
          ORDER BY f.debug_id = ? DESC, b.created_at DESC LIMIT 1`,
       )
@@ -344,6 +393,8 @@ async function sourceMapCacheFor(env: SymbolEnv, projectId: number, debugId: str
         .first<Row>()) ?? false,
   )
   if (!row) return null
+  // The row is remembered for ten minutes: markUsed moves its last_used_at in place, so it's written once
+  await markUsed(env.DB, 'artifact_bundles', [row], Date.now())
   // A bundle packs its files' caches into one object (cache_offset set); older uploads hold one object a file
   const range = row.cache_offset === null ? undefined : { offset: row.cache_offset, length: row.cache_length! }
   return remember<Uint8Array>(

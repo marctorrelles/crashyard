@@ -56,7 +56,12 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   an upload forgets the negative lookups of its project. SymCaches are kept in the shared module's memory instead
   (`pinSymcache`, 64 MB, first in first out, one alone may be bigger: a 107 MB dSYM's is 40 MB), and ProguardCaches with them, read there straight from R2,
   never stale as their key names the file's checksum; a lookup pins those it uses until it's done, so a load for
-  another event between its awaits can't free them.
+  another event between its awaits can't free them. Each debug file whose cache a lookup read, and each bundle a
+  source map came from, gets `last_used_at` for retention (`pruneUploads`, `src/data/projects.ts`): `markUsed`, one
+  `UPDATE` for the rows not noted in a day (the row read carries it, so no extra read), guarded in SQL so two isolates
+  don't both write, moved in place so a bundle row remembered for ten minutes isn't written again. Of several rows
+  for one debug id (sentry-cli uploads a dSYM's DWARF and its binary's symbol table as two checksums with the same
+  debug id and time), the lookup takes the first by `created_at DESC`, an arbitrary one of a tie.
 - `reprocess.ts`: after an upload, the project's events of the last 30 days that named its debug ids (one JSON value,
   a bundle has hundreds; failures logged, as it runs after the answer) are mapped
   again, grouped as ingest groups them (`groupingFor` in `src/ingest/store.ts`: the project's grouping rules, then its
