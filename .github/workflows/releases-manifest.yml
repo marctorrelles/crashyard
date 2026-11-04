@@ -1,0 +1,35 @@
+# releases.json, every release for the dashboard's update check (src/update/check.ts), attached to the newest release,
+# where deployments read it at releases/latest/download: a release file, outside the 60 unsigned API requests an hour
+# per address that Workers share. Each release's tag, link, pre-release flag, its build with the SHA-256 GitHub keeps
+# of it, and its notes only as whether they say it changes the SymCache builder. Built after every release (even when
+# its build failed), again when a release is edited, and by hand (Run workflow) after re-uploading a build.
+name: Releases manifest
+on:
+  workflow_call:
+  workflow_dispatch:
+  release:
+    types: [edited]
+permissions:
+  contents: read
+concurrency: releases-manifest
+jobs:
+  manifest:
+    if: ${{ !github.event.repository.private && github.repository == 'marctorrelles/crashyard' }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NOTE: This release changes the SymCache builder.
+        run: |
+          gh api --paginate "repos/$GH_REPO/releases?per_page=100" | jq -s --arg note "$NOTE" '[.[][] |
+            select(.draft | not) | {
+              tag_name, html_url, draft, prerelease,
+              body: (if (.body // "") | contains($note) then $note else null end),
+              assets: [.assets[] | select(.name == "crashyard.json.gz") | {name, browser_download_url, digest}]
+            }]' > releases.json
+          # A build without its SHA-256 couldn't be installed: fail here, run again once GitHub lists it
+          jq -e 'all(.[].assets[]; .digest // "" | startswith("sha256:"))' releases.json > /dev/null
+          gh release upload "$(gh release view --json tagName --jq .tagName)" releases.json --clobber

@@ -3,7 +3,12 @@
 import { version } from '../../package.json'
 
 export const REPO = 'marctorrelles/crashyard'
-const RELEASES = `https://api.github.com/repos/${REPO}/releases?per_page=100`
+/**
+ * Every release, as the release workflow attaches it to the newest (.github/workflows/release-please.yml). A release
+ * file, not GitHub's API: the API allows 60 unsigned requests an hour per address, which Workers share
+ */
+const MANIFEST = 'releases.json'
+const RELEASES = `https://github.com/${REPO}/releases/latest/download/${MANIFEST}`
 const DAY = 86_400
 const HOUR = 3_600
 
@@ -12,6 +17,7 @@ export const BUILDER_NOTE = 'This release changes the SymCache builder.'
 /** The build the release workflow attaches to each release, what an update installs (`install.ts`) */
 export const BUNDLE = 'crashyard.json.gz'
 
+/** One release in `MANIFEST`, its notes only as `BUILDER_NOTE` when they carry it */
 export type Release = {
   tag_name: string
   html_url: string
@@ -77,22 +83,13 @@ export async function latest(fresh = false): Promise<Checked> {
     if (!response) {
       const asked = await fetch(RELEASES, {
         cache: 'no-store',
-        headers: { 'user-agent': 'crashyard', accept: 'application/vnd.github+json' },
+        headers: { 'user-agent': 'crashyard' },
       }).catch(() => null)
       if (!asked?.ok && fresh) throw new Error(UNREACHABLE)
-      // A private repo, no release yet, GitHub down or its limit for this address reached: no update and no time it
-      // was checked, asked again in an hour
+      // GitHub down, or the newest release without its manifest yet (the workflow attaches it after the build): no
+      // update and no time it was checked, asked again in an hour
       const releases = asked?.ok ? ((await asked.json()) as Release[]) : []
-      const kept = releases.map(({ tag_name, html_url, body, draft, prerelease, assets }) => ({
-        tag_name,
-        html_url,
-        // Only whether it changes the builder is read from its notes
-        body: body?.includes(BUILDER_NOTE) ? BUILDER_NOTE : null,
-        draft,
-        prerelease,
-        assets: assets.map(({ name, browser_download_url, digest }) => ({ name, browser_download_url, digest })),
-      }))
-      response = new Response(JSON.stringify(kept), {
+      response = new Response(JSON.stringify(releases), {
         headers: {
           'cache-control': `max-age=${asked?.ok ? DAY : HOUR}`,
           'content-type': 'application/json',

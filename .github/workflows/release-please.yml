@@ -1,8 +1,8 @@
 # Releases from the commits: release-please keeps a pull request with the next version and its changelog, and merging
-# it tags the release and makes it on GitHub (which the dashboard's update check reads). Each release then gets its
-# build, `crashyard.json.gz`, what the dashboard's Update installs (src/update/install.ts), and a release that changes
-# symcache/ says so in its notes, as its builder image is only built on deploy. Skips itself until public, and in
-# copies of the repo.
+# it tags the release and makes it on GitHub. Each release then gets its build, `crashyard.json.gz`, what the
+# dashboard's Update installs (src/update/install.ts), a line in its notes when it changes symcache/, as its builder
+# image is only built on deploy, and `releases.json`, what the update check reads (releases-manifest.yml). Skips itself
+# until public, and in copies of the repo.
 name: Release
 on:
   push:
@@ -16,6 +16,8 @@ jobs:
       contents: write
       pull-requests: write
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
@@ -49,3 +51,10 @@ jobs:
             printf '\n\n**This release changes the SymCache builder.** If you run it, update with a deploy, with Docker running, so the deploy builds its new image.\n' >> notes.md
             gh release edit "$TAG" --notes-file notes.md
           fi
+  # After the build, and even when it failed, so the update check always lists the new release
+  manifest:
+    needs: release-please
+    if: ${{ always() && needs.release-please.outputs.release_created }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/releases-manifest.yml
