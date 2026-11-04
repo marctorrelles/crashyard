@@ -2,7 +2,8 @@
 
 crashyard.dev, the project's landing page. Built by Vite (`vite.config.ts`, `@tailwindcss/vite`) to `dist/`, served by
 the `crashyard-site` Worker (assets only, no code), on crashyard.dev and www.crashyard.dev. It isn't part of a crashyard
-deployment and the Deploy button doesn't deploy it.
+deployment and the Deploy button doesn't deploy it. Its commits don't make a crashyard release either:
+`release-please-config.json` leaves `site/` out (`exclude-paths`).
 
 ```sh
 pnpm site:dev      # the page on a Vite dev server
