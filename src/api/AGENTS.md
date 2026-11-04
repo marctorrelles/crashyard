@@ -73,7 +73,9 @@ signature; `/mcp` comes after sign-in.
   on `files/difs/assemble`, `artifactbundle/assemble` and a release that name another project, and its set-commits
   reach only its own project; chunks are the organisation's, so any token uploads them): chunk-upload (options,
   then gzipped chunks), `files/difs/assemble` (debug files, ProGuard), `artifactbundle/assemble` (source maps), and
-  releases (kept with their commit). Assembling happens in the request, so the answer is `ok` at once. The
+  releases (kept with their commit). Assembling happens in the request, so the answer is `ok` at once. A debug file
+  already stored (by project and checksum) answers `ok` and gets the request's time as `created_at`: a build that
+  didn't change it is still using it, and retention keeps an upload by that time (`pruneUploads`). The
   organisation in the path is ignored. A project, in a path or a body's `projects`, is its slug or, as Sentry takes
   either, its number (`projectId`: a slug of digits wins over another project's number). Commits: `repos/` answers none, so `releases set-commits` (sentry-cli 3.8,
   `--local` or not) reads the local git and PUTs the release with `commits` (id, message, author, time and each one's
@@ -86,7 +88,8 @@ signature; `/mcp` comes after sign-in.
   (`storeDeploy`): those named, checked by `allowed` as other uploads, else every project with the release (in
   `releases`, events or sessions), a project's token only its own; answered in Sentry's Deploy shape (`id`,
   `environment`, `name`, `url`, `dateStarted`, `dateFinished`), 201. `deploys list` (GET) lists them.
-  `sentry.test.ts` calls it on `test/fakes.ts`: a project by slug or number, deploy links, and a project's token refused on another project for
+  `sentry.test.ts` calls it on `test/fakes.ts`: a project by slug or number, deploy links, a debug file sent again
+  moved to the new upload, and a project's token refused on another project for
   artifact bundles, releases POST and PUT, set-commits, deploys and previous-with-commits.
 - `telegram.ts`: `POST /api/telegram/<bot id>`, a bot's webhook (set by saving a Telegram channel,
   `src/notify/AGENTS.md`). Let in only with `X-Telegram-Bot-Api-Secret-Token` equal to a secret of that bot's

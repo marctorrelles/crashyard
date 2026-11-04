@@ -61,7 +61,8 @@ before it's grouped. Sentry's own way, with Sentry's own code (`symbolic`, as We
   `UPDATE` for the rows not noted in a day (the row read carries it, so no extra read), guarded in SQL so two isolates
   don't both write, moved in place so a bundle row remembered for ten minutes isn't written again. Of several rows
   for one debug id (sentry-cli uploads a dSYM's DWARF and its binary's symbol table as two checksums with the same
-  debug id and time), the lookup takes the first by `created_at DESC`, an arbitrary one of a tie.
+  debug id and time), the lookup takes the first by `created_at DESC`, an arbitrary one of a tie, and only that row is
+  noted: retention keeps an upload's rows together, so the other stays as long.
 - `reprocess.ts`: after an upload, the project's events of the last 30 days that named its debug ids (one JSON value,
   a bundle has hundreds; failures logged, as it runs after the answer) are mapped
   again, grouped as ingest groups them (`groupingFor` in `src/ingest/store.ts`: the project's grouping rules, then its

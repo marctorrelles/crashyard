@@ -134,7 +134,7 @@ describe('debug file retention', () => {
       ${debugFile(11, 'c', 'c3b', old)}
       ${debugFile(12, 'c', 'c3c', old)}
       ${debugFile(4, 'ax', 'fat', old - 2 * DAY, { arch: 'x86_64' })}
-      ${debugFile(5, 'p1', 'm1', old - DAY, { name: '/proguard/p1.txt', arch: null, kind: 'proguard' })}
+      ${debugFile(5, 'p1', 'm1', old - DAY - 1, { name: '/proguard/p1.txt', arch: null, kind: 'proguard' })}
       ${debugFile(6, 'p2', 'm2', old, { name: '/proguard/p2.txt', arch: null, kind: 'proguard' })}
       ${debugFile(7, 'w1', 'w1', NOW - 10 * DAY, { project: 2, name: 'Widget' })}
       ${debugFile(8, 'w2', 'w2', NOW - 9 * DAY, { project: 2, name: 'Widget' })}
@@ -144,13 +144,14 @@ describe('debug file retention', () => {
     const rows = db.sqlite.prepare('SELECT file_key, symcache_key FROM debug_files').all() as Record<string, string>[]
     for (const r of rows) await Promise.all([files.put(r.file_key, 'x'), files.put(r.symcache_key, 'x')])
 
-    expect(await pruneUploads(db, files, NOW)).toEqual({ debugFiles: 4, bundles: 0 })
-    // 1: old and unused, a newer build of App arm64 came; 3: the same debug id uploaded again, which lookups read
-    // instead; 5: an older mapping; 7: past project b's 7 days. 11 and 12, one upload, are both the newest
-    expect(ids(db, 'debug_files')).toEqual([2, 4, 6, 8, 9, 10, 11, 12])
+    expect(await pruneUploads(db, files, NOW)).toEqual({ debugFiles: 3, bundles: 0 })
+    // 3: old and unused, the same debug id uploaded again, which lookups read instead; 5: an older mapping; 7: past
+    // project b's 7 days. 11 and 12, one upload, are both the newest; 1 stays with 4, its upload, the newest x86_64
+    expect(ids(db, 'debug_files')).toEqual([1, 2, 4, 6, 8, 9, 10, 11, 12])
     expect(keys(files)).toEqual(
       [
-        'debug-files/1/fat', // still x86_64's, the newest of its arch
+        'debug-files/1/fat',
+        'symcaches/1/a/fat',
         'debug-files/1/c2',
         'debug-files/1/c3b',
         'debug-files/1/c3c',
@@ -169,6 +170,56 @@ describe('debug file retention', () => {
       ].sort(),
     )
     expect(await pruneUploads(db, files, NOW)).toEqual({ debugFiles: 0, bundles: 0 })
+  })
+
+  it('keeps a build while any part of it is current or used', async () => {
+    const db = sqliteD1()
+    const files = memoryR2()
+    // iOS and macOS builds of one app share its name and arm64; each uploaded a dSYM and, by mistake, the binary
+    db.sqlite.exec(`
+      INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0);
+      ${debugFile(1, 'ios0', 'ios0', old - 4 * DAY)}
+      ${debugFile(2, 'mac', 'mac-arm', old - 3 * DAY)}
+      ${debugFile(3, 'macx', 'mac-x86', old - 3 * DAY, { arch: 'x86_64' })}
+      ${debugFile(4, 'ios1', 'ios1-dsym', old - 2 * DAY)}
+      ${debugFile(5, 'ios1', 'ios1-bin', old - 2 * DAY, { used: NOW - DAY })}
+      ${debugFile(6, 'ios2', 'ios2', old - DAY)}
+      ${debugFile(7, 'old', 'old', old - DAY / 2, { name: 'Gone', arch: 'x86_64' })}
+      ${debugFile(8, 'new', 'new', old, { name: 'Gone', arch: 'x86_64' })}
+    `)
+    for (const r of db.sqlite.prepare('SELECT file_key, symcache_key FROM debug_files').all() as Record<
+      string,
+      string
+    >[])
+      await Promise.all([files.put(r.file_key, 'x'), files.put(r.symcache_key, 'x')])
+
+    // 1: an older iOS build, nothing of it current; 7: superseded and unused. 6 is the newest; 2 stays with the
+    // newest x86_64 slice, 3; 4, the dSYM, with the binary a lookup read, 5
+    expect(await pruneUploads(db, files, NOW)).toEqual({ debugFiles: 2, bundles: 0 })
+    expect(ids(db, 'debug_files')).toEqual([2, 3, 4, 5, 6, 8])
+    expect(keys(files)).not.toContain('debug-files/1/ios0')
+    expect(keys(files)).toContain('debug-files/1/ios1-dsym')
+  })
+
+  it('keeps a file sent again between reading and deleting it, and its keys', async () => {
+    const db = sqliteD1()
+    const files = memoryR2()
+    db.sqlite.exec(`
+      INSERT INTO projects (id, slug, name, public_key, created_at) VALUES (1, 'a', 'a', 'k', 0);
+      ${debugFile(1, 'a', 'c1', old - DAY)}
+      ${debugFile(2, 'b', 'c2', old)}
+    `)
+    await Promise.all(['debug-files/1/c1', 'symcaches/1/a/c1'].map((k) => files.put(k, 'x')))
+    // An assemble naming c1 lands after the prune read the rows
+    const racing = Object.assign(Object.create(db), {
+      batch: (statements: D1PreparedStatement[]) => {
+        db.sqlite.exec(`UPDATE debug_files SET created_at = ${NOW} WHERE checksum = 'c1'`)
+        return db.batch(statements)
+      },
+    }) as D1Database
+    expect(await pruneUploads(racing, files, NOW)).toEqual({ debugFiles: 0, bundles: 0 })
+    expect(ids(db, 'debug_files')).toEqual([1, 2])
+    expect(keys(files)).toEqual(['debug-files/1/c1', 'symcaches/1/a/c1'])
   })
 
   it('deletes in batches R2 takes, 1000 keys at most', async () => {

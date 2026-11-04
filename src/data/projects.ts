@@ -567,34 +567,64 @@ async function deleteKeys(files: R2Bucket, keys: string[]) {
 
 /**
  * The hourly cron, with retention: debug files and artifact bundles uploaded and last read by a lookup (`markUsed`,
- * src/symbols/symbolicate.ts) more than their project's `debug_file_retention_days` ago, rows and R2 objects, in
- * batches until done or the deadline. Never the newest build: a debug file goes only once another of the same kind,
- * name and arch came after it (ProGuard mappings carry their UUID in the name, so any newer mapping of the project);
- * rows of one upload share `created_at`, so a dSYM's DWARF and its binary's symbol table stay together, and an older
- * copy of a debug id that came again (a build that didn't change it) goes, as lookups read only the newest. A bundle only once a newer bundle of another release of the same package (`caliu-web` of
- * `caliu-web@1.2`; a release without `@` or none is one package) came after it. So an app's current build reads
- * its stacks even before its first crash. Stacks already symbolicated keep their names
+ * src/symbols/symbolicate.ts) more than their project's `debug_file_retention_days` ago, rows and R2 objects, until
+ * done or the deadline. Debug files go by upload, the rows sharing a `created_at` (one assemble; a file sent again
+ * moves into the new one, `files/difs/assemble`), and an upload stays while any of its rows is recent, used, or the
+ * newest of its project, kind, name and arch (ProGuard mappings carry their UUID in the name: any mapping). So a
+ * build is never gone while a part of it is current: a macOS build's arm64 slice stays beside its x86_64 one though an
+ * iOS build of the same name came after, and a dSYM beside the binary uploaded with it whichever of the two lookups
+ * read. A bundle only once a newer bundle of another release of the same package (`caliu-web` of `caliu-web@1.2`; a
+ * release without `@` or none is one package) came after it. So an app's current build reads its stacks even before
+ * its first crash. Stacks already symbolicated keep their names
  */
 export async function pruneUploads(db: D1Database, files: R2Bucket, now: number, deadline = Date.now() + PRUNE_BUDGET) {
-  // Up to two keys a row (the file, its SymCache or ProguardCache), so one R2 delete a batch
-  const debugFiles = await inBatches(deadline, async () => {
-    const { results } = await db
-      .prepare(
-        `SELECT d.id, d.file_key, d.symcache_key FROM debug_files d JOIN projects p ON p.id = d.project_id
-         WHERE MAX(d.created_at, COALESCE(d.last_used_at, 0)) < ?1 - p.debug_file_retention_days * 86400000
-         AND EXISTS (SELECT 1 FROM debug_files n WHERE n.project_id = d.project_id AND n.kind = d.kind
-           AND n.arch IS d.arch AND (d.kind = 'proguard' OR n.name = d.name) AND n.created_at > d.created_at)
-         LIMIT 500`,
+  // Every row once, a few thousand: cheaper than a correlated lookup of the newer ones for each
+  const { results: rows } = await db
+    .prepare(
+      `SELECT d.id, d.project_id, d.kind, d.name, d.arch, d.file_key, d.symcache_key, d.created_at, d.last_used_at,
+         ?1 - p.debug_file_retention_days * 86400000 AS cutoff
+       FROM debug_files d JOIN projects p ON p.id = d.project_id`,
+    )
+    .bind(now)
+    .all<{
+      id: number
+      project_id: number
+      kind: string
+      name: string
+      arch: string | null
+      file_key: string
+      symcache_key: string | null
+      created_at: number
+      last_used_at: number | null
+      cutoff: number
+    }>()
+  const slot = (r: (typeof rows)[number]) =>
+    JSON.stringify([r.project_id, r.kind, r.arch, r.kind === 'proguard' ? '' : r.name])
+  const newest = new Map<string, number>()
+  for (const r of rows) newest.set(slot(r), Math.max(newest.get(slot(r)) ?? 0, r.created_at))
+  const upload = (r: (typeof rows)[number]) => `${r.project_id}:${r.created_at}`
+  const kept = new Set(
+    rows
+      .filter(
+        (r) => r.created_at >= r.cutoff || (r.last_used_at ?? 0) >= r.cutoff || newest.get(slot(r)) === r.created_at,
       )
-      .bind(now)
-      .all<{ id: number; file_key: string; symcache_key: string | null }>()
-    if (!results.length) return 0
-    const keys = [...new Set(results.flatMap((r) => [r.file_key, r.symcache_key ?? []].flat()))]
-    // The rows first, then what no other row names: the archs of one fat binary share its file
-    const [, still] = await db.batch<{ k: string }>([
+      .map(upload),
+  )
+  const gone = rows.filter((r) => !kept.has(upload(r)))
+  // Up to two keys a row (the file, its SymCache or ProguardCache), so one R2 delete a batch
+  let debugFiles = 0
+  for (let i = 0; i < gone.length && Date.now() < deadline; i += 500) {
+    const batch = gone.slice(i, i + 500)
+    const keys = [...new Set(batch.flatMap((r) => [r.file_key, r.symcache_key ?? []].flat()))]
+    // The rows first, each unless sent again since (its created_at moved), then what no row names any more: the
+    // archs of one fat binary share its file
+    const [deleted, still] = await db.batch<{ k: string }>([
       db
-        .prepare('DELETE FROM debug_files WHERE id IN (SELECT value FROM json_each(?))')
-        .bind(JSON.stringify(results.map((r) => r.id))),
+        .prepare(
+          `DELETE FROM debug_files WHERE (id, created_at) IN (SELECT value ->> 0, value ->> 1 FROM json_each(?))
+           RETURNING id AS k`,
+        )
+        .bind(JSON.stringify(batch.map((r) => [r.id, r.created_at]))),
       db
         .prepare(
           `SELECT file_key AS k FROM debug_files WHERE file_key IN (SELECT value FROM json_each(?1))
@@ -602,13 +632,13 @@ export async function pruneUploads(db: D1Database, files: R2Bucket, now: number,
         )
         .bind(JSON.stringify(keys)),
     ])
-    const kept = new Set(still.results.map((r) => r.k))
+    const named = new Set(still.results.map((r) => r.k))
     await deleteKeys(
       files,
-      keys.filter((k) => !kept.has(k)),
+      keys.filter((k) => !named.has(k)),
     )
-    return results.length
-  })
+    debugFiles += deleted.results.length
+  }
   // A bundle's keys all name its checksum (`bundles/<checksum>`, `smcaches/<checksum>`, before 0035 one
   // `smcaches/<checksum>/<file>` a file), shared by every project it went to: kept while another row has the checksum
   const bundles = await inBatches(deadline, async () => {

@@ -115,6 +115,7 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   ids for what it stored.
 - `0039_upload_retention.sql` (after `0038_held_envelopes.sql`): `projects.debug_file_retention_days` (90) and
   `last_used_at` on `debug_files` and `artifact_bundles` (null: not read by a lookup since), moved at most once a day,
-  so no new rows per event; `pruneUploads` deletes by them (`src/data/AGENTS.md`). No index: the tables hold a row a
-  build and file, and the hourly prune reads them whole. A worker from before writes no `last_used_at` and prunes
-  nothing.
+  so no new rows per event; `pruneUploads` deletes by them (`src/data/AGENTS.md`). Rows already there get the
+  migration's time, so an older build still crashing has a whole retention to be noted before the first prune. No
+  index: the tables hold a row a build and file, and the hourly prune reads them whole. A worker from before writes no
+  `last_used_at` and prunes nothing.

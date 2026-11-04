@@ -19,7 +19,7 @@ async function setup() {
   const call = async (token: string, method: string, path: string, body?: unknown) => {
     const waits: Promise<unknown>[] = []
     const response = await handleSentryApi(
-      new Request(`https://x/api/0/organizations/o/${path}`, {
+      new Request(path.startsWith('/') ? `https://x${path}` : `https://x/api/0/organizations/o/${path}`, {
         method,
         headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -103,5 +103,26 @@ describe('the Sentry API', () => {
       version: '1.0',
     })
     expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM releases WHERE version = ?').get('3.0')).toEqual({ n: 0 })
+  })
+
+  it('moves a debug file sent again into the new upload, for retention', async () => {
+    const { env, all, call } = await setup()
+    env.DB.sqlite
+      .exec(`INSERT INTO debug_files (project_id, checksum, name, debug_id, arch, kind, file_key, size, created_at)
+      VALUES (1, 'c1', 'App', 'd1', 'arm64', 'macho', 'debug-files/1/c1', 1, 5), (1, 'c1', 'App', 'd2', 'x86_64', 'macho', 'debug-files/1/c1', 1, 5),
+        (2, 'c1', 'App', 'd1', 'arm64', 'macho', 'debug-files/2/c1', 1, 5)`)
+    const answer = await call(all, 'POST', '/api/0/projects/o/a/files/difs/assemble/', {
+      c1: { name: 'App', chunks: ['x'] },
+    })
+    expect(await answer.json()).toMatchObject({ c1: { state: 'ok' } })
+    const times = env.DB.sqlite.prepare('SELECT project_id, created_at FROM debug_files ORDER BY project_id').all() as {
+      project_id: number
+      created_at: number
+    }[]
+    expect(times.map((t) => [t.project_id, t.created_at > 5])).toEqual([
+      [1, true],
+      [1, true],
+      [2, false],
+    ])
   })
 })

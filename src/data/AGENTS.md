@@ -23,12 +23,17 @@ helpers (`change`).
   hour, 1000 a batch, then `issue_minutes` past a day, then
   `session_users_daily` past the event retention, then `session_crashes` past two days, 1000 a batch each),
   `pruneUploads` (the same cron, last: debug files and artifact bundles uploaded and last used, `last_used_at`, before
-  the project's `debug_file_retention_days`, 90 by default; never the newest build, a debug file only once another of its kind, name
-  and arch came after it (an upload's rows share `created_at`, so a dSYM's two checksums stay together; an older copy
-  of a debug id uploaded again goes, as lookups read the newest), a ProGuard mapping once any newer mapping did, as its
-  name is its UUID, a bundle once a newer bundle of another release of its package, the release before `@`; rows then the R2 keys
-  no other row names, debug files 500 a batch so one R2 delete of 1000 keys at most, bundles 50, keys sliced by 1000;
-  `retention.test.ts`), `dsnOf` (a project id and a key), `seenWorkers` (the `tail.workers` setting, newest run first, each
+  the project's `debug_file_retention_days`, 90 by default; never the newest build. Debug files go by upload, the rows
+  sharing a `created_at` (one assemble; a file sent again moves into the new one, `src/api/sentry.ts`), read whole
+  once a run (a row a build and file, cheaper than a correlated lookup of newer rows for each): an upload stays while
+  any of its rows is recent, used, or the newest of its project, kind, name and arch (a ProGuard mapping: of any
+  mapping, as its name is its UUID). iOS and macOS builds of one app share name and arm64, so a macOS build's arm64
+  slice stays with its x86_64 one, and a dSYM with the binary uploaded beside it whichever a lookup reads. Not told
+  apart: two apps of one name and the same archs, or two Android apps in a project; the older one's goes once unused.
+  A bundle once a newer bundle of another release of its package, the release before `@` (release-less bundles are
+  one package, so two uploaded by one build without a release don't protect each other). Rows then the R2 keys no row
+  names any more, debug files 500 a batch (deleted only if their `created_at` didn't move since read, so a file sent
+  again mid-prune stays) so one R2 delete of 1000 keys at most, bundles 50, keys sliced by 1000; `retention.test.ts`), `dsnOf` (a project id and a key), `seenWorkers` (the `tail.workers` setting, newest run first, each
   Worker with the projects whose `workers` list it, for Connect an app), `filteredSince` (what the filters dropped in the last N UTC days, for Settings,
   Filters), `weeklySummaries` (the cron, Mondays at 07:00 UTC: a
   `weekly` notice per project with events in the 7 UTC days to yesterday or the 7 before: its events against the week
