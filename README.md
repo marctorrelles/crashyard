@@ -1,6 +1,7 @@
 # <img src="docs/images/logo.svg" alt="" width="40" height="40" align="top"> crashyard
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/marctorrelles/crashyard/badge)](https://scorecard.dev/viewer/?uri=github.com/marctorrelles/crashyard)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16331/badge)](https://www.bestpractices.dev/projects/16331)
 
 Crash reporting, error tracking, logs and product analytics that run on your own Cloudflare account.
 
