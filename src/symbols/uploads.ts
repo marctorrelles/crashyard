@@ -170,6 +170,8 @@ export type DebugFileRow = {
   name: string
   checksum: string
   size: number
+  /** 1 with debug info, 0 a symbol table only, null for a mapping or a file uploaded before 0040 */
+  debug_info: number | null
   created_at: number
 }
 
@@ -212,6 +214,7 @@ export async function storeDebugFile(
       name,
       checksum,
       size: file.length,
+      debug_info: null,
       created_at: now,
     })
   } else {
@@ -229,6 +232,7 @@ export async function storeDebugFile(
         name,
         checksum,
         size: file.length,
+        debug_info: object.hasDebugInfo ? 1 : 0,
         created_at: now,
       })
     }
@@ -282,6 +286,7 @@ export async function storeBigDebugFile(
         name,
         checksum,
         size,
+        debug_info: null,
         created_at: now,
       }
       return await insertRows(env.DB, projectId, checksum, fileKey, [row], now)
@@ -307,6 +312,7 @@ export async function storeBigDebugFile(
         name,
         checksum,
         size,
+        debug_info: object.hasDebugInfo ? 1 : 0,
         created_at: now,
       })
     }
@@ -331,8 +337,8 @@ async function insertRows(
     const symcacheKey = `symcaches/${projectId}/${row.debug_id}/${checksum}`
     const r = await db
       .prepare(
-        `INSERT INTO debug_files (project_id, checksum, name, debug_id, code_id, arch, kind, file_key, symcache_key, size, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO debug_files (project_id, checksum, name, debug_id, code_id, arch, kind, file_key, symcache_key, size, debug_info, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (project_id, debug_id, checksum) DO UPDATE SET name = excluded.name RETURNING *`,
       )
       .bind(
@@ -346,6 +352,7 @@ async function insertRows(
         fileKey,
         symcacheKey,
         row.size,
+        row.debug_info,
         now,
       )
       .first<DebugFileRow>()

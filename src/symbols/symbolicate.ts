@@ -129,6 +129,28 @@ export async function markUsed(
     .catch((error) => console.error("symbols: couldn't note a lookup", error))
 }
 
+/**
+ * The file each debug id symbolicates with: one with debug info over one with a symbol table only (an executable sent
+ * beside its dSYM has the same debug id, and only the dSYM has lines), then the larger, then the newest. Size is what
+ * tells files from before 0040 apart, whose debug_info is unknown: a dSYM outweighs its executable, and a target whose
+ * code didn't change sends its executable again with every build (a new checksum, the same debug id) but its dSYM once,
+ * so the newest of them is an executable.
+ */
+export async function debugFilesFor(db: D1Database, projectId: number, ids: string[]) {
+  const fileOf = new Map<string, DebugRow>()
+  if (!ids.length) return fileOf
+  const { results } = await db
+    .prepare(
+      `SELECT id, debug_id, kind, file_key, symcache_key, last_used_at FROM debug_files
+       WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
+       ORDER BY debug_info IS 0, size DESC, created_at DESC`,
+    )
+    .bind(projectId, JSON.stringify(ids))
+    .all<DebugRow>()
+  for (const row of results) if (!fileOf.has(row.debug_id)) fileOf.set(row.debug_id, row)
+  return fileOf
+}
+
 export async function symbolicate(
   env: SymbolEnv,
   symbolic: () => Promise<Symbolic>,
@@ -144,19 +166,7 @@ export async function symbolicate(
   if (!stacks.length) return
   const images = event.debugImages.filter((i) => i.debugId)
   const ids = [...new Set(images.map((i) => i.debugId!.toLowerCase()))]
-  const rows = ids.length
-    ? (
-        await env.DB.prepare(
-          `SELECT id, debug_id, kind, file_key, symcache_key, last_used_at FROM debug_files
-           WHERE project_id = ? AND debug_id IN (SELECT value FROM json_each(?))
-           ORDER BY created_at DESC`,
-        )
-          .bind(projectId, JSON.stringify(ids))
-          .all<DebugRow>()
-      ).results
-    : []
-  const fileOf = new Map<string, DebugRow>()
-  for (const row of rows) if (!fileOf.has(row.debug_id)) fileOf.set(row.debug_id, row)
+  const fileOf = await debugFilesFor(env.DB, projectId, ids)
   const missing = new Map<string, NonNullable<NormalizedEvent['missingDebugFiles']>[number]>()
   // The rows a lookup read, for retention
   const used = new Set<DebugRow>()

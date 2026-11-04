@@ -126,3 +126,5 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   migration's time, so an older build still crashing has a whole retention to be noted before the first prune. No
   index: the tables hold a row a build and file, and the hourly prune reads them whole. A worker from before writes no
   `last_used_at` and prunes nothing.
+- `0040_debug_files_debug_info.sql`: `debug_files.debug_info`, 1 when the object has debug info, 0 a symbol table only,
+  null before; lookups prefer 1.
