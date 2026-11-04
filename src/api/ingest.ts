@@ -19,6 +19,7 @@ import {
   hold,
   parseTodo,
   pendingKey,
+  release,
   settle,
   stableEventId,
   type Todo,
@@ -312,17 +313,17 @@ export async function handleIngest(
     return answer({ detail: 'Daily quota reached' }, 429, { 'Retry-After': retry, 'X-Sentry-Rate-Limits': limits })
   }
 
-  // Held in R2 while it's processed, so what fails is tried again by the cron (src/ingest/retry.ts); the items to do
-  // are listed only when the quota left some out
+  // Held while it's processed, in D1 when it fits, else R2, so what fails is tried again by the cron
+  // (src/ingest/retry.ts); the items to do are listed only when the quota left some out
   const todo = items.flatMap((item, i) => {
     const type = item.header.type ?? 'event'
     return KEPT.has(type) && !over(type) ? [String(i)] : []
   })
-  // Sessions alone aren't held: small, frequent and counted as they come, they aren't worth an R2 write each
+  // Sessions alone aren't held: small, frequent and counted as they come, they aren't worth a write each
   const sessionsOnly = todo.every((i) => ['session', 'sessions'].includes(items[Number(i)].header.type ?? 'event'))
   const held =
     todo.length && !sessionsOnly
-      ? await hold(env.FILES, pendingKey(project.id, now), body, endpoint, todo.length < kept.length ? todo : undefined)
+      ? await hold(env, pendingKey(project.id, now), body, endpoint, todo.length < kept.length ? todo : undefined)
       : undefined
   let result: Awaited<ReturnType<typeof processItems>>
   try {
@@ -334,7 +335,7 @@ export async function handleIngest(
         endpoint,
         received: now,
         envelopeId,
-        held,
+        held: held?.key,
         body,
         waitUntil: (p) => ctx.waitUntil(p),
         country: typeof request.cf?.country === 'string' ? request.cf.country : undefined,
@@ -344,7 +345,7 @@ export async function handleIngest(
     )
   } catch (error) {
     if (error instanceof EnvelopeError) {
-      if (held) ctx.waitUntil(env.FILES.delete(held))
+      if (held) ctx.waitUntil(release(env, held))
       return answer({ detail: error.message }, 400)
     }
     // Accepted once held, as Relay's: the cron tries the whole envelope again. Not held, it's lost, and the SDK hears so
@@ -369,10 +370,7 @@ export async function handleIngest(
         .run(),
     )
   // Relay's way: accepted before it's processed, so a failure still answers 200, and the cron tries it again
-  if (held)
-    ctx.waitUntil(
-      settle(env, { key: held, projectId: project.id, received: now, endpoint }, body, 1, result.failed, now),
-    )
+  if (held) ctx.waitUntil(settle(env, held, body, 1, result.failed, now))
   const { notices, eventId } = result
   if (notices.length) ctx.waitUntil(import('../notify/dispatch').then(({ dispatch }) => dispatch(env, notices)))
   const headers: Record<string, string> = limits ? { 'X-Sentry-Rate-Limits': limits } : {}

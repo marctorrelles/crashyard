@@ -15,7 +15,7 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   stored, and one that no longer checks out shows as a placeholder to remove.
 - `issues_fts` is FTS5 over issue titles and culprits, kept in step by triggers.
 - D1's free tier writes 100,000 rows a day; an event writes about 30 (event, tags, counts, days). Keep new per-event
-  writes few; 0014 adds one, the `event_hours` upsert. A batch of logs writes about 2 + attributes rows a log, plus a `log_hours` row for each project, hour and
+  writes few; 0014 adds one, the `event_hours` upsert; 0038 two per envelope held (`held_envelopes`, in and out). A batch of logs writes about 2 + attributes rows a log, plus a `log_hours` row for each project, hour and
   level in it and one `project_days` row.
 - `log_hours` is logs per project, hour and level, written at ingest (`storeLogs`) and pruned with the logs; 0009
   filled it from the logs there were. The logs chart reads it rather than every log (`src/data/AGENTS.md`).
@@ -113,3 +113,8 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   project's actions naming the `user_hash` they carry, with `seen` (moved once a day at most), WITHOUT ROWID by
   `(project_id, key)`; pruned with the actions' retention. A worker from before writes none, so Find user takes only
   ids for what it stored.
+- `0038_held_envelopes.sql`: `held_envelopes`, envelopes held while they're processed or waiting for the cron's
+  retry, when the body is UTF-8 text of 512 KB or less (`src/ingest/retry.ts`): the body as TEXT (D1 carries a BLOB as
+  an array of numbers), attempts, items left, lease; WITHOUT ROWID by `key`, the R2 key it would have had, and no other
+  index, so holding and dropping one write a row each. Rows cascade with their project. A worker from before holds in
+  R2 as it did and never reads the table: rows left in it at a rollback wait for the deploy after.

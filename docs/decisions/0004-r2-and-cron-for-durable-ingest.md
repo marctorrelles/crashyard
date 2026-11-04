@@ -1,5 +1,7 @@
 # 4. R2 and the minute cron for durable ingest
 
+Refined by [0006](0006-small-envelopes-held-in-d1.md): small envelopes are now held in D1.
+
 **Context.** Sentry's SDKs send an envelope once. If crashyard fails while it stores it, because D1 is briefly
 unavailable, R2 can't be read for symbolication or the worker runs out of time, the crash is gone. Cloudflare Queues
 would retry it, but they need the Workers Paid plan, and crashyard should run on the free one.

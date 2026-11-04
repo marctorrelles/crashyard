@@ -31,7 +31,7 @@ export async function usage(db: D1Database, projectId: number | undefined, days:
 /** D1's own cap on one database, on Workers Paid and on Free */
 const D1_LIMIT = 10_000_000_000
 const D1_FREE_LIMIT = 500_000_000
-/** Past this, the R2 counts read "1,000 or more" */
+/** Past this, the counts of envelopes pending and failed read "1,000 or more" */
 const LIST_CAP = 1000
 /** Past this, the pruning backlog reads "10,000 or more" */
 export const BACKLOG_CAP = 10_000
@@ -50,7 +50,8 @@ export async function health(env: { DB: D1Database; FILES: R2Bucket }, now: numb
     db.prepare(
       `SELECT (SELECT COALESCE(SUM(size), 0) FROM debug_files) AS debug_files,
          (SELECT COALESCE(SUM(size), 0) FROM artifact_bundles) AS bundles,
-         (SELECT COALESCE(SUM(size), 0) FROM attachments) AS attachments`,
+         (SELECT COALESCE(SUM(size), 0) FROM attachments) AS attachments,
+         (SELECT COUNT(*) FROM (SELECT 1 FROM held_envelopes LIMIT ${LIST_CAP + 1})) AS held`,
     ),
     db
       .prepare(
@@ -78,7 +79,9 @@ export async function health(env: { DB: D1Database; FILES: R2Bucket }, now: numb
     getSetting<number | null>(db, CRON_KEY, null),
     getSetting<Plan | null>(db, PLAN_KEY, null),
   ])
-  const f = files.results[0] as { debug_files: number; bundles: number; attachments: number }
+  const f = files.results[0] as { debug_files: number; bundles: number; attachments: number; held: number }
+  // Envelopes waiting are in D1 when small, in R2 otherwise: the two together, up to the same cap
+  const waiting = pending.count + f.held
   return {
     database: { bytes: size.size_after ?? null, limit: plan?.paid === false ? D1_FREE_LIMIT : D1_LIMIT },
     files: { debugFiles: f.debug_files, bundles: f.bundles, attachments: f.attachments },
@@ -87,7 +90,10 @@ export async function health(env: { DB: D1Database; FILES: R2Bucket }, now: numb
       failed: failureCount?.n ?? 0,
       recent: failures.results as { id: number; kind: string; error: string; at: number; channel: string | null }[],
     },
-    envelopes: { pending, failed },
+    envelopes: {
+      pending: { count: Math.min(waiting, LIST_CAP), more: pending.more || waiting > LIST_CAP },
+      failed,
+    },
     backlog: backlog.results[0] as { events: number; logs: number },
   }
 }

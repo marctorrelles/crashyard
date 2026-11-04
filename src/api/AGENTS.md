@@ -44,7 +44,7 @@ signature; `/mcp` comes after sign-in.
   that kind until tomorrow; 429 with `Retry-After` when nothing in the envelope can be kept), and the key's own daily
   limit on events (`<retry>:error;…:key:key_quota`, Sentry's scope and reason for a key's limit; counted in `key_days`
   per event item let in less those a filter dropped, at the request after its pass, so a retry never counts it again
-  and filtered events count towards neither limit), then the envelope is held in R2 (`pending/`, `src/ingest/retry.ts`) and each item is processed in its own `try`
+  and filtered events count towards neither limit), then the envelope is held, in D1 (`held_envelopes`) when it's UTF-8 text of 512 KB or less, else in R2 (`pending/`; `src/ingest/retry.ts`) and each item is processed in its own `try`
   (`processItems`, which the cron's `retryEnvelope` calls too): an `EnvelopeError` answers 400 and drops the held copy;
   any other error lists the item (`3`, or `3:2` for a span item from its third segment, so a retry doesn't count the
   first two again) and the rest goes on; the answer is 200 either way, as Relay's. Anything else the pass throws, once
