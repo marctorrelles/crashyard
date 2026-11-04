@@ -547,6 +547,9 @@ describe('ingest, through the real SDK', () => {
     expect(await response.json()).toEqual({ id: event.event_id })
     const stored = () => db().prepare('SELECT COUNT(*) AS n FROM events WHERE id = ?').bind(event.event_id).first()
     expect(await stored()).toEqual({ n: 0 })
+    // Held in D1, being small text, not in R2
+    const held = () => db().prepare('SELECT COUNT(*) AS n FROM held_envelopes WHERE project_id = 2').first()
+    expect(await held()).toEqual({ n: 1 })
     await db().prepare('DROP TRIGGER e2e_fail').run()
     // Too young for the cron at first, then tried again, then nothing left to try
     await fetch(`${origin}/__dev/cron?now=${Date.now()}`, { method: 'POST' })
@@ -554,6 +557,7 @@ describe('ingest, through the real SDK', () => {
     for (const minutes of [3, 4])
       await fetch(`${origin}/__dev/cron?now=${Date.now() + minutes * 60_000}`, { method: 'POST' })
     expect(await stored()).toEqual({ n: 1 })
+    expect(await held()).toEqual({ n: 0 })
     expect(
       await db()
         .prepare("SELECT count, substatus FROM issues WHERE project_id = 2 AND title LIKE 'FlakyError%'")

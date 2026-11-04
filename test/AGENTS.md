@@ -5,7 +5,7 @@ Tests that run the worker. Unit tests live beside the code (`src/**/*.test.ts`).
 - `ingest.e2e.test.ts`: the official `@sentry/node` (errors, logs, check-ins, spans) sending to `vite dev` (ports
   3999, and 3998 for a stub Telegram Bot API) with its own state in `.wrangler/e2e`, wiped each run; the cron at set times
   (`/__dev/cron?now=`: missed check-ins, uptime, Monday's summary, an envelope D1 refused, through a trigger on
-  `events`, stored once by the cron's retry); check-ins over HTTP (a JSON POST with
+  `events`, held in `held_envelopes` and stored once by the cron's retry); check-ins over HTTP (a JSON POST with
   `monitor_config`, then curl's GETs) and CSP reports in both shapes; a watched Worker's run out of CPU time through `/__dev/tail`. Seeds rows through `getPlatformProxy`. Keep it
   under 30 seconds.
 - `fakes.ts`: for unit tests, `sqliteD1()` (node:sqlite in memory with every migration, `.sqlite` for seeding; a
