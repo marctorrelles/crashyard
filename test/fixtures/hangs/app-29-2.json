@@ -1,0 +1,572 @@
+{
+ "platform": "cocoa",
+ "level": "error",
+ "exception": {
+  "values": [
+   {
+    "type": "App Hanging",
+    "value": "App hanging for at least 2000 ms.",
+    "mechanism": {
+     "type": "AppHang"
+    },
+    "stacktrace": {
+     "frames": [
+      {
+       "package": "dyld",
+       "instruction_addr": "0x00000001998cfe80",
+       "image_addr": "0x000000019989e000",
+       "in_app": false
+      },
+      {
+       "function": "main",
+       "package": "/Applications/Sample.app/Contents/MacOS/Sample",
+       "instruction_addr": "0x00000001027f7fb4",
+       "image_addr": "0x00000001027e4000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2a0e8b8",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2733c68",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2320c84",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e2e7c4c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e30f90c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019eb9426c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019eb94748",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e31c4fc",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e65f29c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/HIToolbox",
+       "instruction_addr": "0x00000001a731e380",
+       "image_addr": "0x00000001a70dd000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/HIToolbox",
+       "instruction_addr": "0x00000001a719b91c",
+       "image_addr": "0x00000001a70dd000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/HIToolbox",
+       "instruction_addr": "0x00000001a7198590",
+       "image_addr": "0x00000001a70dd000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+       "instruction_addr": "0x0000000199e3f82c",
+       "image_addr": "0x0000000199ce5000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+       "instruction_addr": "0x0000000199d651e0",
+       "image_addr": "0x0000000199ce5000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+       "instruction_addr": "0x0000000199d66610",
+       "image_addr": "0x0000000199ce5000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+       "instruction_addr": "0x0000000199d668d8",
+       "image_addr": "0x0000000199ce5000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+       "instruction_addr": "0x0000000199d66944",
+       "image_addr": "0x0000000199ce5000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UpdateCycle.framework/Versions/A/UpdateCycle",
+       "instruction_addr": "0x00000002b91d65fc",
+       "image_addr": "0x00000002b91d5000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e82ad18",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+       "instruction_addr": "0x00000001a461921c",
+       "image_addr": "0x00000001a43e9000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+       "instruction_addr": "0x00000001a43eb370",
+       "image_addr": "0x00000001a43e9000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+       "instruction_addr": "0x00000001a43eb68c",
+       "image_addr": "0x00000001a43e9000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+       "instruction_addr": "0x00000001a43ed08c",
+       "image_addr": "0x00000001a43e9000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e3c0e64",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e3c11d8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e3c1ca8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019f05c950",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019f05c754",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e361f9c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36200c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed45748",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44cf8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e36243c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed44bb4",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e3624a8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e35db5c",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019ed4fab8",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019f3e18ac",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019f3e12b0",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019f330250",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019f330228",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2b03394",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2b02e2c",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+       "instruction_addr": "0x000000019e333280",
+       "image_addr": "0x000000019e2e3000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2afd124",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2b1df80",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+       "instruction_addr": "0x00000001d2b030b4",
+       "image_addr": "0x00000001d221f000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUICore.framework/Versions/A/SwiftUICore",
+       "instruction_addr": "0x000000023e6f2a84",
+       "image_addr": "0x000000023d7fe000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUICore.framework/Versions/A/SwiftUICore",
+       "instruction_addr": "0x000000023e6f4638",
+       "image_addr": "0x000000023d7fe000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUICore.framework/Versions/A/SwiftUICore",
+       "instruction_addr": "0x000000023e19a0cc",
+       "image_addr": "0x000000023d7fe000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/AttributeGraph.framework/Versions/A/AttributeGraph",
+       "instruction_addr": "0x00000001d3a9194c",
+       "image_addr": "0x00000001d3a74000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/AttributeGraph.framework/Versions/A/AttributeGraph",
+       "instruction_addr": "0x00000001d3a81ef8",
+       "image_addr": "0x00000001d3a74000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUICore.framework/Versions/A/SwiftUICore",
+       "instruction_addr": "0x000000023db883a0",
+       "image_addr": "0x000000023d7fe000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUICore.framework/Versions/A/SwiftUICore",
+       "instruction_addr": "0x000000023e42651c",
+       "image_addr": "0x000000023d7fe000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/swift/libswiftCore.dylib",
+       "instruction_addr": "0x00000001ae217584",
+       "image_addr": "0x00000001ae210000",
+       "in_app": false
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,338 @@
+{
+ "platform": "cocoa",
+ "level": "error",
+ "exception": {
+  "values": [
+   {
+    "type": "App Hang Fully Blocked",
+    "value": "App hanging between 2.8 and 3.6 seconds.",
+    "mechanism": {
+     "type": "AppHang"
+    },
+    "stacktrace": {
+     "frames": [
+      {
+       "package": "dyld",
+       "instruction_addr": "0x00000001a00035b8",
+       "image_addr": "0x000000019fffe000",
+       "in_app": false
+      },
+      {
+       "function": "main",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000100e699ac",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa478a10",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa478b50",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa47f404",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a44901cc",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices",
+       "instruction_addr": "0x000000024a874f24",
+       "image_addr": "0x000000024a874000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01b27f4",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01b188c",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01c07a0",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce67e044",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce67e374",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce688fb4",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce66eccc",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "function": "thunk for @escaping @callee_guaranteed () -> ()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000100ef4794",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "closure #1 @MainActor @Sendable () in EditorTextView.updateEmbeddedOverlays()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101ed9b98",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "EditorTextView.updateEmbeddedOverlays()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101ed994c",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "EditorTextView.runEmbeddedOverlayPass()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101eda090",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/Frameworks/Foundation.framework/Foundation",
+       "instruction_addr": "0x00000001a07649b4",
+       "image_addr": "0x00000001a065a000",
+       "in_app": false
+      },
+      {
+       "function": "thunk for @escaping @callee_guaranteed (@in_guaranteed Any?, @unowned _NSRange, @unowned UnsafeMutablePointer<ObjCBool>) -> ()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101dd71cc",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "thunk for @callee_guaranteed (@guaranteed [NSAttributedStringKey : Any], @unowned _NSRange, @unowned UnsafeMutablePointer<ObjCBool>) -> ()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101dd7158",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "partial apply for closure #1 (Any?, _NSRange, UnsafeMutablePointer<ObjCBool>) in EditorTextView.runEmbeddedOverlayPass()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101eeb898",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "closure #1 (Any?, _NSRange, UnsafeMutablePointer<ObjCBool>) in EditorTextView.runEmbeddedOverlayPass()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101edd7e0",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "EditorTextView.textKit2EmbeddedPass(_: NSTextAttachment, blockID: UUID, range: _NSRange, hidden: Bool, buildAhead: Bool)",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101eb4054",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "EditorTextView.embeddedHost(for: NSTextAttachment)",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101eb272c",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a43ddb58",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+       "instruction_addr": "0x00000001a3f71788",
+       "image_addr": "0x00000001a3f63000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+       "instruction_addr": "0x00000001a3f71bd0",
+       "image_addr": "0x00000001a3f63000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+       "instruction_addr": "0x00000001a3f725b4",
+       "image_addr": "0x00000001a3f63000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a43df738",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a43e0e28",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a43e15f4",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "function": "@objc SampleCodeBlockHostView.layoutSubviews()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101e62548",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "function": "SampleCodeBlockHostView.applyLayout()",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000101e62340",
+       "image_addr": "0x0000000100e58000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIFoundation.framework/UIFoundation",
+       "instruction_addr": "0x00000001b46e878c",
+       "image_addr": "0x00000001b4683000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIFoundation.framework/UIFoundation",
+       "instruction_addr": "0x00000001b468c724",
+       "image_addr": "0x00000001b4683000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIFoundation.framework/UIFoundation",
+       "instruction_addr": "0x00000001b468510c",
+       "image_addr": "0x00000001b4683000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIFoundation.framework/UIFoundation",
+       "instruction_addr": "0x00000001b4688394",
+       "image_addr": "0x00000001b4683000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIFoundation.framework/UIFoundation",
+       "instruction_addr": "0x00000001b4691734",
+       "image_addr": "0x00000001b4683000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9ddcf20",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9ddab80",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9dddb90",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9df18a4",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9de93f0",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9dbae54",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9dbf320",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9dbde0c",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9dbde60",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9e60064",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9e60064",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreText.framework/CoreText",
+       "instruction_addr": "0x00000001b9deffa4",
+       "image_addr": "0x00000001b9db2000",
+       "in_app": false
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

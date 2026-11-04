@@ -1,0 +1,104 @@
+{
+ "platform": "cocoa",
+ "level": "error",
+ "exception": {
+  "values": [
+   {
+    "type": "App Hang Fully Blocked",
+    "value": "App hanging between 1103.5 and 1104.3 seconds.",
+    "mechanism": {
+     "type": "AppHang"
+    },
+    "stacktrace": {
+     "frames": [
+      {
+       "package": "dyld",
+       "instruction_addr": "0x00000001a00035b8",
+       "image_addr": "0x000000019fffe000",
+       "in_app": false
+      },
+      {
+       "function": "main",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x00000001026819ac",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa478a10",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa478b50",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa47f404",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a44901cc",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices",
+       "instruction_addr": "0x000000024a874f24",
+       "image_addr": "0x000000024a874000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01b27f4",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01b1438",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01b246c",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libsystem_kernel.dylib",
+       "instruction_addr": "0x0000000257a78074",
+       "image_addr": "0x0000000257a74000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libsystem_kernel.dylib",
+       "instruction_addr": "0x0000000257a78228",
+       "image_addr": "0x0000000257a74000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libsystem_kernel.dylib",
+       "instruction_addr": "0x0000000257a78308",
+       "image_addr": "0x0000000257a74000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libsystem_kernel.dylib",
+       "instruction_addr": "0x0000000257a74cd4",
+       "image_addr": "0x0000000257a74000",
+       "in_app": false
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

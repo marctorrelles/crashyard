@@ -1,0 +1,213 @@
+{
+ "platform": "cocoa",
+ "level": "error",
+ "exception": {
+  "values": [
+   {
+    "type": "App Hang Fully Blocked",
+    "value": "App hanging between 4246.3 and 4247.1 seconds.",
+    "mechanism": {
+     "type": "AppHang"
+    },
+    "stacktrace": {
+     "frames": [
+      {
+       "package": "dyld",
+       "instruction_addr": "0x00000001a00035b8",
+       "image_addr": "0x000000019fffe000",
+       "in_app": false
+      },
+      {
+       "function": "main",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x00000001026819ac",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa478a10",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa478b50",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+       "instruction_addr": "0x00000001aa47f404",
+       "image_addr": "0x00000001aa437000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a44901cc",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices",
+       "instruction_addr": "0x000000024a874f24",
+       "image_addr": "0x000000024a874000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01b27f4",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01b188c",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01c07a0",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce67e044",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce67e374",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce688fb4",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libdispatch.dylib",
+       "instruction_addr": "0x00000001ce67ecd0",
+       "image_addr": "0x00000001ce66d000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libsystem_notify.dylib",
+       "instruction_addr": "0x00000002e2b4d59c",
+       "image_addr": "0x00000002e2b4b000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a4722a2c",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a4722cf4",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+       "instruction_addr": "0x00000001a4722f38",
+       "image_addr": "0x00000001a43d6000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/Foundation.framework/Foundation",
+       "instruction_addr": "0x00000001a069ff3c",
+       "image_addr": "0x00000001a065a000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a01cc0ec",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a0213534",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a021339c",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+       "instruction_addr": "0x00000001a0213668",
+       "image_addr": "0x00000001a0177000",
+       "in_app": false
+      },
+      {
+       "function": "@objc SentrySessionReplayBackgroundForegroundObserver.pause(Notification)",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000102c39964",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "function": "SentrySystemEventBreadcrumbs.batteryStateChanged(Notification)",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000102c3903c",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "function": "+[SentrySDKInternal addBreadcrumb:withHint:]",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000102b8b078",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "function": "-[SentryHubInternal addBreadcrumb:withHint:]",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000102b804c0",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "function": "-[SentryScope addBreadcrumb:]",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000102b8d23c",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "function": "-[SentryBreadcrumb snapshotCopy]",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000102b632c8",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "function": "-[SentryBreadcrumb initWithLevel:category:]",
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000102b63190",
+       "image_addr": "0x0000000102670000",
+       "in_app": true
+      },
+      {
+       "package": "/usr/lib/libobjc.A.dylib",
+       "instruction_addr": "0x000000019ff81274",
+       "image_addr": "0x000000019ff80000",
+       "in_app": false
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

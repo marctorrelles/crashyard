@@ -1,0 +1,1713 @@
+{
+ "actix.json": {
+  "variant": "app",
+  "values": [
+   "__pthread_body",
+   "lib.rs",
+   "___rust_maybe_catch_panic",
+   "arbiter.rs",
+   "actix::arbiter::Arbiter::new_with_builder::{{closure}}",
+   "runtime.rs",
+   "tokio::runtime::current_thread::runtime::Runtime::block_on",
+   "runtime.rs",
+   "tokio::runtime::current_thread::runtime::Runtime::enter",
+   "lib.rs",
+   "tokio_reactor::with_default",
+   "lib.rs",
+   "tokio_reactor::with_default::{{closure}}",
+   "runtime.rs",
+   "tokio::runtime::current_thread::runtime::Runtime::enter::{{closure}}",
+   "clock.rs",
+   "tokio_timer::clock::clock::with_default",
+   "clock.rs",
+   "tokio_timer::clock::clock::with_default::{{closure}}",
+   "runtime.rs",
+   "tokio::runtime::current_thread::runtime::Runtime::enter::{{closure}}::{{closure}}",
+   "handle.rs",
+   "tokio_timer::timer::handle::with_default",
+   "handle.rs",
+   "tokio_timer::timer::handle::with_default::{{closure}}",
+   "runtime.rs",
+   "tokio::runtime::current_thread::runtime::Runtime::enter::{{closure}}::{{closure}}::{{closure}}",
+   "global.rs",
+   "tokio_executor::global::with_default",
+   "global.rs",
+   "tokio_executor::global::with_default::{{closure}}",
+   "runtime.rs",
+   "tokio::runtime::current_thread::runtime::Runtime::enter::{{closure}}::{{closure}}::{{closure}}::{{closure}}",
+   "runtime.rs",
+   "tokio::runtime::current_thread::runtime::Runtime::block_on::{{closure}}",
+   "lib.rs",
+   "tokio_current_thread::Entered<T>::block_on",
+   "lib.rs",
+   "tokio_current_thread::Entered<T>::tick",
+   "scheduler.rs",
+   "tokio_current_thread::scheduler::Scheduler<T>::tick",
+   "lib.rs",
+   "tokio_current_thread::Borrow<T>::enter",
+   "lib.rs",
+   "tokio_current_thread::Borrow<T>::enter::{{closure}}",
+   "lib.rs",
+   "tokio_current_thread::CurrentRunner::set_spawn",
+   "lib.rs",
+   "tokio_current_thread::Borrow<T>::enter::{{closure}}::{{closure}}",
+   "scheduler.rs",
+   "tokio_current_thread::scheduler::Scheduler<T>::tick::{{closure}}",
+   "scheduler.rs",
+   "tokio_current_thread::scheduler::Scheduled<T>::tick",
+   "mod.rs",
+   "futures::task_impl::Spawn<T>::poll_future_notify",
+   "mod.rs",
+   "futures::task_impl::Spawn<T>::poll_fn_notify",
+   "mod.rs",
+   "futures::task_impl::Spawn<T>::enter",
+   "mod.rs",
+   "futures::task_impl::std::set",
+   "mod.rs",
+   "futures::task_impl::Spawn<T>::enter::{{closure}}",
+   "mod.rs",
+   "futures::task_impl::Spawn<T>::poll_future_notify::{{closure}}",
+   "then.rs",
+   "futures::future::then::Then<T>::poll",
+   "chain.rs",
+   "futures::future::chain::Chain<T>::poll",
+   "either.rs",
+   "futures::future::either::Either<T>::poll",
+   "acceptor.rs",
+   "actix_web::server::acceptor::ServerMessageAcceptorServiceFut<T>::poll",
+   "and_then.rs",
+   "actix_net::service::and_then::AndThenFuture<T>::poll",
+   "map_err.rs",
+   "actix_net::service::map_err::MapErrFuture<T>::poll",
+   "channel.rs",
+   "actix_web::server::channel::HttpChannel<T>::poll",
+   "channel.rs",
+   "actix_web::server::channel::HttpChannel<T>::poll",
+   "h1.rs",
+   "actix_web::server::h1::Http1Dispatcher<T>::poll",
+   "h1.rs",
+   "actix_web::server::h1::Http1Dispatcher<T>::poll_handler",
+   "h1.rs",
+   "actix_web::server::h1::Http1Dispatcher<T>::poll_io",
+   "h1.rs",
+   "actix_web::server::h1::Http1Dispatcher<T>::parse",
+   "pipeline.rs",
+   "actix_web::pipeline::Pipeline<T>::poll_io",
+   "<::log::macros::log macros>",
+   "actix_web::pipeline::ProcessResponse<T>::poll_io",
+   "lib.rs",
+   "log::__private_api_log",
+   "actix_web::pipeline"
+  ]
+ },
+ "android-anr.json": {
+  "variant": "system",
+  "values": [
+   "androidx.recyclerview.widget.RecyclerView",
+   "onLayout",
+   "ApplicationNotResponding"
+  ]
+ },
+ "aspnetcore.json": {
+  "variant": "app",
+  "values": [
+   "(unknown)",
+   "lambda_method",
+   "SentryTest2.Controllers.ValuesController",
+   "Get",
+   "System.Exception"
+  ]
+ },
+ "block_invoke.json": {
+  "variant": "system",
+  "values": [
+   "__46+[FudgeGlobalHandler setupGlobalHandlersIfNeeded]_block_invoke_2",
+   "__99+[Something else]_block_invoke_2"
+  ]
+ },
+ "bugly.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "__kernel_rt_sigreturn",
+   "kill"
+  ]
+ },
+ "callee-guaranteed.json": {
+  "variant": "app",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "<redacted>",
+   "<redacted>",
+   2
+  ]
+ },
+ "cocoa_dispatch_client_callout.json": {
+  "variant": "app",
+  "values": [
+   "unicorn",
+   "__46+[FudgeGlobalHandler setupGlobalHandlersIfNeeded]_block_invoke_2",
+   "FudgeLogTaggedError",
+   "SentrySetupInteractor.setupSentry"
+  ]
+ },
+ "connection-error.json": {
+  "variant": "app",
+  "values": [
+   "sentry.utils.safe",
+   "safe_execute",
+   "result = func(*args, **kwargs)",
+   "sentry.utils.services",
+   "<lambda>",
+   "context[key] = (lambda f: lambda *a, **k: getattr(self, f)(*a, **k))(key)",
+   "getsentry.quotas",
+   "is_rate_limited",
+   "return super(SubscriptionQuota, self).is_rate_limited(project, key=key)",
+   "sentry.quotas.redis",
+   "is_rate_limited",
+   "rejections = is_rate_limited(client, keys, args)",
+   "sentry.utils.redis",
+   "call_script",
+   "return script(keys, args, client)",
+   "ConnectionError"
+  ]
+ },
+ "csp-img-src.json": {
+  "variant": "default",
+  "values": [
+   "img-src",
+   "ftp://example.com"
+  ]
+ },
+ "csp-no-blocked-uri.json": {
+  "variant": "default",
+  "values": [
+   "script-src",
+   "'self'"
+  ]
+ },
+ "csp-script-data-uri.json": {
+  "variant": "default",
+  "values": [
+   "img-src",
+   "data:"
+  ]
+ },
+ "csp-script-src-uri.json": {
+  "variant": "default",
+  "values": [
+   "script-src",
+   "example.com"
+  ]
+ },
+ "csp-style-src-elem.json": {
+  "variant": "default",
+  "values": [
+   "style-src-elem",
+   "use.fontawesome.com"
+  ]
+ },
+ "csp.json": {
+  "variant": "default",
+  "values": [
+   "script-src",
+   "YYY"
+  ]
+ },
+ "exception-cocoa-nserror.json": {
+  "variant": "app",
+  "values": [
+   "iOS_Swift.SampleError",
+   "iOS_Swift.SampleError",
+   0
+  ]
+ },
+ "exception-comput-hashes.json": {
+  "variant": "app",
+  "values": [
+   "ValueError",
+   "hello world"
+  ]
+ },
+ "exception-compute-hashes-2.json": {
+  "variant": "system",
+  "values": [
+   "baz.py",
+   "ValueError"
+  ]
+ },
+ "exception-compute-hashes-3.json": {
+  "variant": "system",
+  "values": [
+   "baz.py",
+   "ValueError",
+   "baz.py",
+   "ValueError"
+  ]
+ },
+ "exception-compute-hashes.json": {
+  "variant": "system",
+  "values": [
+   "baz.py",
+   "ValueError"
+  ]
+ },
+ "exception-groups-bad-duplicate-id.json": {
+  "variant": "app",
+  "values": [
+   "System.Exception",
+   "Some Inner Exception",
+   "MyApp.Exception",
+   "Test <int>",
+   "System.AggregateException",
+   "One or more errors occurred."
+  ]
+ },
+ "exception-groups-bad-missing-parent.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.Exception",
+   "Test <int>"
+  ]
+ },
+ "exception-groups-bad-out-of-sequence.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.Exception",
+   "Test <int>",
+   "System.Exception",
+   "Some Inner Exception"
+  ]
+ },
+ "exception-groups-bad-parent-with-parent.json": {
+  "variant": "app",
+  "values": [
+   "System.AggregateException",
+   "One or more errors occurred."
+  ]
+ },
+ "exception-groups-bad-with-cycle.json": {
+  "variant": "app",
+  "values": [
+   "System.AggregateException",
+   "One or more errors occurred."
+  ]
+ },
+ "exception-groups-one-exception.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.Exception",
+   "Test <int>"
+  ]
+ },
+ "exception-groups-one-type-under-nested-groups.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.Exception",
+   "Test <int>"
+  ]
+ },
+ "exception-groups-one-type-with-different-values.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.Exception",
+   "Test <int>",
+   "MyApp.Exception",
+   "And now for something completely different.",
+   "System.AggregateException",
+   "One or more errors occurred."
+  ]
+ },
+ "exception-groups-one-type-with-similar-values-and-children.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.Exception",
+   "Test <int>",
+   "System.Exception",
+   "Some Inner Exception"
+  ]
+ },
+ "exception-groups-one-type-with-similar-values.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.Exception",
+   "Test <int>"
+  ]
+ },
+ "exception-groups-two-types-under-nested-groups.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.CoolException",
+   "Test <int>",
+   "MyApp.BeansException",
+   "Test <int>",
+   "System.AggregateException",
+   "One or more errors occurred."
+  ]
+ },
+ "exception-groups-two-types.json": {
+  "variant": "app",
+  "values": [
+   "MyApp.SuchWowException",
+   "Test <int>",
+   "MyApp.AmazingException",
+   "Test <int>",
+   "System.AggregateException",
+   "One or more errors occurred."
+  ]
+ },
+ "exception-javascript-no-in-app.json": {
+  "variant": "system",
+  "values": [
+   "app/components/modals/createTeamModal",
+   "onError(err);",
+   "app/views/settings/components/forms/form",
+   "this.model.submitError(error);",
+   "TypeError"
+  ]
+ },
+ "exception-without-type.json": {
+  "variant": "app",
+  "values": [
+   "hello world"
+  ]
+ },
+ "exception-without-value.json": {
+  "variant": "app",
+  "values": [
+   "ValueError"
+  ]
+ },
+ "expectct.json": {
+  "variant": "default",
+  "values": [
+   "expect-ct",
+   "example.com"
+  ]
+ },
+ "fallback-prefix-level-1.json": {
+  "variant": "system",
+  "values": [
+   "-[UIApplication _run]",
+   "objc_release",
+   "EXC_BAD_ACCESS"
+  ]
+ },
+ "frame-comput-hashes-ignores-ENHANCED-clojure-classes.json": {
+  "variant": "system",
+  "values": [
+   "sentry_clojure_example.core$_main$fn__<auto>",
+   "invoke"
+  ]
+ },
+ "frame-ignores-ENHANCED-enhancer-by-classes.json": {
+  "variant": "system",
+  "values": [
+   "com.example.api.OutboundController$$EnhancerByGuice$$<auto>",
+   "jipJipManagementApplication"
+  ]
+ },
+ "frame-ignores-ENHANCED-fast-class-by-classes.json": {
+  "variant": "system",
+  "values": [
+   "com.example.api.OutboundController$$FastClassByGuice$$<auto>",
+   "jipJipManagementApplication"
+  ]
+ },
+ "frame-ignores-ENHANCED-spring-classes.json": {
+  "variant": "system",
+  "values": [
+   "invalid.gruml.talkytalkyhub.common.config.JipJipConfig$$EnhancerBySpringCGLIB$$<auto>",
+   "jipJipManagementApplication"
+  ]
+ },
+ "frame-ignores-extra-ENHANCED-clojure-classes.json": {
+  "variant": "system",
+  "values": [
+   "sentry_clojure_example.core$_main$fn__<auto>$fn__<auto>",
+   "invoke"
+  ]
+ },
+ "frame-ignores-extra-ENHANCED-enhancer-by-classes.json": {
+  "variant": "system",
+  "values": [
+   "com.example.api.OutboundController$$EnhancerByGuice$$<auto>$$FastClassByGuice$$<auto>",
+   "jipJipManagementApplication"
+  ]
+ },
+ "frame-ignores-extra-ENHANCED-spring-classes.json": {
+  "variant": "system",
+  "values": [
+   "invalid.gruml.talkytalkyhub.common.config.JipJipConfig$$EnhancerBySpringCGLIB$$<auto>$$EnhancerBySpringCGLIB$$<auto>$$FastClassBySpringCGLIB$$<auto>",
+   "jipJipManagementApplication"
+  ]
+ },
+ "frame-ignores-filename-from-url-origin-corner-cases.json": {
+  "variant": "system",
+  "values": [
+   "test",
+   "hello world",
+   "foo.js",
+   "test",
+   "hello world"
+  ]
+ },
+ "frame-ignores-filename-if-abs-path-is-http.json": {
+  "variant": "system",
+  "values": [
+   "test"
+  ]
+ },
+ "frame-ignores-filename-if-http.json": {
+  "variant": "system",
+  "values": [
+   "test",
+   "hello world"
+  ]
+ },
+ "frame-ignores-filename-if-https.json": {
+  "variant": "system",
+  "values": [
+   "test",
+   "hello world"
+  ]
+ },
+ "frame-ignores-flutter-sdk.json": {
+  "variant": "system",
+  "values": [
+   "opt/hostedtoolcache/flutter/2.5.0-stable/x64/packages/flutter/lib/src/gestures/binding",
+   "_flushPointerEventQueue"
+  ]
+ },
+ "frame-ignores-hibernate-classes.json": {
+  "variant": "system",
+  "values": [
+   "com.example.model.User$HibernateProxy$<auto>",
+   "jipJipManagementApplication"
+  ]
+ },
+ "frame-ignores-java8-lambda-function.json": {
+  "variant": "system",
+  "values": [
+   "foo.bar.Baz"
+  ]
+ },
+ "frame-ignores-java8-lambda-module.json": {
+  "variant": "system",
+  "values": [
+   "call"
+  ]
+ },
+ "frame-ignores-javassist-2.json": {
+  "variant": "system",
+  "values": [
+   "com.example.api.entry.EntriesResource_$$_javassist<auto>",
+   "fn"
+  ]
+ },
+ "frame-ignores-javassist-3.json": {
+  "variant": "system",
+  "values": [
+   "entriesresource_$$_javassist<auto>.java",
+   "fn"
+  ]
+ },
+ "frame-ignores-javassist.json": {
+  "variant": "system",
+  "values": [
+   "com.example.api.entry.EntriesResource_$$_javassist<auto>",
+   "fn"
+  ]
+ },
+ "frame-ignores-module-if-page-url-2.json": {
+  "variant": "system",
+  "values": [
+   "a"
+  ]
+ },
+ "frame-ignores-safari-native-code.json": {
+  "variant": "system",
+  "values": [
+   "forEach"
+  ]
+ },
+ "frame-ignores-sun-java-generated-constructors-2.json": {
+  "variant": "system",
+  "values": [
+   "sun.reflect.GeneratedConstructorAccessor<auto>",
+   "invoke"
+  ]
+ },
+ "frame-ignores-sun-java-generated-constructors.json": {
+  "variant": "system",
+  "values": [
+   "sun.reflect.GeneratedSerializationConstructorAccessor<auto>",
+   "invoke"
+  ]
+ },
+ "frame-ignores-sun-java-generated-methods.json": {
+  "variant": "system",
+  "values": [
+   "sun.reflect.GeneratedMethodAccessor",
+   "invoke",
+   "jdk.internal.reflect.GeneratedMethodAccessor",
+   "invoke"
+  ]
+ },
+ "frame-sanitizes-block-functions.json": {
+  "variant": "system",
+  "values": [
+   "foo.py",
+   "block"
+  ]
+ },
+ "frame-sanitizes-erb-templates.json": {
+  "variant": "system",
+  "values": [
+   "foo.html.erb",
+   "_foo_html_erb"
+  ]
+ },
+ "frame-sanitizes-versioned-filenames-2.json": {
+  "variant": "system",
+  "values": [
+   "foo.html.erb"
+  ]
+ },
+ "frame-sanitizes-versioned-filenames.json": {
+  "variant": "system",
+  "values": [
+   "foo.html.erb"
+  ]
+ },
+ "frame-skips-symbol-if-unknown.json": {
+  "variant": "system",
+  "values": [
+   "libfoo",
+   "main"
+  ]
+ },
+ "frame-uses-context-line-over-function.json": {
+  "variant": "system",
+  "values": [
+   "foo.py",
+   "bar"
+  ]
+ },
+ "frame-uses-function-over-lineno.json": {
+  "variant": "system",
+  "values": [
+   "foo.py",
+   "bar"
+  ]
+ },
+ "frame-uses-module-over-filename.json": {
+  "variant": "system",
+  "values": [
+   "foo"
+  ]
+ },
+ "frame-uses-symbol-instead-of-function.json": {
+  "variant": "system",
+  "values": [
+   "libfoo",
+   "int main()"
+  ]
+ },
+ "frame-with-only-required-vars.json": {
+  "variant": "system",
+  "values": [
+   "foo.py"
+  ]
+ },
+ "go-pkg-mod.json": {
+  "variant": "app",
+  "values": [
+   "main",
+   "background.func2",
+   "*pq.Error"
+  ]
+ },
+ "group_125_event_126.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "dlopen"
+  ]
+ },
+ "group_200_event_200.json": {
+  "variant": "system",
+  "values": [
+   "HTTP_THREAD_POOL::_StaticWorkItemCallback",
+   "destructor'",
+   "destructor'",
+   "RtlFreeHeap",
+   "RtlFreeHeap"
+  ]
+ },
+ "group_275_event_275.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code"
+  ]
+ },
+ "group_289_event_312.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "glDeleteTextures_Exec",
+   "gldCreateDevice",
+   "abort"
+  ]
+ },
+ "group_294_event_294.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "memory",
+   "std::__1::allocator_traits<T>::destroy<T>",
+   "stripped_application_code",
+   "std::terminate"
+  ]
+ },
+ "group_294_event_329.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "memory",
+   "std::__1::allocator_traits<T>::destroy<T>",
+   "stripped_application_code",
+   "std::terminate"
+  ]
+ },
+ "group_307_event_307.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code"
+  ]
+ },
+ "group_307_event_657.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code"
+  ]
+ },
+ "group_313_event_313.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "dlopen",
+   "abort"
+  ]
+ },
+ "group_313_event_333.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "dlopen",
+   "abort"
+  ]
+ },
+ "group_319_event_321.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "-[NSApplication run]",
+   "stripped_application_code",
+   "-[NSView displayIfNeeded]",
+   "stripped_application_code",
+   "CGLFlushDrawable",
+   "gpusSubmitDataBuffers",
+   "abort"
+  ]
+ },
+ "group_389_event_389.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code"
+  ]
+ },
+ "group_432_event_432.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "abort"
+  ]
+ },
+ "group_432_event_453.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "abort"
+  ]
+ },
+ "group_445_event_445.json": {
+  "variant": "system",
+  "values": [
+   "xstring",
+   "std::basic_string<T>::{ctor}",
+   "stripped_application_code",
+   "stripped_application_code",
+   "DispatchMessageWorker",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "raise"
+  ]
+ },
+ "hpkp.json": {
+  "variant": "default",
+  "values": [
+   "hpkp",
+   "example.com"
+  ]
+ },
+ "in-app-in-ui.json": {
+  "variant": "app",
+  "values": [
+   "<compiler-generated>",
+   "TableView.layoutSubviews",
+   "<compiler-generated>",
+   "AnyTableViewController.tableView",
+   "anytableviewcontroller.swift",
+   "AnyTableViewController.tableView",
+   "dailydigesttableviewsection.swift",
+   "DailyDigestTableViewSection.photoCell",
+   "<compiler-generated>",
+   "MediaSlideshow.toSources",
+   "mediaslideshow+extensions.swift",
+   "MediaSlideshow.toSources",
+   "<compiler-generated>",
+   "Sequence.compactMap<T>",
+   "mediaslideshow+extensions.swift",
+   "MediaSlideshow.toSources",
+   "mediaslideshow+extensions.swift",
+   "MediaSlideshow.toSource",
+   "<compiler-generated>",
+   "CurrentUserProfile.isVideoAutoplay.getter",
+   "currentuserprofile.swift",
+   "CurrentUserProfile.isVideoAutoplay.getter",
+   "currentuserprofile.swift",
+   "value"
+  ]
+ },
+ "java-chained.json": {
+  "variant": "system",
+  "values": [
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "refreshContext",
+   "org.springframework.boot.SpringApplication",
+   "refresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "refresh",
+   "org.springframework.context.support.AbstractApplicationContext",
+   "refresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "finishRefresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "startEmbeddedServletContainer",
+   "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer",
+   "start",
+   "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer",
+   "addPreviouslyRemovedConnectors",
+   "org.apache.catalina.core.StandardService",
+   "addConnector",
+   "org.apache.catalina.util.LifecycleBase",
+   "start",
+   "org.apache.catalina.connector.Connector",
+   "startInternal",
+   "org.apache.coyote.AbstractProtocol",
+   "start",
+   "org.apache.tomcat.util.net.AbstractEndpoint",
+   "start",
+   "org.apache.tomcat.util.net.NioEndpoint",
+   "bind",
+   "sun.nio.ch.ServerSocketAdaptor",
+   "bind",
+   "sun.nio.ch.ServerSocketChannelImpl",
+   "bind",
+   "sun.nio.ch.Net",
+   "bind",
+   "sun.nio.ch.Net",
+   "bind",
+   "sun.nio.ch.Net",
+   "bind0",
+   "BindException",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "refreshContext",
+   "org.springframework.boot.SpringApplication",
+   "refresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "refresh",
+   "org.springframework.context.support.AbstractApplicationContext",
+   "refresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "finishRefresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "startEmbeddedServletContainer",
+   "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer",
+   "start",
+   "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer",
+   "addPreviouslyRemovedConnectors",
+   "org.apache.catalina.core.StandardService",
+   "addConnector",
+   "org.apache.catalina.util.LifecycleBase",
+   "start",
+   "org.apache.catalina.connector.Connector",
+   "startInternal",
+   "LifecycleException",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "run",
+   "org.springframework.boot.SpringApplication",
+   "refreshContext",
+   "org.springframework.boot.SpringApplication",
+   "refresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "refresh",
+   "org.springframework.context.support.AbstractApplicationContext",
+   "refresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "finishRefresh",
+   "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext",
+   "startEmbeddedServletContainer",
+   "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer",
+   "start",
+   "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer",
+   "addPreviouslyRemovedConnectors",
+   "org.apache.catalina.core.StandardService",
+   "addConnector",
+   "org.apache.catalina.util.LifecycleBase",
+   "start",
+   "LifecycleException"
+  ]
+ },
+ "java-minimal.json": {
+  "variant": "system",
+  "values": [
+   "org.apache.tomcat.util.net.SocketProcessorBase",
+   "run",
+   "org.apache.tomcat.util.net.NioEndpoint$SocketProcessor",
+   "doRun",
+   "org.apache.coyote.AbstractProtocol$ConnectionHandler",
+   "process",
+   "org.apache.coyote.AbstractProcessorLight",
+   "process",
+   "org.apache.coyote.http11.Http11Processor",
+   "service",
+   "org.apache.catalina.connector.CoyoteAdapter",
+   "service",
+   "org.apache.catalina.core.StandardEngineValve",
+   "invoke",
+   "org.apache.catalina.valves.ErrorReportValve",
+   "invoke",
+   "org.apache.catalina.core.StandardHostValve",
+   "invoke",
+   "org.apache.catalina.authenticator.AuthenticatorBase",
+   "invoke",
+   "org.apache.catalina.core.StandardContextValve",
+   "invoke",
+   "org.apache.catalina.core.StandardWrapperValve",
+   "invoke",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "doFilter",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "internalDoFilter",
+   "org.springframework.web.filter.OncePerRequestFilter",
+   "doFilter",
+   "org.springframework.web.filter.CharacterEncodingFilter",
+   "doFilterInternal",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "doFilter",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "internalDoFilter",
+   "org.springframework.web.filter.OncePerRequestFilter",
+   "doFilter",
+   "org.springframework.web.filter.HiddenHttpMethodFilter",
+   "doFilterInternal",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "doFilter",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "internalDoFilter",
+   "org.springframework.web.filter.OncePerRequestFilter",
+   "doFilter",
+   "org.springframework.web.filter.HttpPutFormContentFilter",
+   "doFilterInternal",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "doFilter",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "internalDoFilter",
+   "org.springframework.web.filter.OncePerRequestFilter",
+   "doFilter",
+   "org.springframework.web.filter.RequestContextFilter",
+   "doFilterInternal",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "doFilter",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "internalDoFilter",
+   "org.apache.tomcat.websocket.server.WsFilter",
+   "doFilter",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "doFilter",
+   "org.apache.catalina.core.ApplicationFilterChain",
+   "internalDoFilter",
+   "javax.servlet.http.HttpServlet",
+   "service",
+   "org.springframework.web.servlet.FrameworkServlet",
+   "service",
+   "javax.servlet.http.HttpServlet",
+   "service",
+   "org.springframework.web.servlet.FrameworkServlet",
+   "doGet",
+   "org.springframework.web.servlet.FrameworkServlet",
+   "processRequest",
+   "org.springframework.web.servlet.DispatcherServlet",
+   "doService",
+   "org.springframework.web.servlet.DispatcherServlet",
+   "doDispatch",
+   "org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter",
+   "handle",
+   "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter",
+   "handleInternal",
+   "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter",
+   "invokeHandlerMethod",
+   "org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod",
+   "invokeAndHandle",
+   "org.springframework.web.method.support.InvocableHandlerMethod",
+   "invokeForRequest",
+   "org.springframework.web.method.support.InvocableHandlerMethod",
+   "doInvoke",
+   "jdk.internal.reflect.DelegatingMethodAccessorImpl",
+   "invoke",
+   "jdk.internal.reflect.NativeMethodAccessorImpl",
+   "invoke",
+   "jdk.internal.reflect.NativeMethodAccessorImpl",
+   "invoke0",
+   "ArithmeticException"
+  ]
+ },
+ "javascript-exception-fallback-to-message-whistles.json": {
+  "variant": "app",
+  "values": [
+   "Error",
+   "<date>: <email> logged in (error <int>) time spent <float> --- correlation id <uuid>, checksum <sha1> (md5 <md5>); payload timestamp <date> (submitted from <ip> via <ip> via <ip>) at offset <hex>"
+  ]
+ },
+ "javascript-exception-fallback-to-message.json": {
+  "variant": "app",
+  "values": [
+   "Error",
+   "Loading chunk <int> failed.\n(timeout: <url>"
+  ]
+ },
+ "javascript-exception-no-in-app.json": {
+  "variant": "system",
+  "values": [
+   "react-dom.development.js",
+   "dispatchInteractiveEvent",
+   "react-dom.development.js",
+   "interactiveUpdates",
+   "react-dom.development.js",
+   "interactiveUpdates$1",
+   "react-dom.development.js",
+   "performSyncWork",
+   "react-dom.development.js",
+   "performWork",
+   "react-dom.development.js",
+   "performWorkOnRoot",
+   "react-dom.development.js",
+   "renderRoot",
+   "react-dom.development.js",
+   "replayUnitOfWork",
+   "react-dom.development.js",
+   "invokeGuardedCallback",
+   "react-dom.development.js",
+   "invokeGuardedCallbackDev",
+   "index.js",
+   "sentryWrapped",
+   "react-dom.development.js",
+   "callCallback",
+   "ReferenceError"
+  ]
+ },
+ "javascript-message.json": {
+  "variant": "default",
+  "values": [
+   "event"
+  ]
+ },
+ "javascript-polyfills.json": {
+  "variant": "system",
+  "values": [
+   "Error",
+   "bad"
+  ]
+ },
+ "javascript-unpkg.json": {
+  "variant": "system",
+  "values": [
+   "react-dom@16.13.1/umd/react-dom.production",
+   "unpkg",
+   "cdnjs",
+   "jsdelivr",
+   "run",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-chrome.json": {
+  "variant": "system",
+  "values": [
+   "test.html",
+   "test.html",
+   "testMethod",
+   "test.html",
+   "aha",
+   "test.html",
+   "test",
+   "test.html",
+   "test.html",
+   "callback",
+   "test.html",
+   "callAnotherThing",
+   "test.html",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-edge.json": {
+  "variant": "system",
+  "values": [
+   "test.html",
+   "test.html",
+   "testMethod",
+   "test.html",
+   "aha",
+   "test.html",
+   "test",
+   "test.html",
+   "test.html",
+   "callback",
+   "test.html",
+   "callAnotherThing",
+   "test.html",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-firefox.json": {
+  "variant": "system",
+  "values": [
+   "test.html",
+   "test.html",
+   "testMethod",
+   "test.html",
+   "aha",
+   "test.html",
+   "test",
+   "test.html",
+   "test.html",
+   "callback",
+   "test.html",
+   "callAnotherThing",
+   "test.html",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-http-chrome.json": {
+  "variant": "system",
+  "values": [
+   "test",
+   "test",
+   "testMethod",
+   "test",
+   "aha",
+   "test",
+   "test",
+   "test",
+   "test",
+   "callback",
+   "test",
+   "callAnotherThing",
+   "test",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-http-edge.json": {
+  "variant": "system",
+  "values": [
+   "test",
+   "test",
+   "testMethod",
+   "test",
+   "aha",
+   "test",
+   "test",
+   "test",
+   "test",
+   "callback",
+   "test",
+   "callAnotherThing",
+   "test",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-http-firefox.json": {
+  "variant": "system",
+  "values": [
+   "test",
+   "test",
+   "testMethod",
+   "test",
+   "aha",
+   "test",
+   "test",
+   "test",
+   "test",
+   "callback",
+   "test",
+   "callAnotherThing",
+   "test",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-http-safari.json": {
+  "variant": "system",
+  "values": [
+   "test",
+   "test",
+   "testMethod",
+   "test",
+   "aha",
+   "test",
+   "test",
+   "test",
+   "test",
+   "callback",
+   "test",
+   "callAnotherThing",
+   "test",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-safari.json": {
+  "variant": "system",
+  "values": [
+   "test.html",
+   "test.html",
+   "testMethod",
+   "test.html",
+   "aha",
+   "test.html",
+   "test",
+   "test.html",
+   "test.html",
+   "callback",
+   "test.html",
+   "callAnotherThing",
+   "test.html",
+   "aha",
+   "Error"
+  ]
+ },
+ "javascript-xbrowser-sentryui-firefox.json": {
+  "variant": "app",
+  "values": [
+   "app/components/lazyLoad",
+   "this.setState({",
+   "app/views/groupDetails/shared/groupEventDetails",
+   "this.fetchData();",
+   "app/views/groupDetails/shared/groupEventDetails",
+   "fetchGroupEventAndMarkSeen(api, orgSlug, projSlug, groupId, eventId, envNames)",
+   "app/api",
+   "const preservedError = new Error();",
+   "NotFoundError"
+  ]
+ },
+ "javascript-xbrowser-sentryui-safari.json": {
+  "variant": "app",
+  "values": [
+   "app/components/lazyLoad",
+   "this.setState({",
+   "app/views/groupDetails/shared/groupEventDetails",
+   "this.fetchData();",
+   "app/views/groupDetails/shared/groupEventDetails",
+   "fetchGroupEventAndMarkSeen(api, orgSlug, projSlug, groupId, eventId, envNames)",
+   "app/api",
+   "const preservedError = new Error();",
+   "NotFoundError"
+  ]
+ },
+ "javascript_regression_tree_labels.json": {
+  "variant": "system",
+  "values": [
+   "app/utils/handleXhrErrorResponse",
+   "Sentry.withScope(scope => {",
+   "@sentry/minimal/esm/index",
+   "callOnHub('withScope', callback);",
+   "@sentry/minimal/esm/index",
+   "return hub[method].apply(hub, __spread(args));",
+   "@sentry/hub/esm/hub",
+   "callback(scope);",
+   "app/utils/handleXhrErrorResponse",
+   "Sentry.captureException(new Error(message));",
+   "Error"
+  ]
+ },
+ "laravel-anonymous.json": {
+  "variant": "app",
+  "values": [
+   "server.php",
+   "require_once __DIR__.'/public/index.php';",
+   "Exception"
+  ]
+ },
+ "laravel.json": {
+  "variant": "app",
+  "values": [
+   "server.php",
+   "require_once __DIR__.'/public/index.php';",
+   "index.php",
+   "require_once",
+   "$request = Illuminate\\Http\\Request::capture()",
+   "web.php",
+   "Illuminate\\Routing\\RouteFileRegistrar::{closure}",
+   "throw new Exception('LARAVEL TEST');",
+   "Exception"
+  ]
+ },
+ "logentry-prefers-message.json": {
+  "variant": "default",
+  "values": [
+   "Hello there %s!"
+  ]
+ },
+ "logentry-uses-formatted.json": {
+  "variant": "default",
+  "values": [
+   "Hello there world!"
+  ]
+ },
+ "macos-amd-driver.json": {
+  "variant": "system",
+  "values": [
+   "code",
+   "-[NSRunLoop(NSRunLoop) runMode:beforeDate:]",
+   "code",
+   "glTexSubImage2D",
+   "abort"
+  ]
+ },
+ "macos-intel-driver.json": {
+  "variant": "system",
+  "values": [
+   "code",
+   "-[NSApplication run]",
+   "code",
+   "-[NSView displayIfNeeded]",
+   "code",
+   "CGLTexImageIOSurface2D",
+   "gpusSubmitDataBuffers",
+   "abort"
+  ]
+ },
+ "malloc-sentinel.json": {
+  "variant": "system",
+  "values": [
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "stripped_application_code",
+   "free",
+   "malloc_report",
+   "abort",
+   "SIGABRT"
+  ]
+ },
+ "message-prefers-message.json": {
+  "variant": "default",
+  "values": [
+   "Hello there %s!"
+  ]
+ },
+ "message-uses-formatted.json": {
+  "variant": "default",
+  "values": [
+   "Hello there Peter!"
+  ]
+ },
+ "message_with_key_pair_values.json": {
+  "variant": "default",
+  "values": [
+   "Error key1=<quoted_str> key2=<int> key3=<bool> key4=<date> key5=<quoted_str> other_date=datetime.datetime(<int>, <int>, <int>, <int>, <int>, tzinfo=d..."
+  ]
+ },
+ "minified-javascript.json": {
+  "variant": "system",
+  "values": [
+   "sentry/dist/vendor",
+   "M",
+   "sentry/dist/vendor",
+   "sentry/dist/vendor",
+   "i",
+   "sentry/dist/vendor",
+   "b",
+   "sentry/dist/vendor",
+   "n",
+   "sentry/dist/vendor",
+   "g/</t[e]",
+   "sentry/dist/vendor",
+   "sentry/dist/vendor",
+   "W",
+   "sentry/dist/app",
+   "sentry/dist/app",
+   "sentry/dist/vendor",
+   "sentry/dist/vendor",
+   "L",
+   "sentry/dist/vendor",
+   "sentry/dist/vendor",
+   "c",
+   "sentry/dist/vendor",
+   "n",
+   "sentry/dist/vendor",
+   "g/</t[e]",
+   "sentry/dist/vendor",
+   "sentry/dist/vendor",
+   "W",
+   "sentry/dist/app",
+   "sentry/dist/app",
+   "componentPromise",
+   "sentry/dist/app",
+   "e",
+   "sentry/dist/vendor",
+   "NS_ERROR_NOT_INITIALIZED"
+  ]
+ },
+ "native-complex-function-names.json": {
+  "variant": "system",
+  "values": [
+   "Scaleform::GFx::IME::GImeNamesManagerVista::OnActivated",
+   "Scaleform::GFx::AS3::IMEManager::DispatchEvent"
+  ]
+ },
+ "native-driver-crash1.json": {
+  "variant": "system",
+  "values": [
+   "CUseCountedObject<T>::UCDestroy",
+   "destructor'",
+   "CD3D11LayeredChild<T>::LUCBeginLayerDestruction"
+  ]
+ },
+ "native-driver-crash2.json": {
+  "variant": "system",
+  "values": [
+   "CUseCountedObject<T>::UCDestroy"
+  ]
+ },
+ "native-driver-crash3.json": {
+  "variant": "system",
+  "values": [
+   "CUseCountedObject<T>::UCDestroy",
+   "destructor'",
+   "NOutermost::CDeviceChild::LUCBeginLayerDestruction"
+  ]
+ },
+ "native-limit-frames.json": {
+  "variant": "system",
+  "values": [
+   "Scaleform::GFx::AS3::IMEManager::DispatchEvent"
+  ]
+ },
+ "native-malloc-chain.json": {
+  "variant": "system",
+  "values": [
+   "application_frame",
+   "malloc_zone_malloc"
+  ]
+ },
+ "native-no-filenames.json": {
+  "variant": "app",
+  "values": [
+   "_main",
+   "___rust_maybe_catch_panic",
+   "log_demo::main",
+   "log::__private_api_log"
+  ]
+ },
+ "native-unlimited-frames.json": {
+  "variant": "system",
+  "values": [
+   "Scaleform::GFx::IME::GImeNamesManagerVista::OnActivated",
+   "Scaleform::GFx::AS3::IMEManager::DispatchEvent"
+  ]
+ },
+ "native-windows-anon-namespace.json": {
+  "variant": "system",
+  "values": [
+   "main.cpp",
+   "main",
+   "main.cpp",
+   "`anonymous namespace'::start",
+   "main.cpp",
+   "`anonymous namespace'::crash"
+  ]
+ },
+ "native-with-function-name.json": {
+  "variant": "system",
+  "values": [
+   "main.cpp",
+   "main",
+   "main.cpp",
+   "(anonymous namespace)::start",
+   "main.cpp",
+   "(anonymous namespace)::crash",
+   "main.cpp",
+   "(anonymous namespace)::something::nested::Foo<T>::crash"
+  ]
+ },
+ "node-exception-weird.json": {
+  "variant": "app",
+  "values": [
+   "hub",
+   "withScope",
+   "*/",
+   "onunhandledrejection.ts",
+   "hub.ts",
+   "captureException",
+   "if (maxBreadcrumbs <= 0) {",
+   "hub",
+   "invokeClient",
+   "* @returns Scope, the new cloned scope",
+   "baseclient.ts",
+   "captureException",
+   "promisedEvent",
+   "backend.ts",
+   "eventFromException",
+   "Error"
+  ]
+ },
+ "node-low-level-async.json": {
+  "variant": "system",
+  "values": [
+   "Error",
+   "bad"
+  ]
+ },
+ "python-exception-base.json": {
+  "variant": "app",
+  "values": [
+   "baz.py",
+   "ValueError",
+   "ValueError",
+   "hello world"
+  ]
+ },
+ "python-grouping-enhancer-away-from-crash.json": {
+  "variant": "app",
+  "values": [
+   "sentry.web.frontend.release_webhook",
+   "post",
+   "hook.handle(request)",
+   "sentry_plugins.heroku.plugin",
+   "handle",
+   "email = request.POST['user']",
+   "MultiValueDictKeyError"
+  ]
+ },
+ "python-grouping-enhancer-towards-crash.json": {
+  "variant": "system",
+  "values": [
+   "django.core.handlers.base",
+   "get_response",
+   "response = wrapped_callback(request, *callback_args, **callback_kwargs)",
+   "django.views.generic.base",
+   "view",
+   "return self.dispatch(request, *args, **kwargs)",
+   "django.utils.decorators",
+   "_wrapper",
+   "return bound_func(*args, **kwargs)",
+   "MultiValueDictKeyError"
+  ]
+ },
+ "python-http-error.json": {
+  "variant": "app",
+  "values": [
+   "sentry.utils.safe",
+   "safe_execute",
+   "result = func(*args, **kwargs)",
+   "sentry.integrations.slack.notify_action",
+   "send_notification",
+   "resp.raise_for_status()",
+   "HTTPError"
+  ]
+ },
+ "react-native.json": {
+  "variant": "app",
+  "values": [
+   "App",
+   "<Button",
+   "App",
+   "<Button",
+   "TypeError"
+  ]
+ },
+ "stacktrace-cocoa.json": {
+  "variant": "app",
+  "values": [
+   "bar.m"
+  ]
+ },
+ "stacktrace-collapse-recursion.json": {
+  "variant": "system",
+  "values": [
+   "com.example.Application",
+   "main",
+   "com.example.Application",
+   "normalFunc",
+   "com.example.Application",
+   "recurFunc",
+   "com.example.Application",
+   "recurFunc",
+   "com.example.Application",
+   "throwError"
+  ]
+ },
+ "stacktrace-compute-hashes.json": {
+  "variant": "app",
+  "values": [
+   "foo.py"
+  ]
+ },
+ "stacktrace-does-not-discard-non-urls.json": {
+  "variant": "system",
+  "values": [
+   "foo"
+  ]
+ },
+ "stacktrace-enforce-min-frames.json": {
+  "variant": "system",
+  "values": [
+   "_main",
+   "std::rt::lang_start_internal",
+   "___rust_maybe_catch_panic",
+   "std::panicking::try::do_call",
+   "log_demo::main",
+   "log::__private_api_log",
+   "log_demo"
+  ]
+ },
+ "stacktrace-excludes-single-frame-urls.json": {
+  "variant": "system",
+  "values": [
+   "<unknown module>"
+  ]
+ },
+ "stacktrace-hash-without-system-frames.json": {
+  "variant": "app",
+  "values": [
+   "foo.py"
+  ]
+ },
+ "stacktrace-ignores-singular-anonymous-frame.json": {
+  "variant": "system",
+  "values": [
+   "dojo.js",
+   "c",
+   "dojo.js",
+   "_createDocumentViewModel"
+  ]
+ },
+ "stacktrace-negated-match.json": {
+  "variant": "system",
+  "values": [
+   "log_demo::main",
+   "log_demo"
+  ]
+ },
+ "stacktrace-rust.json": {
+  "variant": "app",
+  "values": [
+   "log_demo::main",
+   "log_demo"
+  ]
+ },
+ "stacktrace-rust2.json": {
+  "variant": "app",
+  "values": [
+   "log_demo::main",
+   "log_demo"
+  ]
+ },
+ "stacktrace-with-minimal-app-frames.json": {
+  "variant": "app",
+  "values": [
+   "foo.py"
+  ]
+ },
+ "template-compute-hashes.json": {
+  "variant": "default",
+  "values": [
+   "foo.html",
+   "hello world"
+  ]
+ },
+ "threads-compute-hashes.json": {
+  "variant": "system",
+  "values": [
+   "baz.c",
+   "main"
+  ]
+ },
+ "unity.json": {
+  "variant": "app",
+  "values": [
+   "samplescript.cs",
+   "SampleScript.ThrowNull ()",
+   "NullReferenceException"
+  ]
+ }
+}

@@ -1,6 +1,7 @@
 // Issues: the list (searched, sorted, with a sparkline each), one issue with its events, and what can be done to them.
 import type { NormalizedEvent } from '../ingest/event'
 import { HASHERS } from '../ingest/grouping'
+import { NO_RULES } from '../ingest/rules'
 import type { Priority } from '../ingest/priority'
 import { issueFilter, UNREAD } from '../search/query'
 import { scoped } from './charts'
@@ -140,7 +141,7 @@ export async function getIssue(db: D1Database, id: number, eventId: string | und
     db
       .prepare('SELECT id, kind, data, by, at FROM issue_activity WHERE issue_id = ? ORDER BY at DESC, id DESC')
       .bind(id),
-    db.prepare('SELECT COUNT(*) AS n FROM issue_fingerprints WHERE issue_id = ?').bind(id),
+    db.prepare('SELECT COUNT(*) AS n FROM issue_fingerprints WHERE issue_id = ? AND regrouped = 0').bind(id),
   ])
   const list = events.results as {
     id: string
@@ -380,7 +381,8 @@ export async function mergeIssues(db: D1Database, ids: number[], by: string, now
       )
       .bind(into, fromIds),
     // Fingerprints merged into the merged issues come along
-    db.prepare(`UPDATE issue_fingerprints SET issue_id = ? WHERE issue_id IN ${m}`).bind(into, fromIds),
+    // What routed to the merged issues is now a merge into this one, its regrouped fingerprints too
+    db.prepare(`UPDATE issue_fingerprints SET issue_id = ?, regrouped = 0 WHERE issue_id IN ${m}`).bind(into, fromIds),
     db
       .prepare(
         `INSERT OR REPLACE INTO issue_fingerprints (project_id, fingerprint, issue_id) SELECT project_id, fingerprint, ? FROM issues WHERE id IN ${m}`,
@@ -475,7 +477,7 @@ async function backfillBatch(
         message: r.message ?? '',
         title: r.title ?? '',
       } as NormalizedEvent
-      print = await HASHERS[1](event)
+      print = await HASHERS[1](event, NO_RULES)
     } catch {
       // Unreadable: marked '' so it isn't read again; it stays with this issue
       print = ''
@@ -534,7 +536,7 @@ export async function mergedFingerprints(db: D1Database, issueId: number): Promi
            (SELECT json_extract(data, '$.exceptions') FROM events WHERE issue_id = f.issue_id AND fingerprint = f.fingerprint
             ORDER BY received DESC LIMIT 1) AS exceptions
          FROM issue_fingerprints f LEFT JOIN events e ON e.issue_id = f.issue_id AND e.fingerprint = f.fingerprint
-         WHERE f.issue_id = ? GROUP BY f.fingerprint ORDER BY last DESC`,
+         WHERE f.issue_id = ? AND f.regrouped = 0 GROUP BY f.fingerprint ORDER BY last DESC`,
       )
       .bind(issueId)
       .all<Omit<MergedFingerprint, 'frame'> & { exceptions: string | null }>()
@@ -555,7 +557,7 @@ export async function unmergeIssue(db: D1Database, id: number, fingerprint: stri
   const source = await db
     .prepare(
       `SELECT i.id, i.project_id, i.priority FROM issue_fingerprints f JOIN issues i ON i.id = f.issue_id
-       WHERE f.issue_id = ? AND f.fingerprint = ?`,
+       WHERE f.issue_id = ? AND f.fingerprint = ? AND f.regrouped = 0`,
     )
     .bind(id, fingerprint)
     .first<{ id: number; project_id: number; priority: string }>()

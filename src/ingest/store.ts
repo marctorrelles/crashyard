@@ -1,9 +1,9 @@
 // Writing an event: its issue (made, counted, reopened), the event itself, its tags and the counts, in one D1 batch.
 import { eventJson } from './budget'
 import type { NormalizedEvent } from './event'
-import { GROUPING_VERSION, type Hasher, HASHERS } from './grouping'
+import { GROUPING_VERSION, type Hasher, HASHERS, showInApp } from './grouping'
 import { priorityFor } from './priority'
-import { applyRules, rulesOf } from './rules'
+import { type Rules, rulesOf } from './rules'
 
 export type Project = {
   id: number
@@ -29,7 +29,7 @@ export const GROUPING_OVERLAP = 30 * 86_400_000
  * then `groupingOf`. Ingest and reprocessing both come through here, so a late debug file keeps the project's rules
  */
 export const groupingFor = (db: D1Database, project: Project, event: NormalizedEvent, now: number) =>
-  groupingOf(db, project, applyRules(event, rulesOf(project.grouping_rules)), now)
+  groupingOf(db, project, event, rulesOf(project.grouping_rules), now)
 
 /**
  * The fingerprint of an event, as grouping sees it, at the current grouping version. The first event of a project
@@ -39,7 +39,8 @@ export const groupingFor = (db: D1Database, project: Project, event: NormalizedE
 export async function groupingOf(
   db: D1Database,
   project: Project,
-  grouping: NormalizedEvent,
+  event: NormalizedEvent,
+  rules: Rules,
   now: number,
   hashers: Record<number, Hasher> = HASHERS,
   current = GROUPING_VERSION,
@@ -60,22 +61,32 @@ export async function groupingOf(
       grouping_until: now + GROUPING_OVERLAP,
     })
   }
-  const fingerprint = await hashers[current](grouping)
+  const fingerprint = await hashers[current](event, rules)
   const previous = project.grouping_previous
   if (previous && previous !== current && hashers[previous] && now < (project.grouping_until ?? 0)) {
-    const old = await hashers[previous](grouping)
+    const old = await hashers[previous](event, rules)
     if (old !== fingerprint)
-      await db
-        .prepare(
-          `INSERT OR IGNORE INTO issue_fingerprints (project_id, fingerprint, issue_id)
-           SELECT ?1, ?2, id FROM issues WHERE id = COALESCE(
-             (SELECT issue_id FROM issue_fingerprints WHERE project_id = ?1 AND fingerprint = ?3),
-             (SELECT id FROM issues WHERE project_id = ?1 AND fingerprint = ?3))
-           AND NOT EXISTS (SELECT 1 FROM issues WHERE project_id = ?1 AND fingerprint = ?2)`,
-        )
-        .bind(project.id, fingerprint, old)
-        .run()
+      await db.batch([
+        db
+          .prepare(
+            `INSERT OR IGNORE INTO issue_fingerprints (project_id, fingerprint, issue_id, regrouped)
+             SELECT ?1, ?2, id, 1 FROM issues WHERE id = COALESCE(
+               (SELECT issue_id FROM issue_fingerprints WHERE project_id = ?1 AND fingerprint = ?3),
+               (SELECT id FROM issues WHERE project_id = ?1 AND fingerprint = ?3))
+             AND NOT EXISTS (SELECT 1 FROM issues WHERE project_id = ?1 AND fingerprint = ?2)`,
+          )
+          .bind(project.id, fingerprint, old),
+        // An issue deleted and discarded under the old version stays discarded under the new one
+        db
+          .prepare(
+            `INSERT OR IGNORE INTO discarded_fingerprints (project_id, fingerprint, at)
+             SELECT project_id, ?2, at FROM discarded_fingerprints WHERE project_id = ?1 AND fingerprint = ?3`,
+          )
+          .bind(project.id, fingerprint, old),
+      ])
   }
+  // The event as stored and shown: the in-app flags the current version's rules leave, as Sentry shows them
+  showInApp(event, rules, current)
   return { fingerprint, version: current }
 }
 

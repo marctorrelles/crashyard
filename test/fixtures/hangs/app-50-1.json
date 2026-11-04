@@ -1,0 +1,95 @@
+{
+ "platform": "cocoa",
+ "level": "fatal",
+ "exception": {
+  "values": [
+   {
+    "type": "Fatal App Hang Fully Blocked",
+    "value": "The user or the OS watchdog terminated your app while it blocked the main thread for at least 2000 ms.",
+    "mechanism": {
+     "type": "AppHang",
+     "handled": false
+    },
+    "stacktrace": {
+     "frames": [
+      {
+       "package": "/usr/lib/swift/libswift_Concurrency.dylib",
+       "instruction_addr": "0x00000001a17963b4",
+       "image_addr": "0x00000001a1791000",
+       "in_app": false
+      },
+      {
+       "function": "specialized static PdfRenderer.paginate(_: WKWebView, paper: CGSize)",
+       "filename": "PdfRenderer.swift",
+       "lineno": 230,
+       "package": "/private/var/containers/Bundle/Application/00000000-0000-0000-0000-000000000000/Sample.app/Sample",
+       "instruction_addr": "0x0000000104f871d8",
+       "image_addr": "0x0000000104dd8000",
+       "in_app": true
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/PrintKitUI.framework/PrintKitUI",
+       "instruction_addr": "0x00000002b912de7c",
+       "image_addr": "0x00000002b90de000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/PrivateFrameworks/PrintKitUI.framework/PrintKitUI",
+       "instruction_addr": "0x00000002b912e05c",
+       "image_addr": "0x00000002b90de000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/WebKit.framework/WebKit",
+       "instruction_addr": "0x00000001bcdaa79c",
+       "image_addr": "0x00000001bc5e4000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/WebKit.framework/WebKit",
+       "instruction_addr": "0x00000001bd8e3420",
+       "image_addr": "0x00000001bc5e4000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/WebKit.framework/WebKit",
+       "instruction_addr": "0x00000001bd8e3070",
+       "image_addr": "0x00000001bc5e4000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/WebKit.framework/WebKit",
+       "instruction_addr": "0x00000001bc7aff48",
+       "image_addr": "0x00000001bc5e4000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/WebKit.framework/WebKit",
+       "instruction_addr": "0x00000001bc7b73b0",
+       "image_addr": "0x00000001bc5e4000",
+       "in_app": false
+      },
+      {
+       "package": "/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore",
+       "instruction_addr": "0x00000001ba150e30",
+       "image_addr": "0x00000001b9fba000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libsystem_pthread.dylib",
+       "instruction_addr": "0x00000001a00b7da0",
+       "image_addr": "0x00000001a00b6000",
+       "in_app": false
+      },
+      {
+       "package": "/usr/lib/system/libsystem_kernel.dylib",
+       "instruction_addr": "0x0000000257a7a5f8",
+       "image_addr": "0x0000000257a74000",
+       "in_app": false
+      }
+     ]
+    }
+   }
+  ]
+ }
+}
