@@ -44,7 +44,7 @@ signature; `/mcp` comes after sign-in.
   that kind until tomorrow; 429 with `Retry-After` when nothing in the envelope can be kept), and the key's own daily
   limit on events (`<retry>:error;…:key:key_quota`, Sentry's scope and reason for a key's limit; counted in `key_days`
   per event item let in less those a filter dropped, at the request after its pass, so a retry never counts it again
-  and filtered events count towards neither limit), then the envelope is held in R2 (`pending/`, `src/ingest/retry.ts`) and each item is processed in its own `try`
+  and filtered events count towards neither limit), then the envelope is held, in D1 (`held_envelopes`) when it's UTF-8 text of 512 KB or less, else in R2 (`pending/`; `src/ingest/retry.ts`) and each item is processed in its own `try`
   (`processItems`, which the cron's `retryEnvelope` calls too): an `EnvelopeError` answers 400 and drops the held copy;
   any other error lists the item (`3`, or `3:2` for a span item from its third segment, so a retry doesn't count the
   first two again) and the rest goes on; the answer is 200 either way, as Relay's. Anything else the pass throws, once
@@ -59,8 +59,8 @@ signature; `/mcp` comes after sign-in.
   through `transactionFilterReason`. What they drop isn't stored, and the pass adds it to `project_days.filtered`
   once, at its end (`countFiltered`, best-effort: a failure is logged, never a failed envelope); `project_days.events` counts only stored events, so the quota never sees them. A
   worker stopped mid-pass may count a filtered event twice, as logs. A retry reads the project by id alone (a key turned off since doesn't lose
-  what was accepted) and skips the quota (what's held was let in). The raw envelope goes
-  to R2 once an envelope (`envelopes/<project>/<day>/<envelope id, else its first stored event's>`). An attachment (1 MB at most) goes to
+  what was accepted) and skips the quota (what's held was let in). The raw envelope isn't
+  kept (it was unscrubbed and never read). An attachment (1 MB at most) goes to
   `attachments/<project>/<event>/<item index>-<filename>`, its row inserted `ON CONFLICT (event_id, r2_key) DO NOTHING`
   (0019's unique index), so two files of one name both stay and a whole-envelope retry writes no second row. Feedback
   joins the issue of its event only when that event is the project's own, and the issue page lists only the

@@ -1,6 +1,5 @@
 // An event's size budget: what's stored in D1 stays under 900 KB of JSON (D1 holds 2 MB a row, and pages read it
-// whole). The full envelope stays in R2. Cuts go from least to most missed, each only while the event is still over,
-// and `_trimmed` names them.
+// whole). Cuts go from least to most missed, each only while the event is still over, and `_trimmed` names them.
 import { MAX_THREADS, type NormalizedEvent, THREAD_FRAMES } from './event'
 
 export const EVENT_BUDGET = 900_000

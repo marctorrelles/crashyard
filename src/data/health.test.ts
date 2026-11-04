@@ -54,6 +54,10 @@ describe('health', () => {
         (1, 'new', 'refused', ${NOW - DAY}), (9, 'new', 'gone', ${NOW - 2 * DAY}), (1, 'new', 'old', ${NOW - 8 * DAY});
     `)
     await files.put('pending/1/1-a', 'x')
+    // Held in D1 too: pending counts both stores
+    db.sqlite.exec(
+      "INSERT INTO held_envelopes (key, project_id, received, endpoint, body) VALUES ('pending/1/2-b', 1, 2, 'envelope', 'x')",
+    )
     await files.put('failed/1/1-b', 'x')
     await files.put('failed/2/1-c', 'x')
     const late = await health({ DB: db, FILES: files }, NOW)
@@ -61,7 +65,7 @@ describe('health', () => {
     expect(late.files).toEqual({ debugFiles: 1000, bundles: 0, attachments: 20 })
     expect(late.notifications.failed).toBe(2)
     expect(late.notifications.recent.map((f) => f.channel)).toEqual(['Hook', null])
-    expect(late.envelopes).toEqual({ pending: { count: 1, more: false }, failed: { count: 2, more: false } })
+    expect(late.envelopes).toEqual({ pending: { count: 2, more: false }, failed: { count: 2, more: false } })
     expect(late.backlog).toEqual({ events: BACKLOG_CAP, logs: 1 })
     await setSetting(db, 'cron.last_run', NOW - 60_000, null)
     expect((await health({ DB: db, FILES: files }, NOW)).cron).toEqual({ lastRun: NOW - 60_000, late: false })

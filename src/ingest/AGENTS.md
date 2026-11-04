@@ -127,18 +127,30 @@ RETURNING`), then one batch for the counts, days, tags, users and activity. `tra
   least missed first: the newest 100 breadcrumbs, 32 threads of 100 frames (crashed first), an exception's innermost
   200 frames, texts over 4 KB anywhere, then whole parts (other threads, breadcrumb data, contexts, extra, request,
   breadcrumbs, all but 20 frames, threads). `_trimmed` names each, shown under the event.
-- `retry.ts`: durable ingest (docs/decisions/0004). `hold` puts the body at `pending/<project>/<received ms>-<16 hex>`
-  with `customMetadata` `{ endpoint, attempts, items?, leased_until? }` (`attempts` 1, the request's try counted as it
-  starts; `items` only when some were left out, by quota or as done); `settle` after a pass: nothing failed deletes
-  it, else it's rewritten with what failed and the attempts so far (and no lease), and the fifth moves it to
-  `failed/<project>/<…>` and adds 1 to `project_days.failed`. `retryPending` (every minute, last of the cron's jobs,
-  until its shared deadline): pages through `pending/` (1000 keys a page, by `cursor`) so envelopes still in flight
-  never hide older ones listed after them, skips one whose `leased_until` hasn't passed, and retries up to 25 older
-  than two minutes. Before each pass it rewrites the copy with `attempts + 1` and `leased_until` the cron's `now` +
-  90 s, so a pass that stops the worker still counts, and a cron run overlapping the last one leaves it alone; one
-  already at five tries moves to `failed/` untried. An envelope not reached before the deadline isn't counted. Each
-  pass goes through `retryEnvelope` (`src/api/ingest.ts`; injectable for `retry.test.ts`, which uses `test/fakes.ts`);
-  a pass that throws counts as everything failing. A worker stopped mid-envelope leaves the metadata from before the
+- `retry.ts`: durable ingest (docs/decisions/0004 and 0006). `hold` takes the key
+  `pending/<project>/<received ms>-<16 hex>` and holds the body under it: in D1, a `held_envelopes` row (0038), when
+  it's UTF-8 text with no NUL of `HOLD_IN_D1_MAX` (512 KB, a quarter of D1's 2 MB value) or less, as TEXT (a fatal,
+  BOM-keeping decode, so it comes back byte for byte; D1 carries a BLOB as an array of numbers); else, or when D1
+  refuses (a project deleted meanwhile fails the foreign key), in R2 with `customMetadata`
+  `{ endpoint, attempts, items?, leased_until? }`. Either way `attempts` is 1, the request's try counted as it starts,
+  and `items` is set only when some were left out, by quota or as done; it answers `Held` with its `store`, `d1` or
+  `r2`, or undefined when neither took it. The key seeds `stableEventId` the same in both. `release` drops the copy
+  (an `EnvelopeError`). `settle` after a pass: nothing failed releases it, else the row is updated (or the R2 object
+  rewritten) with what failed and the attempts so far, no lease, and the fifth moves the body to R2's
+  `failed/<project>/<…>` from either store and adds 1 to `project_days.failed` (for a row, one batch: the count only
+  while the row is there, then its delete, so two runs settling it count it once). `retryPending` (every minute, last
+  of the cron's jobs, until its shared deadline), 25 retries in all: first D1's rows older than two minutes and not
+  leased, oldest first (read from the primary key, `(received, key)`, so never the whole table; every statement on a
+  row names both), each claimed by one `UPDATE … SET attempts = attempts + 1, leased_until … WHERE` not leased
+  `RETURNING` the body, so an overlapping run claims none twice, one past five tries moving to `failed/` untried;
+  then R2, as before 0038 and for envelopes held there
+  by a worker from before it: pages through `pending/` (1000 keys a page, by `cursor`) so envelopes still in flight
+  never hide older ones listed after them, skips one whose `leased_until` hasn't passed, and before each pass
+  rewrites the copy with `attempts + 1` and `leased_until` the cron's `now` + 90 s. So a pass that stops the worker
+  still counts, and a run overlapping the last one leaves it alone; one already at five tries moves to `failed/`
+  untried. An envelope not reached before the deadline isn't counted. Each pass goes through `retryEnvelope`
+  (`src/api/ingest.ts`; injectable for `retry.test.ts`, which runs each case on both stores with `test/fakes.ts`); a
+  pass that throws counts as everything failing. A worker stopped mid-envelope leaves the state from before the
   pass, so every item in it is tried again: events dedupe by id, check-ins find their row again, logs, transactions
   and filtered events already counted count again.
 

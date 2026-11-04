@@ -9,6 +9,7 @@ import { EnvelopeError, MAX_ITEMS, parseEnvelope, payloadJson } from './envelope
 import { eventIdOf, normalizeEvent, timestampOf } from './event'
 import { FORWARDED, sentryTarget } from './forward'
 import { fingerprintOf, mask } from './grouping'
+import { retryPending } from './retry'
 import { loadExtraFields, scrub, scrubText, setExtraFields } from './scrub'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
 import { type Project, storeEvent, TAG_VALUES, transitionOf } from './store'
@@ -477,6 +478,7 @@ describe('client keys', () => {
     const request = new Request(`https://x/api/${id}/store/?sentry_key=first`, { method: 'POST', body })
     expect((await handleIngest(request, env, ctx, id, 'store')).status).toBe(413)
     expect((await env.FILES.list({ prefix: 'pending/' })).objects).toHaveLength(0)
+    expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM held_envelopes').get()).toEqual({ n: 0 })
   })
 })
 
@@ -612,8 +614,11 @@ describe('what a pass that fails costs', () => {
     await Promise.all(waits)
     return response
   }
-  const pending = (env: ReturnType<typeof setup>) =>
-    [...env.FILES.objects.keys()].filter((k) => k.startsWith('pending/'))
+  // Held in D1 or R2
+  const pending = (env: ReturnType<typeof setup>) => [
+    ...(env.DB.sqlite.prepare('SELECT key FROM held_envelopes').all() as { key: string }[]).map((r) => r.key),
+    ...[...env.FILES.objects.keys()].filter((k) => k.startsWith('pending/')),
+  ]
 
   it('never fails an envelope over counting what was filtered, so its logs count once', async () => {
     const env = setup()
@@ -675,7 +680,39 @@ describe('what a pass that fails costs', () => {
     }
     expect(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM events').get()).toEqual({ n: 1 })
     expect(env.DB.sqlite.prepare('SELECT count FROM issues').get()).toEqual({ count: 1 })
-    expect([...env.FILES.objects.keys()].filter((k) => !k.startsWith('envelopes/'))).toEqual([])
+    expect(env.FILES.objects.size).toBe(0)
+    expect(pending(env)).toEqual([])
+  })
+
+  it('holds a failed envelope in D1, no R2 write, and the cron stores it with the same event id', async () => {
+    const env = setup()
+    const prepare = env.DB.prepare.bind(env.DB)
+    let failOnce = true
+    env.DB.prepare = (sql: string) => {
+      if (failOnce && sql.includes('INSERT INTO events')) {
+        failOnce = false
+        throw new Error('D1 hiccup')
+      }
+      return prepare(sql)
+    }
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
+    let id: string
+    try {
+      // No event id: the held key gives it one, the same on the cron's try
+      const response = await send(env, [{}, { type: 'event' }, { message: 'later', timestamp: NOW / 1000 }])
+      expect(response.status).toBe(200)
+      id = ((await response.json()) as { id: string }).id
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(id).toMatch(/^[0-9a-f]{32}$/)
+    expect(env.DB.sqlite.prepare('SELECT attempts, items FROM held_envelopes').all()).toEqual([
+      { attempts: 1, items: '0' },
+    ])
+    expect(env.FILES.objects.size).toBe(0)
+    expect(await retryPending(env, NOW + 3 * 60_000, Date.now() + 20_000)).toEqual({ retried: 1, failed: 0 })
+    expect(env.DB.sqlite.prepare('SELECT id FROM events').all()).toEqual([{ id }])
+    expect(pending(env)).toEqual([])
   })
 
   it('holds no envelope of sessions alone', async () => {
@@ -684,10 +721,11 @@ describe('what a pass that fails costs', () => {
     const session = { sid: 'a', status: 'exited', started: at, timestamp: at, attrs: { release: '1.0' } }
     expect((await send(env, [{}, { type: 'session' }, session])).status).toBe(200)
     expect(env.FILES.objects.size).toBe(0)
+    expect(pending(env)).toEqual([])
     expect((await send(env, [{}, { type: 'session' }, session, { type: 'event' }, { message: 'boom' }])).status).toBe(
       200,
     )
-    expect(env.FILES.objects.size).toBe(1) // the event's envelopes/ copy; the held one went once stored
+    expect(env.FILES.objects.size).toBe(0) // the held copy went once stored
     expect(pending(env)).toEqual([])
   })
 

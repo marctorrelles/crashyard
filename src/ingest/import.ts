@@ -91,7 +91,7 @@ export async function importPage(db: D1Database, projectId: number, source: Sent
     const lastSeen = Date.parse(issue.lastSeen)
     const event = await normalizeEvent(raw.body, Number.isFinite(lastSeen) ? lastSeen : Date.now(), latest.body.eventID)
     const { fingerprint, version } = await groupingFor(db, project, event, Date.now())
-    const stored = await storeEvent(db, project, event, fingerprint, undefined, version)
+    const stored = await storeEvent(db, project, event, fingerprint, version)
     // Imported before, under another project or by a run that stopped halfway: the issue its event is in
     const issueId =
       stored?.issue.id ??

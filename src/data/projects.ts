@@ -335,7 +335,6 @@ export const updateKey = (
     .bind(change.label, change.enabled ? 1 : 0, change.daily_limit, id, projectId)
     .run()
 
-/** Deletes the project with its issues and events (foreign keys cascade); its raw envelopes expire from R2 */
 /**
  * Deletes a project with everything of it. Its biggest tables go first, a batch at a time (one cascading delete of
  * millions of logs runs past D1's limit for a statement and undoes itself every time), then its files in R2, then the
@@ -358,6 +357,7 @@ export async function deleteProject(db: D1Database, files: R2Bucket, id: number,
     for (const r of results) await deleteDebugFile(db, files, id, r.id)
     return results.length
   })
+  // envelopes/: raw copies 0.1.1 and earlier kept, which a bucket without its lifecycle rule still holds
   for (const prefix of ['attachments', 'envelopes', 'pending', 'failed'])
     await inBatches(deadline, async () => {
       const { objects } = await files.list({ prefix: `${prefix}/${id}/`, limit: 1000 })
