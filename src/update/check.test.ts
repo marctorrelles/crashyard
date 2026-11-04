@@ -63,6 +63,11 @@ describe('latest', () => {
     expect(first.checkedAt).toBeTypeOf('number')
     expect(await latest()).toEqual(first)
     expect(fetch).toHaveBeenCalledTimes(1)
+    // A release file, not the API with its 60 unsigned requests an hour that Workers share
+    expect(fetch.mock.calls[0]).toEqual([
+      expect.stringMatching(/github\.com\/[^/]+\/[^/]+\/releases\/latest\/download\/releases\.json$/),
+      expect.anything(),
+    ])
     await latest(true)
     expect(fetch).toHaveBeenCalledTimes(2)
   })

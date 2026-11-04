@@ -71,7 +71,7 @@ Where things are:
 - `.github/`: CI (`pnpm check`), PR titles (Conventional Commits), CodeQL, Scorecard and release-please (the last
   three skip themselves while the repo is private: `release-please-config.json` and its manifest at the root, `site/` left out, a
   breaking change bumping the minor while on 0.x; a
-  release gets its build, `scripts/release-bundle.mjs`, and a line in its notes when it changes `symcache/`), issue
+  release gets its build, `scripts/release-bundle.mjs`, and a line in its notes when it changes `symcache/`, and `releases.json`, every release for the update check, from `releases-manifest.yml`), issue
   and PR templates, Dependabot. Actions are pinned by commit SHA.
 - `site/`: crashyard.dev, the landing page, Tailwind built by Vite to static files on their own Worker (`pnpm site:deploy`, see its AGENTS.md).
 - `tmp/`: plans and scratch notes, git-ignored. Never commit plans.
