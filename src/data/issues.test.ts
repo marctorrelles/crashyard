@@ -97,8 +97,13 @@ describe('unmerge', () => {
     )
     await mergeIssues(db, [a, b], 'me', 0)
     expect(await mergedFingerprints(db, a)).toMatchObject([{ fingerprint: legacy, events: 2, title: 'Crash B' }])
+    // b, the highest id, is gone: its id isn't given again, so links to it don't open another issue
+    const c = await send('fc', 9, { message: 'Crash C' })
+    expect(c).toBe(b + 1)
+    db.sqlite.exec(`DELETE FROM issues WHERE id = ${c}`) // unmerge doesn't reuse it either
 
     const made = (await unmergeIssue(db, a, legacy, 'me', 10))!
+    expect(made).toBe(c + 1)
     const issue = (id: number) =>
       db.sqlite.prepare('SELECT count, user_count, first_release, fingerprint FROM issues WHERE id = ?').get(id)
     expect(issue(made)).toEqual({ count: 2, user_count: 2, first_release: '2.0', fingerprint: legacy })
