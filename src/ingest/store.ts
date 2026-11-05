@@ -197,8 +197,8 @@ export async function storeEvent(
   if (!issue) {
     issue = await db
       .prepare(
-        `INSERT INTO issues (project_id, fingerprint, title, culprit, type, level, platform, substatus, first_seen, last_seen, first_release, priority)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)
+        `INSERT INTO issues (id, project_id, fingerprint, title, culprit, type, level, platform, substatus, first_seen, last_seen, first_release, priority)
+         VALUES ((SELECT MAX(last, (SELECT MAX(id) FROM issues)) + 1 FROM issue_ids), ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)
          ON CONFLICT (project_id, fingerprint) DO NOTHING RETURNING ${ISSUE_COLUMNS}`,
       )
       .bind(

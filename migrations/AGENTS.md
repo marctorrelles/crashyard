@@ -128,3 +128,12 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   `last_used_at` and prunes nothing.
 - `0040_debug_files_debug_info.sql`: `debug_files.debug_info`, 1 when the object has debug info, 0 a symbol table only,
   null before; lookups prefer 1.
+- `0042_issue_ids.sql`: `issue_ids`, one row, the highest issue id ever given, kept by the `issue_ids_last` trigger
+  whoever inserts. Both inserts of an issue (`storeEvent`, `unmergeIssue`) take `MAX(last, MAX(id)) + 1`, so from
+  0042 on a merged or deleted issue's id never names another (`INTEGER PRIMARY KEY` alone gives `MAX(id) + 1`), and a
+  `last` edited by hand below an id there is can't make every new issue clash. Not `AUTOINCREMENT`: that means
+  rebuilding `issues`, and dropping it cascades to every table referencing it. Filled from what's left of the ids
+  given before: the issues, the ids merges recorded and the issues notices named (`ISSUE_KINDS` only, the others carry
+  a monitor's or metric alert's id). An id deleted before 0042 that none of these kept, or only a notice pruned after
+  30 days, can be given once more. A worker from before inserts without an id and can reuse one, as it did; the
+  trigger still moves `last` past it.
