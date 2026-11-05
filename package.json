@@ -1,6 +1,6 @@
 {
   "name": "crashyard",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "A Sentry-compatible crash, error and log reporter you run on your own Cloudflare account",
   "license": "MIT",
