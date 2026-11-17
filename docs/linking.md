@@ -168,10 +168,12 @@ export SENTRY_AUTH_TOKEN=<a token>     # created in Settings, then Tokens, for t
 
 Crashes from the last 30 days that arrived before their files are processed again once the files are uploaded.
 
-Uploaded files don't stay forever. crashyard deletes a debug file or a set of source maps once it is more than 90 days
-old and no crash has used it for 90 days. The newest upload of each binary and architecture is always kept, and so are
-the newest source maps of each app, so a build is ready before its first crash. Change the number of days in the
-project's settings, under Limits and retention. New projects start with the number set under Settings, then Projects.
+Uploaded files don't stay forever. Each project has a debug file retention, 7 days unless you change it. crashyard
+deletes a debug file or a set of source maps once it is older than that and no crash has used it for that long. The
+newest upload of each binary and architecture is always kept, and so are the newest source maps of each app, so a
+build is ready before its first crash. To change it, open Settings, then Projects, pick the project, and set Debug
+file retention in days on its Events page, under Limits and retention. New projects start with the number set under
+Settings, then Projects.
 Crashes made readable before a file is deleted stay readable.
 
 Uploads need the Workers Paid plan. Turning a debug file into a lookup table takes more CPU time than the free plan's

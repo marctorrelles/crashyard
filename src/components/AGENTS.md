@@ -164,7 +164,8 @@
   sidebar's filter is the only one), `useSettingsProject` (the project whose settings the path is), `pageOf` (a
   path's page name), `Subhead` (a heading over a few cards with an id to link to, Connect's Client keys), `Status` (a
   check's line, a tick or an amber warning, on Usage and Health), `SettingsCard`,
-  `Hint`, `LimitInputs` (a project's limits and retention as form fields, also Defaults for new projects), `useSave` (runs
+  `Hint`, `LimitInputs` (a project's limits and retention as form fields, also Defaults for new projects; an input's id is its
+  field's name, with a scroll margin so a link to it lands with its label under the top bar), `useSave` (runs
   a save, toasts Saved or the error, invalidates) and `SaveButton`.
 - `push.tsx`: `usePushDevice` (this browser's state, Turn on and off), `PushHint`, `PushControls` (also in the push
   channel's dialog on Notifications) and `Push`, Preferences' card of them with whether a route sends to the viewer's

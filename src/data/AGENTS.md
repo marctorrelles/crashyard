@@ -23,7 +23,7 @@ helpers (`change`).
   hour, 1000 a batch, then `issue_minutes` past a day, then
   `session_users_daily` past the event retention, then `session_crashes` past two days, 1000 a batch each),
   `pruneUploads` (the same cron, last: debug files and artifact bundles uploaded and last used, `last_used_at`, before
-  the project's `debug_file_retention_days`, 90 by default; never the newest build. Debug files go by upload, the rows
+  the project's `debug_file_retention_days`, 7 by default; never the newest build. Debug files go by upload, the rows
   sharing a `created_at` (one assemble; a file sent again moves into the new one, `src/api/sentry.ts`), read whole
   once a run (a row a build and file, cheaper than a correlated lookup of newer rows for each): an upload stays while
   any of its rows is recent, used, or the newest of its project, kind, name and arch (a ProGuard mapping: of any
@@ -334,8 +334,8 @@ b)` per dataset: events from `event_hours` joined to the issues their search mat
 - `settings.ts`: the deployment's settings (`getSetting` with a fallback when unset or not JSON, `setSetting` with who
   and when; `claimRun`, a cron job's run of a period taken once) and each viewer's preferences by email (`getPreferences` over `PREFERENCES`, `setPreference`, undefined
   clears to the default). `WORKERS_KEY`, `tail.workers`: the Workers sending runs to `tail()`, written by
-  `src/api/tail.ts`. `projectDefaults`: what `createProject` starts with, the columns' defaults under what
-  Settings, Projects saved.
+  `src/api/tail.ts`. `projectDefaults`: what `createProject` starts with, the columns' defaults (but 7 days of
+  debug file retention, where the column's is 0039's 90) under what Settings, Projects saved.
 - `push.ts`: push notifications' storage. `vapidKeys`, the deployment's VAPID pair, made on first use and kept in
   `settings` as `push.vapid` (an insert that does nothing when one is there, then read back, so two first calls agree;
   no secret to set); `pushDevices`, `savePushDevice` (an upsert by endpoint, so a browser saved again, or by someone

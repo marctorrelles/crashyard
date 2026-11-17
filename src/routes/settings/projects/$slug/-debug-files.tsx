@@ -1,4 +1,4 @@
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, Link } from '@tanstack/react-router'
 import { IconFileCode, IconSearch, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Ago } from '@/components/bits'
@@ -15,6 +15,26 @@ const page = getRouteApi('/settings/projects/$slug/stack-traces')
 
 const kindOf = (f: { kind: string; arch: string | null }) =>
   f.kind === 'proguard' ? 'ProGuard mapping' : `${f.kind}${f.arch ? ` ${f.arch}` : ''}`
+
+// When the uploads a card lists are deleted, and where that's set
+function Retention({ what }: { what: string }) {
+  const { project } = parent.useLoaderData()
+  const days = project.debug_file_retention_days
+  return (
+    <p className="mt-1">
+      {what} not used for {days.toLocaleString('en')} day{days === 1 ? '' : 's'} are deleted. The newest of each app is
+      kept.{' '}
+      <Link
+        to="/settings/projects/$slug/events"
+        params={{ slug: project.slug }}
+        hash="debug_file_retention_days"
+        className="font-medium text-foreground underline underline-offset-2"
+      >
+        Change retention
+      </Link>
+    </p>
+  )
+}
 
 export function DebugFiles() {
   const { project, origin, uploads } = parent.useLoaderData()
@@ -41,7 +61,15 @@ export function DebugFiles() {
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Debug files" description="dSYMs, ProGuard mappings and other symbol files, newest first.">
+      <SettingsCard
+        title="Debug files"
+        description={
+          <>
+            dSYMs, ProGuard mappings and other symbol files, newest first.
+            <Retention what="Debug files" />
+          </>
+        }
+      >
         {debugFiles.length === 0 ? (
           <Empty icon={IconFileCode} title="No debug files yet" compact>
             They appear here after the first upload from sentry-cli or a build plugin.
@@ -103,7 +131,15 @@ export function DebugFiles() {
       </SettingsCard>
 
       {uploads.bundles.length > 0 && (
-        <SettingsCard title="Source maps" description="Artifact bundles, the newest 10.">
+        <SettingsCard
+          title="Source maps"
+          description={
+            <>
+              Artifact bundles, the newest 10.
+              <Retention what="Source maps" />
+            </>
+          }
+        >
           <ul className="divide-y rounded-xl border text-sm">
             {uploads.bundles.map((b) => (
               <li key={b.checksum} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2">
