@@ -11,7 +11,13 @@ Whether a newer crashyard is out, and installing it from the dashboard. The owne
   `releases/latest/download/`: a release file,
   outside the API's 60 unsigned requests an hour per address, which Workers share. Nothing about the deployment is
   sent. `pick` takes the newest past this version, drafts and pre-releases aside: `builder` when any release up to it
-  changes the SymCache builder (so skipping one still counts), `major`, and `bundle`, its `crashyard.json.gz` with the
+  changes the SymCache builder (so skipping one still counts; to `.github/workflows/release-please.yml`, which writes
+  the note, a release changes it with anything in `symcache/` but its Markdown and the digests `symcache/Dockerfile`
+  pins its base images by, which Dependabot moves weekly: the running image keeps working, the next deploy builds on
+  the new ones. Checked 2026-11-17 with the workflow's own lines over every pair of tags, v0.1.0 to v0.4.0: 0.1.1,
+  `Cargo.lock`, noted; 0.4.0, two digest bumps and noted by the rule before, any change in `symcache/`, not; in a
+  throwaway clone a base image's tag, a `RUN` line or the Dockerfile gone noted, a digest alone not), `major`, and
+  `bundle`, its `crashyard.json.gz` with the
   SHA-256 GitHub keeps of it (`digest`), null for a release without one. `latest` gives it with `checkedAt`, from the one
   cached answer (`x-checked-at`, set only when GitHub answered; a failure is kept an hour as no update and no time, so
   it never reads as up to date); `latest(true)`, `checkForUpdate`, an owner's Check now on Settings, General, asks

@@ -27,7 +27,9 @@ Some releases can't be installed from the dashboard, and the dialog says so:
 
 - **A release that adds a binding**, such as a new database or queue. A deploy creates it.
 - **A release that changes the SymCache builder**, if you run it. The builder's image is built on deploy, so update
-  with a deploy, with Docker running. Its release notes say "This release changes the SymCache builder."
+  with a deploy, with Docker running. Its release notes say "This release changes the SymCache builder." A release
+  that only updates the builder's base images doesn't count. It installs from the dashboard, and your next deploy
+  picks up the new base images.
 
 ## Upgrade a clone
 
@@ -45,8 +47,9 @@ If crashyard installed a newer release from the dashboard, `pnpm run deploy` fro
 going back to the older version. Pull first, then deploy.
 
 If you run the SymCache builder, start Docker before you deploy. Every deploy builds its image, which takes a few
-seconds when nothing in it changed. To deploy a release that doesn't change the builder without Docker, run
-`pnpm run deploy -- --containers-rollout=none`, which leaves the builder as it is.
+seconds when nothing in it changed. It takes longer when a release updated the builder's base images. To deploy a
+release that doesn't change the builder without Docker, run `pnpm run deploy -- --containers-rollout=none`, which
+leaves the builder as it is.
 
 ## Upgrade a deployment made with the button
 
