@@ -1,13 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "src/**/*.test.ts",
-    "src/router.tsx",
-    "src/routes/**/*.{ts,tsx}",
-    "src/components/ui/*.tsx",
-    "src/start.ts"
-  ],
-  "project": ["src/**/*.{ts,tsx}"],
-  "ignoreDependencies": ["cloudflare", "tailwindcss", "tw-animate-css", "shadcn"],
+  "entry": ["src/**/*.test.ts", "src/routes/**/*.{ts,tsx}", "src/components/ui/*.tsx"],
+  "project": ["src/**/*.{ts,tsx,css}"],
   "ignoreExportsUsedInFile": true
 }
