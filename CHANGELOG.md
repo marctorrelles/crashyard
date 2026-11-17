@@ -3,6 +3,17 @@
 Every change worth knowing, newest first. Versions follow [Semantic Versioning](https://semver.org/). Release notes are
 written from the commit messages, and a release whose migration changes data says so at its top.
 
+## [0.4.0](https://github.com/marctorrelles/crashyard/compare/v0.3.2...v0.4.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* after updating, every project whose debug file retention is still 90 days moves to 7, so its debug files and source maps not used for a week are deleted within the hour. The newest of each app is kept. To keep them longer, set Debug file retention in days to another number, such as 91, before updating, or set it back to 90 right after, before the next hourly run.
+
+### Features
+
+* keep unused debug files for 7 days by default ([#40](https://github.com/marctorrelles/crashyard/issues/40)) ([61e9c89](https://github.com/marctorrelles/crashyard/commit/61e9c89f77ba8aa104def2e41467942de6076441))
+
 ## [0.3.2](https://github.com/marctorrelles/crashyard/compare/v0.3.1...v0.3.2) (2026-11-05)
 
 
