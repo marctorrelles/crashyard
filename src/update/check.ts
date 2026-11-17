@@ -12,7 +12,7 @@ const RELEASES = `https://github.com/${REPO}/releases/latest/download/${MANIFEST
 const DAY = 86_400
 const HOUR = 3_600
 
-/** What the release workflow adds to the notes of a release that changes `symcache/` (.github/workflows/release-please.yml) */
+/** What the release workflow adds to the notes of a release that changes the SymCache builder (.github/workflows/release-please.yml) */
 export const BUILDER_NOTE = 'This release changes the SymCache builder.'
 /** The build the release workflow attaches to each release, what an update installs (`install.ts`) */
 export const BUNDLE = 'crashyard.json.gz'
