@@ -137,3 +137,10 @@ is the one migrated; its `migrations_dir` is rewritten to `../../migrations` the
   a monitor's or metric alert's id). An id deleted before 0042 that none of these kept, or only a notice pruned after
   30 days, can be given once more. A worker from before inserts without an id and can reuse one, as it did; the
   trigger still moves `last` past it.
+- `0043_debug_file_retention_default.sql`: debug file retention is 7 days by default, not 90. No schema change, two
+  updates of what's stored: a project at exactly 90 moves to 7, and so does `defaults.project` in `settings` when its
+  `debug_file_retention_days` is exactly 90 (a missing row or key, or a value that isn't JSON, is left); any other
+  number stays. The column's `DEFAULT 90` stays too, as changing it means rebuilding `projects`: `createProject`
+  always writes the value, 7 from `PROJECT_DEFAULTS`, so only a row inserted by hand without one (`pnpm seed`, the
+  tests' fixtures) still gets 90. A worker from before prunes by the column as it did, so with 7 from the next
+  hour, and a rollback doesn't bring 90 back.

@@ -47,7 +47,8 @@ export async function claimRun(db: D1Database, name: string, start: number, now:
 /** Every Worker whose runs reach `tail()`, by name, with when one was last noted: `{ name: ms }` (src/api/tail.ts) */
 export const WORKERS_KEY = 'tail.workers'
 
-/** What a new project starts with: the columns' own defaults until changed on Settings, Projects */
+/** What a new project starts with: the columns' own defaults, but 7 days of unused debug files, until changed on
+ * Settings, Projects */
 export type ProjectDefaults = {
   daily_event_quota: number
   daily_log_quota: number
@@ -64,7 +65,7 @@ export const PROJECT_DEFAULTS: ProjectDefaults = {
   event_retention_days: 90,
   log_retention_days: 30,
   action_retention_days: 365,
-  debug_file_retention_days: 90,
+  debug_file_retention_days: 7, // the column's own is 90 (0039, 0043)
 }
 export const projectDefaults = async (db: D1Database) => ({
   ...PROJECT_DEFAULTS,

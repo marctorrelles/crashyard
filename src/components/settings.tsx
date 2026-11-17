@@ -282,6 +282,8 @@ export function LimitInputs({ values }: { values: Record<(typeof LIMIT_FIELDS)[n
         max={f.max}
         inputMode="numeric"
         defaultValue={values[f.name]}
+        // A link to a field (`#debug_file_retention_days`) lands with its label clear of the top bar
+        className="scroll-mt-24"
       />
       {'hint' in f && <Hint>{f.hint}</Hint>}
     </div>

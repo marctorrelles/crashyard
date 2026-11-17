@@ -1,8 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { memoryR2, sqliteD1 } from '../../test/fakes'
 import { pruneLogs } from './logs'
 import { markUsed } from '../symbols/symbolicate'
-import { deleteProject, pruneEvents, pruneUploads } from './projects'
+import { createProject, deleteProject, pruneEvents, pruneUploads } from './projects'
 
 const DAY = 864e5
 const NOW = Date.UTC(2026, 9, 26, 12)
@@ -107,7 +108,7 @@ describe('deleting a project', () => {
 })
 
 describe('debug file retention', () => {
-  const old = NOW - 100 * DAY // past the default 90 days
+  const old = NOW - 100 * DAY // past the 90 days of a project inserted without a retention, the column's own
   const debugFile = (
     id: number,
     debugId: string,
@@ -170,6 +171,47 @@ describe('debug file retention', () => {
       ].sort(),
     )
     expect(await pruneUploads(db, files, NOW)).toEqual({ debugFiles: 0, bundles: 0 })
+  })
+
+  it('gives a new project 7 days: an upload unused for 8 goes, one used 6 days ago and the newest stay', async () => {
+    const db = sqliteD1()
+    const files = memoryR2()
+    const project = (await createProject(db, 'App', 0)).id
+    db.sqlite.exec(`
+      ${debugFile(1, 'a', 'c1', NOW - 30 * DAY, { project, used: NOW - 6 * DAY })}
+      ${debugFile(2, 'b', 'c2', NOW - 8 * DAY - 1, { project })}
+      ${debugFile(3, 'c', 'c3', NOW - 8 * DAY, { project })}
+    `)
+    expect(await pruneUploads(db, files, NOW)).toEqual({ debugFiles: 1, bundles: 0 })
+    expect(ids(db, 'debug_files')).toEqual([1, 3])
+  })
+
+  it('0043 moves a project and the saved defaults still at 90 days to 7, and leaves another number', () => {
+    const db = sqliteD1()
+    const migration = readFileSync(
+      new URL('../../migrations/0043_debug_file_retention_default.sql', import.meta.url),
+      'utf8',
+    )
+    const saved = () =>
+      (db.sqlite.prepare("SELECT value FROM settings WHERE key = 'defaults.project'").get() as { value: string }).value
+    db.sqlite.exec(`
+      INSERT INTO projects (id, slug, name, public_key, created_at, debug_file_retention_days)
+        VALUES (1, 'a', 'a', 'k', 0, 90), (2, 'b', 'b', 'k2', 0, 30);
+      INSERT INTO settings (key, value)
+        VALUES ('defaults.project', '{"event_retention_days":90,"debug_file_retention_days":90}');
+    `)
+    db.sqlite.exec(migration)
+    expect(db.sqlite.prepare('SELECT debug_file_retention_days AS days FROM projects ORDER BY id').all()).toEqual([
+      { days: 7 },
+      { days: 30 },
+    ])
+    expect(JSON.parse(saved())).toEqual({ event_retention_days: 90, debug_file_retention_days: 7 })
+    // Defaults saved with another number, without the key, or not JSON at all: as they were
+    for (const value of ['{"debug_file_retention_days":30}', '{"event_retention_days":90}', 'not json']) {
+      db.sqlite.prepare("UPDATE settings SET value = ? WHERE key = 'defaults.project'").run(value)
+      db.sqlite.exec(migration)
+      expect(saved()).toBe(value)
+    }
   })
 
   it('keeps a build while any part of it is current or used', async () => {

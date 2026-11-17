@@ -145,7 +145,8 @@ server, the build, or `tsr generate`): never edit it.
   shown once), `usage` (`getUsage` and `getHealth`: 30 UTC days of events with rate-limited, filtered and failed,
   logs and transactions, each a chart and totals, `?project=`; the Cloudflare plan, `CloudflarePlan` with `usePlan`:
   Workers Paid or Free, when checked, Check again, and what needs Paid, `PAID_FEATURES`; the database against 10 GB,
-  warning from 80%; stored files) and `health` (`getHealth`, each line a `Status`: the cron, late after 3 minutes; failed notifications, each by its kind's label from `KINDS`, "Metric alert" for any
+  warning from 80%; stored files, with when each kind is deleted and Change retention, to the `?project=`'s Events
+  at the field, else to Projects) and `health` (`getHealth`, each line a `Status`: the cron, late after 3 minutes; failed notifications, each by its kind's label from `KINDS`, "Metric alert" for any
   metric kind; envelopes pending and failed; the pruning backlog). The email sender is on Notifications, in an email
   channel's form. `projects/index.tsx`, Projects: every project and its slug, each opening its General;
   New project in the header; then Defaults for new projects, their limits and retention, `defaults.project`
@@ -159,7 +160,8 @@ server, the build, or `tsr generate`): never edit it.
   turning a key off, then Create key), `stack-traces` (`-source` the repository and how to send commits; then
   `-debug-files`, from the page's own loader, `getProjectPage`: `NeedsPaid`, how to upload, `UploadSteps`, the newest
   500 debug files, searched in the page by name or debug ID, each with Delete after a confirmation naming it, and the
-  newest 10 source map bundles), `events` (`-limits` daily event, log and transaction limits, event, log and
+  newest 10 source map bundles; both cards say after how many days unused theirs are deleted, the project's
+  `debug_file_retention_days`, with Change retention, to Events at the field, `#debug_file_retention_days`), `events` (`-limits` daily event, log and transaction limits, event, log and
   action retention; then `-filters`, a switch per inbound filter with what it catches, text areas of error message globs,
   release globs and allowed domains, one a line, and what was filtered in 30 days, `getProjectSettings`' `filtered`,
   saved as `filters` through `updateProject`, which keeps the switches that are on and the lists' lines, 100 of 200

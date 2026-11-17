@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { count } from '@/components/bits'
 import { TimeChart } from '@/components/charts'
@@ -161,6 +161,8 @@ function CloudflarePlan() {
 // How full the database is, and what the stored files take
 function Storage() {
   const h = Route.useLoaderData().health
+  const { project } = Route.useSearch()
+  const link = 'font-medium text-foreground underline underline-offset-2'
   const share = h.database.bytes === null ? null : h.database.bytes / h.database.limit
   return (
     <>
@@ -203,6 +205,24 @@ function Storage() {
             </div>
           ))}
         </dl>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Debug files and source maps are deleted once they go unused for their project’s debug file retention. The
+          newest of each app is kept. Attachments are deleted after their project’s event retention.{' '}
+          {project ? (
+            <Link
+              to="/settings/projects/$slug/events"
+              params={{ slug: project }}
+              hash="debug_file_retention_days"
+              className={link}
+            >
+              Change retention
+            </Link>
+          ) : (
+            <Link to="/settings/projects" className={link}>
+              Change retention
+            </Link>
+          )}
+        </p>
       </SettingsCard>
     </>
   )
