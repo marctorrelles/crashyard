@@ -264,16 +264,19 @@ export async function recordCheckIn(
   const duration = typeof payload.duration === 'number' ? Math.round(payload.duration * 1000) : null
   const traceId = payload.contexts?.trace?.trace_id
   const environment = payload.environment ?? null
-  const statements = [
-    env.DB.prepare(
-      `INSERT INTO check_ins (id, monitor_id, status, started, finished, duration, release, environment, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  // An in_progress that comes after its run finished (an SDK sends both of a quick job's check-ins together, and the
+  // result can be stored first) changes nothing: the row isn't written, and so nothing else is either
+  const written = await env.DB.prepare(
+    `INSERT INTO check_ins (id, monitor_id, status, started, finished, duration, release, environment, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET status = excluded.status, finished = excluded.finished,
        duration = COALESCE(excluded.duration, excluded.finished - check_ins.started),
        release = COALESCE(check_ins.release, excluded.release),
        environment = COALESCE(check_ins.environment, excluded.environment),
        trace_id = COALESCE(check_ins.trace_id, excluded.trace_id)
-     WHERE check_ins.monitor_id = excluded.monitor_id`,
-    ).bind(
+     WHERE check_ins.monitor_id = excluded.monitor_id AND (excluded.status != 'in_progress' OR check_ins.status = 'in_progress')
+     RETURNING id`,
+  )
+    .bind(
       id,
       monitor.id,
       status,
@@ -283,14 +286,16 @@ export async function recordCheckIn(
       payload.release ?? null,
       environment,
       typeof traceId === 'string' && /^[0-9a-f]{32}$/.test(traceId) ? traceId : null,
-    ),
-    // Its state in the environment it came from: a check-in is the latest word there
-    env.DB.prepare(
-      `INSERT INTO monitor_environments (monitor_id, environment, status, last_check_in) VALUES (?, ?, ?, ?)
-       ON CONFLICT DO UPDATE SET status = excluded.status, last_check_in = excluded.last_check_in`,
-    ).bind(monitor.id, (environment ?? monitor.environment).slice(0, 64), status === 'error' ? 'failing' : status, now),
-  ]
-  await env.DB.batch(statements)
+    )
+    .first<{ id: string }>()
+  if (!written && status === 'in_progress') return undefined
+  // Its state in the environment it came from: a check-in is the latest word there
+  await env.DB.prepare(
+    `INSERT INTO monitor_environments (monitor_id, environment, status, last_check_in) VALUES (?, ?, ?, ?)
+     ON CONFLICT DO UPDATE SET status = excluded.status, last_check_in = excluded.last_check_in`,
+  )
+    .bind(monitor.id, (environment ?? monitor.environment).slice(0, 64), status === 'error' ? 'failing' : status, now)
+    .run()
   const nextDue = dueAfter(cron, now)
   if (status === 'in_progress') {
     await env.DB.prepare('UPDATE monitors SET next_due = ?, last_seen = ? WHERE id = ?')

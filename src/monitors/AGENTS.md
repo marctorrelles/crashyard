@@ -10,7 +10,11 @@ Cron monitors (jobs that check in, Sentry's way) and uptime checks (URLs the wor
     up to `MAX_CRON_MONITORS` (200) a project, never over an uptime check of the same slug (its upsert updates only a
     cron row, so a DSN can't fake an outage on a status page); a check-in id another monitor already has is left as
     it is.
-    `in_progress` only moves when the next one is due; `ok` and `error` are results. A check-in without an id, or
+    `in_progress` only moves when the next one is due; `ok` and `error` are results. An `in_progress` never reopens a
+    run that has finished (`ok`, `error`, `timeout` or `missed`): when both check-ins are sent together, or their
+    envelopes are processed at once, the result can be stored first. The upsert leaves such a row
+    as it is, and the check-in then changes nothing else: not the environment's status, not the monitor's next
+    due time. A check-in without an id, or
     Relay's nil id (an HTTP one that named none), finishes the monitor's latest run in progress, as Sentry pairs
     them, else it's its own with the caller's `fallbackId`; finishing a run fills its release and environment when it
     had none. The run it finishes is the latest in progress started by `now`, or one with `finished = now`: a retry
