@@ -3,6 +3,13 @@
 Every change worth knowing, newest first. Versions follow [Semantic Versioning](https://semver.org/). Release notes are
 written from the commit messages, and a release whose migration changes data says so at its top.
 
+## [0.4.1](https://github.com/marctorrelles/crashyard/compare/v0.4.0...v0.4.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **monitors:** a late in_progress check-in no longer reopens a finished run ([#46](https://github.com/marctorrelles/crashyard/issues/46)) ([6bd6330](https://github.com/marctorrelles/crashyard/commit/6bd6330d0c19b1100c4941917b8ccb736b77881b))
+
 ## [0.4.0](https://github.com/marctorrelles/crashyard/compare/v0.3.2...v0.4.0) (2026-11-17)
 
 
