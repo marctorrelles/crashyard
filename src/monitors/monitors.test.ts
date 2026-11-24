@@ -175,6 +175,40 @@ describe('cron monitors', () => {
     expect(count()).toEqual({ n: 2 })
   })
 
+  it('finishes a run in progress, and ignores an in_progress that arrives after the run finished', async () => {
+    const db = seeded()
+    const env = { DB: db }
+    const run = (id: string) =>
+      db.sqlite.prepare('SELECT status, started, finished FROM check_ins WHERE id = ?').get(id)
+    const monitor = () => db.sqlite.prepare('SELECT status, next_due, last_seen FROM monitors').get()
+    // In order: in_progress, then ok
+    const first = 'e'.repeat(32)
+    const slug = { monitor_slug: 'job', monitor_config: config, check_in_id: first }
+    await recordCheckIn(env, 1, { ...slug, status: 'in_progress' }, NOW)
+    expect(run(first)).toEqual({ status: 'in_progress', started: NOW, finished: null })
+    await recordCheckIn(env, 1, { ...slug, status: 'ok' }, NOW + 1000)
+    expect(run(first)).toEqual({ status: 'ok', started: NOW, finished: NOW + 1000 })
+    // A job that ends at once: an SDK sends both check-ins together, and the ok can be stored first
+    const quick = 'f'.repeat(32)
+    await recordCheckIn(env, 1, { ...slug, check_in_id: quick, status: 'ok' }, NOW + 2000)
+    const before = monitor()
+    const late = await recordCheckIn(env, 1, { ...slug, check_in_id: quick, status: 'in_progress' }, NOW + 2000)
+    expect(late).toBeUndefined()
+    expect(run(quick)).toEqual({ status: 'ok', started: NOW + 2000, finished: NOW + 2000 })
+    expect(monitor()).toEqual(before)
+    expect(before).toMatchObject({ status: 'ok' })
+    expect(db.sqlite.prepare('SELECT status FROM monitor_environments').get()).toEqual({ status: 'ok' })
+    // The same after an error: the run stays failed, and the cron has no run to time out
+    const failed = 'a1'.repeat(16)
+    await recordCheckIn(env, 1, { ...slug, check_in_id: failed, status: 'error' }, NOW + 3000)
+    await recordCheckIn(env, 1, { ...slug, check_in_id: failed, status: 'in_progress' }, NOW + 3000)
+    expect(run(failed)).toEqual({ status: 'error', started: NOW + 3000, finished: NOW + 3000 })
+    expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM check_ins WHERE status = 'in_progress'").get()).toEqual({
+      n: 0,
+    })
+    expect(db.sqlite.prepare('SELECT status FROM monitor_environments').get()).toEqual({ status: 'failing' })
+  })
+
   it('never touches an uptime check with the same slug, nor another monitor’s run', async () => {
     const db = seeded()
     const env = { DB: db }
